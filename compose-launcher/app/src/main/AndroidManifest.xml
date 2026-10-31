@@ -74,7 +74,7 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
-        <provider android:name="com.dsmod.probe.XposedActivationProvider" android:authorities="com.dsmod.probe.XposedService" android:exported="true" android:grantUriPermissions="false" />
+        <provider android:name="com.dsmod.probe.XposedActivationProvider" android:authorities="ds.dsh.DeepSeek.XposedService" android:exported="true" android:grantUriPermissions="false" />
         <receiver android:name="com.dsmod.probe.XposedActivationReceiver" android:enabled="true" android:exported="true" />
         <receiver android:name="com.dsmod.probe.ProactiveHeartbeatReceiver" android:enabled="true" android:exported="true">
             <intent-filter>
