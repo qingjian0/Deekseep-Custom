@@ -26,7 +26,7 @@ main  <--- approved release PR ---  dev
                            dedicated work branch
 ```
 
-Create work branches from the latest `dev`. Keep each PR limited to one primary objective. A change that depends on another unmerged PR must declare that dependency and must not be merged out of order.
+Create independent work branches from the latest `dev`. Keep each PR limited to one primary objective. A genuinely dependent/stacked PR may branch from its prerequisite feature branch to avoid merge conflicts; it must declare the dependency, merge only after the prerequisite, and be retargeted/updated to `dev` once the prerequisite has merged.
 
 ## 2. Required development sequence
 
