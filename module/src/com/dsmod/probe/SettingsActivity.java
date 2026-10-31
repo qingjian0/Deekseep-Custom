@@ -395,6 +395,14 @@ public class SettingsActivity extends Activity {
                         + (error.length() == 0 ? "" : " · " + error);
                 mark = "!";
                 break;
+            case HOOKS_PARTIAL:
+                title = UiLanguage.text(this, "部分 Hook 安装失败", "Some hooks failed to install");
+                String partialError = XposedActivationProvider.hookError(this);
+                detail = apiDisplayName() + " · registered=" + registered
+                        + " · failures=" + failures
+                        + (partialError.length() == 0 ? "" : " · " + partialError);
+                mark = "!";
+                break;
             case HOOKS_INSTALLING:
                 title = UiLanguage.text(this, "正在安装 Hook", "Installing hooks");
                 detail = apiDisplayName() + " · registered=" + registered;
