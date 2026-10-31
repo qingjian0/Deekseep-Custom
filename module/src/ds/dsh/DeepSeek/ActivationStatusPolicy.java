@@ -1,21 +1,30 @@
 package ds.dsh.DeepSeek;
 
 /**
- * Classifies activation evidence without confusing framework connectivity with target injection.
+ * Classifies target-process injection using a short-lived heartbeat.
  *
- * <p>A persisted target heartbeat is historical proof that the target process loaded the module.
- * It is deliberately not called "currently active": process liveness is not tracked.</p>
+ * <p>A heartbeat is evidence that the target process is currently running with the module
+ * injected only while it is fresh. Older heartbeats are historical evidence and must never be
+ * presented as an active module state.</p>
  */
 final class ActivationStatusPolicy {
+    static final long HEARTBEAT_FRESH_MS = 90_000L;
+
     enum State {
         WAITING_FOR_TARGET,
-        TARGET_SEEN
+        CURRENTLY_INJECTED,
+        STALE
     }
 
     private ActivationStatusPolicy() {}
 
-    static State classify(long targetHeartbeatAt, boolean frameworkConnected) {
-        // Framework connectivity is useful diagnostic context, but cannot prove target scope.
-        return targetHeartbeatAt > 0L ? State.TARGET_SEEN : State.WAITING_FOR_TARGET;
+    static State classify(long targetHeartbeatAt, long now) {
+        if (targetHeartbeatAt <= 0L || targetHeartbeatAt > now) {
+            return State.WAITING_FOR_TARGET;
+        }
+        long age = now - targetHeartbeatAt;
+        return age <= HEARTBEAT_FRESH_MS
+                ? State.CURRENTLY_INJECTED
+                : State.STALE;
     }
 }
