@@ -1,5 +1,8 @@
 # 参与贡献
 
+> **强制规则：** 所有 AI Agent、编码助手、自动化代理、维护者和人工开发者，在开始任何仓库工作前，必须阅读根目录 [AGENTS.md](AGENTS.md)，并遵循 [开发与发布流程](docs/DEVELOPMENT_AND_RELEASE_WORKFLOW.md)。所有 PR 必须使用仓库 PR 模板。
+
+
 欢迎提交 Issue 和 Pull Request。本仓库是 Deekseep 的 **DeepSeek 2.7.1 移植二创版**，由张云安（ZW-SYS）维护；原项目见 [lllucccian/Deekseep](https://github.com/lllucccian/Deekseep)，原作者的贡献指南存档于 [docs/upstream/CONTRIBUTING_upstream.md](docs/upstream/CONTRIBUTING_upstream.md)。
 
 > 涉及原版（2.2.x–2.4.1）逻辑本身的问题，建议同时反馈给原作者。
