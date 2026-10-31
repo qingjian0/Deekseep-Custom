@@ -487,6 +487,28 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     private static volatile long activationHeartbeatAttemptAt = 0L;
 
     private static volatile boolean activationHeartbeatLogged = false;
+    private static final AtomicBoolean ACTIVATION_HEARTBEAT_LOOP_STARTED =
+            new AtomicBoolean(false);
+    private static final AtomicBoolean DEFERRED_BOOTSTRAP_PENDING =
+            new AtomicBoolean(false);
+    private static volatile String activationHookStage = "target_injected";
+    private static volatile String activationHookError = "";
+    private static final Runnable ACTIVATION_HEARTBEAT_LOOP = new Runnable() {
+        @Override public void run() {
+            Context context = hostApplicationContext;
+            if (context != null) {
+                reportActivationHeartbeat(context);
+                reportHookStatus(context, activationHookStage, activationHookError);
+            }
+            Main module = MODULE;
+            Handler handler = module == null ? null : module.main;
+            if (handler != null) {
+                handler.postDelayed(this, 60_000L);
+            } else {
+                ACTIVATION_HEARTBEAT_LOOP_STARTED.set(false);
+            }
+        }
+    };
 
     private static volatile boolean proactiveHeartbeatConfigSynced = false;
 
@@ -1099,6 +1121,37 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         }
     }
 
+    /**
+     * Traditional Xposed can deliver the package callback before the target main Looper is
+     * available. Do not mark the PID as injected or return permanently in that case: defer the
+     * real bootstrap until Application.attach has completed, then re-enter the same callback.
+     */
+    private void deferBootstrapUntilApplicationAttach(final LoadPackageParam param) {
+        if (!DEFERRED_BOOTSTRAP_PENDING.compareAndSet(false, true)) return;
+        try {
+            Method attach = Application.class.getDeclaredMethod("attach", Context.class);
+            hook(attach).intercept(new Hooker() {
+                @Override public Object intercept(Chain chain) throws Throwable {
+                    Object result = chain.proceed();
+                    if (DEFERRED_BOOTSTRAP_PENDING.compareAndSet(true, false)) {
+                        Object application = chain.getThisObject();
+                        if (application instanceof Context) {
+                            hostApplicationContext = (Context) application;
+                        }
+                        log("deferred bootstrap resumed after Application.attach");
+                        handleLoadPackage(param);
+                    }
+                    return result;
+                }
+            });
+            log("main Looper unavailable; deferred bootstrap to Application.attach");
+        } catch (Throwable error) {
+            DEFERRED_BOOTSTRAP_PENDING.set(false);
+            log("unable to install deferred Application.attach bootstrap: "
+                    + safeThrowableMessage(error));
+        }
+    }
+
     @Override
     public void handleLoadPackage(LoadPackageParam param) {
         MODULE = this;
@@ -1115,6 +1168,13 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             log("handleLoadPackage: Deekseep already loaded in pid " + currentPid + ", skipping duplicate injection");
             return;
         }
+        Looper mainLooper = Looper.getMainLooper();
+        if (mainLooper == null) {
+            log("target package callback arrived before the main Looper was prepared; deferring");
+            deferBootstrapUntilApplicationAttach(param);
+            return;
+        }
+        // Only set the duplicate-injection guard after the bootstrap prerequisites are present.
         System.setProperty("deekseep.module.injected.pid", currentPid);
         // Loader/embedding/anti-tamper admission is a Closed-edition feature.  Open builds must
         // remain usable with ordinary Xposed/compatible loaders and must not perform anti-root or
@@ -1155,11 +1215,6 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             installRetiredHostNotice(unsupported);
             log("host symbol table is not maintained; feature bootstrap suppressed version="
                     + unsupported + ", detected=" + HostCompat.generationName());
-            return;
-        }
-        Looper mainLooper = Looper.getMainLooper();
-        if (mainLooper == null) {
-            log("target package callback arrived before the main Looper was prepared");
             return;
         }
         main = new Handler(mainLooper);
@@ -1562,10 +1617,22 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         if (cl == null) cl = hostClassLoader;
         if (cl == null) return;
         if (!FEATURE_HOOKS_INSTALLED.compareAndSet(false, true)) return;
+        activationHookStage = "hooks_installing";
+        activationHookError = "";
+        reportHookStatus(hostApplicationContext, activationHookStage, "");
         if (HostCompat.isV271Limited()) {
             // 2.7.1/code287: only the re-verified whitelist is installed. See HostV271.
             log("installAllFeatureHooks: 2.7.1 whitelist");
-            HostV271.installFeatureHooks(cl);
+            try {
+                HostV271.installFeatureHooks(cl);
+                activationHookStage = "hooks_installed";
+                reportHookStatus(hostApplicationContext, activationHookStage, "");
+            } catch (Throwable error) {
+                activationHookStage = "hooks_failed";
+                activationHookError = safeThrowableMessage(error);
+                reportHookStatus(hostApplicationContext, activationHookStage, activationHookError);
+                log("2.7.1 feature hook installation failed: " + activationHookError);
+            }
             return;
         }
         log("installAllFeatureHooks: installing all feature hooks (authorized)");
@@ -1731,8 +1798,14 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             if (!HostCompat.isV271()) try { HookSessionManagement.INSTANCE.hookSidebarToggleCleanup(cl); } catch (Throwable t) { log("hookSidebarToggleCleanup wiring failed: " + t); }
 
             hookSettingsComposable(cl);
+            activationHookStage = "hooks_installed";
+            activationHookError = "";
+            reportHookStatus(hostApplicationContext, activationHookStage, "");
         } catch (Throwable error) {
-            log("installAllFeatureHooks failed: " + safeThrowableMessage(error));
+            activationHookStage = "hooks_failed";
+            activationHookError = safeThrowableMessage(error);
+            reportHookStatus(hostApplicationContext, activationHookStage, activationHookError);
+            log("installAllFeatureHooks failed: " + activationHookError);
         }
     }
 
@@ -1880,6 +1953,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 log("UI language " + languageState);
             }
             reportActivationHeartbeat(act);
+            startActivationHeartbeatLoop(act.getApplicationContext());
             ModuleUpdateChecker.checkOnStartup(act);
             if (!proactiveHeartbeatConfigSynced) {
                 proactiveHeartbeatConfigSynced = true;
@@ -6770,7 +6844,37 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
      * the Binder caller UID against com.deepseek.chat before persisting this heartbeat, so an
      * arbitrary app cannot make the launcher claim that the DeepSeek scope is active.
      */
-    private static void reportActivationHeartbeat(Activity act) {
+    private void startActivationHeartbeatLoop(Context context) {
+        if (context != null) hostApplicationContext = context.getApplicationContext();
+        Handler handler = main;
+        if (handler != null
+                && ACTIVATION_HEARTBEAT_LOOP_STARTED.compareAndSet(false, true)) {
+            handler.postDelayed(ACTIVATION_HEARTBEAT_LOOP, 60_000L);
+        }
+    }
+
+    private static void reportHookStatus(Context context, String stage, String error) {
+        if (!BuildInfo.PROTECTED_BUILD || context == null || stage == null) return;
+        Main module = MODULE;
+        Bundle extras = new Bundle();
+        extras.putString("stage", stage);
+        extras.putInt("registered", module == null ? 0 : module.registeredHookCount());
+        extras.putLong("hits", module == null ? 0L : module.hookInvocationCount());
+        extras.putInt("failures", module == null ? 0 : module.hookRegistrationFailureCount());
+        extras.putString("error", error == null ? "" : error);
+        try {
+            Bundle reply = context.getContentResolver().call(
+                    Uri.parse("content://" + XposedActivationProvider.AUTHORITY),
+                    XposedActivationProvider.METHOD_REPORT_HOOK_STATUS, null, extras);
+            if (reply == null || !reply.getBoolean("accepted", false)) {
+                log("hook status report was not accepted stage=" + stage);
+            }
+        } catch (Throwable reportError) {
+            log("hook status report unavailable: " + safeThrowableMessage(reportError));
+        }
+    }
+
+    private static void reportActivationHeartbeat(Context act) {
         if (!BuildInfo.PROTECTED_BUILD || act == null) return;
         long now = System.currentTimeMillis();
         if (now - activationHeartbeatAttemptAt < 60_000L) return;
