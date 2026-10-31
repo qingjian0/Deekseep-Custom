@@ -488,16 +488,37 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     private static volatile Context activationHeartbeatAppContext;
     // One immediate report at injection/startup, then a low-frequency renewal every 10 minutes.
     private static final long ACTIVATION_HEARTBEAT_INTERVAL_MS = 10L * 60L * 1000L;
-    private static final Handler ACTIVATION_HEARTBEAT_HANDLER =
-            new Handler(Looper.getMainLooper());
+    // Do not construct a Handler during Xposed entry-class initialization. Traditional
+    // Xposed can load Main while the target process is still being specialized and before the
+    // main Looper exists; eager construction here would throw and prevent every hook from loading.
+    private static volatile Handler ACTIVATION_HEARTBEAT_HANDLER;
+    private static Handler activationHeartbeatHandler() {
+        Handler handler = ACTIVATION_HEARTBEAT_HANDLER;
+        if (handler != null) return handler;
+        Looper looper = Looper.getMainLooper();
+        if (looper == null) return null;
+        synchronized (Main.class) {
+            handler = ACTIVATION_HEARTBEAT_HANDLER;
+            if (handler == null) {
+                handler = new Handler(looper);
+                ACTIVATION_HEARTBEAT_HANDLER = handler;
+            }
+        }
+        return handler;
+    }
+
     private static final AtomicBoolean ACTIVATION_HEARTBEAT_LOOP_STARTED =
             new AtomicBoolean(false);
     private static final Runnable ACTIVATION_HEARTBEAT_LOOP = new Runnable() {
         @Override public void run() {
             Context app = activationHeartbeatAppContext;
             if (app != null) reportActivationHeartbeat(app);
-            ACTIVATION_HEARTBEAT_HANDLER.postDelayed(
-                    this, ACTIVATION_HEARTBEAT_INTERVAL_MS);
+            Handler handler = activationHeartbeatHandler();
+            if (handler != null) {
+                handler.postDelayed(this, ACTIVATION_HEARTBEAT_INTERVAL_MS);
+            } else {
+                ACTIVATION_HEARTBEAT_LOOP_STARTED.set(false);
+            }
         }
     };
 
@@ -6794,9 +6815,13 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         final Context app = context.getApplicationContext() == null
                 ? context : context.getApplicationContext();
         activationHeartbeatAppContext = app;
-        if (ACTIVATION_HEARTBEAT_LOOP_STARTED.compareAndSet(false, true)) {
-            ACTIVATION_HEARTBEAT_HANDLER.postDelayed(
-                    ACTIVATION_HEARTBEAT_LOOP, ACTIVATION_HEARTBEAT_INTERVAL_MS);
+        Handler heartbeatHandler = activationHeartbeatHandler();
+        if (heartbeatHandler != null
+                && ACTIVATION_HEARTBEAT_LOOP_STARTED.compareAndSet(false, true)) {
+            if (!heartbeatHandler.postDelayed(
+                    ACTIVATION_HEARTBEAT_LOOP, ACTIVATION_HEARTBEAT_INTERVAL_MS)) {
+                ACTIVATION_HEARTBEAT_LOOP_STARTED.set(false);
+            }
         }
 
         long now = System.currentTimeMillis();
