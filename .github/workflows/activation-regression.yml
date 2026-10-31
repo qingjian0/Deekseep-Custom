@@ -66,8 +66,8 @@ jobs:
           APK="compose-launcher/app/build/outputs/apk/release/app-release.apk"
           test -s "$APK"
           unzip -t "$APK" >/dev/null
-          "$ANDROID_SDK_ROOT/build-tools/36.0.0/aapt" dump badging "$APK" | grep -F "package: name='ds.dsh.DeepSeek'"
-          test "$(unzip -p "$APK" assets/xposed_init)" = "ds.dsh.DeepSeek.Main"
+          "$ANDROID_SDK_ROOT/build-tools/36.0.0/aapt" dump badging "$APK" | grep -F "package: name='com.dsmod.probe'"
+          test "$(unzip -p "$APK" assets/xposed_init)" = "com.dsmod.probe.Main"
       - uses: actions/upload-artifact@v4
         with:
           name: YunSeek-open-validation-apk
