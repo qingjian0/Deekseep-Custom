@@ -24,6 +24,9 @@ public final class ActivationStatusPolicyRegressionTest {
         expect(ActivationStatusPolicy.State.HOOKS_FAILED,
                 ActivationStatusPolicy.classify(true, 0L, true, "hooks_failed", true),
                 "hook failure takes precedence over framework connection");
+        expect(ActivationStatusPolicy.State.HOOKS_PARTIAL,
+                ActivationStatusPolicy.classify(true, 0L, true, "hooks_partial", false),
+                "partial feature failures remain visible");
         expect(ActivationStatusPolicy.State.HOOKS_INSTALLING,
                 ActivationStatusPolicy.classify(true, 0L, true, "hooks_installing", false),
                 "installation in progress");
