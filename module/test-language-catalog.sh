@@ -37,9 +37,10 @@ def joined_literals(source):
     return "".join(decode_java(value) for value in string_literal.findall(source))
 
 
-def catalog_entries(source):
+def catalog_entries(source, method):
     entries = []
-    for match in re.finditer(r'\badd\s*\(', source):
+    pattern = r'\b' + re.escape(method) + r'\s*\('
+    for match in re.finditer(pattern, source):
         cursor = match.end()
         depth = 1
         in_string = False
@@ -73,14 +74,16 @@ def catalog_entries(source):
     return sorted(entries, key=lambda pair: len(pair[0]), reverse=True)
 
 
-entries = catalog_entries(catalog_source)
+fragment_entries = catalog_entries(catalog_source, "add")
+exact_entries = catalog_entries(catalog_source, "addExact")
+entries = fragment_entries + exact_entries
 exact = dict(entries)
 
 
 def translate(value):
     if value in exact:
         return exact[value]
-    for chinese, english in entries:
+    for chinese, english in fragment_entries:
         if chinese in value:
             value = value.replace(chinese, english)
     return value
