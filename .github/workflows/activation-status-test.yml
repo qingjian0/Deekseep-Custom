@@ -6,6 +6,7 @@ on:
       - refactor/full-package-ds-dsh-deepseek
     paths:
       - module/src/ds/dsh/DeepSeek/ActivationStatusPolicy.java
+      - module/src/ds/dsh/DeepSeek/Main.java
       - module/tests/ds/dsh/DeepSeek/ActivationStatusPolicyRegressionTest.java
       - module/test-activation-status.sh
       - .github/workflows/activation-status-test.yml
