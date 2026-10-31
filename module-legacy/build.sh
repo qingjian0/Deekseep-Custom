@@ -39,7 +39,8 @@ public final class BuildInfo {
     public static final String SHI_CORE_SHA256 = "";
     private BuildInfo() {}
 }
-EOFcp ../module/src/com/dsmod/probe/Main.java \
+EOF
+cp ../module/src/com/dsmod/probe/Main.java \
   "$OUT/generated-src/com/dsmod/probe/Main.java"
 
 find ../module/src/com/dsmod/probe -maxdepth 1 -name '*.java' \
