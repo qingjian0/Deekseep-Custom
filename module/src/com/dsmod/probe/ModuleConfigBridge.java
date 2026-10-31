@@ -9,6 +9,8 @@ import android.os.Bundle;
 import android.os.ResultReceiver;
 import android.util.Base64;
 
+import androidx.core.content.ContextCompat;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -128,11 +130,10 @@ final class ModuleConfigBridge {
                 }
             };
             IntentFilter filter = new IntentFilter(ACTION);
-            if (Build.VERSION.SDK_INT >= 33) {
-                app.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED);
-            } else {
-                app.registerReceiver(receiver, filter);
-            }
+            // The request originates in the separately installed host app, so this receiver
+            // must be exported; the bridge still authenticates the shared transfer token.
+            ContextCompat.registerReceiver(
+                    app, receiver, filter, ContextCompat.RECEIVER_EXPORTED);
             installed = true;
         }
     }
