@@ -12,6 +12,8 @@
 - Namespace migration tooling and activation evidence regression coverage.
 - Local OpenAI-compatible API architecture research with source references.
 - Development, pull-request, versioning and release-gate policy.
+- CI now emits arm64-v8a and x86_64 APK splits plus a universal APK containing both ABIs; each artifact is independently checked for ABI contents, alignment, signature and SHA-256.
+- Skip redundant Android SDK package installation when the required platform/build-tools are already present; enable Gradle parallel execution and writable build caching for faster repeat builds.
 
 ### Validation pending
 - Run the isolated activation-policy regression harness (six cases passed); run the repository test script and broader regression suite.

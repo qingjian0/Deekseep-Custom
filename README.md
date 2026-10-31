@@ -9,7 +9,7 @@
 | 版本 | **1.8.1**（versionCode **37**） |
 | 包名 | `ds.dsh.DeepSeek`（与 Deekseep 相同，可覆盖升级） |
 | 支持宿主 | 国内版 DeepSeek **2.7.1**（code 287）、国内版 **2.7.2**（code 289）、国际/Google Play 版 **2.7.2**（code 290） |
-| 发布形式 | 未签名 + zipalign APK，使用者自行签名 |
+| 发布形式 | CI 正式构建：ARM64、x86_64 独立签名 APK + 双 ABI 通用签名 APK；本地脚本仍输出未签名 APK |
 | 许可证 | GPL-3.0 |
 
 > **重要：装过原作者签名版（Deekseep 1.7.x 或 Nexus）的，请先卸载再装本模块**，签名不同无法覆盖安装。
@@ -138,8 +138,12 @@
 bash scripts/build-all.sh
 ```
 
-- 输出：`out/YunSeek-1.8.1-unsigned-aligned.apk` 和 `out/SHA256.txt`
-- 脚本结束时会用 `apksigner` 确认 APK **不带任何签名**（包括 debug 签名）。
+- 本地脚本输出：`out/YunSeek-1.8.1-unsigned-aligned.apk` 和 `out/SHA256.txt`；脚本会确认 APK **不带任何签名**（包括 debug 签名）。
+- GitHub Actions 正式构建会另外生成三个已签名 APK：
+  - `YunSeek-1.8.1-arm64-v8a.apk`（ARM64 手机 / 平板）
+  - `YunSeek-1.8.1-x86_64.apk`（x86-64 Android 设备 / 模拟器）
+  - `YunSeek-1.8.1-arm64-v8a+x86_64.apk`（同时包含上述两种 ABI 的通用包）
+- CI 会逐个核验 APK 中实际的 `lib/<ABI>/` 目录、Manifest、DEX、zipalign、签名，并为三个 APK 分别生成 SHA-256。Actions 下载项本身是 ZIP 容器，解压后是独立 APK 文件。
 - 原多模块构建流程保留为 `scripts/build-all-legacy.sh`。
 - 重新生成宿主映射：`bash host/map/multi.sh <versionCode> <宿主APK>`（宿主 APK 不随仓库提供）。
 

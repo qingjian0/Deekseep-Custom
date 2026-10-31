@@ -76,6 +76,8 @@ A release may be tagged and published only when all applicable checks pass:
 
 GitHub Releases must be created from immutable tags and include the verified APK, checksum and changelog. Never silently replace a published artifact.
 
+For YunSeek Android CI, publish and verify three outputs: `arm64-v8a`, `x86_64`, and one universal APK containing both ABIs. The universal APK must be checked for both `lib/arm64-v8a/` and `lib/x86_64/`; filenames alone are not proof of ABI contents. Each APK receives its own signature verification and SHA-256 entry.
+
 ## 6. Evidence-based status vocabulary
 
 - **Implemented**: source change committed to a task branch.

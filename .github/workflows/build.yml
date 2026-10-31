@@ -110,9 +110,9 @@ jobs:
             unzip -Z1 "$source" | grep -Fxq "AndroidManifest.xml"
             unzip -Z1 "$source" | grep -E '^classes([0-9]+)?[.]dex$' >/dev/null
             local actual_abis
-            actual_abis="$(unzip -Z1 "$source" | sed -n 's#^lib/\\([^/]*/\\).*$#\\1#p' | sort -u | tr -d '\\n')"
+            actual_abis="$(unzip -Z1 "$source" | awk -F/ '$1 == "lib" { print $2 }' | sort -u | paste -sd ' ' -)"
             local expected_sorted
-            expected_sorted="$(printf '%s\\n' $expected_abis | sort | tr -d '\\n')"
+            expected_sorted="$(printf '%s\\n' $expected_abis | sort | paste -sd ' ' -)"
             test "$actual_abis" = "$expected_sorted" || {
               echo "ABI mismatch in $source: expected=[$expected_sorted], actual=[$actual_abis]"
               unzip -Z1 "$source" | grep '^lib/' || true
