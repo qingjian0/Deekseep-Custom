@@ -47,7 +47,7 @@ The current YunSeek entry is the traditional `IXposedHookLoadPackage` API. Moder
 
 ### Additional project-specific baseline (not counted among the 20 external modules)
 
-[The public YunSeek/Deekseep module mirror](https://github.com/Xposed-Modules-Repo/com.dsmod.probe) contains the earlier legacy `Main`, `StatusProvider`, `XposedActivationProvider`, `LegacyXposedModule` and regression tests. It is useful for comparing the current `dev` branch against the project's own historical activation and compatibility design, but it is not counted as an independent external module.
+[The public Xposed Modules repository](https://github.com/Xposed-Modules-Repo) contains the earlier legacy `Main`, `StatusProvider`, `XposedActivationProvider`, `LegacyXposedModule` and regression tests. It is useful for comparing the current `dev` branch against the project's own historical activation and compatibility design, but it is not counted as an independent external module.
  
 ## Patterns selected for YunSeek
 
