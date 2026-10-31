@@ -16,6 +16,6 @@ javac -source 8 -target 8 -d "$OUT" \
     tests/com/dsmod/probe/LegacyXposedModuleRegressionTest.java
 
 matrix_output="$(java -cp "$OUT" com.dsmod.probe.LegacyXposedModuleRegressionTest)"
-printf '%s\\n' "$matrix_output"
-printf '%s\\n' "$matrix_output" | grep -q \
+printf '%s\n' "$matrix_output"
+printf '%s\n' "$matrix_output" | grep -q \
     'Legacy Xposed API 82-102 matrix OK (21 versions)'
