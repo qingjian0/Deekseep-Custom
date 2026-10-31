@@ -1,0 +1,3 @@
+# Request repository-owner review for every change.
+# Configure branch protection to require Code Owner approval for enforcement.
+* @qingjian0
