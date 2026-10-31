@@ -73,10 +73,25 @@ final class z18 {
         return space < 0 ? command : command.substring(0, Math.min(command.length(), space + 22));
     }
 
+    private static boolean waitForProcess(Process process, long timeoutMs)
+            throws InterruptedException {
+        long deadline = android.os.SystemClock.elapsedRealtime() + timeoutMs;
+        while (true) {
+            try {
+                process.exitValue();
+                return true;
+            } catch (IllegalThreadStateException running) {
+                long remaining = deadline - android.os.SystemClock.elapsedRealtime();
+                if (remaining <= 0L) return false;
+                Thread.sleep(Math.min(25L, remaining));
+            }
+        }
+    }
+
     private static Result root(String command) throws Exception {
         StartedRoot started = startRoot(command);
         Process process = started.process;
-        boolean finished = process.waitFor(8, TimeUnit.SECONDS);
+        boolean finished = waitForProcess(process, 8000L);
         if (!finished) {
             process.destroy();
             Main.log("root command timeout su=" + printableSu(started.binary)
