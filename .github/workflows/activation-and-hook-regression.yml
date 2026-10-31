@@ -60,6 +60,15 @@ jobs:
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0"
+      - name: Create ephemeral CI debug signing key
+        run: |
+          set -euo pipefail
+          keytool -genkeypair -noprompt \
+            -keystore module/debug.keystore \
+            -storepass android -keypass android \
+            -alias androiddebugkey \
+            -dname "CN=Android Debug,O=Android,C=US" \
+            -keyalg RSA -keysize 2048 -validity 10000
       - name: Assemble Open debug APK
         working-directory: compose-launcher
         run: |
