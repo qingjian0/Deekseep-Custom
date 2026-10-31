@@ -76,7 +76,7 @@ This follows QuietBox, PixelInjector, FusionStatusBar, RestoreRoundedSliders, Ti
 | Hook invocation count | At least one registered hook callback ran | Every feature works correctly |
 | Last-seen timestamp | The target was observed in the past | Target process is alive now |
 
-UI states should include `WAITING`, `FRAMEWORK_CONNECTED`, `TARGET_INJECTED`, `HOOKS_INSTALLING`, `HOOKS_ACTIVE`, `HOOKS_FAILED` and `LAST_SEEN`. Missing Binder or heartbeat evidence is unknown/waiting, not proof that LSPosed disabled the module.
+UI states should include `WAITING`, `FRAMEWORK_CONNECTED`, `TARGET_INJECTED`, `HOOKS_INSTALLING`, `HOOKS_ACTIVE`, `HOOKS_PARTIAL`, `HOOKS_FAILED` and `LAST_SEEN`. Missing Binder or heartbeat evidence is unknown/waiting, not proof that LSPosed disabled the module.
 
 ### 4. IPC security and freshness
 
@@ -94,7 +94,7 @@ The following changes are on `fix/activation-evidence-and-bootstrap`, based on `
 
 - Deferred early bootstrap when `Looper.getMainLooper()` is null; install a one-shot `Application.attach` hook and only set the PID duplicate guard after prerequisites are present.
 - Add a 60-second target-process heartbeat while the target process is alive; the module app uses a five-minute freshness window and shows stale evidence as last-seen, not active.
-- Separate framework connection, target injection and hook installation in `ActivationStatusPolicy` and the settings status UI.
+- Separate framework connection, target injection and hook installation in `ActivationStatusPolicy`; apply the same evidence policy in both the Compose launcher card and legacy `SettingsActivity`.
 - Authenticate hook-status reports by the actual target UID.
 - Expose hook-member registration count, callback invocation count and registration/feature-install failures.
 - Isolate the main feature installers so an exception in one feature does not stop the rest of the install list.
