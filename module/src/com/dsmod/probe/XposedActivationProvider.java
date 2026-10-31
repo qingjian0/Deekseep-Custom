@@ -46,7 +46,6 @@ public final class XposedActivationProvider extends ContentProvider {
     private static final String KEY_TARGET_VERSION_NAME = "target_version_name";
     private static final String KEY_TARGET_VERSION_CODE = "target_version_code";
     private static final String KEY_FRAMEWORK_AT = "framework_at";
-    private static final long TARGET_FRESH_MS = 15L * 60L * 1000L;
     private static final String TAG = "DeekseepActivation";
 
     private static volatile IBinder frameworkBinder;
@@ -368,8 +367,7 @@ public final class XposedActivationProvider extends ContentProvider {
 
     static boolean isTargetRecentlyActive(Context context) {
         long at = targetHeartbeatAt(context);
-        long age = System.currentTimeMillis() - at;
-        return at > 0L && age >= 0L && age <= TARGET_FRESH_MS;
+        return ActivationStatusPolicy.isTargetRecentlySeen(at, System.currentTimeMillis());
     }
 
     static long targetHeartbeatAt(Context context) {
