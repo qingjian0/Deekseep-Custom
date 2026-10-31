@@ -98,7 +98,7 @@ final class JavaPluginUi {
     }
 
     static void handleImportResult(Activity activity,int result,Intent data){if(result!=Activity.RESULT_OK||data==null||data.getData()==null)return;Uri uri=data.getData();
-        try{activity.getContentResolver().takePersistableUriPermission(uri,data.getFlags()&Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(Throwable ignored){}
+        try{if((data.getFlags()&Intent.FLAG_GRANT_READ_URI_PERMISSION)!=0){activity.getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION);}}catch(Throwable ignored){}
         JavaPluginManager.importZip(activity,uri,(ok,message)->{Toast.makeText(activity,message,Toast.LENGTH_LONG).show();if(ok)show(activity);});}
 
     static void handleTutorialExportResult(Activity activity,int result,Intent data){if(result!=Activity.RESULT_OK||data==null||data.getData()==null)return;
