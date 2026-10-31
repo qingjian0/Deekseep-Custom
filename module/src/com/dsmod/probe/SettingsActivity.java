@@ -368,21 +368,69 @@ public class SettingsActivity extends Activity {
     private void refreshActivationState() {
         if (activationTitle == null || isFinishing()) return;
         boolean framework = XposedActivationProvider.isFrameworkConnected();
-        boolean target = XposedActivationProvider.isTargetRecentlyActive(this);
-        if (framework || target) {
-            activationTitle.setText(UiLanguage.text(this, "已激活", "Activated"));
-            activationDetail.setText(target ? apiDisplayName() + " · DeepSeek " + deepSeekVersion()
-                    : apiDisplayName() + " · " + UiLanguage.text(this, "启动 DeepSeek 生效", "Ready — launch DeepSeek"));
-            activationMark.setText("✓");
-        } else if (isLegacyBuild()) {
-            activationTitle.setText(UiLanguage.text(this, "待验证", "Waiting for verification"));
-            activationDetail.setText(apiDisplayName() + " · " + UiLanguage.text(this, "启动 DeepSeek 后确认", "Launch DeepSeek to confirm"));
-            activationMark.setText("—");
-        } else {
-            activationTitle.setText(UiLanguage.text(this, "未激活", "Not activated"));
-            activationDetail.setText(apiDisplayName() + " · " + UiLanguage.text(this, "Xposed 框架未连接", "Xposed framework not connected"));
-            activationMark.setText("×");
+        long lastSeen = XposedActivationProvider.targetHeartbeatAt(this);
+        boolean targetFresh = XposedActivationProvider.isTargetRecentlyActive(this);
+        boolean hookFresh = XposedActivationProvider.isHookStatusFresh(this);
+        String stage = XposedActivationProvider.hookStage(this);
+        ActivationStatusPolicy.State state = ActivationStatusPolicy.classify(
+                targetFresh, lastSeen, hookFresh, stage, framework);
+        int registered = XposedActivationProvider.hookRegisteredCount(this);
+        long hits = XposedActivationProvider.hookHitCount(this);
+        int failures = XposedActivationProvider.hookFailureCount(this);
+        String detail;
+        String title;
+        String mark;
+        switch (state) {
+            case HOOKS_ACTIVE:
+                title = UiLanguage.text(this, "Hook 已安装", "Hooks installed");
+                detail = apiDisplayName() + " · " + UiLanguage.text(this,
+                        "注册 ", "registered ") + registered + " · "
+                        + UiLanguage.text(this, "命中 ", "hits ") + hits;
+                mark = "✓";
+                break;
+            case HOOKS_FAILED:
+                title = UiLanguage.text(this, "注入成功，Hook 安装失败", "Injected, hook installation failed");
+                String error = XposedActivationProvider.hookError(this);
+                detail = apiDisplayName() + " · failures=" + failures
+                        + (error.length() == 0 ? "" : " · " + error);
+                mark = "!";
+                break;
+            case HOOKS_INSTALLING:
+                title = UiLanguage.text(this, "正在安装 Hook", "Installing hooks");
+                detail = apiDisplayName() + " · registered=" + registered;
+                mark = "…";
+                break;
+            case TARGET_INJECTED:
+                title = UiLanguage.text(this, "目标进程已注入", "Target process injected");
+                detail = apiDisplayName() + " · "
+                        + UiLanguage.text(this, "尚未确认 Hook 安装结果", "Hook installation not yet confirmed");
+                mark = "·";
+                break;
+            case FRAMEWORK_CONNECTED:
+                title = UiLanguage.text(this, "框架已连接", "Framework connected");
+                detail = apiDisplayName() + " · "
+                        + UiLanguage.text(this, "等待 DeepSeek 目标进程注入", "Waiting for DeepSeek process injection");
+                mark = "—";
+                break;
+            case LAST_SEEN:
+                title = UiLanguage.text(this, "曾检测到目标注入", "Target injection seen previously");
+                detail = apiDisplayName() + " · "
+                        + UiLanguage.text(this, "上次检测 ", "Last seen ")
+                        + android.text.format.DateFormat.format("MM-dd HH:mm", lastSeen);
+                mark = "◷";
+                break;
+            default:
+                title = UiLanguage.text(this, "等待目标注入验证", "Waiting for target injection");
+                detail = apiDisplayName() + " · "
+                        + UiLanguage.text(this,
+                                "检查 LSPosed 作用域是否勾选 com.deepseek.chat，然后重启 DeepSeek",
+                                "Check that com.deepseek.chat is selected in LSPosed, then restart DeepSeek");
+                mark = "—";
+                break;
         }
+        activationTitle.setText(title);
+        activationDetail.setText(detail);
+        activationMark.setText(mark);
     }
 
     private String deepSeekVersion() {
