@@ -110,6 +110,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
+import de.robv.android.xposed.XC_MethodHook;
+import de.robv.android.xposed.XposedBridge;
 import com.dsmod.probe.LegacyXposedModule.Chain;
 import com.dsmod.probe.LegacyXposedModule.Hooker;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
@@ -612,6 +614,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     // Handler here used to make the API 82+ compatibility APK fail before handleLoadPackage().
     // Initialize it only after the target package callback is delivered.
     Handler main;
+    private final AtomicBoolean deferredBootstrapHookInstalled = new AtomicBoolean(false);
+    private final AtomicBoolean deferredBootstrapStarted = new AtomicBoolean(false);
 
     WeakReference<Activity> curAct = new WeakReference<>(null);
 
@@ -1110,6 +1114,14 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         // validation. It runs the same DeepSeek classes, so allow it through the hook bootstrap;
         // production remains com.deepseek.chat and keeps the existing storage contract.
         if (!TARGET.equals(pkg) && !"com.deepseek.chat.embedded".equals(pkg)) return;
+        // Some traditional Xposed loaders can deliver handleLoadPackage before the target
+        // process has prepared its main Looper (notably during USAP specialization). Do not mark
+        // this PID as injected and do not abandon the hook bootstrap: retry after Application.attach.
+        Looper mainLooper = Looper.getMainLooper();
+        if (mainLooper == null) {
+            deferBootstrapUntilApplicationAttach(param);
+            return;
+        }
         final String currentPid = String.valueOf(android.os.Process.myPid());
         if (currentPid.equals(System.getProperty("deekseep.module.injected.pid"))) {
             log("handleLoadPackage: Deekseep already loaded in pid " + currentPid + ", skipping duplicate injection");
@@ -1155,11 +1167,6 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             installRetiredHostNotice(unsupported);
             log("host symbol table is not maintained; feature bootstrap suppressed version="
                     + unsupported + ", detected=" + HostCompat.generationName());
-            return;
-        }
-        Looper mainLooper = Looper.getMainLooper();
-        if (mainLooper == null) {
-            log("target package callback arrived before the main Looper was prepared");
             return;
         }
         main = new Handler(mainLooper);
@@ -1514,6 +1521,25 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             installAllFeatureHooks(cl);
         } else {
             log("Cold start: unauthenticated, feature hooks suppressed pending activation");
+        }
+    }
+
+    private void deferBootstrapUntilApplicationAttach(final LoadPackageParam param) {
+        if (!deferredBootstrapHookInstalled.compareAndSet(false, true)) return;
+        try {
+            Method attach = Application.class.getDeclaredMethod("attach", Context.class);
+            XposedBridge.hookMethod(attach, new XC_MethodHook() {
+                @Override protected void afterHookedMethod(MethodHookParam hookParam)
+                        throws Throwable {
+                    if (!deferredBootstrapStarted.compareAndSet(false, true)) return;
+                    log("deferred bootstrap: Application.attach completed; retrying target hooks");
+                    handleLoadPackage(param);
+                }
+            });
+            log("deferred bootstrap: waiting for Application.attach because main Looper is not ready");
+        } catch (Throwable error) {
+            deferredBootstrapHookInstalled.set(false);
+            log("deferred bootstrap registration failed: " + safeThrowableMessage(error));
         }
     }
 
