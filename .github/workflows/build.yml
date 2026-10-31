@@ -1,4 +1,4 @@
-name: Build 1.7.4 Fix source edition
+name: YunSeek 1.8.1 Android build
 
 on:
   push:
@@ -9,29 +9,39 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: yunseek-android-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v5
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
+      - name: Set up Gradle 9.8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.8.2"
+
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@v3
 
-      - name: Install Android platform and build tools
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - name: Install Android SDK components
+        run: sdkmanager "platforms;android-37" "build-tools;35.0.0"
 
-      - name: Prepare local debug signing key
+      - name: Prepare Open debug signing key
         run: |
+          mkdir -p module
           keytool -genkeypair -v \
             -keystore module/debug.keystore \
             -storepass android -keypass android \
@@ -39,13 +49,33 @@ jobs:
             -dname 'CN=Android Debug,O=Android,C=US' \
             -keyalg RSA -keysize 2048 -validity 10000
 
-      - name: Build and test source edition
-        run: bash scripts/build-all.sh
+      - name: Build YunSeek Open edition
+        working-directory: compose-launcher
+        run: |
+          gradle --no-daemon \
+            -PprotectedBuild=false \
+            -PlocalApiIncluded=false \
+            -Pandroid.aapt2FromMavenOverride="$ANDROID_SDK_ROOT/build-tools/35.0.0/aapt2" \
+            :app:assembleDebug
 
-      - name: Upload APKs and checksums
-        uses: actions/upload-artifact@v7
+      - name: Verify APK and prepare build output
+        run: |
+          set -euo pipefail
+          APK="compose-launcher/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          mkdir -p out
+          cp "$APK" out/YunSeek-1.8.1-debug.apk
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/zipalign" -c -p 4 out/YunSeek-1.8.1-debug.apk
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose out/YunSeek-1.8.1-debug.apk
+          (cd out && sha256sum YunSeek-1.8.1-debug.apk > SHA256.txt)
+          cat out/SHA256.txt
+
+      - name: Upload APK and checksum
+        uses: actions/upload-artifact@v4
         with:
-          name: deekseep-source-edition-v1.7.4-fix
-          path: dist/
+          name: YunSeek-1.8.1-Android-debug
+          path: |
+            out/YunSeek-1.8.1-debug.apk
+            out/SHA256.txt
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
