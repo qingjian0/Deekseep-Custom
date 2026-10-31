@@ -16,7 +16,10 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
 
     steps:
       - name: Check out source
@@ -33,16 +36,27 @@ jobs:
         with:
           gradle-version: "9.8.2"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android SDK components
-        run: sdkmanager "platforms;android-37" "build-tools;35.0.0"
+      # GitHub's Ubuntu runner already contains Android command-line tools.
+      # Avoid setup-android@v3: it requests the removed SDK package "tools".
+      - name: Accept Android SDK licenses and install required components
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$ANDROID_SDK_ROOT/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -n 1)"
+          fi
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install "platforms;android-37" "build-tools;35.0.0"
+          test -x "$ANDROID_SDK_ROOT/build-tools/35.0.0/aapt2"
+          test -x "$ANDROID_SDK_ROOT/build-tools/35.0.0/zipalign"
+          test -x "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner"
 
       - name: Prepare Open debug signing key
         run: |
+          set -euo pipefail
           mkdir -p module
-          keytool -genkeypair -v \
+          keytool -genkeypair -noprompt -v \
             -keystore module/debug.keystore \
             -storepass android -keypass android \
             -alias androiddebugkey \
@@ -52,7 +66,8 @@ jobs:
       - name: Build YunSeek Open edition
         working-directory: compose-launcher
         run: |
-          gradle --no-daemon \
+          set -euo pipefail
+          gradle --no-daemon --stacktrace \
             -PprotectedBuild=false \
             -PlocalApiIncluded=false \
             -Pandroid.aapt2FromMavenOverride="$ANDROID_SDK_ROOT/build-tools/35.0.0/aapt2" \
