@@ -84,6 +84,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -727,6 +728,13 @@ class SettingsActivity : ComponentActivity() {
 
     @Composable
     private fun StatusCard(index: Int) {
+        // Refresh the evidence view periodically; the target process reports independently.
+        LaunchedEffect(Unit) {
+            while (true) {
+                delay(15_000L)
+                refreshTick++
+            }
+        }
         val tick = refreshTick
         val status = remember(tick) { activationSnapshot() }
         val host = remember(tick) { hostInfo() }
