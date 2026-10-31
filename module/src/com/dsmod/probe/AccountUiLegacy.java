@@ -588,8 +588,10 @@ final class AccountUiLegacy {
         if (resultCode != Activity.RESULT_OK || data == null || data.getData() == null) return;
         final Uri uri = data.getData();
         try {
-            int flags = data.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION;
-            act.getContentResolver().takePersistableUriPermission(uri, flags);
+            if ((data.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION) != 0) {
+                act.getContentResolver().takePersistableUriPermission(
+                        uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            }
         } catch (Throwable ignored) {}
 
         final ProgressPopup progress = showProgress(act, "正在读取并校验账号文件…");
