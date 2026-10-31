@@ -37,7 +37,7 @@ def joined_literals(source):
 
 def call_arguments(source, method):
     """Extract top-level Java call arguments without parsing nested expressions."""
-    pattern = re.compile(r'\b' + re.escape(method) + r'\s*\(')
+    pattern = re.compile(r'(?<![\\w.])' + re.escape(method) + r'\s*\(')
     for match in pattern.finditer(source):
         cursor = match.end()
         depth = 1
