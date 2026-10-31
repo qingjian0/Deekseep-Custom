@@ -97,9 +97,10 @@ This follows QuietBox's `StatusProvider` and FusionStatusBar's boot/session-awar
 The following changes are on `fix/activation-evidence-and-bootstrap`, based on `dev`:
 
 - Deferred early bootstrap when `Looper.getMainLooper()` is null; install a one-shot `Application.attach` hook and only set the PID duplicate guard after prerequisites are present.
+- Remove the erroneous `BuildInfo.PROTECTED_BUILD` gate from target heartbeat and hook-status reporting, so Open builds can report their own target-process state too.
 - Add a 60-second target-process heartbeat while the target process is alive; the module app uses a five-minute freshness window and shows stale evidence as last-seen, not active.
 - Separate framework connection, target injection and hook installation in `ActivationStatusPolicy`; apply the same evidence policy in both the Compose launcher card and legacy `SettingsActivity`.
-- Authenticate hook-status reports by the actual target UID.
+- Authenticate hook-status reports by the actual target UID. The Android 14/15 explicit-broadcast fallback is only target-heartbeat evidence; it cannot promote the UI to `HOOKS_ACTIVE` without a fresh UID-validated hook-status report.
 - Expose hook-member registration count, callback invocation count and registration/feature-install failures.
 - Isolate the main feature installers so an exception in one feature does not stop the rest of the install list.
 
