@@ -1617,7 +1617,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     private void runFeatureInstall(String name, Runnable installer) {
         try {
             installer.run();
-        } catch (Throwable error) {
+        } catch (Exception | LinkageError error) {
             FEATURE_HOOK_INSTALL_FAILURES.incrementAndGet();
             activationHookError = name + ": " + safeThrowableMessage(error);
             log("feature hook installation failed [" + name + "]: " + activationHookError);
