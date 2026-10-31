@@ -1993,9 +1993,11 @@ final class UiLanguageCatalog {
     private static void add(String zh, String en) {
         if (zh == null || zh.length() == 0 || en == null) return;
         EXACT.put(zh, en);
-        // Single-character words are exact labels, not safe global replacement fragments.
-        // The ideographic comma is the sole punctuation fragment intentionally retained.
-        if (zh.length() > 1 || "、".equals(zh)) {
+        // Short labels are exact-only: two- and three-character Chinese words frequently
+        // occur inside unrelated sentences (for example 账号, 内容, 用户, 自动, 时间).
+        // Only longer phrases are eligible for global fragment replacement.
+        // The ideographic comma is intentionally retained for formatted lists.
+        if (zh.length() >= 4 || "、".equals(zh)) {
             FRAGMENTS.add(new Entry(zh, en));
         }
     }
