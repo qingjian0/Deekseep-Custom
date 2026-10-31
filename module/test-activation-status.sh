@@ -17,13 +17,17 @@ main = Path("module/src/com/dsmod/probe/Main.java").read_text()
 settings = Path("module/src/com/dsmod/probe/SettingsActivity.java").read_text()
 launcher = Path("compose-launcher/app/src/main/java/com/dsmod/probe/SettingsActivity.kt").read_text()
 provider = Path("module/src/com/dsmod/probe/XposedActivationProvider.java").read_text()
+manifest = Path("compose-launcher/app/src/main/AndroidManifest.xml").read_text()
 
 assert "deferBootstrapUntilApplicationAttach(param);" in main, "missing deferred bootstrap"
 assert "private void deferBootstrapUntilApplicationAttach" in main, "missing attach hook helper"
 assert "Looper mainLooper = Looper.getMainLooper();" in main, "missing Looper prerequisite"
 assert main.index("if (mainLooper == null)") < main.index('System.setProperty("deekseep.module.injected.pid"'), "PID guard must follow Looper readiness"
 assert "ACTIVATION_HEARTBEAT_LOOP" in main, "missing target process heartbeat loop"
+assert "if (!BuildInfo.PROTECTED_BUILD || act == null) return;" not in main, "Open builds must report target heartbeat"
+assert "if (!BuildInfo.PROTECTED_BUILD || context == null || stage == null) return;" not in main, "Open builds must report hook status"
 assert "METHOD_REPORT_HOOK_STATUS" in main, "missing hook status reporting"
+assert "XposedActivationProvider" in manifest, "Compose launcher manifest must declare activation provider"
 assert "runFeatureInstall(" in main and main.count('runFeatureInstall("') >= 20, "feature installers are not isolated"
 assert "FEATURE_HOOK_INSTALL_FAILURES.get() == 0" in main and "hooks_partial" in main, "partial hook installation is not reported distinctly"
 assert "registeredHookCount()" in main and "hookInvocationCount()" in main, "hook telemetry counters are missing"
