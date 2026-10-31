@@ -54,7 +54,7 @@ for directory in sorted(ROOT.rglob("com/dsmod/probe"), key=lambda p: len(p.parts
 # Fail closed if any tracked text file still contains the old namespace/path.
 remaining = []
 for path in ROOT.rglob("*"):
-    if not path.is_file() or ".git" in path.parts:
+    if not path.is_file() or ".git" in path.parts or path == Path(__file__):
         continue
     try:
         content = path.read_text(encoding="utf-8")
