@@ -369,19 +369,26 @@ public class SettingsActivity extends Activity {
         if (activationTitle == null || isFinishing()) return;
         boolean framework = XposedActivationProvider.isFrameworkConnected();
         boolean target = XposedActivationProvider.isTargetRecentlyActive(this);
-        if (framework || target) {
-            activationTitle.setText(UiLanguage.text(this, "已激活", "Activated"));
-            activationDetail.setText(target ? apiDisplayName() + " · DeepSeek " + deepSeekVersion()
-                    : apiDisplayName() + " · " + UiLanguage.text(this, "启动 DeepSeek 生效", "Ready — launch DeepSeek"));
+        long lastSeen = XposedActivationProvider.targetHeartbeatAt(this);
+        if (target) {
+            activationTitle.setText(UiLanguage.text(this,
+                    "目标进程注入已验证", "Target process injection verified"));
+            activationDetail.setText(apiDisplayName() + " · DeepSeek " + deepSeekVersion()
+                    + " · " + UiLanguage.text(this, "最近检测到目标进程", "Target process seen recently"));
             activationMark.setText("✓");
-        } else if (isLegacyBuild()) {
-            activationTitle.setText(UiLanguage.text(this, "待验证", "Waiting for verification"));
-            activationDetail.setText(apiDisplayName() + " · " + UiLanguage.text(this, "启动 DeepSeek 后确认", "Launch DeepSeek to confirm"));
-            activationMark.setText("—");
         } else {
-            activationTitle.setText(UiLanguage.text(this, "未激活", "Not activated"));
-            activationDetail.setText(apiDisplayName() + " · " + UiLanguage.text(this, "Xposed 框架未连接", "Xposed framework not connected"));
-            activationMark.setText("×");
+            activationTitle.setText(framework
+                    ? UiLanguage.text(this, "框架已连接，等待目标验证", "Framework connected; waiting for target")
+                    : UiLanguage.text(this, "等待目标进程验证", "Waiting for target process verification"));
+            String detail = apiDisplayName() + " · " + (framework
+                    ? UiLanguage.text(this, "LSPosed 服务已连接；请启动 DeepSeek", "LSPosed service connected; launch DeepSeek")
+                    : UiLanguage.text(this, "请检查 LSPosed 作用域并启动 DeepSeek", "Check LSPosed scope and launch DeepSeek"));
+            if (lastSeen > 0L) {
+                detail += " · " + UiLanguage.text(this, "上次检测", "Last seen") + " "
+                        + android.text.format.DateFormat.getDateTimeInstance().format(new java.util.Date(lastSeen));
+            }
+            activationDetail.setText(detail);
+            activationMark.setText("—");
         }
     }
 
