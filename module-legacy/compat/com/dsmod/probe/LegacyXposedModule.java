@@ -8,6 +8,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -25,6 +27,13 @@ abstract class LegacyXposedModule {
 
     private final ConcurrentHashMap<Member, HookTarget> targets =
             new ConcurrentHashMap<Member, HookTarget>();
+    private final AtomicInteger registeredHooks = new AtomicInteger();
+    private final AtomicInteger hookRegistrationFailures = new AtomicInteger();
+    private final AtomicLong hookInvocations = new AtomicLong();
+
+    final int registeredHookCount() { return registeredHooks.get(); }
+    final int hookRegistrationFailureCount() { return hookRegistrationFailures.get(); }
+    final long hookInvocationCount() { return hookInvocations.get(); }
 
     interface Hooker {
         Object intercept(Chain chain) throws Throwable;
@@ -163,6 +172,7 @@ abstract class LegacyXposedModule {
                 // suppress every other module hooked to the same host member.
                 XposedBridge.hookMethod(member, new XC_MethodHook(Integer.MIN_VALUE) {
                     @Override protected void beforeHookedMethod(MethodHookParam param) {
+                        hookInvocations.incrementAndGet();
                         long started = System.nanoTime();
                         long traceId = RawHookTrace.enter(member, param.thisObject, param.args);
                         JavaPluginRuntimeBridge.before(member, param.thisObject, param.args);
@@ -189,9 +199,15 @@ abstract class LegacyXposedModule {
                     }
                 });
                 registered = true;
+                registeredHooks.incrementAndGet();
                 RawHookTrace.registered(member);
                 JavaPluginRuntimeBridge.registered(member);
             } catch (RuntimeException error) {
+                hookRegistrationFailures.incrementAndGet();
+                hookers.remove(hooker);
+                throw error;
+            } catch (Error error) {
+                hookRegistrationFailures.incrementAndGet();
                 hookers.remove(hooker);
                 throw error;
             }
