@@ -5341,23 +5341,8 @@ public final class DeekseepUi {
     private static void tuneMutePickerFling(android.widget.NumberPicker picker) {
         if (picker == null) return;
         picker.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
-        try {
-            java.lang.reflect.Field field = android.widget.NumberPicker.class
-                    .getDeclaredField("mFlingScroller");
-            field.setAccessible(true);
-            Object value = field.get(picker);
-            if (value instanceof android.widget.Scroller) {
-                ((android.widget.Scroller) value).setFriction(
-                        android.view.ViewConfiguration.getScrollFriction() * 0.42f);
-            }
-        } catch (Throwable ignored) {}
-        try {
-            java.lang.reflect.Field maximum = android.widget.NumberPicker.class
-                    .getDeclaredField("mMaximumFlingVelocity");
-            maximum.setAccessible(true);
-            int current = maximum.getInt(picker);
-            if (current > 0) maximum.setInt(picker, Math.min(32000, current * 2));
-        } catch (Throwable ignored) {}
+        // Keep platform-default fling physics. NumberPicker's private scroller fields are
+        // blocked on newer Android releases and are not required for correct picker behavior.
     }
 
     private interface MuteSheetAction {
