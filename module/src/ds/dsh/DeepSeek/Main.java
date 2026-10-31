@@ -1841,6 +1841,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     public void performModuleInjection(Activity act, ClassLoader cl) {
         if (!MODULE_INJECTED.compareAndSet(false, true)) return;
+        reportActivationHeartbeat(act);
         try {
             installAllFeatureHooks(cl);
             ensureOptionalHooksForEnabledFeatures(cl);
@@ -6770,55 +6771,59 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
      * the Binder caller UID against com.deepseek.chat before persisting this heartbeat, so an
      * arbitrary app cannot make the launcher claim that the DeepSeek scope is active.
      */
-    private static void reportActivationHeartbeat(Activity act) {
-        if (!BuildInfo.PROTECTED_BUILD || act == null) return;
+    private static void reportActivationHeartbeat(final Activity act) {
+        if (act == null) return;
+        final Context app = act.getApplicationContext() == null
+                ? act : act.getApplicationContext();
         long now = System.currentTimeMillis();
         if (now - activationHeartbeatAttemptAt < 60_000L) return;
         activationHeartbeatAttemptAt = now;
-        Bundle extras = new Bundle();
-        try {
-            extras.putString("package", act.getPackageName());
-            try {
-                android.content.pm.PackageInfo info = act.getPackageManager()
-                        .getPackageInfo(act.getPackageName(), 0);
-                extras.putString("versionName", info.versionName);
-                extras.putLong("versionCode", Build.VERSION.SDK_INT >= 28
-                        ? info.getLongVersionCode() : info.versionCode);
-            } catch (Throwable ignored) {}
-            Bundle reply = act.getContentResolver().call(
-                    Uri.parse("content://" + XposedActivationProvider.AUTHORITY),
-                    XposedActivationProvider.METHOD_REPORT_TARGET_ACTIVE, null, extras);
-            boolean accepted = reply != null && reply.getBoolean("accepted", false);
-            if (accepted && !activationHeartbeatLogged) {
-                activationHeartbeatLogged = true;
-                log("activation heartbeat accepted by module provider");
+        // Cross-process provider/broadcast IPC must not run on DeepSeek's main thread.
+        // Report as soon as injection is confirmed, independently of optional feature setup.
+        new Thread(new Runnable() {
+            @Override public void run() {
+                Bundle extras = new Bundle();
+                try {
+                    extras.putString("package", app.getPackageName());
+                    try {
+                        android.content.pm.PackageInfo info = app.getPackageManager()
+                                .getPackageInfo(app.getPackageName(), 0);
+                        extras.putString("versionName", info.versionName);
+                        extras.putLong("versionCode", Build.VERSION.SDK_INT >= 28
+                                ? info.getLongVersionCode() : info.versionCode);
+                    } catch (Throwable ignored) {}
+                    Bundle reply = app.getContentResolver().call(
+                            Uri.parse("content://" + XposedActivationProvider.AUTHORITY),
+                            XposedActivationProvider.METHOD_REPORT_TARGET_ACTIVE, null, extras);
+                    boolean accepted = reply != null && reply.getBoolean("accepted", false);
+                    if (accepted && !activationHeartbeatLogged) {
+                        activationHeartbeatLogged = true;
+                        log("activation heartbeat accepted by module provider");
+                    }
+                    if (accepted) return;
+                } catch (Throwable t) {
+                    if (!activationHeartbeatLogged) {
+                        log("activation heartbeat unavailable: " + t);
+                    }
+                }
+                try {
+                    Intent fallback = new Intent(XposedActivationReceiver.ACTION);
+                    fallback.setClassName(SELF, XposedActivationReceiver.class.getName());
+                    fallback.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+                    fallback.putExtras(extras);
+                    fallback.putExtra(XposedActivationReceiver.EXTRA_TOKEN,
+                            XposedActivationReceiver.REPORT_TOKEN);
+                    app.sendBroadcast(fallback);
+                    if (!activationHeartbeatLogged) {
+                        log("activation heartbeat dispatched through explicit broadcast fallback");
+                    }
+                } catch (Throwable t) {
+                    if (!activationHeartbeatLogged) {
+                        log("activation heartbeat broadcast unavailable: " + t);
+                    }
+                }
             }
-            if (accepted) return;
-        } catch (Throwable t) {
-            publicTunnelProviderUnavailable = true;
-            if (!activationHeartbeatLogged) {
-                log("activation heartbeat unavailable: " + t);
-            }
-        }
-        // An unmodified host manifest cannot name a module installed later in its package-
-        // visibility queries. Explicit components remain addressable, and the receiver validates
-        // the real sender UID before recording the heartbeat.
-        try {
-            Intent fallback = new Intent(XposedActivationReceiver.ACTION);
-            fallback.setClassName(SELF, XposedActivationReceiver.class.getName());
-            fallback.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
-            fallback.putExtras(extras);
-            fallback.putExtra(XposedActivationReceiver.EXTRA_TOKEN,
-                    XposedActivationReceiver.REPORT_TOKEN);
-            act.sendBroadcast(fallback);
-            if (!activationHeartbeatLogged) {
-                log("activation heartbeat dispatched through explicit broadcast fallback");
-            }
-        } catch (Throwable t) {
-            if (!activationHeartbeatLogged) {
-                log("activation heartbeat broadcast unavailable: " + t);
-            }
-        }
+        }, "YunSeek-Activation-Heartbeat").start();
     }
 
     static boolean setExpertRelayEnabled(boolean enabled) {
