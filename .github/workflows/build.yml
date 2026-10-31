@@ -37,6 +37,8 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "9.8.2"
+          # Keep a writable branch cache so subsequent builds can reuse Gradle outputs.
+          cache-read-only: false
 
       - name: Accept Android SDK licenses and install required components
         run: |
@@ -46,8 +48,14 @@ jobs:
             SDKMANAGER="$(find "$ANDROID_SDK_ROOT/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -n 1)"
           fi
           test -x "$SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0"
+          if [ ! -d "$ANDROID_SDK_ROOT/platforms/android-36" ] || \
+             [ ! -x "$ANDROID_SDK_ROOT/build-tools/36.0.0/zipalign" ] || \
+             [ ! -x "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" ]; then
+            yes | "$SDKMANAGER" --licenses >/dev/null || true
+            "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0"
+          else
+            echo "Android 36 platform and Build Tools 36.0.0 are already installed; skipping sdkmanager."
+          fi
           test -d "$ANDROID_SDK_ROOT/platforms/android-36"
           test -x "$ANDROID_SDK_ROOT/build-tools/36.0.0/zipalign"
           test -x "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner"
@@ -82,33 +90,48 @@ jobs:
           # gradle.properties carries a Termux-only AAPT2 override. Remove it in CI so
           # AGP 9.3.0 resolves and uses its matching AAPT2 artifact instead of an older SDK binary.
           sed -i '/^[[:space:]]*android\.aapt2FromMavenOverride[[:space:]]*=/d' gradle.properties
-          gradle --no-daemon --stacktrace \
+          gradle --no-daemon --parallel --max-workers=4 --build-cache --stacktrace \
             -PprotectedBuild=false \
             -PlocalApiIncluded=false \
             -PandroidCompileSdk=36 \
             :app:assembleRelease
 
-      - name: Verify signed APK and prepare release output
+      - name: Verify ABI APKs, signatures and prepare release output
         run: |
           set -euo pipefail
-          APK="compose-launcher/app/build/outputs/apk/release/app-release.apk"
-          test -s "$APK"
-          # Reject incomplete or non-APK outputs before signing verification or publication.
-          unzip -t "$APK" >/dev/null
-          unzip -Z1 "$APK" | grep -Fxq "AndroidManifest.xml" || {
-            echo "Invalid APK: AndroidManifest.xml is missing from $APK"
-            unzip -Z1 "$APK" | head -n 80
-            exit 1
-          }
-          unzip -Z1 "$APK" | grep -E '^classes([0-9]+)?[.]dex$' >/dev/null || {
-            echo "Invalid APK: classes.dex is missing from $APK"
-            exit 1
-          }
+          APK_DIR="compose-launcher/app/build/outputs/apk/release"
+          BUILD_TOOLS="$ANDROID_SDK_ROOT/build-tools/36.0.0"
           mkdir -p out
-          cp "$APK" out/YunSeek-1.8.1-release.apk
-          "$ANDROID_SDK_ROOT/build-tools/36.0.0/zipalign" -c -p 4 out/YunSeek-1.8.1-release.apk
-          "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose --print-certs out/YunSeek-1.8.1-release.apk
-          (cd out && sha256sum YunSeek-1.8.1-release.apk > SHA256.txt)
+
+          verify_apk() {
+            local source="$1" target="$2" expected_abis="$3"
+            test -s "$source" || { echo "Missing APK: $source"; find compose-launcher/app/build/outputs/apk -type f -maxdepth 4 -print; exit 1; }
+            unzip -t "$source" >/dev/null
+            unzip -Z1 "$source" | grep -Fxq "AndroidManifest.xml"
+            unzip -Z1 "$source" | grep -E '^classes([0-9]+)?[.]dex$' >/dev/null
+            local actual_abis
+            actual_abis="$(unzip -Z1 "$source" | sed -n 's#^lib/\\([^/]*/\\).*$#\\1#p' | sort -u | tr -d '\\n')"
+            local expected_sorted
+            expected_sorted="$(printf '%s\\n' $expected_abis | sort | tr -d '\\n')"
+            test "$actual_abis" = "$expected_sorted" || {
+              echo "ABI mismatch in $source: expected=[$expected_sorted], actual=[$actual_abis]"
+              unzip -Z1 "$source" | grep '^lib/' || true
+              exit 1
+            }
+            cp "$source" "out/$target"
+            "$BUILD_TOOLS/zipalign" -c -p 4 "out/$target"
+            "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "out/$target"
+            echo "Verified $target (ABIs: $expected_sorted)"
+          }
+
+          verify_apk "$APK_DIR/app-arm64-v8a-release.apk" \
+            "YunSeek-1.8.1-arm64-v8a.apk" "arm64-v8a"
+          verify_apk "$APK_DIR/app-x86_64-release.apk" \
+            "YunSeek-1.8.1-x86_64.apk" "x86_64"
+          verify_apk "$APK_DIR/app-universal-release.apk" \
+            "YunSeek-1.8.1-arm64-v8a+x86_64.apk" "arm64-v8a x86_64"
+
+          (cd out && sha256sum *.apk > SHA256.txt)
           cat out/SHA256.txt
       - name: Publish signed APK download
         if: github.ref == 'refs/heads/main'
@@ -119,7 +142,9 @@ jobs:
           prerelease: true
           generate_release_notes: true
           files: |
-            out/YunSeek-1.8.1-release.apk
+            out/YunSeek-1.8.1-arm64-v8a.apk
+            out/YunSeek-1.8.1-x86_64.apk
+            out/YunSeek-1.8.1-arm64-v8a+x86_64.apk
             out/SHA256.txt
           fail_on_unmatched_files: true
 
@@ -128,7 +153,9 @@ jobs:
         with:
           name: YunSeek-1.8.1-Android-signed-release
           path: |
-            out/YunSeek-1.8.1-release.apk
+            out/YunSeek-1.8.1-arm64-v8a.apk
+            out/YunSeek-1.8.1-x86_64.apk
+            out/YunSeek-1.8.1-arm64-v8a+x86_64.apk
             out/SHA256.txt
           if-no-files-found: error
           retention-days: 30

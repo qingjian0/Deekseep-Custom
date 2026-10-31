@@ -247,6 +247,17 @@ android {
     namespace = "ds.dsh.DeepSeek"
     compileSdk = providers.gradleProperty("androidCompileSdk").orElse("37").get().toInt()
 
+    // Publish one APK per supported ABI plus one install-anywhere universal APK.
+    // The universal package contains both ARM64 and x86_64 native libraries.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "x86_64")
+            isUniversalApk = true
+        }
+    }
+
     defaultConfig {
         applicationId = "ds.dsh.DeepSeek"
         minSdk = 24
