@@ -121,7 +121,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     private static final String TARGET = "com.deepseek.chat";
 
-    static final String SELF = "com.dsmod.probe";
+    static final String SELF = "ds.dsh.DeepSeek";
 
     /** Exact-code257 passive Loader components live in the host; normal/legacy paths stay put. */
     static String runtimeComponentPackage() {
