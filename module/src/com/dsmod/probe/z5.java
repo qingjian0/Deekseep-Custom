@@ -317,6 +317,21 @@ public final class z5 {
         return "'" + value.replace("'", "'\\''") + "'";
     }
 
+    private static boolean waitForProcess(Process process, long timeoutMs)
+            throws InterruptedException {
+        long deadline = android.os.SystemClock.elapsedRealtime() + timeoutMs;
+        while (true) {
+            try {
+                process.exitValue();
+                return true;
+            } catch (IllegalThreadStateException running) {
+                long remaining = deadline - android.os.SystemClock.elapsedRealtime();
+                if (remaining <= 0L) return false;
+                Thread.sleep(Math.min(25L, remaining));
+            }
+        }
+    }
+
     private static String runRoot(String command) throws Exception {
         String[] candidates = {"/system/bin/su", "/system/xbin/su", "/sbin/su", "su"};
         Throwable last = null;
@@ -324,7 +339,7 @@ public final class z5 {
             try {
                 Process process = new ProcessBuilder(candidate, "-c", command)
                         .redirectErrorStream(true).start();
-                if (!process.waitFor(15, TimeUnit.SECONDS)) {
+                if (!waitForProcess(process, 15000L)) {
                     process.destroy();
                     throw new java.io.IOException("Root certificate installation timed out");
                 }
