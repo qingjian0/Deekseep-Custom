@@ -2,7 +2,7 @@ name: YunSeek 1.8.1 Android signed build
 
 on:
   push:
-    branches: [main]
+    branches: [main, refactor/full-package-ds-dsh-deepseek]
   workflow_dispatch:
 
 permissions:
