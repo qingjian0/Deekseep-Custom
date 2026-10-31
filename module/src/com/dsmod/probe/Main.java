@@ -6797,7 +6797,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
      * arbitrary app cannot make the launcher claim that the DeepSeek scope is active.
      */
     private static void reportActivationHeartbeat(Activity act) {
-        if (!BuildInfo.PROTECTED_BUILD || act == null) return;
+        if (act == null) return;
         long now = System.currentTimeMillis();
         if (now - activationHeartbeatAttemptAt < 60_000L) return;
         activationHeartbeatAttemptAt = now;
