@@ -5,7 +5,7 @@
 ### Changed
 - Migrated module and launcher namespaces to `ds.dsh.DeepSeek`.
 - Corrected activation-state reporting so a missing modern framework Binder is not treated as proof that a legacy Xposed module is disabled.
-- Treat persisted target heartbeats as historical evidence only; current injection requires a rolling 30-second target-process heartbeat that expires after 90 seconds.
+- Treat persisted target heartbeats as historical evidence only; current injection requires a target-process heartbeat sent once at startup and renewed every 10 minutes; evidence expires after 15 minutes without renewal.
 - Show separate states for current injection, expired historical evidence and waiting for target verification; refresh the status card while it is visible.
 
 ### Added

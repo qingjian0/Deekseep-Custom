@@ -486,7 +486,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     private static volatile long activationHeartbeatAttemptAt = 0L;
     private static volatile Context activationHeartbeatAppContext;
-    private static final long ACTIVATION_HEARTBEAT_INTERVAL_MS = 30_000L;
+    // One immediate report at injection/startup, then a low-frequency renewal every 10 minutes.
+    private static final long ACTIVATION_HEARTBEAT_INTERVAL_MS = 10L * 60L * 1000L;
     private static final Handler ACTIVATION_HEARTBEAT_HANDLER =
             new Handler(Looper.getMainLooper());
     private static final AtomicBoolean ACTIVATION_HEARTBEAT_LOOP_STARTED =

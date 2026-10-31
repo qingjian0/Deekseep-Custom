@@ -7,9 +7,9 @@ public final class ActivationStatusPolicyRegressionTest {
         check(ActivationStatusPolicy.classify(0L, now)
                         == ActivationStatusPolicy.State.WAITING_FOR_TARGET,
                 "no heartbeat must remain waiting");
-        check(ActivationStatusPolicy.classify(now - 30_000L, now)
+        check(ActivationStatusPolicy.classify(now - 10L * 60L * 1000L, now)
                         == ActivationStatusPolicy.State.CURRENTLY_INJECTED,
-                "fresh target heartbeat must report current injection");
+                "heartbeat renewed every 10 minutes must report current injection");
         check(ActivationStatusPolicy.classify(
                         now - ActivationStatusPolicy.HEARTBEAT_FRESH_MS, now)
                         == ActivationStatusPolicy.State.CURRENTLY_INJECTED,

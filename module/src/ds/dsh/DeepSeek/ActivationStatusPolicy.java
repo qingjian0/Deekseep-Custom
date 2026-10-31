@@ -8,7 +8,8 @@ package ds.dsh.DeepSeek;
  * presented as an active module state.</p>
  */
 final class ActivationStatusPolicy {
-    static final long HEARTBEAT_FRESH_MS = 90_000L;
+    // Allow one delayed renewal cycle without treating a live target process as stale.
+    static final long HEARTBEAT_FRESH_MS = 15L * 60L * 1000L;
 
     enum State {
         WAITING_FOR_TARGET,
