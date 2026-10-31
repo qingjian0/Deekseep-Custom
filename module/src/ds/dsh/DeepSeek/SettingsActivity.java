@@ -369,11 +369,19 @@ public class SettingsActivity extends Activity {
         if (activationTitle == null || isFinishing()) return;
         boolean framework = XposedActivationProvider.isFrameworkConnected();
         boolean target = XposedActivationProvider.isTargetRecentlyActive(this);
-        if (framework || target) {
+        if (target) {
+            // Only a UID-verified heartbeat from the DeepSeek host proves that the selected
+            // target scope actually received the module. A framework service Binder is not
+            // evidence that DeepSeek itself is in scope or has been injected.
             activationTitle.setText(UiLanguage.text(this, "已激活", "Activated"));
-            activationDetail.setText(target ? apiDisplayName() + " · DeepSeek " + deepSeekVersion()
-                    : apiDisplayName() + " · " + UiLanguage.text(this, "启动 DeepSeek 生效", "Ready — launch DeepSeek"));
+            activationDetail.setText(apiDisplayName() + " · DeepSeek " + deepSeekVersion());
             activationMark.setText("✓");
+        } else if (framework) {
+            activationTitle.setText(UiLanguage.text(this, "待验证", "Waiting for target verification"));
+            activationDetail.setText(apiDisplayName() + " · "
+                    + UiLanguage.text(this, "框架已连接；启动 DeepSeek 后确认目标注入",
+                            "Framework connected; launch DeepSeek to verify target injection"));
+            activationMark.setText("—");
         } else if (isLegacyBuild()) {
             activationTitle.setText(UiLanguage.text(this, "待验证", "Waiting for verification"));
             activationDetail.setText(apiDisplayName() + " · " + UiLanguage.text(this, "启动 DeepSeek 后确认", "Launch DeepSeek to confirm"));
