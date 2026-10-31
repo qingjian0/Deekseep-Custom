@@ -15,6 +15,7 @@ from pathlib import Path
 
 main = Path("module/src/com/dsmod/probe/Main.java").read_text()
 settings = Path("module/src/com/dsmod/probe/SettingsActivity.java").read_text()
+launcher = Path("compose-launcher/app/src/main/java/com/dsmod/probe/SettingsActivity.kt").read_text()
 provider = Path("module/src/com/dsmod/probe/XposedActivationProvider.java").read_text()
 
 assert "deferBootstrapUntilApplicationAttach(param);" in main, "missing deferred bootstrap"
@@ -27,7 +28,11 @@ assert "runFeatureInstall(" in main and main.count('runFeatureInstall("') >= 20,
 assert "FEATURE_HOOK_INSTALL_FAILURES.get() == 0" in main and \"hooks_partial\" in main, "partial hook installation is not reported distinctly"
 assert "registeredHookCount()" in main and "hookInvocationCount()" in main, "hook telemetry counters are missing"
 assert "if (framework || target)" not in settings, "framework connection must not imply target injection"
-assert "ActivationStatusPolicy.classify(" in settings, "activation UI bypasses evidence policy"
+assert "ActivationStatusPolicy.classify(" in settings, "legacy activation UI bypasses evidence policy"
+assert "ActivationStatusPolicy.classify(" in launcher, "Compose launcher activation UI bypasses evidence policy"
+assert "return framework || target" not in launcher, "framework Binder must not imply target injection"
+assert "模块未激活" not in launcher, "missing evidence must not be labelled as module disabled"
+assert "HOOKS_PARTIAL" in launcher, "partial hook failures must be visible in launcher"
 assert "recordTargetHeartbeat(context, callingUid" in provider, "target heartbeat must validate caller UID"
 assert "uidOwnsPackage(context, callingUid, TARGET_PACKAGE)" in provider, "hook status must validate caller UID"
 assert "HOOK_STATUS_FRESH_MS" in provider, "hook telemetry freshness is not bounded"
