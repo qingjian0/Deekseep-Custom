@@ -93,18 +93,23 @@ jobs:
           set -euo pipefail
           APK="compose-launcher/app/build/outputs/apk/release/app-release.apk"
           test -s "$APK"
-          # Fail early with a clear diagnostic if packaging produced a non-APK or an incomplete archive.
+          # Reject incomplete or non-APK outputs before signing verification or publication.
           unzip -t "$APK" >/dev/null
           unzip -Z1 "$APK" | grep -Fxq "AndroidManifest.xml" || {
             echo "Invalid APK: AndroidManifest.xml is missing from $APK"
             unzip -Z1 "$APK" | head -n 80
             exit 1
           }
-          unzip -Z1 "$APK" | grep -Eq '^classes([0-9]+)?\\.dex
+          unzip -Z1 "$APK" | grep -E '^classes([0-9]+)?[.]dex$' >/dev/null || {
+            echo "Invalid APK: classes.dex is missing from $APK"
+            exit 1
+          }
+          mkdir -p out
+          cp "$APK" out/YunSeek-1.8.1-release.apk
+          "$ANDROID_SDK_ROOT/build-tools/36.0.0/zipalign" -c -p 4 out/YunSeek-1.8.1-release.apk
           "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose --print-certs out/YunSeek-1.8.1-release.apk
           (cd out && sha256sum YunSeek-1.8.1-release.apk > SHA256.txt)
           cat out/SHA256.txt
-
       - name: Publish signed APK download
         uses: softprops/action-gh-release@v2
         with:
