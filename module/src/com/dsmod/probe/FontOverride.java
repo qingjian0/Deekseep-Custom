@@ -9,7 +9,6 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -77,11 +76,6 @@ final class FontOverride {
                     f.set(null, regular);
                 } catch (Throwable ignored) {}
             }
-            try {
-                Method m = Typeface.class.getDeclaredMethod("setDefault", Typeface.class);
-                m.setAccessible(true);
-                m.invoke(null, regular);
-            } catch (Throwable ignored) {}
             try {
                 Field f = Typeface.class.getDeclaredField("sSystemFontMap");
                 f.setAccessible(true);
