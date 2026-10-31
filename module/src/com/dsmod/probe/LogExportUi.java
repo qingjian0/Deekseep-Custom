@@ -220,9 +220,14 @@ final class LogExportUi {
                 || data.getData() == null || selected == null) return;
         final Uri selection = data.getData();
         try {
-            activity.getContentResolver().takePersistableUriPermission(selection,
-                    data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION
-                            | Intent.FLAG_GRANT_WRITE_URI_PERMISSION));
+            if ((data.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION) != 0) {
+                activity.getContentResolver().takePersistableUriPermission(
+                        selection, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            }
+            if ((data.getFlags() & Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != 0) {
+                activity.getContentResolver().takePersistableUriPermission(
+                        selection, Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            }
         } catch (Throwable ignored) {}
         new Thread(new Runnable() {
             @Override public void run() {
