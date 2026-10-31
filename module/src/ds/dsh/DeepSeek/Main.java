@@ -485,6 +485,20 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             new AtomicBoolean();
 
     private static volatile long activationHeartbeatAttemptAt = 0L;
+    private static volatile Context activationHeartbeatAppContext;
+    private static final long ACTIVATION_HEARTBEAT_INTERVAL_MS = 30_000L;
+    private static final Handler ACTIVATION_HEARTBEAT_HANDLER =
+            new Handler(Looper.getMainLooper());
+    private static final AtomicBoolean ACTIVATION_HEARTBEAT_LOOP_STARTED =
+            new AtomicBoolean(false);
+    private static final Runnable ACTIVATION_HEARTBEAT_LOOP = new Runnable() {
+        @Override public void run() {
+            Context app = activationHeartbeatAppContext;
+            if (app != null) reportActivationHeartbeat(app);
+            ACTIVATION_HEARTBEAT_HANDLER.postDelayed(
+                    this, ACTIVATION_HEARTBEAT_INTERVAL_MS);
+        }
+    };
 
     private static volatile boolean activationHeartbeatLogged = false;
 
@@ -6767,19 +6781,29 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     }
 
     /**
-     * Reports actual target-scope injection to the module app.  The exported provider validates
-     * the Binder caller UID against com.deepseek.chat before persisting this heartbeat, so an
-     * arbitrary app cannot make the launcher claim that the DeepSeek scope is active.
+     * Reports live target-process injection to the module app.
+     *
+     * <p>The target process renews this heartbeat while it remains alive. If LSPosed is disabled
+     * and the target is force-stopped/restarted, no further heartbeat can be emitted and the
+     * launcher expires the old evidence. The heartbeat is intentionally not a query of the
+     * manager's private enabled flag.</p>
      */
-    private static void reportActivationHeartbeat(final Activity act) {
-        if (act == null) return;
-        final Context app = act.getApplicationContext() == null
-                ? act : act.getApplicationContext();
+    private static void reportActivationHeartbeat(final Context context) {
+        if (context == null) return;
+        final Context app = context.getApplicationContext() == null
+                ? context : context.getApplicationContext();
+        activationHeartbeatAppContext = app;
+        if (ACTIVATION_HEARTBEAT_LOOP_STARTED.compareAndSet(false, true)) {
+            ACTIVATION_HEARTBEAT_HANDLER.postDelayed(
+                    ACTIVATION_HEARTBEAT_LOOP, ACTIVATION_HEARTBEAT_INTERVAL_MS);
+        }
+
         long now = System.currentTimeMillis();
-        if (now - activationHeartbeatAttemptAt < 60_000L) return;
+        if (now - activationHeartbeatAttemptAt < ACTIVATION_HEARTBEAT_INTERVAL_MS - 5_000L) {
+            return;
+        }
         activationHeartbeatAttemptAt = now;
         // Cross-process provider/broadcast IPC must not run on DeepSeek's main thread.
-        // Report as soon as injection is confirmed, independently of optional feature setup.
         new Thread(new Runnable() {
             @Override public void run() {
                 Bundle extras = new Bundle();
