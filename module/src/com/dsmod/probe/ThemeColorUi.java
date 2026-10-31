@@ -109,7 +109,7 @@ final class ThemeColorUi {
         body.addView(direction, directionLp);
 
         TextView save = text(a, "保存并应用", Color.WHITE, 16, Gravity.CENTER);
-        save.setTypeface(null, 1);
+        save.setTypeface(null, Typeface.BOLD);
         save.setBackground(round(draft.primary, dp(a, 13)));
         LinearLayout.LayoutParams saveLp = new LinearLayout.LayoutParams(-1, dp(a, 52));
         saveLp.topMargin = dp(a, 24);
@@ -155,7 +155,7 @@ final class ThemeColorUi {
             TextView item = text(a, labels[i], dark ? 0xFFF2F2F4 : 0xFF18181C, 15, Gravity.CENTER_VERTICAL);
             item.setPadding(dp(a, 16), 0, dp(a, 12), 0);
             if (("none".equals(selected) && !draft.gradient) || selected.equals(draft.direction)) {
-                item.setTypeface(null, 1);
+                item.setTypeface(null, Typeface.BOLD);
                 item.setTextColor(0xFF4D6BFE);
             }
             item.setOnClickListener(v -> {
@@ -189,7 +189,7 @@ final class ThemeColorUi {
             setPadding(dp(a, 8), dp(a, 12), dp(a, 8), dp(a, 12));
             setBackground(round(dark ? 0xFF242429 : Color.WHITE, dp(a, 16)));
             TextView label = text(a, name, dark ? 0xFFF2F2F4 : 0xFF18181C, 14, Gravity.CENTER);
-            label.setTypeface(null, 1); addView(label, new LinearLayout.LayoutParams(-1, dp(a, 28)));
+            label.setTypeface(null, Typeface.BOLD); addView(label, new LinearLayout.LayoutParams(-1, dp(a, 28)));
             hex = new EditText(a); hex.setSingleLine(); hex.setGravity(Gravity.CENTER);
             hex.setText(String.format("#%06X", initial & 0xFFFFFF));
             hex.setTextColor(dark ? 0xFFE4E4E8 : 0xFF303036); hex.setTextSize(13);
