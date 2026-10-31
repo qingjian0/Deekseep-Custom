@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: yunseek-android-build-${{ github.ref }}
@@ -86,6 +86,20 @@ jobs:
           "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose out/YunSeek-1.8.1-debug.apk
           (cd out && sha256sum YunSeek-1.8.1-debug.apk > SHA256.txt)
           cat out/SHA256.txt
+
+      # Publish the APK and checksum as individual GitHub Release assets.
+      # The Release page exposes direct .apk downloads; Actions artifacts remain ZIP archives.
+      - name: Publish direct APK download
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: yunseek-1.8.1-build-${{ github.run_number }}
+          name: YunSeek 1.8.1 build ${{ github.run_number }}
+          prerelease: true
+          generate_release_notes: true
+          files: |
+            out/YunSeek-1.8.1-debug.apk
+            out/SHA256.txt
+          fail_on_unmatched_files: true
 
       - name: Upload APK and checksum
         uses: actions/upload-artifact@v4
