@@ -122,6 +122,19 @@ public final class UiLanguage {
         return chinese ? value(zh) : value(en);
     }
 
+    /** Format a complete localized message; placeholders may move between languages. */
+    public static String format(Context context, String zhFormat, String enFormat,
+            Object... args) {
+        String pattern = isChinese(context) ? value(zhFormat) : value(enFormat);
+        return String.format(Locale.ROOT, pattern, args == null ? new Object[0] : args);
+    }
+
+    /** Format a complete localized message using the current process language. */
+    public static String format(String zhFormat, String enFormat, Object... args) {
+        String pattern = chinese ? value(zhFormat) : value(enFormat);
+        return String.format(Locale.ROOT, pattern, args == null ? new Object[0] : args);
+    }
+
     /** Translate a module-generated runtime status or formatted message. */
     public static String dynamic(Context context, CharSequence value) {
         if (value == null) return "";
