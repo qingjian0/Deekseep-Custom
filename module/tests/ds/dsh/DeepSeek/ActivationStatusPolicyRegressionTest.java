@@ -1,21 +1,30 @@
 package ds.dsh.DeepSeek;
 
-/** Regression coverage for activation evidence classification. */
+/** Regression coverage for current versus historical injection evidence. */
 public final class ActivationStatusPolicyRegressionTest {
     public static void main(String[] args) {
-        check(ActivationStatusPolicy.classify(0L, false)
+        long now = 1_000_000L;
+        check(ActivationStatusPolicy.classify(0L, now)
                         == ActivationStatusPolicy.State.WAITING_FOR_TARGET,
-                "no evidence must remain pending, not inactive");
-        check(ActivationStatusPolicy.classify(0L, true)
+                "no heartbeat must remain waiting");
+        check(ActivationStatusPolicy.classify(now - 30_000L, now)
+                        == ActivationStatusPolicy.State.CURRENTLY_INJECTED,
+                "fresh target heartbeat must report current injection");
+        check(ActivationStatusPolicy.classify(
+                        now - ActivationStatusPolicy.HEARTBEAT_FRESH_MS, now)
+                        == ActivationStatusPolicy.State.CURRENTLY_INJECTED,
+                "heartbeat at the freshness boundary must remain current");
+        check(ActivationStatusPolicy.classify(
+                        now - ActivationStatusPolicy.HEARTBEAT_FRESH_MS - 1L, now)
+                        == ActivationStatusPolicy.State.STALE,
+                "expired heartbeat must not report active injection");
+        check(ActivationStatusPolicy.classify(now + 1L, now)
                         == ActivationStatusPolicy.State.WAITING_FOR_TARGET,
-                "framework Binder alone must not claim target injection");
-        check(ActivationStatusPolicy.classify(1L, false)
-                        == ActivationStatusPolicy.State.TARGET_SEEN,
-                "target heartbeat must be recognized without modern Binder");
-        check(ActivationStatusPolicy.classify(System.currentTimeMillis()
-                        - 8L * 24L * 60L * 60L * 1000L, true)
-                        == ActivationStatusPolicy.State.TARGET_SEEN,
-                "old heartbeat remains historical evidence, not a false negative");
+                "future timestamp must not report current injection");
+        check(ActivationStatusPolicy.classify(
+                        now - 8L * 24L * 60L * 60L * 1000L, now)
+                        == ActivationStatusPolicy.State.STALE,
+                "old persisted heartbeat must be historical, not active");
         System.out.println("Activation status policy regression tests passed");
     }
 
