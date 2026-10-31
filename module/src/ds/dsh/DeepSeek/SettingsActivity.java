@@ -375,7 +375,8 @@ public class SettingsActivity extends Activity {
         // libxposed service Binder is therefore not proof that the module is disabled.
         // Likewise, a persisted heartbeat proves a previous target-process load, not that
         // the process is alive right now. Keep those two evidence sources separate.
-        if (targetAt > 0L) {
+        if (ActivationStatusPolicy.classify(targetAt, framework)
+                == ActivationStatusPolicy.State.TARGET_SEEN) {
             activationTitle.setText(UiLanguage.text(this, "已检测到注入", "Injection detected"));
             activationDetail.setText(apiDisplayName() + " · DeepSeek " + deepSeekVersion()
                     + " · " + activationLastSeen(targetAt));
