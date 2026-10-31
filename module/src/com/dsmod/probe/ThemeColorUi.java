@@ -50,7 +50,7 @@ final class ThemeColorUi {
         back.setOnClickListener(v -> dialog.dismiss());
         header.addView(back, new LinearLayout.LayoutParams(dp(a, 44), dp(a, 44)));
         TextView title = text(a, "主题色", ink, 20, Gravity.CENTER_VERTICAL);
-        title.setTypeface(null, 1);
+        title.setTypeface(null, Typeface.BOLD);
         header.addView(title, new LinearLayout.LayoutParams(0, dp(a, 44), 1));
         root.addView(header);
 
