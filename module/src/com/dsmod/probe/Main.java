@@ -6916,7 +6916,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         extras.putString("stage", stage);
         extras.putInt("registered", module == null ? 0 : module.registeredHookCount());
         extras.putLong("hits", module == null ? 0L : module.hookInvocationCount());
-        extras.putInt("failures", module == null ? FEATURE_HOOK_INSTALL_FAILURES.get()
+        extras.putInt("failures", module == null ? 0
                 : module.hookRegistrationFailureCount() + module.FEATURE_HOOK_INSTALL_FAILURES.get());
         extras.putString("error", error == null ? "" : error);
         try {
