@@ -1,0 +1,39 @@
+name: Package identity regression
+
+on:
+  pull_request:
+    branches: [dev]
+    paths:
+      - "compose-launcher/app/build.gradle.kts"
+      - "compose-launcher/app/src/main/AndroidManifest.xml"
+      - "module/src/**"
+      - "module-legacy/AndroidManifest.xml"
+      - "module-legacy/assets/xposed_init"
+      - "module-universal/AndroidManifest.xml"
+      - "module-universal/assets/xposed_init"
+      - "scripts/test-package-identity.sh"
+      - ".github/workflows/package-identity.yml"
+  push:
+    branches: [dev]
+    paths:
+      - "compose-launcher/app/build.gradle.kts"
+      - "compose-launcher/app/src/main/AndroidManifest.xml"
+      - "module/src/**"
+      - "module-legacy/AndroidManifest.xml"
+      - "module-legacy/assets/xposed_init"
+      - "module-universal/AndroidManifest.xml"
+      - "module-universal/assets/xposed_init"
+      - "scripts/test-package-identity.sh"
+      - ".github/workflows/package-identity.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-identity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify application id and Xposed entry identity
+        run: bash scripts/test-package-identity.sh
