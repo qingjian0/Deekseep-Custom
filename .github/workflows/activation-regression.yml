@@ -67,7 +67,7 @@ jobs:
           test -s "$APK"
           unzip -t "$APK" >/dev/null
           "$ANDROID_SDK_ROOT/build-tools/36.0.0/aapt" dump badging "$APK" | grep -F "package: name='ds.dsh.DeepSeek'"
-          unzip -Z1 "$APK" | grep -Fxq "assets/xposed_init" || true
+          test "$(unzip -p "$APK" assets/xposed_init)" = "ds.dsh.DeepSeek.Main"
       - uses: actions/upload-artifact@v4
         with:
           name: YunSeek-open-validation-apk
