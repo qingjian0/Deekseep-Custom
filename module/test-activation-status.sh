@@ -24,7 +24,7 @@ assert main.index("if (mainLooper == null)") < main.index('System.setProperty("d
 assert "ACTIVATION_HEARTBEAT_LOOP" in main, "missing target process heartbeat loop"
 assert "METHOD_REPORT_HOOK_STATUS" in main, "missing hook status reporting"
 assert "runFeatureInstall(" in main and main.count('runFeatureInstall("') >= 20, "feature installers are not isolated"
-assert "FEATURE_HOOK_INSTALL_FAILURES.get() == 0" in main, "partial hook installation is reported as success"
+assert "FEATURE_HOOK_INSTALL_FAILURES.get() == 0" in main and \"hooks_partial\" in main, "partial hook installation is not reported distinctly"
 assert "registeredHookCount()" in main and "hookInvocationCount()" in main, "hook telemetry counters are missing"
 assert "if (framework || target)" not in settings, "framework connection must not imply target injection"
 assert "ActivationStatusPolicy.classify(" in settings, "activation UI bypasses evidence policy"
