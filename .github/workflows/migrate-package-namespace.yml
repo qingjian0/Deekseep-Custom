@@ -33,11 +33,14 @@ jobs:
           python scripts/migrate-package-namespace.py
           git status --short
           git diff --check
-      - name: Commit migration
+      - name: Commit project migration without changing workflow permissions
         run: |
           set -euo pipefail
+          # Keep the migration tooling byte-for-byte unchanged; it contains the
+          # old namespace as the source pattern and must remain reusable.
+          git restore --source=HEAD -- scripts/migrate-package-namespace.py .github/workflows/migrate-package-namespace.yml
           if [ -z "$(git status --porcelain)" ]; then
-            echo "No migration changes detected."
+            echo "No project migration changes detected."
             exit 1
           fi
           git config user.name "github-actions[bot]"
@@ -48,7 +51,7 @@ jobs:
       - name: Verify no legacy package references remain
         run: |
           set -euo pipefail
-          if git grep -n -I -E 'com[.]dsmod[.]probe|com/dsmod/probe' -- ':!scripts/migrate-package-namespace.py'; then
+          if git grep -n -I -E 'com[.]dsmod[.]probe|com/dsmod/probe' -- ':!scripts/migrate-package-namespace.py' ':!.github/workflows/migrate-package-namespace.yml'; then
             echo "Legacy namespace references remain."
             exit 1
           fi
