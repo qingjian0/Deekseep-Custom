@@ -5,7 +5,8 @@
 ### Changed
 - Migrated module and launcher namespaces to `ds.dsh.DeepSeek`.
 - Corrected activation-state reporting so a missing modern framework Binder is not treated as proof that a legacy Xposed module is disabled.
-- Treat persisted target heartbeats as historical injection evidence, not proof of current process liveness.
+- Treat persisted target heartbeats as historical evidence only; current injection requires a rolling 30-second target-process heartbeat that expires after 90 seconds.
+- Show separate states for current injection, expired historical evidence and waiting for target verification; refresh the status card while it is visible.
 
 ### Added
 - Namespace migration tooling and activation evidence regression coverage.
@@ -13,7 +14,7 @@
 - Development, pull-request, versioning and release-gate policy.
 
 ### Validation pending
-- Run activation and relevant regression tests.
+- Run the isolated activation-policy regression harness (six cases passed); run the repository test script and broader regression suite.
 - Complete Android build, APK structure and signing verification.
 - Verify LSPosed activation and target-process injection on a physical device.
 
