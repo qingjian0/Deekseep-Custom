@@ -4,8 +4,8 @@ package com.dsmod.probe;
  * Keeps framework connection, target-process injection and hook installation as separate facts.
  * A missing observation is unknown, never proof that LSPosed has disabled the module.
  */
-final class ActivationStatusPolicy {
-    enum State {
+public final class ActivationStatusPolicy {
+    public enum State {
         HOOKS_ACTIVE,
         HOOKS_FAILED,
         HOOKS_PARTIAL,
@@ -18,7 +18,7 @@ final class ActivationStatusPolicy {
 
     private ActivationStatusPolicy() {}
 
-    static State classify(boolean targetFresh, long targetLastSeenAt,
+    public static State classify(boolean targetFresh, long targetLastSeenAt,
                           boolean hookStatusFresh, String hookStage,
                           boolean frameworkConnected) {
         if (targetFresh) {
