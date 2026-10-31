@@ -6912,7 +6912,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     }
 
     private static void reportHookStatus(Context context, String stage, String error) {
-        if (!BuildInfo.PROTECTED_BUILD || context == null || stage == null) return;
+        if (context == null || stage == null) return;
         Main module = MODULE;
         Bundle extras = new Bundle();
         extras.putString("stage", stage);
@@ -6934,7 +6934,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     }
 
     private static void reportActivationHeartbeat(Context act) {
-        if (!BuildInfo.PROTECTED_BUILD || act == null) return;
+        if (act == null) return;
         long now = System.currentTimeMillis();
         if (now - activationHeartbeatAttemptAt < 60_000L) return;
         activationHeartbeatAttemptAt = now;
