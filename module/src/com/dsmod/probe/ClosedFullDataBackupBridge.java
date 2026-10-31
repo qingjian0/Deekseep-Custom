@@ -104,8 +104,10 @@ final class ClosedFullDataBackupBridge {
     static void handleRestoreResult(Activity activity, int result, Intent data) {
         if (result != Activity.RESULT_OK || data == null || data.getData() == null) return;
         try {
-            activity.getContentResolver().takePersistableUriPermission(data.getData(),
-                    data.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            if ((data.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION) != 0) {
+                activity.getContentResolver().takePersistableUriPermission(data.getData(),
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            }
         } catch (Throwable ignored) {}
         showPassword(activity, false, data.getData());
     }
