@@ -10,6 +10,7 @@ on:
     paths:
       - "module/src/com/dsmod/probe/Main.java"
       - "module/src/com/dsmod/probe/SettingsActivity.java"
+      - "compose-launcher/app/src/main/java/com/dsmod/probe/SettingsActivity.kt"
       - "module/src/com/dsmod/probe/XposedActivationProvider.java"
       - "module/src/com/dsmod/probe/ActivationStatusPolicy.java"
       - "module-legacy/compat/com/dsmod/probe/LegacyXposedModule.java"
