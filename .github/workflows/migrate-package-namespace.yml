@@ -1,0 +1,55 @@
+name: Full package namespace migration
+
+on:
+  push:
+    branches:
+      - refactor/full-package-ds-dsh-deepseek
+    paths:
+      - scripts/migrate-package-namespace.py
+      - .github/workflows/migrate-package-namespace.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout migration branch
+        uses: actions/checkout@v4
+        with:
+          ref: refactor/full-package-ds-dsh-deepseek
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run repository-wide namespace migration
+        run: |
+          set -euo pipefail
+          python scripts/migrate-package-namespace.py
+          git status --short
+          git diff --check
+      - name: Commit migration
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No migration changes detected."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "refactor: migrate all package references to ds.dsh.DeepSeek"
+          git push origin HEAD:refactor/full-package-ds-dsh-deepseek
+      - name: Verify no legacy package references remain
+        run: |
+          set -euo pipefail
+          if git grep -n -I -E 'com[.]dsmod[.]probe|com/dsmod/probe' -- ':!scripts/migrate-package-namespace.py'; then
+            echo "Legacy namespace references remain."
+            exit 1
+          fi
+          echo "No legacy namespace references remain."
