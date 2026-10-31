@@ -1,0 +1,37 @@
+name: Activation status regression
+
+on:
+  push:
+    branches:
+      - refactor/full-package-ds-dsh-deepseek
+    paths:
+      - module/src/ds/dsh/DeepSeek/ActivationStatusPolicy.java
+      - module/tests/ds/dsh/DeepSeek/ActivationStatusPolicyRegressionTest.java
+      - module/test-activation-status.sh
+      - .github/workflows/activation-status-test.yml
+  pull_request:
+    paths:
+      - module/src/ds/dsh/DeepSeek/ActivationStatusPolicy.java
+      - module/tests/ds/dsh/DeepSeek/ActivationStatusPolicyRegressionTest.java
+      - module/test-activation-status.sh
+      - .github/workflows/activation-status-test.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  activation-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Run activation status regression tests
+        run: bash module/test-activation-status.sh
