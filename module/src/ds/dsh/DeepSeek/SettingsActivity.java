@@ -51,6 +51,7 @@ public class SettingsActivity extends Activity {
     private boolean renderedChinese;
     private boolean renderedDark;
     private boolean rendered;
+    private boolean activityResumed;
     private int page;
     private int bg;
     private int card;
@@ -83,14 +84,21 @@ public class SettingsActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        activityResumed = true;
         UiLanguage.refreshSystem(this);
         boolean chinese = UiLanguage.isChinese(this);
         boolean dark = isDark();
         if (!rendered || chinese != renderedChinese || dark != renderedDark) renderShell();
         XposedActivationProvider.setStateListener(activationStateChanged);
+        handler.removeCallbacks(activationStateChanged);
         handler.post(activationStateChanged);
-        handler.postDelayed(activationStateChanged, 500L);
         ensureNotificationPermission();
+    }
+
+    @Override protected void onPause() {
+        activityResumed = false;
+        handler.removeCallbacks(activationStateChanged);
+        super.onPause();
     }
 
     @Override protected void onDestroy() {
@@ -368,25 +376,43 @@ public class SettingsActivity extends Activity {
     private void refreshActivationState() {
         if (activationTitle == null || isFinishing()) return;
 
+        if (activityResumed) {
+            handler.removeCallbacks(activationStateChanged);
+            handler.postDelayed(activationStateChanged, 15_000L);
+        }
+
         boolean framework = XposedActivationProvider.isFrameworkConnected();
         long targetAt = XposedActivationProvider.targetHeartbeatAt(this);
+        ActivationStatusPolicy.State state = ActivationStatusPolicy.classify(
+                targetAt, System.currentTimeMillis());
 
-        // This project currently enters through IXposedHookLoadPackage. A missing modern
-        // libxposed service Binder is therefore not proof that the module is disabled.
-        // Likewise, a persisted heartbeat proves a previous target-process load, not that
-        // the process is alive right now. Keep those two evidence sources separate.
-        if (ActivationStatusPolicy.classify(targetAt, framework)
-                == ActivationStatusPolicy.State.TARGET_SEEN) {
-            activationTitle.setText(UiLanguage.text(this, "已检测到注入", "Injection detected"));
+        if (state == ActivationStatusPolicy.State.CURRENTLY_INJECTED) {
+            activationTitle.setText(UiLanguage.text(this,
+                    "当前进程已注入", "Target process is injected"));
             activationDetail.setText(apiDisplayName() + " · DeepSeek " + deepSeekVersion()
-                    + " · " + activationLastSeen(targetAt));
+                    + " · " + activationLastSeen(targetAt)
+                    + " · " + UiLanguage.text(this,
+                            "关闭模块后需重启 DeepSeek 才会停止当前注入",
+                            "Restart DeepSeek after disabling the module to unload current hooks"));
             activationMark.setText("✓");
+        } else if (state == ActivationStatusPolicy.State.STALE) {
+            activationTitle.setText(UiLanguage.text(this,
+                    "当前未检测到注入", "No current injection detected"));
+            activationDetail.setText(apiDisplayName() + " · "
+                    + UiLanguage.text(this, "上次检测：", "Last detected: ")
+                    + activationLastSeen(targetAt) + " · "
+                    + UiLanguage.text(this,
+                            "心跳已过期；重新启动 DeepSeek 验证",
+                            "Heartbeat expired; relaunch DeepSeek to verify"));
+            activationMark.setText("—");
         } else {
             activationTitle.setText(UiLanguage.text(this, "等待目标验证",
                     "Waiting for target verification"));
             String evidence = framework
-                    ? UiLanguage.text(this, "框架服务已连接", "Framework service connected")
-                    : UiLanguage.text(this, "尚未收到目标进程心跳", "No target-process heartbeat received yet");
+                    ? UiLanguage.text(this, "框架服务已连接，但尚无目标进程注入证据",
+                            "Framework service connected; no target injection evidence yet")
+                    : UiLanguage.text(this, "尚未收到目标进程心跳",
+                            "No target-process heartbeat received yet");
             activationDetail.setText(apiDisplayName() + " · " + evidence + " · "
                     + UiLanguage.text(this, "请启动 DeepSeek 并等待验证",
                             "Launch DeepSeek and wait for verification"));
