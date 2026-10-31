@@ -131,35 +131,3 @@ jobs:
             out/SHA256.txt
           if-no-files-found: error
           retention-days: 30
- || {
-            echo "Invalid APK: classes.dex is missing from $APK"
-            exit 1
-          }
-          mkdir -p out
-          cp "$APK" out/YunSeek-1.8.1-release.apk
-          "$ANDROID_SDK_ROOT/build-tools/36.0.0/zipalign" -c -p 4 out/YunSeek-1.8.1-release.apk
-          "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose --print-certs out/YunSeek-1.8.1-release.apk
-          (cd out && sha256sum YunSeek-1.8.1-release.apk > SHA256.txt)
-          cat out/SHA256.txt
-
-      - name: Publish signed APK download
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: yunseek-1.8.1-signed-build-${{ github.run_number }}
-          name: YunSeek 1.8.1 signed build ${{ github.run_number }}
-          prerelease: true
-          generate_release_notes: true
-          files: |
-            out/YunSeek-1.8.1-release.apk
-            out/SHA256.txt
-          fail_on_unmatched_files: true
-
-      - name: Upload signed APK and checksum
-        uses: actions/upload-artifact@v4
-        with:
-          name: YunSeek-1.8.1-Android-signed-release
-          path: |
-            out/YunSeek-1.8.1-release.apk
-            out/SHA256.txt
-          if-no-files-found: error
-          retention-days: 30
