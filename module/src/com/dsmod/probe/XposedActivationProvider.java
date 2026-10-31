@@ -342,7 +342,8 @@ public final class XposedActivationProvider extends ContentProvider {
         }
         String stage = extras == null ? "" : extras.getString("stage", "");
         if (!("target_injected".equals(stage) || "hooks_installing".equals(stage)
-                || "hooks_installed".equals(stage) || "hooks_failed".equals(stage))) {
+                || "hooks_installed".equals(stage) || "hooks_partial".equals(stage)
+                || "hooks_failed".equals(stage))) {
             result.putBoolean("accepted", false);
             result.putString("error", "invalid hook stage");
             return result;
