@@ -1,0 +1,133 @@
+name: YunSeek CI
+
+on:
+  pull_request:
+    branches: [dev]
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: yunseek-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    name: Regression tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install Android SDK components
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_SDK_ROOT/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -n 1)"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install "platforms;android-35" "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0"
+
+      - name: Run source-only regression checks
+        run: |
+          set -euo pipefail
+          bash module-legacy/test-adapter-regression.sh
+          bash module/test-expert-relay-regression.sh
+          bash module/test-language-catalog.sh
+
+      - name: Build traditional Xposed core for regression tests
+        run: |
+          set -euo pipefail
+          bash module-universal/build.sh
+
+      - name: Run host compatibility and feature regression tests
+        run: |
+          set -euo pipefail
+          bash module/test-port-v271.sh
+          bash module/test-thinking-regression.sh
+
+  android:
+    name: Android Open build and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/module/debug.keystore
+      ANDROID_STORE_PASSWORD: android
+      ANDROID_KEY_ALIAS: androiddebugkey
+      ANDROID_KEY_PASSWORD: android
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle 9.8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.8.2"
+
+      - name: Install Android SDK components
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_SDK_ROOT/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -n 1)"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Create ephemeral CI-only debug signing key
+        run: |
+          set -euo pipefail
+          keytool -genkeypair -noprompt \
+            -keystore "$ANDROID_KEYSTORE_PATH" \
+            -storepass "$ANDROID_STORE_PASSWORD" \
+            -keypass "$ANDROID_KEY_PASSWORD" \
+            -alias "$ANDROID_KEY_ALIAS" \
+            -dname "CN=YunSeek CI Temporary Key,O=CI Only,C=US" \
+            -keyalg RSA -keysize 2048 -validity 2
+          echo "Created an ephemeral key for CI validation only; it is not a release key."
+
+      - name: Build Open release and run Android Lint
+        working-directory: compose-launcher
+        run: |
+          set -euo pipefail
+          # Remove the developer's Termux-only AAPT2 override; CI uses the pinned SDK Build Tools.
+          sed -i '/^[[:space:]]*android\.aapt2FromMavenOverride[[:space:]]*=/d' gradle.properties
+          gradle --no-daemon --stacktrace \
+            -PprotectedBuild=false \
+            -PlocalApiIncluded=false \
+            -PandroidCompileSdk=36 \
+            :app:assembleRelease :app:lintRelease
+
+      - name: Verify CI APK structure, alignment, and signature
+        run: |
+          set -euo pipefail
+          APK="compose-launcher/app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          unzip -Z1 "$APK" | grep -Fxq "AndroidManifest.xml"
+          unzip -Z1 "$APK" | grep -E '^classes([0-9]+)?[.]dex$' >/dev/null
+          "$ANDROID_SDK_ROOT/build-tools/36.0.0/zipalign" -c -p 4 "$APK"
+          "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose "$APK"
+          echo "Open release APK passed structural, alignment, and CI-key signature checks."
