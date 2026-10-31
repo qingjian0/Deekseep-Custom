@@ -58,7 +58,7 @@
         <!-- Optional framework activation provider used by the launcher status page. -->
         <provider
             android:name="com.dsmod.probe.XposedActivationProvider"
-            android:authorities="com.dsmod.probe.XposedService"
+            android:authorities="ds.dsh.DeepSeek.XposedService"
             android:exported="true"
             android:grantUriPermissions="false" />
 
