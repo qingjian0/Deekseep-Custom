@@ -5,7 +5,7 @@
 
 基于原作者 Lucian 的 [Deekseep](https://github.com/lllucccian/Deekseep) 二次创作，由张云安（ZW-SYS）移植与二开。GPL-3.0，免费开源。
 
-- 包名：`com.dsmod.probe`　versionCode：`36`
+- 包名：`ds.dsh.DeepSeek`　versionCode：`36`
 - 目标宿主：DeepSeek 2.7.1（code287，大陆版）
 - 文件：`Deekseep-1.8.0-unsigned-aligned.apk`（约 25MB，未签名，已 zipalign）
 - SHA-256：`ea8426fe69c41f250fbd02bd6cf6a695816c537551afff3841502966299049e5`

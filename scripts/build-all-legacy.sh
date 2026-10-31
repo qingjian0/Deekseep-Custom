@@ -35,10 +35,10 @@ echo
 echo "=== Verifying shared-core parity, entry formats, and APK signatures ==="
 for class_name in AccountManager ChatAppearance ChatAppearanceUi DeekseepUi \
         AgentDeviceBridge HeartbeatToolProtocol ResponsePreserver; do
-    test -f "$ROOT/module-universal/build/classes/com/dsmod/probe/${class_name}.class"
+    test -f "$ROOT/module-universal/build/classes/ds/dsh/DeepSeek/${class_name}.class"
 done
 if grep -q '^import io\.github\.libxposed' \
-        "$ROOT/module-universal/build/generated-src/com/dsmod/probe/Main.java"; then
+        "$ROOT/module-universal/build/generated-src/ds/dsh/DeepSeek/Main.java"; then
     echo "Generated universal entry still imports modern libxposed APIs" >&2
     exit 1
 fi

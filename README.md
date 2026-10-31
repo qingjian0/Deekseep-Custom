@@ -7,7 +7,7 @@
 | 项目 | 值 |
 |---|---|
 | 版本 | **1.8.1**（versionCode **37**） |
-| 包名 | `com.dsmod.probe`（与 Deekseep 相同，可覆盖升级） |
+| 包名 | `ds.dsh.DeepSeek`（与 Deekseep 相同，可覆盖升级） |
 | 支持宿主 | 国内版 DeepSeek **2.7.1**（code 287）、国内版 **2.7.2**（code 289）、国际/Google Play 版 **2.7.2**（code 290） |
 | 发布形式 | 未签名 + zipalign APK，使用者自行签名 |
 | 许可证 | GPL-3.0 |

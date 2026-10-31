@@ -2,7 +2,7 @@
 """Rewrite module reflection calls to go through HostRemap (2.4.1 -> 2.7.1 translation).
 
 Idempotent: already-rewritten calls are left alone.  Run from repo root:
-  python3 host/map/rewrite.py module/src/com/dsmod/probe
+  python3 host/map/rewrite.py module/src/ds/dsh/DeepSeek
 """
 import re, sys, os
 

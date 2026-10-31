@@ -22,6 +22,6 @@ payload_b64=$(
 
 su -c "/system/bin/am broadcast \
   -n com.deepseek.chat/com.deepseek.chat.system.ShareResultReceiver \
-  -a com.dsmod.probe.action.AGENT_COMMAND \
+  -a ds.dsh.DeepSeek.action.AGENT_COMMAND \
   --es deekseep_control_token deekseep-local-api-keepalive-v1 \
   --es agent_command_base64 '$payload_b64'"

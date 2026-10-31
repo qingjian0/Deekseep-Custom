@@ -8,7 +8,7 @@ import pathlib
 import re
 import sys
 
-root = pathlib.Path("src/com/dsmod/probe")
+root = pathlib.Path("src/ds/dsh/DeepSeek")
 catalog_source = (root / "UiLanguageCatalog.java").read_text(encoding="utf-8")
 string_literal = re.compile(r'"(?:\\.|[^"\\])*"')
 cjk = re.compile(r'[\u3400-\u9fff]')

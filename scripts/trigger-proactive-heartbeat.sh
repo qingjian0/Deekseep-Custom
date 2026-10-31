@@ -29,8 +29,8 @@ shell_quote() {
 
 task_id="command_$(date +%s)_$$"
 command="am broadcast"
-command+=" -n com.dsmod.probe/.ProactiveHeartbeatReceiver"
-command+=" -a com.dsmod.probe.action.PROACTIVE_TASK_ALARM"
+command+=" -n ds.dsh.DeepSeek/.ProactiveHeartbeatReceiver"
+command+=" -a ds.dsh.DeepSeek.action.PROACTIVE_TASK_ALARM"
 command+=" --es deekseep_proactive_token deekseep-proactive-heartbeat-1f73-19c8bda62374"
 command+=" --es task_id $(shell_quote "$task_id")"
 command+=" --es task_text $(shell_quote "$instruction")"

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.dsmod.probe"
+    package="ds.dsh.DeepSeek"
     android:versionCode="36"
     android:versionName="1.8.0-port">
 
@@ -39,7 +39,7 @@
         <meta-data android:name="xposedscope" android:resource="@array/xposedscope" />
 
         <activity
-            android:name="com.dsmod.probe.SettingsActivity"
+            android:name="ds.dsh.DeepSeek.SettingsActivity"
             android:exported="true"
             android:label="Deekseep"
             android:theme="@android:style/Theme.Material.NoActionBar">
@@ -50,25 +50,25 @@
         </activity>
 
         <activity
-            android:name="com.dsmod.probe.PromptPickerActivity"
+            android:name="ds.dsh.DeepSeek.PromptPickerActivity"
             android:exported="true"
             android:excludeFromRecents="true"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
 
         <!-- Optional framework activation provider used by the launcher status page. -->
         <provider
-            android:name="com.dsmod.probe.XposedActivationProvider"
+            android:name="ds.dsh.DeepSeek.XposedActivationProvider"
             android:authorities="ds.dsh.DeepSeek.XposedService"
             android:exported="true"
             android:grantUriPermissions="false" />
 
         <receiver
-            android:name="com.dsmod.probe.XposedActivationReceiver"
+            android:name="ds.dsh.DeepSeek.XposedActivationReceiver"
             android:enabled="true"
             android:exported="true" />
 
         <receiver
-            android:name="com.dsmod.probe.ProactiveHeartbeatReceiver"
+            android:name="ds.dsh.DeepSeek.ProactiveHeartbeatReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter>

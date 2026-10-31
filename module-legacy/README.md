@@ -4,7 +4,7 @@ This internal adapter builds the domestic and Google Play universal APKs for
 traditional Xposed-compatible environments.
 
 The universal APKs do not maintain a second feature fork. `build.sh`
-compiles the canonical sources under `../module/src/com/dsmod/probe`, generates
+compiles the canonical sources under `../module/src/ds/dsh/DeepSeek`, generates
 a traditional `handleLoadPackage` entry from canonical `Main.java`, and bridges
 its around-hook contract through `compat/LegacyXposedModule.java`.
 

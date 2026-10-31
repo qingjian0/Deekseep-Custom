@@ -32,7 +32,7 @@
         <meta-data android:name="xposedscope" android:resource="@array/xposedscope" />
 
         <activity
-            android:name="com.dsmod.probe.SettingsActivity"
+            android:name="ds.dsh.DeepSeek.SettingsActivity"
             android:enabled="true"
             android:exported="true"
             android:label="YunSeek"
@@ -46,12 +46,12 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="com.dsmod.probe.ProcessManagerActivity"
+            android:name="ds.dsh.DeepSeek.ProcessManagerActivity"
             android:exported="true"
             android:label="YunSeek · Process manager"
             android:theme="@android:style/Theme.Material.NoActionBar" />
-        <activity android:name="com.dsmod.probe.PromptPickerActivity" android:exported="true" android:excludeFromRecents="true" android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
-        <activity android:name="com.dsmod.probe.AgentDelayActivity" android:exported="true" android:excludeFromRecents="true" android:noHistory="true" android:taskAffinity="" android:theme="@android:style/Theme.Translucent.NoTitleBar">
+        <activity android:name="ds.dsh.DeepSeek.PromptPickerActivity" android:exported="true" android:excludeFromRecents="true" android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+        <activity android:name="ds.dsh.DeepSeek.AgentDelayActivity" android:exported="true" android:excludeFromRecents="true" android:noHistory="true" android:taskAffinity="" android:theme="@android:style/Theme.Translucent.NoTitleBar">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -59,14 +59,14 @@
                 <data android:scheme="deekseep-module" android:host="agent-delay" />
             </intent-filter>
         </activity>
-        <activity android:name="com.dsmod.probe.LocalAudioControlActivity" android:exported="true" android:excludeFromRecents="true" android:noHistory="true" android:taskAffinity="" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
-        <receiver android:name="com.dsmod.probe.AgentDelayReceiver" android:enabled="true" android:exported="false" />
-        <service android:name="com.dsmod.probe.QqMusicPlaybackService" android:exported="false" android:foregroundServiceType="specialUse" android:stopWithTask="false">
+        <activity android:name="ds.dsh.DeepSeek.LocalAudioControlActivity" android:exported="true" android:excludeFromRecents="true" android:noHistory="true" android:taskAffinity="" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <receiver android:name="ds.dsh.DeepSeek.AgentDelayReceiver" android:enabled="true" android:exported="false" />
+        <service android:name="ds.dsh.DeepSeek.QqMusicPlaybackService" android:exported="false" android:foregroundServiceType="specialUse" android:stopWithTask="false">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Handles a user-enabled Agent music playback request." />
         </service>
-        <service android:name="com.dsmod.probe.LocalAudioPlaybackService" android:exported="false" android:foregroundServiceType="mediaPlayback" android:stopWithTask="false" />
+        <service android:name="ds.dsh.DeepSeek.LocalAudioPlaybackService" android:exported="false" android:foregroundServiceType="mediaPlayback" android:stopWithTask="false" />
         <service
-            android:name="com.dsmod.probe.QqMusicSessionAccessService"
+            android:name="ds.dsh.DeepSeek.QqMusicSessionAccessService"
             android:exported="false"
             android:label="YunSeek music control"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
@@ -74,9 +74,9 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
-        <provider android:name="com.dsmod.probe.XposedActivationProvider" android:authorities="ds.dsh.DeepSeek.XposedService" android:exported="true" android:grantUriPermissions="false" />
-        <receiver android:name="com.dsmod.probe.XposedActivationReceiver" android:enabled="true" android:exported="true" />
-        <receiver android:name="com.dsmod.probe.ProactiveHeartbeatReceiver" android:enabled="true" android:exported="true">
+        <provider android:name="ds.dsh.DeepSeek.XposedActivationProvider" android:authorities="ds.dsh.DeepSeek.XposedService" android:exported="true" android:grantUriPermissions="false" />
+        <receiver android:name="ds.dsh.DeepSeek.XposedActivationReceiver" android:enabled="true" android:exported="true" />
+        <receiver android:name="ds.dsh.DeepSeek.ProactiveHeartbeatReceiver" android:enabled="true" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />

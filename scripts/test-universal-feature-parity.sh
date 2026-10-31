@@ -17,7 +17,7 @@ done
 mkdir -p "$ROOT/build"
 source_list="$(mktemp "$ROOT/build/universal-core-sources.XXXXXX")"
 trap 'rm -f "$source_list"' EXIT
-find "$ROOT/module/src/com/dsmod/probe" -maxdepth 1 -name '*.java' \
+find "$ROOT/module/src/ds/dsh/DeepSeek" -maxdepth 1 -name '*.java' \
     ! -name 'BuildInfo.java' -printf '%f\n' | sed 's/[.]java$//' | sort > "$source_list"
 
 expected="$(wc -l < "$source_list" | tr -d '[:space:]')"
@@ -30,13 +30,13 @@ for apk in "${APKS[@]}"; do
     dex_strings="$(mktemp "$ROOT/build/universal-dex-strings.XXXXXX")"
     unzip -p "$apk" classes.dex | strings -n 8 > "$dex_strings"
     while IFS= read -r class_name; do
-        grep -Fq -- "Lcom/dsmod/probe/${class_name};" "$dex_strings" || {
+        grep -Fq -- "Lds/dsh/DeepSeek/${class_name};" "$dex_strings" || {
             echo "FAIL: $(basename "$apk") is missing canonical class ${class_name}" >&2
             rm -f "$dex_strings"
             exit 1
         }
     done < "$source_list"
-    grep -Fq -- 'Lcom/dsmod/probe/BuildInfo;' "$dex_strings" || {
+    grep -Fq -- 'Lds/dsh/DeepSeek/BuildInfo;' "$dex_strings" || {
         echo "FAIL: $(basename "$apk") is missing generated BuildInfo" >&2
         rm -f "$dex_strings"
         exit 1

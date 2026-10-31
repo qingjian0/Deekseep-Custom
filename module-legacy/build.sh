@@ -6,11 +6,11 @@ source ../scripts/android-tools.sh
 source ../scripts/androidx-path-parser.sh
 OUT=build
 rm -rf "$OUT"
-mkdir -p "$OUT/classes" "$OUT/dex" "$OUT/generated-src/com/dsmod/probe"
+mkdir -p "$OUT/classes" "$OUT/dex" "$OUT/generated-src/ds/dsh/DeepSeek"
 ANDROIDX_PATH_PARSER_JAR="$(prepare_androidx_path_parser "$OUT")"
 
-cat > "$OUT/generated-src/com/dsmod/probe/BuildInfo.java" <<EOF
-package com.dsmod.probe;
+cat > "$OUT/generated-src/ds/dsh/DeepSeek/BuildInfo.java" <<EOF
+package ds.dsh.DeepSeek;
 public final class BuildInfo {
     public static final String API_VERSION = "82+ (legacy adapter)";
     public static final String MODULE_VERSION = "1.7.4-fix Open";
@@ -24,10 +24,10 @@ public final class BuildInfo {
     private BuildInfo() {}
 }
 EOF
-cp ../module/src/com/dsmod/probe/Main.java \
-  "$OUT/generated-src/com/dsmod/probe/Main.java"
+cp ../module/src/ds/dsh/DeepSeek/Main.java \
+  "$OUT/generated-src/ds/dsh/DeepSeek/Main.java"
 
-find ../module/src/com/dsmod/probe -maxdepth 1 -name '*.java' \
+find ../module/src/ds/dsh/DeepSeek -maxdepth 1 -name '*.java' \
   ! -name Main.java ! -name BuildInfo.java > "$OUT/sources.txt"
 find ../module/src/com/dsmod/relay -name '*.java' >> "$OUT/sources.txt"
 find compat -name '*.java' >> "$OUT/sources.txt"

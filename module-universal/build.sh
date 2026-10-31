@@ -30,14 +30,14 @@ if [ ! -f ../module/debug.keystore ]; then
 fi
 
 rm -rf "$OUT"
-mkdir -p "$OUT/classes" "$OUT/dex" "$OUT/generated-src/com/dsmod/probe"
+mkdir -p "$OUT/classes" "$OUT/dex" "$OUT/generated-src/ds/dsh/DeepSeek"
 ANDROIDX_PATH_PARSER_JAR="$(prepare_androidx_path_parser "$OUT")"
 
 echo "[0/7] generate BuildInfo.java"
 MODULE_VER=$(grep -oE 'android:versionName="[^"]+"' AndroidManifest.xml \
   | head -n1 | cut -d'"' -f2)
-cat > "$OUT/generated-src/com/dsmod/probe/BuildInfo.java" <<EOF
-package com.dsmod.probe;
+cat > "$OUT/generated-src/ds/dsh/DeepSeek/BuildInfo.java" <<EOF
+package ds.dsh.DeepSeek;
 public final class BuildInfo {
     public static final String API_VERSION = "universal (Xposed API 82-102 verified)";
     public static final String MODULE_VERSION = "${MODULE_VER:-unknown}";
@@ -68,11 +68,11 @@ public final class BuildInfo {
 }
 EOF
 
-cp ../module/src/com/dsmod/probe/Main.java \
-  "$OUT/generated-src/com/dsmod/probe/Main.java"
+cp ../module/src/ds/dsh/DeepSeek/Main.java \
+  "$OUT/generated-src/ds/dsh/DeepSeek/Main.java"
 
 echo "[1/7] collect open-source core and Xposed adapter"
-find ../module/src/com/dsmod/probe -maxdepth 1 -name '*.java' \
+find ../module/src/ds/dsh/DeepSeek -maxdepth 1 -name '*.java' \
   ! -name Main.java ! -name BuildInfo.java > "$OUT/sources.txt"
 find ../module/src/com/dsmod/relay -name '*.java' >> "$OUT/sources.txt"
 find ../module-legacy/compat -name '*.java' >> "$OUT/sources.txt"
@@ -101,11 +101,11 @@ $AAPT2 link -o "$OUT/base.apk" -I "$ANDROID_JAR" \
 echo "[5/7] package Xposed metadata and Agent runtime"
 cp "$OUT/base.apk" "$OUT/unsigned.apk"
 ( cd "$OUT/dex" && zip -q ../unsigned.apk classes.dex )
-mkdir -p "$OUT/xstage/assets" "$OUT/xstage/META-INF/com.dsmod.probe.agent"
+mkdir -p "$OUT/xstage/assets" "$OUT/xstage/META-INF/ds.dsh.DeepSeek.agent"
 cp assets/xposed_init "$OUT/xstage/assets/xposed_init"
 cp ../module/hostmap/hostmap28[79].txt.gz ../module/hostmap/hostmap290.txt.gz "$OUT/xstage/"
 cp "$RISH_DEX" \
-  "$OUT/xstage/META-INF/com.dsmod.probe.agent/.rish_shizuku_runtime_payload.dat"
+  "$OUT/xstage/META-INF/ds.dsh.DeepSeek.agent/.rish_shizuku_runtime_payload.dat"
 ( cd "$OUT/xstage" && zip -q -9 -r ../unsigned.apk META-INF assets hostmap287.txt.gz hostmap289.txt.gz hostmap290.txt.gz )
 
 echo "[6/7] zipalign"

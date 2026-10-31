@@ -1,6 +1,6 @@
 # YunSeek 1.8.1 开发任务书（用户 2026-10-30 20:00 下达，暂缓开工，等用户说开始）
 
-- versionCode 37 / versionName 1.8.1；包名、applicationId 保持 com.dsmod.probe
+- versionCode 37 / versionName 1.8.1；包名、applicationId 保持 ds.dsh.DeepSeek
 - UI 显示名 Deekseep → YunSeek（底层包名/类名不动）
 - 全面 Material 3 + Monet 动态取色，重做 DeekseepUi 等设置页
 - 模型显示名自定义（如 快速→Lightning 闪电、深度思考→DeepThink 深思），请求里的模型 ID 绝不改；注意 2.7.1 三模式已合一，只改 2.7.1 实际存在的标签
