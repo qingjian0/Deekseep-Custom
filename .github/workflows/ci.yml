@@ -131,3 +131,13 @@ jobs:
           "$ANDROID_SDK_ROOT/build-tools/36.0.0/zipalign" -c -p 4 "$APK"
           "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose "$APK"
           echo "Open release APK passed structural, alignment, and CI-key signature checks."
+
+      - name: Upload Android Lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: yunseek-android-lint-reports
+          if-no-files-found: warn
+          path: |
+            compose-launcher/app/build/reports/lint-results-release*
+            compose-launcher/app/build/intermediates/lint_intermediate_text_report/release/lintReportRelease/*
