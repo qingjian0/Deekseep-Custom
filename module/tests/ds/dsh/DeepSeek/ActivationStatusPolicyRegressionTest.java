@@ -3,7 +3,7 @@ package ds.dsh.DeepSeek;
 /** Regression coverage for current versus historical injection evidence. */
 public final class ActivationStatusPolicyRegressionTest {
     public static void main(String[] args) {
-        long now = 1_000_000L;
+        long now = 1_700_000_000_000L;
         check(ActivationStatusPolicy.classify(0L, now)
                         == ActivationStatusPolicy.State.WAITING_FOR_TARGET,
                 "no heartbeat must remain waiting");
