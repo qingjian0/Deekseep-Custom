@@ -10,7 +10,7 @@ OLD_PATH = "com/dsmod/probe"
 NEW_PATH = "ds/dsh/DeepSeek"
 
 raw = subprocess.check_output(["git", "ls-files", "-z"], cwd=ROOT)
-paths = [p.decode() for p in raw.split(b"\\0") if p]
+paths = [p.decode() for p in raw.split(bytes([0])) if p]
 changed = []
 renames = []
 
