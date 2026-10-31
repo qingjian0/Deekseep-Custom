@@ -20,12 +20,21 @@ provider = Path("module/src/com/dsmod/probe/XposedActivationProvider.java").read
 assert "deferBootstrapUntilApplicationAttach(param);" in main, "missing deferred bootstrap"
 assert "private void deferBootstrapUntilApplicationAttach" in main, "missing attach hook helper"
 assert "Looper mainLooper = Looper.getMainLooper();" in main, "missing Looper prerequisite"
+assert main.index("if (mainLooper == null)") < main.index('System.setProperty("deekseep.module.injected.pid"'), "PID guard must follow Looper readiness"
 assert "ACTIVATION_HEARTBEAT_LOOP" in main, "missing target process heartbeat loop"
 assert "METHOD_REPORT_HOOK_STATUS" in main, "missing hook status reporting"
+assert "runFeatureInstall(" in main and main.count('runFeatureInstall("') >= 20, "feature installers are not isolated"
+assert "FEATURE_HOOK_INSTALL_FAILURES.get() == 0" in main, "partial hook installation is reported as success"
+assert "registeredHookCount()" in main and "hookInvocationCount()" in main, "hook telemetry counters are missing"
 assert "if (framework || target)" not in settings, "framework connection must not imply target injection"
 assert "ActivationStatusPolicy.classify(" in settings, "activation UI bypasses evidence policy"
 assert "recordTargetHeartbeat(context, callingUid" in provider, "target heartbeat must validate caller UID"
 assert "uidOwnsPackage(context, callingUid, TARGET_PACKAGE)" in provider, "hook status must validate caller UID"
 assert "HOOK_STATUS_FRESH_MS" in provider, "hook telemetry freshness is not bounded"
-print("Activation source invariants: PASS")
+
+legacy = Path("module-legacy/compat/com/dsmod/probe/LegacyXposedModule.java").read_text()
+assert "registeredHooks.incrementAndGet()" in legacy, "registered hook count missing"
+assert "hookInvocations.incrementAndGet()" in legacy, "hook invocation count missing"
+assert "hookRegistrationFailures.incrementAndGet()" in legacy, "hook registration failure count missing"
+print("Activation and hook bootstrap source invariants: PASS")
 PY
