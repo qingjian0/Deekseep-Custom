@@ -15,13 +15,17 @@ public final class ActivationStatusPolicy {
     }
 
     public static State classify(boolean frameworkConnected, long heartbeatAt, long now) {
-        if (isTargetRecentlySeen(heartbeatAt, now)) return State.TARGET_INJECTION_VERIFIED;
+        if (heartbeatAt > 0L && now >= heartbeatAt) {
+            return isTargetRecentlySeen(heartbeatAt, now)
+                    ? State.TARGET_INJECTION_VERIFIED : State.TARGET_INJECTION_SEEN;
+        }
         return frameworkConnected ? State.FRAMEWORK_CONNECTED_WAITING
                 : State.WAITING_FOR_TARGET;
     }
 
     public enum State {
         TARGET_INJECTION_VERIFIED,
+        TARGET_INJECTION_SEEN,
         FRAMEWORK_CONNECTED_WAITING,
         WAITING_FOR_TARGET
     }
