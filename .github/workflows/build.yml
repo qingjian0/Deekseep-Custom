@@ -111,6 +111,7 @@ jobs:
           (cd out && sha256sum YunSeek-1.8.1-release.apk > SHA256.txt)
           cat out/SHA256.txt
       - name: Publish signed APK download
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: yunseek-1.8.1-signed-build-${{ github.run_number }}
