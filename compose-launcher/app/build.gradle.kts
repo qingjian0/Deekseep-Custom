@@ -236,7 +236,7 @@ val stageRuntimeResources = tasks.register<Sync>("stageRuntimeResources") {
 
 android {
     namespace = "com.dsmod.probe"
-    compileSdk = 37
+    compileSdk = providers.gradleProperty("androidCompileSdk").orElse("37").get().toInt()
 
     defaultConfig {
         applicationId = "com.dsmod.probe"
