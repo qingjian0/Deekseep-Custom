@@ -18,6 +18,7 @@ This file is the repository-level operating contract for every AI agent, coding 
 - `dev` is the integration branch and the base for normal development PRs.
 - Never work directly on `main` or `dev`.
 - Create a dedicated feature branch from the latest `dev` for each independent goal.
+- For a genuinely dependent/stacked PR, the follow-up branch may be based on its prerequisite feature branch; declare the dependency and retarget/update it to `dev` after the prerequisite merges.
 - Branch prefixes: `feat/`, `fix/`, `refactor/`, `docs/`, `test/`, `build/`, `release/`.
 - One PR must have one primary purpose. Do not combine package migration, activation fixes, API Gateway work and unrelated refactors.
 - Do not force-push, rewrite shared history, delete protected branches, or merge a PR without explicit repository-owner approval.
