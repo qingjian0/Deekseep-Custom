@@ -1641,6 +1641,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 activationHookStage = "hooks_installed";
                 reportHookStatus(hostApplicationContext, activationHookStage, "");
             } catch (Throwable error) {
+                FEATURE_HOOK_INSTALL_FAILURES.incrementAndGet();
                 activationHookStage = "hooks_failed";
                 activationHookError = safeThrowableMessage(error);
                 reportHookStatus(hostApplicationContext, activationHookStage, activationHookError);
@@ -1681,6 +1682,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     hookLegacyLocalApiAccountRouting(cl);
                 } catch (Throwable error) {
                     V236_LOCAL_API_HOOKS_INSTALLED.set(false);
+                    FEATURE_HOOK_INSTALL_FAILURES.incrementAndGet();
                     log("code249 Local API credential hook bootstrap failed: "
                             + safeThrowableMessage(error));
                 }
@@ -1691,6 +1693,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     HookAccountLoginSecurity.INSTANCE.hookLocalApiAccountRouting(cl);
                 } catch (Throwable error) {
                     LOCAL_API_HOOKS_INSTALLED.set(false);
+                    FEATURE_HOOK_INSTALL_FAILURES.incrementAndGet();
                     log("Local API credential hook bootstrap failed: "
                             + safeThrowableMessage(error));
                 }
@@ -1747,8 +1750,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     () -> HookChatPipeline.INSTANCE.hookChatRequest(hookClassLoader));
             runFeatureInstall("OptionalFeatures",
                     () -> ensureOptionalHooksForEnabledFeatures(hookClassLoader));
-            try { HookAttachmentPipeline.INSTANCE.installExpertHistoryImagePreserver(cl); }
-            catch (Throwable t) { log("install history bridge wiring failed: " + t); }
+            runFeatureInstall("ExpertHistoryImagePreserver",
+                    () -> HookAttachmentPipeline.INSTANCE.installExpertHistoryImagePreserver(hookClassLoader));
 
             File historyMigration = new File("/data/data/com.deepseek.chat/files/deekseep_history_migration_v3");
             if (!historyMigration.exists()) {
@@ -1795,19 +1798,22 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             if (!HostCompat.isV271()) runFeatureInstall("RegionOverride", () -> HookAccountLoginSecurity.INSTANCE.hookRegionOverride(hookClassLoader));
             if (!HostCompat.isV271()) runFeatureInstall("CandidatePasswordLoginCapture", () -> HookAccountLoginSecurity.INSTANCE.hookCandidatePasswordLoginCapture(hookClassLoader));
             if (!HostCompat.isV271()) runFeatureInstall("CandidateRegistrationCaptchaCallbacks", () -> HookAccountLoginSecurity.INSTANCE.hookCandidateRegistrationCaptchaCallbacks(hookClassLoader));
-            if (!HostCompat.isV271()) try { HookAccountLoginSecurity.INSTANCE.installRiskSdkNeutralizer(cl); }
-            catch (Throwable t) { log("installRiskSdkNeutralizer wiring failed: " + t); }
-            if (!HostCompat.isV271()) try { HookAccountLoginSecurity.INSTANCE.installLoginRiskLogger(cl); }
-            catch (Throwable t) { log("installLoginRiskLogger wiring failed: " + t); }
-            if (!HostCompat.isV271()) try { HookAttachmentPipeline.INSTANCE.installExpertUploadGate(cl); }
-            catch (Throwable t) { log("installExpertUploadGate wiring failed: " + t); }
-            if (!HostCompat.isV271()) try { installNetworkPayloadCapture(cl); } catch (Throwable t) { log("installNetworkPayloadCapture wiring failed: " + t); }
-            if (!HostCompat.isV271()) try { HookChatPipeline.INSTANCE.installPowManagerCapture(cl); } catch (Throwable t) { log("installPowManagerCapture wiring failed: " + t); }
-            try { HookAttachmentPipeline.INSTANCE.f9(cl); }
-            catch (Throwable t) { log("f9 wiring failed: " + t); }
-            if (!HostCompat.isV271()) try { installExpertImageFpCapture(cl); } catch (Throwable t) { log("installExpertImageFpCapture wiring failed: " + t); }
-            if (!HostCompat.isV271()) try { HookAttachmentPipeline.INSTANCE.installImageCredentialBridge(cl); }
-            catch (Throwable t) { log("installImageCredentialBridge wiring failed: " + t); }
+            if (!HostCompat.isV271()) runFeatureInstall("RiskSdkNeutralizer",
+                    () -> HookAccountLoginSecurity.INSTANCE.installRiskSdkNeutralizer(hookClassLoader));
+            if (!HostCompat.isV271()) runFeatureInstall("LoginRiskLogger",
+                    () -> HookAccountLoginSecurity.INSTANCE.installLoginRiskLogger(hookClassLoader));
+            if (!HostCompat.isV271()) runFeatureInstall("ExpertUploadGate",
+                    () -> HookAttachmentPipeline.INSTANCE.installExpertUploadGate(hookClassLoader));
+            if (!HostCompat.isV271()) runFeatureInstall("NetworkPayloadCapture",
+                    () -> installNetworkPayloadCapture(hookClassLoader));
+            if (!HostCompat.isV271()) runFeatureInstall("PowManagerCapture",
+                    () -> HookChatPipeline.INSTANCE.installPowManagerCapture(hookClassLoader));
+            runFeatureInstall("AttachmentPipeline.f9",
+                    () -> HookAttachmentPipeline.INSTANCE.f9(hookClassLoader));
+            if (!HostCompat.isV271()) runFeatureInstall("ExpertImageFpCapture",
+                    () -> installExpertImageFpCapture(hookClassLoader));
+            if (!HostCompat.isV271()) runFeatureInstall("ImageCredentialBridge",
+                    () -> HookAttachmentPipeline.INSTANCE.installImageCredentialBridge(hookClassLoader));
             runFeatureInstall("LocalEditorImageUris", () -> HookAttachmentPipeline.INSTANCE.hookLocalEditorImageUris(hookClassLoader));
             runFeatureInstall("LocalSessionDirectoryMerge", () -> HookSessionManagement.INSTANCE.hookLocalSessionDirectoryMerge(hookClassLoader));
             runFeatureInstall("LocalNativeSessionRefresh", () -> HookSessionManagement.INSTANCE.hookLocalNativeSessionRefresh(hookClassLoader));
@@ -1828,12 +1834,14 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             runFeatureInstall("NativeUiHeartbeatCompletion", () -> HookAgentPipeline.INSTANCE.hookNativeUiHeartbeatCompletion(hookClassLoader));
             runFeatureInstall("NativeSessionNavigator", () -> HookSessionManagement.INSTANCE.hookNativeSessionNavigator(hookClassLoader));
             runFeatureInstall("HistoryLoadDiagnostics", () -> HookSessionManagement.INSTANCE.hookHistoryLoadDiagnostics(hookClassLoader));
-            scheduleRealSessionProbe();
+            runFeatureInstall("RealSessionProbe", () -> scheduleRealSessionProbe());
             runFeatureInstall("SettingsNavigation", () -> HookUiSurface.INSTANCE.hookSettingsNavigation(hookClassLoader));
             runFeatureInstall("NativeSettingsEntry", () -> HookUiSurface.INSTANCE.hookNativeSettingsEntry(hookClassLoader));
             // 2.7.1 has native batch select/delete/pin in the sidebar: keep the overlay off there.
-            if (!HostCompat.isV271()) try { HookSessionManagement.INSTANCE.hookSidebarMultiSelectDelete(cl); } catch (Throwable t) { log("hookSidebarMultiSelectDelete wiring failed: " + t); }
-            if (!HostCompat.isV271()) try { HookSessionManagement.INSTANCE.hookSidebarToggleCleanup(cl); } catch (Throwable t) { log("hookSidebarToggleCleanup wiring failed: " + t); }
+            if (!HostCompat.isV271()) runFeatureInstall("SidebarMultiSelectDelete",
+                    () -> HookSessionManagement.INSTANCE.hookSidebarMultiSelectDelete(hookClassLoader));
+            if (!HostCompat.isV271()) runFeatureInstall("SidebarToggleCleanup",
+                    () -> HookSessionManagement.INSTANCE.hookSidebarToggleCleanup(hookClassLoader));
 
             runFeatureInstall("SettingsComposable", () -> hookSettingsComposable(hookClassLoader));
             if (FEATURE_HOOK_INSTALL_FAILURES.get() == 0) {
