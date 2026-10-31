@@ -79,3 +79,8 @@ jobs:
             -PlocalApiIncluded=false \
             -PandroidCompileSdk=36 \
             :app:assembleDebug
+      - name: Compile and package legacy Xposed APK
+        run: |
+          set -euo pipefail
+          bash module-legacy/build.sh
+          test -s module-legacy/ds-probe-legacy.apk
