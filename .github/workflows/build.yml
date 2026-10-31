@@ -36,8 +36,8 @@ jobs:
         with:
           gradle-version: "9.8.2"
 
-      # GitHub's Ubuntu runner already contains Android command-line tools.
-      # Avoid setup-android@v3: it requests the removed SDK package "tools".
+      # The project supports API 35+. Use the stable API 36 platform in CI;
+      # API 37 is not published in the runner's SDK package repository.
       - name: Accept Android SDK licenses and install required components
         run: |
           set -euo pipefail
@@ -47,7 +47,8 @@ jobs:
           fi
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --install "platforms;android-37" "build-tools;35.0.0"
+          "$SDKMANAGER" --install "platforms;android-36" "build-tools;35.0.0"
+          test -d "$ANDROID_SDK_ROOT/platforms/android-36"
           test -x "$ANDROID_SDK_ROOT/build-tools/35.0.0/aapt2"
           test -x "$ANDROID_SDK_ROOT/build-tools/35.0.0/zipalign"
           test -x "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner"
@@ -70,6 +71,7 @@ jobs:
           gradle --no-daemon --stacktrace \
             -PprotectedBuild=false \
             -PlocalApiIncluded=false \
+            -PandroidCompileSdk=36 \
             -Pandroid.aapt2FromMavenOverride="$ANDROID_SDK_ROOT/build-tools/35.0.0/aapt2" \
             :app:assembleDebug
 
