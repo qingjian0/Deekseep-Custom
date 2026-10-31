@@ -2008,8 +2008,6 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 lastUiLanguageLog = languageState;
                 log("UI language " + languageState);
             }
-            reportActivationHeartbeat(act);
-            startActivationHeartbeatLoop(act.getApplicationContext());
             ModuleUpdateChecker.checkOnStartup(act);
             if (!proactiveHeartbeatConfigSynced) {
                 proactiveHeartbeatConfigSynced = true;
@@ -2054,6 +2052,10 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         try {
             curAct = new WeakReference<>(act);
             hostApplicationContext = act.getApplicationContext();
+            // Report as soon as the target process reaches an Activity callback. This evidence
+            // must not depend on optional feature initialization later in performModuleInjection.
+            reportActivationHeartbeat(act);
+            startActivationHeartbeatLoop(hostApplicationContext);
             if (!isDeepSeekMainActivity(act)) return;
 
             // 模块使用凭证门禁：未通过认证前不注入任何功能
