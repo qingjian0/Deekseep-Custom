@@ -1,5 +1,26 @@
 # Deekseep Changelog
 
+## [Unreleased]
+
+### Changed
+- Migrated module and launcher namespaces to `ds.dsh.DeepSeek`.
+- Corrected activation-state reporting so a missing modern framework Binder is not treated as proof that a legacy Xposed module is disabled.
+- Treat persisted target heartbeats as historical injection evidence, not proof of current process liveness.
+
+### Added
+- Namespace migration tooling and activation evidence regression coverage.
+- Local OpenAI-compatible API architecture research with source references.
+- Development, pull-request, versioning and release-gate policy.
+
+### Validation pending
+- Run activation and relevant regression tests.
+- Complete Android build, APK structure and signing verification.
+- Verify LSPosed activation and target-process injection on a physical device.
+
+No release has been published for these changes. The application version remains unchanged until release gates pass.
+
+---
+
 > 1.8.0-port 起为张云安（ZW-SYS）的 2.7.1 移植版；1.7.5 及更早的条目为原作者 Lucian 的原版记录，原样保留。
 
 
