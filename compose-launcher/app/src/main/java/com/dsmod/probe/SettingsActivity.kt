@@ -772,9 +772,6 @@ class SettingsActivity : ComponentActivity() {
             }
             if (host.installed && !host.supported) add("当前 DeepSeek 版本未经适配，部分功能可能失效")
         }
-        val targetObserved = status.state == ActivationStatusPolicy.State.HOOKS_ACTIVE ||
-            status.state == ActivationStatusPolicy.State.HOOKS_INSTALLING ||
-            status.state == ActivationStatusPolicy.State.TARGET_INJECTED
         StatusHeroCard(
             active = status.state == ActivationStatusPolicy.State.HOOKS_ACTIVE,
             title = title,
