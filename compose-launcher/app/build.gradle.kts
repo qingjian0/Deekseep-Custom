@@ -248,7 +248,7 @@ android {
     compileSdk = providers.gradleProperty("androidCompileSdk").orElse("37").get().toInt()
 
     defaultConfig {
-        applicationId = "com.dsmod.probe"
+        applicationId = "ds.dsh.DeepSeek"
         minSdk = 24
         targetSdk = 34
         versionCode = 37
