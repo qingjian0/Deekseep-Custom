@@ -367,30 +367,44 @@ public class SettingsActivity extends Activity {
 
     private void refreshActivationState() {
         if (activationTitle == null || isFinishing()) return;
+
         boolean framework = XposedActivationProvider.isFrameworkConnected();
-        boolean target = XposedActivationProvider.isTargetRecentlyActive(this);
-        if (target) {
-            // Only a UID-verified heartbeat from the DeepSeek host proves that the selected
-            // target scope actually received the module. A framework service Binder is not
-            // evidence that DeepSeek itself is in scope or has been injected.
-            activationTitle.setText(UiLanguage.text(this, "已激活", "Activated"));
-            activationDetail.setText(apiDisplayName() + " · DeepSeek " + deepSeekVersion());
+        long targetAt = XposedActivationProvider.targetHeartbeatAt(this);
+
+        // This project currently enters through IXposedHookLoadPackage. A missing modern
+        // libxposed service Binder is therefore not proof that the module is disabled.
+        // Likewise, a persisted heartbeat proves a previous target-process load, not that
+        // the process is alive right now. Keep those two evidence sources separate.
+        if (targetAt > 0L) {
+            activationTitle.setText(UiLanguage.text(this, "已检测到注入", "Injection detected"));
+            activationDetail.setText(apiDisplayName() + " · DeepSeek " + deepSeekVersion()
+                    + " · " + activationLastSeen(targetAt));
             activationMark.setText("✓");
-        } else if (framework) {
-            activationTitle.setText(UiLanguage.text(this, "待验证", "Waiting for target verification"));
-            activationDetail.setText(apiDisplayName() + " · "
-                    + UiLanguage.text(this, "框架已连接；启动 DeepSeek 后确认目标注入",
-                            "Framework connected; launch DeepSeek to verify target injection"));
-            activationMark.setText("—");
-        } else if (isLegacyBuild()) {
-            activationTitle.setText(UiLanguage.text(this, "待验证", "Waiting for verification"));
-            activationDetail.setText(apiDisplayName() + " · " + UiLanguage.text(this, "启动 DeepSeek 后确认", "Launch DeepSeek to confirm"));
-            activationMark.setText("—");
         } else {
-            activationTitle.setText(UiLanguage.text(this, "未激活", "Not activated"));
-            activationDetail.setText(apiDisplayName() + " · " + UiLanguage.text(this, "Xposed 框架未连接", "Xposed framework not connected"));
-            activationMark.setText("×");
+            activationTitle.setText(UiLanguage.text(this, "等待目标验证",
+                    "Waiting for target verification"));
+            String evidence = framework
+                    ? UiLanguage.text(this, "框架服务已连接", "Framework service connected")
+                    : UiLanguage.text(this, "尚未收到目标进程心跳", "No target-process heartbeat received yet");
+            activationDetail.setText(apiDisplayName() + " · " + evidence + " · "
+                    + UiLanguage.text(this, "请启动 DeepSeek 并等待验证",
+                            "Launch DeepSeek and wait for verification"));
+            activationMark.setText("—");
         }
+    }
+
+    private String activationLastSeen(long at) {
+        long age = System.currentTimeMillis() - at;
+        if (age < 0L) return UiLanguage.text(this, "最近加载时间未知", "Last load time unknown");
+        long minutes = age / 60_000L;
+        if (minutes < 1L) return UiLanguage.text(this, "刚刚检测到", "Detected just now");
+        if (minutes < 60L) return UiLanguage.text(this,
+                minutes + " 分钟前检测到", "Detected " + minutes + " min ago");
+        long hours = minutes / 60L;
+        if (hours < 24L) return UiLanguage.text(this,
+                hours + " 小时前检测到", "Detected " + hours + " hr ago");
+        long days = hours / 24L;
+        return UiLanguage.text(this, days + " 天前检测到", "Detected " + days + " days ago");
     }
 
     private String deepSeekVersion() {
