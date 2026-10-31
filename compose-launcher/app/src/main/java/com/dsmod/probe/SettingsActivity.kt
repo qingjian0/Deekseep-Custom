@@ -212,10 +212,41 @@ class SettingsActivity : ComponentActivity() {
         }
     }.getOrDefault(HostInfo("未安装 DeepSeek", false, false))
 
-    private fun isActive(): Boolean {
-        val framework = runCatching { XposedActivationProvider.isFrameworkConnected() }.getOrDefault(false)
-        val target = runCatching { XposedActivationProvider.isTargetRecentlyActive(this) }.getOrDefault(false)
-        return framework || target
+    private data class ActivationSnapshot(
+        val state: ActivationStatusPolicy.State,
+        val lastSeenAt: Long,
+        val registeredHooks: Int,
+        val hookHits: Long,
+        val hookFailures: Int,
+        val hookError: String,
+    )
+
+    private fun activationSnapshot(): ActivationSnapshot = runCatching {
+        val lastSeen = XposedActivationProvider.targetHeartbeatAt(this)
+        val state = ActivationStatusPolicy.classify(
+            XposedActivationProvider.isTargetRecentlyActive(this),
+            lastSeen,
+            XposedActivationProvider.isHookStatusFresh(this),
+            XposedActivationProvider.hookStage(this),
+            XposedActivationProvider.isFrameworkConnected(),
+        )
+        ActivationSnapshot(
+            state = state,
+            lastSeenAt = lastSeen,
+            registeredHooks = XposedActivationProvider.hookRegisteredCount(this),
+            hookHits = XposedActivationProvider.hookHitCount(this),
+            hookFailures = XposedActivationProvider.hookFailureCount(this),
+            hookError = XposedActivationProvider.hookError(this).orEmpty(),
+        )
+    }.getOrElse {
+        ActivationSnapshot(
+            state = ActivationStatusPolicy.State.WAITING,
+            lastSeenAt = 0L,
+            registeredHooks = 0,
+            hookHits = 0L,
+            hookFailures = 0,
+            hookError = it.javaClass.simpleName,
+        )
     }
 
     private val appVersionLine: String
@@ -697,17 +728,56 @@ class SettingsActivity : ComponentActivity() {
     @Composable
     private fun StatusCard(index: Int) {
         val tick = refreshTick
-        val active = remember(tick) { isActive() }
+        val status = remember(tick) { activationSnapshot() }
         val host = remember(tick) { hostInfo() }
+        val title = when (status.state) {
+            ActivationStatusPolicy.State.HOOKS_ACTIVE -> "Hook 已安装"
+            ActivationStatusPolicy.State.HOOKS_FAILED -> "目标已注入，但 Hook 安装失败"
+            ActivationStatusPolicy.State.HOOKS_PARTIAL -> "部分 Hook 安装失败"
+            ActivationStatusPolicy.State.HOOKS_INSTALLING -> "正在安装 Hook"
+            ActivationStatusPolicy.State.TARGET_INJECTED -> "目标进程已注入"
+            ActivationStatusPolicy.State.FRAMEWORK_CONNECTED -> "框架已连接，等待目标进程"
+            ActivationStatusPolicy.State.LAST_SEEN -> "曾检测到目标进程注入"
+            ActivationStatusPolicy.State.WAITING -> "等待目标注入验证"
+        }
         val lines = buildList {
             add(appVersionLine)
             add("DeepSeek：${host.label}")
-            if (!active) add("请在 LSPosed 中启用 YunSeek 并勾选 DeepSeek，然后重启 DeepSeek")
-            else if (host.installed && !host.supported) add("当前 DeepSeek 版本未经适配，部分功能可能失效")
+            when (status.state) {
+                ActivationStatusPolicy.State.HOOKS_ACTIVE -> {
+                    add("已注册 Hook：${status.registeredHooks} · 调用命中：${status.hookHits}")
+                }
+                ActivationStatusPolicy.State.HOOKS_FAILED,
+                ActivationStatusPolicy.State.HOOKS_PARTIAL -> {
+                    add("已注册：${status.registeredHooks} · 失败：${status.hookFailures}")
+                    if (status.hookError.isNotBlank()) add("错误：${status.hookError}")
+                }
+                ActivationStatusPolicy.State.HOOKS_INSTALLING -> {
+                    add("当前已注册 Hook：${status.registeredHooks}")
+                }
+                ActivationStatusPolicy.State.TARGET_INJECTED -> {
+                    add("目标进程已运行模块入口；Hook 安装结果尚未确认")
+                }
+                ActivationStatusPolicy.State.FRAMEWORK_CONNECTED -> {
+                    add("框架服务可达不等于 DeepSeek 进程已注入")
+                    add("请启动 DeepSeek，等待目标进程报告")
+                }
+                ActivationStatusPolicy.State.LAST_SEEN -> {
+                    add("上次检测：${android.text.format.DateFormat.format("MM-dd HH:mm", status.lastSeenAt)}")
+                    add("这是历史记录，不代表目标进程当前仍在运行")
+                }
+                ActivationStatusPolicy.State.WAITING -> {
+                    add("请在 LSPosed 中启用 YunSeek 并勾选 com.deepseek.chat，然后强制停止并重启 DeepSeek")
+                }
+            }
+            if (host.installed && !host.supported) add("当前 DeepSeek 版本未经适配，部分功能可能失效")
         }
+        val targetObserved = status.state == ActivationStatusPolicy.State.HOOKS_ACTIVE ||
+            status.state == ActivationStatusPolicy.State.HOOKS_INSTALLING ||
+            status.state == ActivationStatusPolicy.State.TARGET_INJECTED
         StatusHeroCard(
-            active = active,
-            title = if (active) "模块已激活" else "模块未激活",
+            active = status.state == ActivationStatusPolicy.State.HOOKS_ACTIVE,
+            title = title,
             lines = lines,
             modifier = Modifier.staggeredEntrance(index),
             onClick = { refreshTick++ },
