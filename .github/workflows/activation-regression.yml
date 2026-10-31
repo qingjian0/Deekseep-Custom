@@ -53,6 +53,16 @@ jobs:
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0"
+      - name: Generate ephemeral validation-only debug keystore
+        run: |
+          set -euo pipefail
+          mkdir -p module
+          if [ ! -s module/debug.keystore ]; then
+            keytool -genkeypair -v -keystore module/debug.keystore \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
       - name: Assemble Open validation APK (no release publication)
         working-directory: compose-launcher
         run: |
