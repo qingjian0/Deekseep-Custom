@@ -1310,10 +1310,13 @@ final class AccountUi {
         if (resultCode != Activity.RESULT_OK || data == null) return;
         final List<Uri> uris = selectedUris(data);
         if (uris.isEmpty()) return;
-        final int permissionFlags = data.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION;
-        for (Uri uri : uris) {
-            try { act.getContentResolver().takePersistableUriPermission(uri, permissionFlags); }
-            catch (Throwable ignored) {}
+        if ((data.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION) != 0) {
+            for (Uri uri : uris) {
+                try {
+                    act.getContentResolver().takePersistableUriPermission(
+                            uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                } catch (Throwable ignored) {}
+            }
         }
 
         final ProgressPopup progress = showProgress(act,
