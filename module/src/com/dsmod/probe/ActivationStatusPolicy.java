@@ -8,6 +8,7 @@ final class ActivationStatusPolicy {
     enum State {
         HOOKS_ACTIVE,
         HOOKS_FAILED,
+        HOOKS_PARTIAL,
         HOOKS_INSTALLING,
         TARGET_INJECTED,
         FRAMEWORK_CONNECTED,
@@ -26,6 +27,9 @@ final class ActivationStatusPolicy {
             }
             if (hookStatusFresh && "hooks_failed".equals(hookStage)) {
                 return State.HOOKS_FAILED;
+            }
+            if (hookStatusFresh && "hooks_partial".equals(hookStage)) {
+                return State.HOOKS_PARTIAL;
             }
             if (hookStatusFresh && "hooks_installing".equals(hookStage)) {
                 return State.HOOKS_INSTALLING;
