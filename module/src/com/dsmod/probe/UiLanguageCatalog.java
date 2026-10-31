@@ -13,8 +13,8 @@ final class UiLanguageCatalog {
     private static final List<Entry> FRAGMENTS = new ArrayList<>();
 
     static {
-        // The complete catalog is grouped below by screen. Longer fragments are applied first so
-        // formatted module status strings can safely reuse the same translations.
+        // Catalog entries are exact-string translations. Substring replacement is deliberately
+        // disabled: even long Chinese labels can occur inside unrelated sentences.
         add("Deekseep", "Deekseep");
         add("YunSeek", "YunSeek");
         // YunSeek 1.8.1 additions
@@ -1970,36 +1970,19 @@ final class UiLanguageCatalog {
 
     static boolean mightTranslate(String value) {
         if (value == null || value.length() == 0) return false;
-        if (EXACT.containsKey(value)) return true;
-        for (Entry entry : FRAGMENTS) {
-            if (value.contains(entry.zh)) return true;
-        }
-        return false;
+        return EXACT.containsKey(value);
     }
 
     static String toEnglish(String value) {
         if (value == null || value.length() == 0) return value == null ? "" : value;
         String exact = EXACT.get(value);
         if (exact != null) return exact;
-        String translated = value;
-        for (Entry entry : FRAGMENTS) {
-            if (translated.contains(entry.zh)) {
-                translated = translated.replace(entry.zh, entry.en);
-            }
-        }
-        return translated;
+        return value;
     }
 
     private static void add(String zh, String en) {
         if (zh == null || zh.length() == 0 || en == null) return;
         EXACT.put(zh, en);
-        // Short labels are exact-only: two- and three-character Chinese words frequently
-        // occur inside unrelated sentences (for example 账号, 内容, 用户, 自动, 时间).
-        // Only longer phrases are eligible for global fragment replacement.
-        // The ideographic comma is intentionally retained for formatted lists.
-        if (zh.length() >= 4 || "、".equals(zh)) {
-            FRAGMENTS.add(new Entry(zh, en));
-        }
     }
 
     private static void addExact(String zh, String en) {
