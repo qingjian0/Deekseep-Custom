@@ -81,12 +81,10 @@ exact = dict(entries)
 
 
 def translate(value):
-    if value in exact:
-        return exact[value]
-    for chinese, english in fragment_entries:
-        if chinese in value:
-            value = value.replace(chinese, english)
-    return value
+    # Match the production implementation: UiLanguageCatalog.toEnglish() performs
+    # an exact lookup only. Treating add() entries as replaceable fragments here
+    # would let CI pass strings that the Android runtime cannot actually translate.
+    return exact.get(value, value)
 
 
 bad_english = [(chinese, english) for chinese, english in entries if cjk.search(english)]
