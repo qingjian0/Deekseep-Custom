@@ -368,28 +368,39 @@ public class SettingsActivity extends Activity {
     private void refreshActivationState() {
         if (activationTitle == null || isFinishing()) return;
         boolean framework = XposedActivationProvider.isFrameworkConnected();
-        boolean target = XposedActivationProvider.isTargetRecentlyActive(this);
         long lastSeen = XposedActivationProvider.targetHeartbeatAt(this);
-        if (target) {
+        ActivationStatusPolicy.State state = ActivationStatusPolicy.classify(
+                framework, lastSeen, System.currentTimeMillis());
+        if (state == ActivationStatusPolicy.State.TARGET_INJECTION_VERIFIED) {
             activationTitle.setText(UiLanguage.text(this,
                     "目标进程注入已验证", "Target process injection verified"));
             activationDetail.setText(apiDisplayName() + " · DeepSeek " + deepSeekVersion()
-                    + " · " + UiLanguage.text(this, "最近检测到目标进程", "Target process seen recently"));
+                    + " · " + UiLanguage.text(this, "最近检测", "Last seen")
+                    + " " + activationLastSeen(lastSeen));
+            activationMark.setText("✓");
+        } else if (state == ActivationStatusPolicy.State.TARGET_INJECTION_SEEN) {
+            activationTitle.setText(UiLanguage.text(this,
+                    "曾检测到目标进程注入", "Target process injection previously detected"));
+            activationDetail.setText(apiDisplayName() + " · DeepSeek " + deepSeekVersion()
+                    + " · " + UiLanguage.text(this, "上次检测", "Last seen")
+                    + " " + activationLastSeen(lastSeen));
             activationMark.setText("✓");
         } else {
-            activationTitle.setText(framework
+            activationTitle.setText(state
+                    == ActivationStatusPolicy.State.FRAMEWORK_CONNECTED_WAITING
                     ? UiLanguage.text(this, "框架已连接，等待目标验证", "Framework connected; waiting for target")
                     : UiLanguage.text(this, "等待目标进程验证", "Waiting for target process verification"));
-            String detail = apiDisplayName() + " · " + (framework
+            activationDetail.setText(apiDisplayName() + " · " + (framework
                     ? UiLanguage.text(this, "LSPosed 服务已连接；请启动 DeepSeek", "LSPosed service connected; launch DeepSeek")
-                    : UiLanguage.text(this, "请检查 LSPosed 作用域并启动 DeepSeek", "Check LSPosed scope and launch DeepSeek"));
-            if (lastSeen > 0L) {
-                detail += " · " + UiLanguage.text(this, "上次检测", "Last seen") + " "
-                        + android.text.format.DateFormat.getDateTimeInstance().format(new java.util.Date(lastSeen));
-            }
-            activationDetail.setText(detail);
+                    : UiLanguage.text(this, "请检查 LSPosed 作用域并启动 DeepSeek", "Check LSPosed scope and launch DeepSeek")));
             activationMark.setText("—");
         }
+    }
+
+    private String activationLastSeen(long at) {
+        if (at <= 0L) return UiLanguage.text(this, "未知", "Unknown");
+        return android.text.format.DateFormat.getDateTimeInstance()
+                .format(new java.util.Date(at));
     }
 
     private String deepSeekVersion() {
