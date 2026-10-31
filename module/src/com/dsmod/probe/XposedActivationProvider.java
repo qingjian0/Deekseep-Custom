@@ -25,6 +25,7 @@ import android.util.Log;
 public final class XposedActivationProvider extends ContentProvider {
     static final String AUTHORITY = "com.dsmod.probe.XposedService";
     static final String METHOD_REPORT_TARGET_ACTIVE = "ReportDeepSeekActive";
+    static final String METHOD_REPORT_HOOK_STATUS = "ReportHookStatus";
     static final String M0 = "s0";
     static final String M1 = "g0";
     static final String M2 = "a0";
@@ -46,7 +47,16 @@ public final class XposedActivationProvider extends ContentProvider {
     private static final String KEY_TARGET_VERSION_NAME = "target_version_name";
     private static final String KEY_TARGET_VERSION_CODE = "target_version_code";
     private static final String KEY_FRAMEWORK_AT = "framework_at";
-    private static final long TARGET_FRESH_MS = 7L * 24L * 60L * 60L * 1000L;
+    private static final String KEY_HOOK_AT = "hook_at";
+    private static final String KEY_HOOK_STAGE = "hook_stage";
+    private static final String KEY_HOOK_REGISTERED = "hook_registered";
+    private static final String KEY_HOOK_HITS = "hook_hits";
+    private static final String KEY_HOOK_FAILURES = "hook_failures";
+    private static final String KEY_HOOK_ERROR = "hook_error";
+    // Main reports every 60 seconds while the target process is alive. A short TTL means
+    // "recently observed", not a seven-day-old installation marker presented as active.
+    private static final long TARGET_FRESH_MS = 5L * 60L * 1000L;
+    private static final long HOOK_STATUS_FRESH_MS = 5L * 60L * 1000L;
     private static final String TAG = "DeekseepActivation";
 
     private static volatile IBinder frameworkBinder;
@@ -64,6 +74,9 @@ public final class XposedActivationProvider extends ContentProvider {
         }
         if (METHOD_REPORT_TARGET_ACTIVE.equals(method)) {
             return receiveTargetHeartbeat(extras);
+        }
+        if (METHOD_REPORT_HOOK_STATUS.equals(method)) {
+            return receiveHookStatus(extras);
         }
         if (M0.equals(method)) {
             return s0(extras);
@@ -317,6 +330,52 @@ public final class XposedActivationProvider extends ContentProvider {
         return result;
     }
 
+    /** Accept hook telemetry only from the actual DeepSeek application UID. */
+    private Bundle receiveHookStatus(Bundle extras) {
+        Bundle result = new Bundle();
+        Context context = getContext();
+        int callingUid = Binder.getCallingUid();
+        if (context == null || !uidOwnsPackage(context, callingUid, TARGET_PACKAGE)) {
+            result.putBoolean("accepted", false);
+            result.putString("error", "caller is not DeepSeek");
+            return result;
+        }
+        String stage = extras == null ? "" : extras.getString("stage", "");
+        if (!("target_injected".equals(stage) || "hooks_installing".equals(stage)
+                || "hooks_installed".equals(stage) || "hooks_failed".equals(stage))) {
+            result.putBoolean("accepted", false);
+            result.putString("error", "invalid hook stage");
+            return result;
+        }
+        SharedPreferences.Editor edit = prefs(context).edit()
+                .putLong(KEY_HOOK_AT, System.currentTimeMillis())
+                .putString(KEY_HOOK_STAGE, stage)
+                .putInt(KEY_HOOK_REGISTERED, clampCount(
+                        extras == null ? 0 : extras.getInt("registered", 0)))
+                .putLong(KEY_HOOK_HITS, clampLong(
+                        extras == null ? 0L : extras.getLong("hits", 0L)))
+                .putInt(KEY_HOOK_FAILURES, clampCount(
+                        extras == null ? 0 : extras.getInt("failures", 0)));
+        String error = extras == null ? "" : extras.getString("error", "");
+        if (error == null) error = "";
+        if (error.length() > 240) error = error.substring(0, 240);
+        edit.putString(KEY_HOOK_ERROR, error).apply();
+        result.putBoolean("accepted", true);
+        notifyStateChanged();
+        Log.i(TAG, "hook status accepted stage=" + stage
+                + " registered=" + prefs(context).getInt(KEY_HOOK_REGISTERED, 0)
+                + " failures=" + prefs(context).getInt(KEY_HOOK_FAILURES, 0));
+        return result;
+    }
+
+    private static int clampCount(int value) {
+        return Math.max(0, Math.min(value, 10000));
+    }
+
+    private static long clampLong(long value) {
+        return Math.max(0L, Math.min(value, 1000000000L));
+    }
+
     /** Shared by the provider and the explicit-broadcast package-visibility fallback. */
     static boolean recordTargetHeartbeat(Context context, int callingUid, Bundle extras,
                                          String channel) {
@@ -373,7 +432,37 @@ public final class XposedActivationProvider extends ContentProvider {
     }
 
     static long targetHeartbeatAt(Context context) {
-        return prefs(context).getLong(KEY_TARGET_AT, 0L);
+        return context == null ? 0L : prefs(context).getLong(KEY_TARGET_AT, 0L);
+    }
+
+    static boolean isHookStatusFresh(Context context) {
+        long at = hookStatusAt(context);
+        long age = System.currentTimeMillis() - at;
+        return at > 0L && age >= 0L && age <= HOOK_STATUS_FRESH_MS;
+    }
+
+    static long hookStatusAt(Context context) {
+        return context == null ? 0L : prefs(context).getLong(KEY_HOOK_AT, 0L);
+    }
+
+    static String hookStage(Context context) {
+        return context == null ? "" : prefs(context).getString(KEY_HOOK_STAGE, "");
+    }
+
+    static int hookRegisteredCount(Context context) {
+        return context == null ? 0 : prefs(context).getInt(KEY_HOOK_REGISTERED, 0);
+    }
+
+    static long hookHitCount(Context context) {
+        return context == null ? 0L : prefs(context).getLong(KEY_HOOK_HITS, 0L);
+    }
+
+    static int hookFailureCount(Context context) {
+        return context == null ? 0 : prefs(context).getInt(KEY_HOOK_FAILURES, 0);
+    }
+
+    static String hookError(Context context) {
+        return context == null ? "" : prefs(context).getString(KEY_HOOK_ERROR, "");
     }
 
     static String targetVersion(Context context) {
