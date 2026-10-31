@@ -46,7 +46,7 @@ public final class XposedActivationProvider extends ContentProvider {
     private static final String KEY_TARGET_VERSION_NAME = "target_version_name";
     private static final String KEY_TARGET_VERSION_CODE = "target_version_code";
     private static final String KEY_FRAMEWORK_AT = "framework_at";
-    private static final long TARGET_FRESH_MS = 7L * 24L * 60L * 60L * 1000L;
+    private static final long TARGET_FRESH_MS = 15L * 60L * 1000L;
     private static final String TAG = "DeekseepActivation";
 
     private static volatile IBinder frameworkBinder;
