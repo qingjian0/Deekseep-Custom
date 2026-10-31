@@ -43,8 +43,10 @@ public class PromptPickerActivity extends Activity {
         Uri uri = data.getData();
         int grantFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION;
         try {
-            getContentResolver().takePersistableUriPermission(
-                    uri, data.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            if ((data.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION) != 0) {
+                getContentResolver().takePersistableUriPermission(
+                        uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            }
         } catch (Throwable ignored) {}
         try {
             grantUriPermission("com.deepseek.chat", uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
