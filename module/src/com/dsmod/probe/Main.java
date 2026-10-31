@@ -1851,7 +1851,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 activationHookStage = "hooks_installed";
                 activationHookError = "";
             } else {
-                activationHookStage = "hooks_failed";
+                activationHookStage = "hooks_partial";
                 activationHookError = "partial installation failures="
                         + FEATURE_HOOK_INSTALL_FAILURES.get() + "; last=" + activationHookError;
             }
