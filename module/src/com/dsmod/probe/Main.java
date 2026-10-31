@@ -1683,6 +1683,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 } catch (Throwable error) {
                     V236_LOCAL_API_HOOKS_INSTALLED.set(false);
                     FEATURE_HOOK_INSTALL_FAILURES.incrementAndGet();
+                    activationHookError = "LocalApiAccountRouting: " + safeThrowableMessage(error);
                     log("code249 Local API credential hook bootstrap failed: "
                             + safeThrowableMessage(error));
                 }
@@ -1694,6 +1695,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 } catch (Throwable error) {
                     LOCAL_API_HOOKS_INSTALLED.set(false);
                     FEATURE_HOOK_INSTALL_FAILURES.incrementAndGet();
+                    activationHookError = "LocalApiAccountRouting: " + safeThrowableMessage(error);
                     log("Local API credential hook bootstrap failed: "
                             + safeThrowableMessage(error));
                 }
@@ -1710,6 +1712,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     () -> HookAccountLoginSecurity.INSTANCE.hookCandidateLoginErrorMessages());
             runFeatureInstall("AccountSecurity.fa",
                     () -> HookAccountLoginSecurity.INSTANCE.fa(hookClassLoader));
+            runFeatureInstall("RestoreLocalEditorImages", () -> restoreLocalEditorImages());
 
             runFeatureInstall("LocalSessionRecovery", () -> {
                 File obsoleteTriggerCleanup = new File(
