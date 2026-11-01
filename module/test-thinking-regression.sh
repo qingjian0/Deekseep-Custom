@@ -116,6 +116,7 @@ javac -source 8 -target 8 -cp "$JSON_JAR:$ANDROID_JAR:$UNIVERSAL_CLASSES:build/c
     src/ds/dsh/DeepSeek/ResponsePreserver.java \
     src/ds/dsh/DeepSeek/AgentRateLimiter.java \
     src/ds/dsh/DeepSeek/HostNavigationCatalog.java \
+    src/ds/dsh/DeepSeek/relay/ExpertRelayGate.java \
     src/ds/dsh/DeepSeek/HostCompat.java \
     tests/tp.java \
     tests/h61.java \
