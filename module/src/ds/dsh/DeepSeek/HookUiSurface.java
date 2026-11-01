@@ -3862,19 +3862,23 @@ final class HookUiSurface {
         if (installFailure != null) throw installFailure;
     }
 
-    private int hookNavStateMethod(Class<?> nav, String name) throws Throwable {
+    private int hookNavStateMethod(Class<?> nav, String name) {
         int count = 0;
         for (Method m : nav.getDeclaredMethods()) {
             if (!HostRemap.name(m).equals(name)) continue;
-            hookSettingsNavigationOnce(m, new Hooker() {
-                @Override public Object intercept(Chain chain) throws Throwable {
-                    Object r = chain.proceed();
-                    rememberNavController(chain.getThisObject());
-                    Main.MODULE.scheduleRouteCheck(chain.getThisObject());
-                    return r;
-                }
-            });
-            count++;
+            try {
+                hookSettingsNavigationOnce(m, new Hooker() {
+                    @Override public Object intercept(Chain chain) throws Throwable {
+                        Object r = chain.proceed();
+                        rememberNavController(chain.getThisObject());
+                        Main.MODULE.scheduleRouteCheck(chain.getThisObject());
+                        return r;
+                    }
+                });
+                count++;
+            } catch (Throwable error) {
+                Main.log("hook nav state " + name + " failed for " + m + ": " + error);
+            }
         }
         Main.log("hooked nav state rm5." + name + " x" + count);
         return count;
