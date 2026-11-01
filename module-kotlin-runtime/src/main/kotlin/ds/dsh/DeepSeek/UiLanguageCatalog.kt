@@ -2,9 +2,7 @@ package ds.dsh.DeepSeek
 
 /**
  * Exact-string English copy catalog for the manually rendered module UI.
- *
- * This is deliberately a pure JVM component: it performs no substring replacement and leaves
- * unknown/user-authored text unchanged. The catalog entries are carried over verbatim.
+ * Unknown and user-authored text is preserved; arbitrary substring replacement is forbidden.
  */
 object UiLanguageCatalog {
     private val EXACT = HashMap<String, String>()
@@ -2032,8 +2030,6 @@ object UiLanguageCatalog {
         val exact = EXACT[value]
         if (exact != null) return exact
 
-        // Translate only complete, known dynamic templates. Arbitrary substring replacement
-        // remains disabled so unrelated sentences cannot be partially rewritten.
         val singlePrefix = "已验证并加入 "
         val singleSuffix = " 个账号。当前登录账号未改变，可在列表中随时切换。"
         if (value.startsWith(singlePrefix) && value.endsWith(singleSuffix)) {
@@ -2064,10 +2060,8 @@ object UiLanguageCatalog {
         return value
     }
 
-    private fun isAsciiDigits(value: String): Boolean {
-        if (value.isEmpty()) return false
-        return value.all { it in '0'..'9' }
-    }
+    private fun isAsciiDigits(value: String): Boolean =
+        value.isNotEmpty() && value.all { it in '0'..'9' }
 
     private fun add(zh: String?, en: String?) {
         if (zh.isNullOrEmpty() || en == null) return
