@@ -65,6 +65,14 @@ public final class KotlinPolicyJavaInteropRegression {
         require(AgentManualGateState.consumeApproval("interop-call")
                         && !AgentManualGateState.consumeApproval("interop-call"),
                 "Java caller could not use the migrated Kotlin manual-gate state");
+        require(ZipArchivePathPolicy.isSafePath("accounts/account.json")
+                        && !ZipArchivePathPolicy.isSafePath("../account.json"),
+                "Java caller could not use the migrated ZIP path policy");
+        AgentManualGateState.markPending("interop-call");
+        AgentManualGateState.approve("interop-call");
+        require(AgentManualGateState.consumeApproval("interop-call")
+                        && !AgentManualGateState.consumeApproval("interop-call"),
+                "Java caller could not use the migrated Kotlin manual-gate state");
         DshDiagnosticsRecorder diagnostics = new DshDiagnosticsRecorder(2);
         diagnostics.record("hook installed cost=16ms");
         diagnostics.record("server request Cookie: sid=interop-secret-123");
