@@ -11,6 +11,8 @@ public final class FeatureHookInstallRegistryRegression {
         testFailureCanBeRetriedWithoutRerunningCompletedEntries();
         testSkippedEntryIsTerminal();
         testSkipDoesNotOverwriteInstalledEntry();
+        testSkipCannotWinAgainstInFlightInstall();
+        testDegradedDoesNotOverwriteTerminalEntries();
         testMarkSkippedPreservesFailedEntry();
         testMarkSkippedPreservesDegradedEntry();
         testConcurrentCallersDoNotDoubleInstall();
@@ -101,6 +103,72 @@ public final class FeatureHookInstallRegistryRegression {
                 FeatureHookInstallRegistry.State.INSTALLED, 1);
         assertEquals(1, calls.get(), "installed entry must remain installed");
         assertFalse(registry.hasFailures(), "installed entry must remain healthy");
+    }
+
+    private static void testSkipCannotWinAgainstInFlightInstall() throws Throwable {
+        FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
+        AtomicInteger calls = new AtomicInteger();
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        CountDownLatch skipStarted = new CountDownLatch(1);
+        AtomicReference<Throwable> threadFailure = new AtomicReference<>();
+
+        Thread installer = new Thread(() -> {
+            try {
+                registry.install("install.races.skip", () -> {
+                    calls.incrementAndGet();
+                    entered.countDown();
+                    if (!release.await(3, TimeUnit.SECONDS)) {
+                        throw new AssertionError("timed out waiting to release installer");
+                    }
+                });
+            } catch (Throwable failure) {
+                threadFailure.compareAndSet(null, failure);
+            }
+        });
+        Thread skipper = new Thread(() -> {
+            try {
+                if (!entered.await(3, TimeUnit.SECONDS)) {
+                    throw new AssertionError("installer did not enter");
+                }
+                skipStarted.countDown();
+                registry.markSkipped("install.races.skip", "must not replace in-flight install");
+            } catch (Throwable failure) {
+                threadFailure.compareAndSet(null, failure);
+            }
+        });
+
+        installer.start();
+        skipper.start();
+        if (!skipStarted.await(3, TimeUnit.SECONDS)) {
+            release.countDown();
+            throw new AssertionError("skip caller did not start");
+        }
+        release.countDown();
+        installer.join(3000L);
+        skipper.join(3000L);
+        assertFalse(installer.isAlive() || skipper.isAlive(),
+                "install/skip race threads must finish");
+        if (threadFailure.get() != null) throw threadFailure.get();
+        assertEquals(1, calls.get(), "in-flight installer must execute exactly once");
+        assertState(registry, "install.races.skip", FeatureHookInstallRegistry.State.INSTALLED, 1);
+        assertFalse(registry.hasFailures(), "successful in-flight install must remain healthy");
+    }
+
+    private static void testDegradedDoesNotOverwriteTerminalEntries() throws Throwable {
+        FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
+        registry.install("installed.before.degraded", () -> { });
+        registry.markDegraded("installed.before.degraded",
+                new IllegalStateException("late degradation must be ignored"));
+        assertState(registry, "installed.before.degraded",
+                FeatureHookInstallRegistry.State.INSTALLED, 1);
+
+        registry.markSkipped("skipped.before.degraded", "explicit host gate");
+        registry.markDegraded("skipped.before.degraded",
+                new IllegalStateException("late degradation must be ignored"));
+        assertState(registry, "skipped.before.degraded",
+                FeatureHookInstallRegistry.State.SKIPPED, 0);
+        assertFalse(registry.hasFailures(), "terminal entries must not become degraded");
     }
 
     private static void testConcurrentCallersDoNotDoubleInstall() throws Throwable {
