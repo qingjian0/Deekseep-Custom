@@ -35,6 +35,7 @@ val r8Tool = configurations.create("r8Tool") {
 }
 
 dependencies {
+    testImplementation("junit:junit:4.13.2")
     add(r8Tool.name, "com.android.tools:r8:9.1.29")
 }
 
