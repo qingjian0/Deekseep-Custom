@@ -337,7 +337,7 @@ final class HookSessionManagement {
      * and only then invokes the callback. Replacing ch2.f's callback alone therefore displayed
      * both menus. Suppress only that exact wrapper when its callback is our multi-select proxy.
      */
-    private void hookV241SidebarNativeMenuSuppression(final ClassLoader cl) {
+    private void hookV241SidebarNativeMenuSuppression(final ClassLoader cl) throws Throwable {
         try {
             Class<?> wrapper = HostRemap.load(cl, "ma");
             int installed = 0;
@@ -362,9 +362,11 @@ final class HookSessionManagement {
                 });
                 installed++;
             }
+            if (installed == 0) throw new NoSuchMethodException("ma.u native long-press menu target");
             Main.log("installed code257 native long-press menu suppression ma.u x" + installed);
         } catch (Throwable error) {
             Main.log("code257 native long-press menu suppression failed: " + error);
+            throw error;
         }
     }
 
