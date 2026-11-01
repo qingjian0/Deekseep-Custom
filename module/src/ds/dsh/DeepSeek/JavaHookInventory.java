@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 /** Build-time inventory of every hook(...).intercept registration in the current Main.java. */
 final class JavaHookInventory {
