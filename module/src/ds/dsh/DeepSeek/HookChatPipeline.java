@@ -2264,8 +2264,13 @@ final class HookChatPipeline {
                     n++;
                 }
             }
+            if (n == 0) throw new NoSuchMethodException("q71 API manager constructors/accessors");
             Main.log("installed pow manager capture on q71 x" + n);
-        } catch (Throwable t) { Main.log("installPowManagerCapture failed: " + t); }
+        } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw new IllegalStateException("POW manager capture hook installation failed", t);
+        }
     }
 
     private static void captureApiManagers(Object q71) {
