@@ -39,6 +39,7 @@ public final class XposedActivationProvider extends ContentProvider {
     static final String METHOD_GET_LOCAL_AUDIO_STATUS = "GetLocalAudioStatus";
     static final String METHOD_WRITE_DSH_LOG = "WriteDshLog";
     static final String METHOD_GET_DSH_LOG_STATUS = "GetDshLogStatus";
+    static final String METHOD_READ_DSH_CRASH_LOG = "ReadDshCrashLog";
 
     private static final String METHOD_SEND_BINDER = "SendBinder";
     private static final String SERVICE_DESCRIPTOR = "io.github.libxposed.service.IXposedService";
@@ -109,6 +110,9 @@ public final class XposedActivationProvider extends ContentProvider {
         if (METHOD_GET_DSH_LOG_STATUS.equals(method)) {
             return getDshLogStatus();
         }
+        if (METHOD_READ_DSH_CRASH_LOG.equals(method)) {
+            return readDshCrashLog();
+        }
         return null;
     }
 
@@ -123,6 +127,21 @@ public final class XposedActivationProvider extends ContentProvider {
         }
         result.putBoolean("accepted", true);
         DshLogIpcQueue.putStatus(result);
+        return result;
+    }
+
+    private Bundle readDshCrashLog() {
+        Bundle result = new Bundle();
+        Context context = getContext();
+        int callingUid = Binder.getCallingUid();
+        if (context == null || !uidOwnsPackage(context, callingUid, TARGET_PACKAGE)) {
+            result.putBoolean("accepted", false);
+            result.putString("error", "caller is not DeepSeek");
+            return result;
+        }
+        result.putBoolean("accepted", true);
+        result.putString("content", DshFileLogStore.readPrivateCrashTail(
+                context, 384 * 1024));
         return result;
     }
 
