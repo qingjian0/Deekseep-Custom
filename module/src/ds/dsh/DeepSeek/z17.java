@@ -129,32 +129,34 @@ final class z17 {
             throws Exception {
         String endpoint = ConversationRelayEndpointPolicy.modelsEndpoint(baseUrl);
         HttpURLConnection conn = (HttpURLConnection) new URL(endpoint).openConnection();
-        conn.setRequestMethod("GET");
-        conn.setConnectTimeout(ConversationRelayEndpointPolicy.MODEL_CONNECT_TIMEOUT_MILLIS);
-        conn.setReadTimeout(ConversationRelayEndpointPolicy.MODEL_READ_TIMEOUT_MILLIS);
-        for (java.util.Map.Entry<String, String> header :
-                ConversationRelayEndpointPolicy.modelDiscoveryHeaders(format, apiKey).entrySet()) {
-            conn.setRequestProperty(header.getKey(), header.getValue());
-        }
-        int code = conn.getResponseCode();
-        if (code != 200) {
-            String body = readStream(conn.getErrorStream());
-            conn.disconnect();
-            throw new java.io.IOException("HTTP " + code
-                    + (body.length() == 0 ? "" : ": " + body.substring(0, Math.min(200, body.length()))));
-        }
-        String body = readStream(conn.getInputStream());
-        conn.disconnect();
-        JSONObject json = new JSONObject(body);
-        JSONArray data = json.optJSONArray("data");
-        ArrayList<String> models = new ArrayList<String>();
-        if (data != null) {
-            for (int i = 0; i < data.length(); i++) {
-                String id = data.optJSONObject(i).optString("id", "").trim();
-                if (id.length() > 0 && !models.contains(id)) models.add(id);
+        try {
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(ConversationRelayEndpointPolicy.MODEL_CONNECT_TIMEOUT_MILLIS);
+            conn.setReadTimeout(ConversationRelayEndpointPolicy.MODEL_READ_TIMEOUT_MILLIS);
+            for (java.util.Map.Entry<String, String> header :
+                    ConversationRelayEndpointPolicy.modelDiscoveryHeaders(format, apiKey).entrySet()) {
+                conn.setRequestProperty(header.getKey(), header.getValue());
             }
+            int code = conn.getResponseCode();
+            if (code != 200) {
+                String body = readStream(conn.getErrorStream());
+                throw new java.io.IOException("HTTP " + code
+                        + (body.length() == 0 ? "" : ": " + body.substring(0, Math.min(200, body.length()))));
+            }
+            String body = readStream(conn.getInputStream());
+            JSONObject json = new JSONObject(body);
+            JSONArray data = json.optJSONArray("data");
+            ArrayList<String> models = new ArrayList<String>();
+            if (data != null) {
+                for (int i = 0; i < data.length(); i++) {
+                    String id = data.optJSONObject(i).optString("id", "").trim();
+                    if (id.length() > 0 && !models.contains(id)) models.add(id);
+                }
+            }
+            return models;
+        } finally {
+            conn.disconnect();
         }
-        return models;
     }
 
     private static String normalize(String baseUrl) {
@@ -174,6 +176,7 @@ final class z17 {
         boolean anthropic = FORMAT_ANTHROPIC.equals(format());
         String endpoint = ConversationRelayEndpointPolicy.chatEndpoint(baseUrl,
                 anthropic ? FORMAT_ANTHROPIC : FORMAT_OPENAI);
+        HttpURLConnection conn = null;
         try {
             JSONObject root = new JSONObject();
             root.put("model", ConversationRelayEndpointPolicy.effectiveModel(model));
@@ -184,7 +187,7 @@ final class z17 {
             if (anthropic) root.put("max_tokens", 8192);
             String body = root.toString();
 
-            HttpURLConnection conn = (HttpURLConnection) new URL(endpoint).openConnection();
+            conn = (HttpURLConnection) new URL(endpoint).openConnection();
             conn.setRequestMethod("POST");
             conn.setConnectTimeout(ConversationRelayEndpointPolicy.CONNECT_TIMEOUT_MILLIS);
             conn.setReadTimeout(ConversationRelayEndpointPolicy.STREAM_READ_TIMEOUT_MILLIS);
@@ -213,6 +216,8 @@ final class z17 {
         } catch (Throwable t) {
             String msg = t.getMessage();
             return new RelayResult(msg != null ? msg : HostRemap.simpleName(t.getClass()));
+        } finally {
+            if (conn != null) conn.disconnect();
         }
     }
 
