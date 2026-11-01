@@ -233,10 +233,19 @@ final class z17 {
                     if (choices != null && choices.length() > 0) {
                         JSONObject delta = choices.optJSONObject(0).optJSONObject("delta");
                         if (delta != null) {
-                            String rc = delta.optString("reasoning_content", "");
-                            if (rc.length() > 0) reasoning.append(rc);
-                            String c = delta.optString("content", "");
-                            if (c.length() > 0) content.append(c);
+                            java.util.Iterator<String> fields = delta.keys();
+                            while (fields.hasNext()) {
+                                String field = fields.next();
+                                ConversationRelayProviderEventPolicy.OutputChannel channel =
+                                        ConversationRelayProviderEventPolicy.openAiChannel(field);
+                                String value = delta.optString(field, "");
+                                if (value.length() == 0) continue;
+                                if (channel == ConversationRelayProviderEventPolicy.OutputChannel.REASONING) {
+                                    reasoning.append(value);
+                                } else if (channel == ConversationRelayProviderEventPolicy.OutputChannel.CONTENT) {
+                                    content.append(value);
+                                }
+                            }
                         }
                     }
                 } catch (Throwable ignored) {}
@@ -265,10 +274,12 @@ final class z17 {
                         JSONObject delta = event.optJSONObject("delta");
                         if (delta != null) {
                             String dt = delta.optString("type", "");
-                            if ("thinking_delta".equals(dt)) {
+                            ConversationRelayProviderEventPolicy.OutputChannel channel =
+                                    ConversationRelayProviderEventPolicy.anthropicDeltaChannel(type, dt);
+                            if (channel == ConversationRelayProviderEventPolicy.OutputChannel.REASONING) {
                                 String think = delta.optString("thinking", "");
                                 if (think.length() > 0) reasoning.append(think);
-                            } else if ("text_delta".equals(dt)) {
+                            } else if (channel == ConversationRelayProviderEventPolicy.OutputChannel.CONTENT) {
                                 String text = delta.optString("text", "");
                                 if (text.length() > 0) content.append(text);
                             }
@@ -277,10 +288,12 @@ final class z17 {
                         JSONObject block = event.optJSONObject("content_block");
                         if (block != null) {
                             String bt = block.optString("type", "");
-                            if ("thinking".equals(bt)) {
+                            ConversationRelayProviderEventPolicy.OutputChannel channel =
+                                    ConversationRelayProviderEventPolicy.anthropicStartChannel(type, bt);
+                            if (channel == ConversationRelayProviderEventPolicy.OutputChannel.REASONING) {
                                 String think = block.optString("thinking", "");
                                 if (think.length() > 0) reasoning.append(think);
-                            } else if ("text".equals(bt)) {
+                            } else if (channel == ConversationRelayProviderEventPolicy.OutputChannel.CONTENT) {
                                 String text = block.optString("text", "");
                                 if (text.length() > 0) content.append(text);
                             }
