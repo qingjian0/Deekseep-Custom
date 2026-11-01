@@ -1815,8 +1815,13 @@ final class HookChatPipeline {
                 });
                 n++;
             }
+            if (n == 0) throw new NoSuchMethodException("tp final-message replace methods");
             Main.log("hooked tp.q/p/a x" + n + " (final-apply guard)");
-        } catch (Throwable t) { Main.log("hookFinalMessageApply failed: " + t); }
+        } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw new IllegalStateException("final-message apply hook installation failed", t);
+        }
     }
 
     // 反射调用无参方法返回字符串（uo.D()=status / uo.x()=quasi_status）
@@ -2048,9 +2053,12 @@ final class HookChatPipeline {
                 });
                 installed++;
             }
+            if (installed == 0) throw new NoSuchMethodException("s11.a render-list method");
             Main.log("installed s11 render filter x" + installed);
         } catch (Throwable error) {
-            Main.log("hook s11 render filter failed: " + error);
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            throw new IllegalStateException("s11 render filter hook installation failed", error);
         }
     }
 
@@ -2109,9 +2117,12 @@ final class HookChatPipeline {
                 });
                 installed++;
             }
+            if (installed == 0) throw new NoSuchMethodException("cs1.m attachment-list method");
             Main.log("installed cs1.m attachment filter x" + installed);
         } catch (Throwable error) {
-            Main.log("hook cs1.m attachment filter failed: " + error);
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            throw new IllegalStateException("cs1 attachment filter hook installation failed", error);
         }
     }
 
