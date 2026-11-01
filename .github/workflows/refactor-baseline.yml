@@ -96,6 +96,10 @@ jobs:
         run: bash module-universal/build.sh
       - name: Run Android-dependent chat thinking regression
         run: bash module/test-thinking-regression.sh
+      - name: Build Google Play Universal artifact
+        run: GOOGLE_PLAY_BUILD=true bash module-universal/build.sh
+      - name: Verify Universal channel feature parity
+        run: bash scripts/test-universal-feature-parity.sh
       - name: Build Compose launcher Open variant
         working-directory: compose-launcher
         run: |
@@ -137,10 +141,13 @@ jobs:
           }
           legacy_cert="$(certificate_sha256 module-legacy/ds-probe-legacy.apk)"
           universal_cert="$(certificate_sha256 module-universal/ds-probe-universal.apk)"
+          google_play_cert="$(certificate_sha256 module-universal/ds-probe-universal-google-play.apk)"
           compose_cert="$(certificate_sha256 compose-launcher/app/build/outputs/apk/debug/app-debug.apk)"
           test -n "$legacy_cert"
           test -n "$universal_cert"
+          test -n "$google_play_cert"
           test -n "$compose_cert"
           test "$legacy_cert" = "$universal_cert"
-          test "$universal_cert" = "$compose_cert"
-          echo "Legacy, Universal and Compose APKs share signing certificate $legacy_cert"
+          test "$universal_cert" = "$google_play_cert"
+          test "$google_play_cert" = "$compose_cert"
+          echo "Legacy, domestic Universal, Google Play Universal and Compose APKs share signing certificate $legacy_cert"
