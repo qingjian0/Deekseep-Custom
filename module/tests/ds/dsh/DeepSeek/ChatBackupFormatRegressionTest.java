@@ -25,8 +25,8 @@ public final class ChatBackupFormatRegressionTest {
                 "trailing slash rejected");
         check(!DeekseepTools.validBackupManifest(null), "null manifest rejected");
         check(!DeekseepTools.validBackupManifest(new JSONObject()
-                .put("format", "deekseep-chat-backup").put("version", 1.5)),
-                "non-integral version rejected");
+                .put("format", "deekseep-chat-backup").put("version", 2.5)),
+                "unsupported numeric version rejected");
         System.out.println("Chat backup format regression tests passed");
     }
 
