@@ -43,6 +43,14 @@ public final class KotlinPolicyJavaInteropRegression {
                         "com.deepseek.chat.ui.pages.ChatRoute".getBytes(StandardCharsets.ISO_8859_1)))
                         .contains("com.deepseek.chat.ui.pages.ChatRoute"),
                 "Java caller could not use the migrated DEX route parser");
+        require("闪电".equals(ModelDisplayNamePolicy.mapDisplay(
+                        " 快速 ", true, java.util.Collections.singletonMap("快速", "闪电"))),
+                "Java caller could not use the Kotlin display-label policy");
+        require(ModelDisplayNamePolicy.clean(" alpha\\nbeta ").equals("alpha beta"),
+                "Java caller observed a changed display-label cleanup rule");
+        require(ModelDisplayNamePolicy.mapDisplay(
+                        "普通聊天里提到快速", true, java.util.Collections.singletonMap("快速", "闪电")) == null,
+                "Kotlin display-label policy changed exact-match semantics");
         require(AndroidManifestVersion.parse(new byte[7]) == null,
                 "Java caller could not use the migrated Kotlin AXML parser");
         require(AgentRateLimiter.MIN_GAP_MS == 8_000L
