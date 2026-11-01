@@ -9,7 +9,7 @@
  * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
  */
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import android.app.Activity;
 import android.app.AlertDialog;

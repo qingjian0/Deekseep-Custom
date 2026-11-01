@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import android.animation.ValueAnimator;
 import android.app.Activity;
@@ -61,8 +61,8 @@ final class ClosedFullDataBackupBridge {
             long code = android.os.Build.VERSION.SDK_INT >= 28
                     ? info.getLongVersionCode() : info.versionCode;
             if (code != 249L && code != 257L && code != 268L) return false;
-            Class.forName("com.dsmod.probe.FullDataBackup");
-            Class.forName("com.dsmod.probe.FullDataBackup$Callback");
+            Class.forName("ds.dsh.DeepSeek.FullDataBackup");
+            Class.forName("ds.dsh.DeepSeek.FullDataBackup$Callback");
             return true;
         } catch (Throwable ignored) {
             return false;
@@ -353,8 +353,8 @@ final class ClosedFullDataBackupBridge {
             final TextView percentText = holder.percentText;
             final SmoothProgressBar progressBar = holder.progressBar;
 
-            Class<?> implementation = Class.forName("com.dsmod.probe.FullDataBackup");
-            Class<?> callbackType = Class.forName("com.dsmod.probe.FullDataBackup$Callback");
+            Class<?> implementation = Class.forName("ds.dsh.DeepSeek.FullDataBackup");
+            Class<?> callbackType = Class.forName("ds.dsh.DeepSeek.FullDataBackup$Callback");
             Object callback = Proxy.newProxyInstance(callbackType.getClassLoader(),
                     new Class[]{callbackType}, (proxy, method, args) -> {
                         if ("progress".equals(method.getName())) {

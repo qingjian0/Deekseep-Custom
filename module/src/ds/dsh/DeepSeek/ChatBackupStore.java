@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
