@@ -196,24 +196,13 @@ final class AccountCredentialCodec {
     }
 
     static String suggestFileName(List<Entry> entries) {
-        List<String> names = new ArrayList<>();
+        List<String> names = null;
         if (entries != null) {
-            for (Entry e : entries) {
-                if (names.size() >= 3) break;
-                String clean = safeName(e == null ? null : e.name);
-                if (clean.length() > 0) names.add(clean);
-            }
+            names = new ArrayList<>();
+            for (Entry entry : entries) names.add(entry == null ? null : entry.name);
         }
-        StringBuilder base = new StringBuilder();
-        for (String name : names) {
-            if (base.length() > 0) base.append('_');
-            base.append(name);
-        }
-        int count = entries == null ? 0 : entries.size();
-        if (base.length() == 0) base.append("DeepSeek账号");
-        if (count > names.size()) base.append("_等").append(count).append("个账号");
-        if (base.length() > 96) base.setLength(96);
-        return base.append("_DeepSeek账号.txt").toString();
+        return AccountCredentialFieldPolicy.suggestFileName(
+                names, entries == null ? 0 : entries.size());
     }
 
     private static String requiredString(JSONObject o, String key, String prefix)
@@ -268,14 +257,6 @@ final class AccountCredentialCodec {
         String email = credential.isNull("email") ? null : credential.optString("email", null);
         if (email != null && email.trim().length() > 0) return email.trim();
         return shortId(credential.optString("id", null));
-    }
-
-    private static String safeName(String raw) {
-        if (raw == null) return "";
-        String clean = raw.trim().replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "_");
-        clean = clean.replaceAll("[. ]+$", "");
-        if (clean.length() > 40) clean = clean.substring(0, 40);
-        return clean;
     }
 
     private static String shortId(String id) {

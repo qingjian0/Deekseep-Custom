@@ -32,7 +32,7 @@
 
 | # | Java 文件 | 大小 | 优先级 | 风险 | 迁移要求 | 状态 | Owner |
 |---:|---|---:|---|---|---|---|---|
-| 1 | `module/src/ds/dsh/DeepSeek/AccountCredentialCodec.java` | 12.3 KiB | P2 | 高 | 存储/数据：保持序列化格式、路径、权限、原子性、并发和异常语义 | 待认领 | — |
+| 1 | `module/src/ds/dsh/DeepSeek/AccountCredentialCodec.java` | 12.3 KiB | P1 | 中 | JSON 结构仍由 Android-facing Java 层处理；纯字段与文件名策略抽至 Kotlin runtime，保持 Java ABI 和格式行为 | 迁移中 | F/A |
 | 2 | `module/src/ds/dsh/DeepSeek/AccountImportArchive.java` | 4.4 KiB | P2 | 高 | 存储/数据：保持序列化格式、路径、权限、原子性、并发和异常语义 | 待认领 | — |
 | 3 | `module/src/ds/dsh/DeepSeek/AccountManager.java` | 42.3 KiB | P2 | 高 | 存储/数据：保持序列化格式、路径、权限、原子性、并发和异常语义 | 待认领 | — |
 | 4 | `module/src/ds/dsh/DeepSeek/AccountRegistrationBridge.java` | 29.0 KiB | P2 | 高 | 存储/数据：保持序列化格式、路径、权限、原子性、并发和异常语义 | 待认领 | — |

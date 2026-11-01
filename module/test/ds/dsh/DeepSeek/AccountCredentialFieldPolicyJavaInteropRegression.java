@@ -24,6 +24,14 @@ public final class AccountCredentialFieldPolicyJavaInteropRegression {
                 "short id normalization");
         require("未知账号".equals(AccountCredentialFieldPolicy.shortId(null)),
                 "null id fallback");
+        require("a_b_name".equals(AccountCredentialFieldPolicy.safeFileName(" a/b:name. ")),
+                "Java-compatible filename sanitization");
+        require("Alice_a_b_trailing_等5个账号_DeepSeek账号.txt".equals(
+                AccountCredentialFieldPolicy.suggestFileName(
+                        java.util.Arrays.asList(" Alice ", "a/b", null, " trailing. ", "ignored"), 5)),
+                "filename ordering, filtering, and total count");
+        require("DeepSeek账号.txt".equals(AccountCredentialFieldPolicy.suggestFileName(null, 0)),
+                "empty filename fallback");
         System.out.println("AccountCredentialFieldPolicyJavaInteropRegression OK");
     }
 

@@ -32,6 +32,38 @@ object AccountCredentialFieldPolicy {
     fun isIntegralNumber(value: Double): Boolean =
         !value.isNaN() && !value.isInfinite() && value == Math.rint(value)
 
+    /** Java-compatible filename component sanitization used by account export. */
+    @JvmStatic
+    fun safeFileName(raw: String?): String {
+        if (raw == null) return ""
+        var clean = javaTrim(raw).replace(Regex("""[\\/:*?"<>|\\p{Cntrl}]"""), "_")
+        clean = clean.replace(Regex("""[. ]+$"""), "")
+        if (clean.length > 40) clean = clean.substring(0, 40)
+        return clean
+    }
+
+    /** Builds the export filename from at most three non-empty sanitized account labels. */
+    @JvmStatic
+    fun suggestFileName(rawNames: List<String?>?, totalCount: Int): String {
+        val names = ArrayList<String>(3)
+        if (rawNames != null) {
+            for (raw in rawNames) {
+                if (names.size >= 3) break
+                val clean = safeFileName(raw)
+                if (clean.isNotEmpty()) names.add(clean)
+            }
+        }
+        val base = StringBuilder()
+        for (name in names) {
+            if (base.isNotEmpty()) base.append('_')
+            base.append(name)
+        }
+        if (base.isEmpty()) base.append("DeepSeek账号")
+        if (totalCount > names.size) base.append("_等").append(totalCount).append("个账号")
+        if (base.length > 96) base.setLength(96)
+        return base.append("_DeepSeek账号.txt").toString()
+    }
+
     @JvmStatic
     fun shortId(id: String?): String {
         if (id == null) return "未知账号"

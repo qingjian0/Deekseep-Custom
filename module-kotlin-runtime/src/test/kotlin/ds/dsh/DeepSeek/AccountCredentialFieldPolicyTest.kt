@@ -40,6 +40,33 @@ class AccountCredentialFieldPolicyTest {
     }
 
     @Test
+    fun filenameSanitizationMatchesJavaRules() {
+        assertEquals("a_b_name", AccountCredentialFieldPolicy.safeFileName(" a/b:name. "))
+        assertEquals(40, AccountCredentialFieldPolicy.safeFileName("x".repeat(45)).length)
+        assertEquals("", AccountCredentialFieldPolicy.safeFileName("  "))
+        assertEquals("", AccountCredentialFieldPolicy.safeFileName(null))
+    }
+
+    @Test
+    fun suggestedFilenameSkipsEmptyNamesAndKeepsOriginalEntryCount() {
+        assertEquals(
+            "Alice_a_b_trailing_等5个账号_DeepSeek账号.txt",
+            AccountCredentialFieldPolicy.suggestFileName(
+                listOf(" Alice ", "a/b", null, " trailing. ", "ignored"),
+                5
+            )
+        )
+        assertEquals(
+            "DeepSeek账号.txt",
+            AccountCredentialFieldPolicy.suggestFileName(null, 0)
+        )
+        assertEquals(
+            "x".repeat(40) + "_Bob_DeepSeek账号.txt",
+            AccountCredentialFieldPolicy.suggestFileName(listOf("x".repeat(45), " ", "Bob"), 2)
+        )
+    }
+
+    @Test
     fun shortIdPreservesNullFallbackAndUsLowercase() {
         assertEquals("未知账号", AccountCredentialFieldPolicy.shortId(null))
         assertEquals("abcdef12", AccountCredentialFieldPolicy.shortId(" ABCDEF123456 "))

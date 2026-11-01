@@ -23,6 +23,8 @@ grep -Fq 'AccountCredentialFieldPolicy.shortId(id)' "$CODEC_SOURCE"
 ! grep -Fq 'import java.util.Locale;' "$CODEC_SOURCE"
 ! grep -Fq 'Double.isNaN(value)' "$CODEC_SOURCE"
 ! grep -Fq 'toLowerCase(Locale.US)' "$CODEC_SOURCE"
+grep -Fq 'AccountCredentialFieldPolicy.suggestFileName(' "$CODEC_SOURCE"
+! grep -Fq 'private static String safeName(String raw)' "$CODEC_SOURCE"
 
 GRADLE_BIN="$(bash "$ROOT_DIR/scripts/gradle-bootstrap.sh")"
 "$GRADLE_BIN" --no-daemon --stacktrace -p "$RUNTIME_DIR" test jar stageRuntimeClasspath
