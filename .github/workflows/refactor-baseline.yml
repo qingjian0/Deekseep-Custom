@@ -33,6 +33,8 @@ jobs:
         run: bash scripts/test-package-identity.sh
       - name: Run launcher activation semantics regression
         run: bash scripts/test-launcher-activation-regression.sh
+      - name: Run launcher config architecture regression
+        run: bash scripts/test-launcher-config-architecture.sh
       - name: Run expert relay regression
         run: bash module/test-expert-relay-regression.sh
       - name: Run feature hook registry regression
