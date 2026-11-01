@@ -33,31 +33,10 @@ final class HostNavigationCatalog {
     }
 
     static String obfuscatedRouteClass249(String route) {
-        if (route == null) return null;
-        if (route.endsWith("ChatRoute")) return "oa1";
-        if (route.endsWith("SettingsNestedGraph")) return "kn7";
-        if (route.endsWith("SettingsNestedGraph.SettingsRoute")) return "hn7";
-        if (route.endsWith("AccountManagementRoute")) return "en7";
-        if (route.endsWith("AccountDeletionRoute")) return "dn7";
-        if (route.endsWith("DataControlsSettingsRoute")) return "fn7";
-        if (route.endsWith("FontSizeRoute")) return "gn7";
-        if (route.endsWith("ShareLinksManagementRoute")) return "in7";
-        if (route.endsWith("TermsOfServiceRoute")) return "jn7";
-        return null;
+        return HostNavigationPolicy.obfuscatedRouteClass249(route);
     }
 
     static String obfuscatedRouteClass257(String route) {
-        if (route == null) return null;
-        if (route.endsWith("ChatRoute")) return "id1";
-        if (route.endsWith("SettingsNestedGraph")) return "kv7";
-        if (route.endsWith("SettingsNestedGraph.SettingsRoute")) return "hv7";
-        if (route.endsWith("AccountManagementRoute")) return "dv7";
-        if (route.endsWith("AccountDeletionRoute")) return "cv7";
-        if (route.endsWith("DataControlsSettingsRoute")) return "ev7";
-        if (route.endsWith("FontSizeRoute")) return "fv7";
-        if (route.endsWith("MinorModeBirthdayModifyRoute")) return "gv7";
-        if (route.endsWith("ShareLinksManagementRoute")) return "iv7";
-        if (route.endsWith("TermsOfServiceRoute")) return "jv7";
-        return null;
+        return HostNavigationPolicy.obfuscatedRouteClass257(route);
     }
 }
