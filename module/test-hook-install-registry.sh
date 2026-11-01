@@ -64,6 +64,8 @@ test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$ACCOUNT_PIPELINE")" -ge 2
 grep -Fq 'if (uploadRouteError instanceof VirtualMachineError)' "$ACCOUNT_PIPELINE"
 grep -Fq 'if (uploadRouteError instanceof ThreadDeath)' "$ACCOUNT_PIPELINE"
 UI_PIPELINE="$MODULE_DIR/src/ds/dsh/DeepSeek/HookUiSurface.java"
+grep -Fq 'ComposeView.setContent(1) hook was not discovered' "$UI_PIPELINE"
+grep -Fq 'native dual root capture hook installation failed' "$UI_PIPELINE"
 grep -Fq 'theme color provider hooks were not discovered' "$UI_PIPELINE"
 grep -Fq 'host theme color hook installation failed' "$UI_PIPELINE"
 grep -Fq 'theme draw background and surface hooks were not discovered' "$UI_PIPELINE"
