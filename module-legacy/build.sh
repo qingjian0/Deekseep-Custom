@@ -41,19 +41,6 @@ public final class BuildInfo {
     public static final String SHI_CORE_SHA256 = "";
     private BuildInfo() {}
 }
-EOFpackage com.dsmod.probe;
-public final class BuildInfo {
-    public static final String API_VERSION = "82+ (legacy adapter)";
-    public static final String MODULE_VERSION = "1.7.4-fix Open";
-    public static final String BUILD_DATE = "$(date '+%Y-%m-%d %H:%M')";
-    public static final boolean GOOGLE_PLAY = false;
-    public static final boolean PROTECTED_BUILD = false;
-    public static final String PROTECTED_PAYLOAD_KEY_A = "";
-    public static final String PROTECTED_PAYLOAD_KEY_B = "";
-    public static final String PROTECTED_PAYLOAD_IV = "";
-    public static final String PROTECTED_PAYLOAD_SHA256 = "";
-    private BuildInfo() {}
-}
 EOF
 cp ../module/src/com/dsmod/probe/Main.java \
   "$OUT/generated-src/com/dsmod/probe/Main.java"
