@@ -135,28 +135,3 @@ final class DeveloperDiagnostics {
     }
 
 }
-        catch (Throwable ignored) { return -1L; }
-    }
-
-    private static String sanitize(String raw) {
-        String value = raw.replace('\n', ' ').replace('\r', ' ');
-        value = BEARER.matcher(value).replaceAll("$1$2[redacted]");
-        value = PRIVATE_PATH.matcher(value).replaceAll("/[private-path]");
-        if (value.length() > 420) value = value.substring(0, 417) + "...";
-        return value;
-    }
-
-    private static boolean isUseful(String lower) {
-        if (lower.contains("progress=") || lower.contains("sensor sample")
-                || lower.contains("recomposition") || lower.contains("frame=")) return false;
-        return lower.contains("hook") || lower.contains("inject") || lower.contains("request")
-                || lower.contains("response") || lower.contains("server") || lower.contains("agent")
-                || lower.contains("tool") || lower.contains("fail") || lower.contains("error")
-                || lower.contains("activity") || lower.contains("adaptation");
-    }
-
-    private static String formatDuration(long millis) {
-        long seconds = millis / 1000L;
-        return (seconds / 3600L) + "h " + ((seconds / 60L) % 60L) + "m " + (seconds % 60L) + "s";
-    }
-}
