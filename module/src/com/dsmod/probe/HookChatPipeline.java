@@ -572,7 +572,7 @@ final class HookChatPipeline {
 
     // ── ChatFullCompletionRequest 系统提示词注入 ─────────────────────
 
-    void hookChatRequest(ClassLoader cl) {
+    boolean hookChatRequest(ClassLoader cl) {
         try {
             // 2.4.1 moved the real completion request to az0. Keep this explicit because
             // ew0->qw0->nx0 is also used by older fallback paths and can resolve an unrelated
@@ -832,7 +832,11 @@ final class HookChatPipeline {
                 n++;
             }
             Main.log("hooked completion request " + HostRemap.simpleName(k) + " constructors x" + n);
-        } catch (Throwable t) { Main.log("hookChatRequest failed: " + t); }
+            return n > 0;
+        } catch (Throwable t) {
+            Main.log("hookChatRequest failed: " + t);
+            return false;
+        }
     }
 
     private static String combineSystemPrompts(String first, String second) {
