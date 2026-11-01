@@ -9298,9 +9298,12 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             String[] candidates = HostCompat.isGooglePlay()
                     ? new String[]{"xx0", "ix0", "ox0"}
                     : new String[]{"ew0", "pv0", "vv0"};
+            int installed = 0;
             for (String candidate : candidates) {
                 try {
-                    HookAttachmentPipeline.INSTANCE.hookSendPointFps234(cl, candidate);
+                    if (HookAttachmentPipeline.INSTANCE.hookSendPointFps234(cl, candidate)) {
+                        installed++;
+                    }
                 } catch (Throwable error) {
                     if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
                     if (error instanceof ThreadDeath) throw (ThreadDeath) error;
@@ -9308,33 +9311,46 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     else firstFailure.addSuppressed(error);
                 }
             }
-            if (firstFailure != null) {
+            if (installed == 0 || firstFailure != null) {
                 throw new IllegalStateException(
-                        "2.3.4 expert image send-point hooks were only partially installed",
-                        firstFailure);
+                        installed == 0
+                                ? "no compatible 2.3.4 expert image send-point hook was installed"
+                                : "2.3.4 expert image send-point hooks were only partially installed",
+                        firstFailure == null
+                                ? new NoSuchMethodException("no compatible 2.3.4 send-point candidate")
+                                : firstFailure);
             }
             return;
         }
 
+        int installed = 0;
         try {
-            HookAttachmentPipeline.INSTANCE.hookSendPointFps(cl, "fu0", true);
+            if (HookAttachmentPipeline.INSTANCE.hookSendPointFps(cl, "fu0", true)) {
+                installed++;
+            }
         } catch (Throwable error) {
             if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
             if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             firstFailure = error;
         }
         try {
-            HookAttachmentPipeline.INSTANCE.hookSendPointFps(cl, "uu0", false);
+            if (HookAttachmentPipeline.INSTANCE.hookSendPointFps(cl, "uu0", false)) {
+                installed++;
+            }
         } catch (Throwable error) {
             if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
             if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             if (firstFailure == null) firstFailure = error;
             else firstFailure.addSuppressed(error);
         }
-        if (firstFailure != null) {
+        if (installed == 0 || firstFailure != null) {
             throw new IllegalStateException(
-                    "expert image send-point hooks were only partially installed",
-                    firstFailure);
+                    installed == 0
+                            ? "no compatible expert image send-point hook was installed"
+                            : "expert image send-point hooks were only partially installed",
+                    firstFailure == null
+                            ? new NoSuchMethodException("no compatible send-point candidate")
+                            : firstFailure);
         }
     }
 
