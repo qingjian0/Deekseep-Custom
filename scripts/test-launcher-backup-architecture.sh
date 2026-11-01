@@ -22,7 +22,7 @@ grep -Fq 'ZIP_LAUNCHER_PREFS' "$REPOSITORY"
 grep -Fq 'sharedPreferences: Map<String, ByteArray>' "$REPOSITORY"
 grep -Fq 'plan.sharedPreferences' "$REPOSITORY"
 grep -Fq 'safeRelativePath' "$REPOSITORY"
-grep -Fq 'StandardCopyOption.ATOMIC_MOVE' "$REPOSITORY"
+grep -Fq 'Os.rename(temporary.absolutePath, target.absolutePath)' "$REPOSITORY"
 grep -Fq 'MAX_IMPORT_BYTES = 64 * 1024 * 1024' "$REPOSITORY"
 grep -Fq 'MAX_ENTRIES = 4096' "$REPOSITORY"
 
