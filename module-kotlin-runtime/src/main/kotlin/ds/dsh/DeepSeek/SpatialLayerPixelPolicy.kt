@@ -104,13 +104,13 @@ object SpatialLayerPixelPolicy {
                     mix(
                         averageColor(redSums, greenSums, blueSums,
                             gridRow * columns + left, fallback),
-                        averageColor(red, green, blue, samples,
+                        averageColor(redSums, greenSums, blueSums, samples,
                             gridRow * columns + right, fallback),
                         fraction
                     )
                 }
                 left >= 0 -> averageColor(
-                    red, green, blue, samples, gridRow * columns + left, fallback)
+                    redSums, greenSums, blueSums, samples, gridRow * columns + left, fallback)
                 right < columns -> averageColor(
                     red, green, blue, samples, gridRow * columns + right, fallback)
                 else -> fallback
