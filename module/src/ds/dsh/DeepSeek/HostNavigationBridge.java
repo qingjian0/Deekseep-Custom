@@ -86,7 +86,7 @@ final class HostNavigationBridge {
                     callback.complete(false, "此页面不允许直接启动");
                     return;
                 }
-                String className = HostNavigationCatalog.obfuscatedRouteClass(route);
+                String className = HostNavigationCatalog.obfuscatedRouteClass(route, HostCompat.isV236(), HostCompat.isV241());
                 if (className == null || hostLoader == null) {
                     callback.complete(false, "当前页面没有已验证的 "
                             + HostCompat.generationName() + " 映射");
