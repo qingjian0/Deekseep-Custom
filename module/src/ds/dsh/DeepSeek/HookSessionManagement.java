@@ -226,8 +226,9 @@ final class HookSessionManagement {
 
     private static final HashSet<Class<?>> NATIVE_CLICK_HOOKED_CLASSES = new HashSet<>();
     private static final HashSet<Class<?>> NATIVE_CLICK_INSTALLING_CLASSES = new HashSet<>();
-    private static final HashMap<Class<?>, HashSet<Method>> NATIVE_CLICK_HOOKED_METHODS =
-            new HashMap<>();
+    // Hook Members globally, not per callback implementation class: inherited callback methods
+    // may be discovered through several subclasses but must receive only one interceptor.
+    private static final HashSet<Method> NATIVE_CLICK_HOOKED_METHODS = new HashSet<>();
 
     private static volatile String PENDING_LOCAL_OPEN_SID;
 
@@ -2696,9 +2697,7 @@ final class HookSessionManagement {
                             || method.getParameterTypes().length != 1) continue;
                     matched++;
                     synchronized (NATIVE_CLICK_HOOKED_CLASSES) {
-                        HashSet<Method> registered =
-                                NATIVE_CLICK_HOOKED_METHODS.get(callbackClass);
-                        if (registered != null && registered.contains(method)) continue;
+                        if (NATIVE_CLICK_HOOKED_METHODS.contains(method)) continue;
                     }
                     try {
                         Main.MODULE.hook(method).intercept(new Hooker() {
@@ -2754,8 +2753,7 @@ final class HookSessionManagement {
                             }
                         });
                         synchronized (NATIVE_CLICK_HOOKED_CLASSES) {
-                            NATIVE_CLICK_HOOKED_METHODS.computeIfAbsent(
-                                    callbackClass, ignored -> new HashSet<>()).add(method);
+                            NATIVE_CLICK_HOOKED_METHODS.add(method);
                         }
                         installed++;
                     } catch (Throwable error) {
@@ -2789,7 +2787,6 @@ final class HookSessionManagement {
         } finally {
             synchronized (NATIVE_CLICK_HOOKED_CLASSES) {
                 NATIVE_CLICK_INSTALLING_CLASSES.remove(callbackClass);
-                if (matched == 0) NATIVE_CLICK_HOOKED_METHODS.remove(callbackClass);
             }
         }
     }
