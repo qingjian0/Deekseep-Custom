@@ -7,7 +7,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 本地提示词库: built-in prompt templates plus the user's own, stored purely locally next to the
@@ -179,13 +178,11 @@ final class PromptLibrary {
     }
 
     static String normalizeCategory(String category) {
-        if (category == null) return CATEGORY_GENERAL;
-        for (String c : CATEGORIES) if (c.equals(category.trim())) return c;
-        return CATEGORY_GENERAL;
+        return PromptLibraryPolicy.normalizeCategory(category, CATEGORIES);
     }
 
     static String newId() {
-        return "custom:" + UUID.randomUUID().toString();
+        return PromptLibraryPolicy.newId();
     }
 
     /** All prompts: user prompts first (newest last-saved order kept), then built-ins. */

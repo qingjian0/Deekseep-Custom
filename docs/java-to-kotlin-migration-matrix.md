@@ -125,7 +125,7 @@
 | 91 | `module/src/ds/dsh/DeepSeek/PrivacyGuard.java` | 20.7 KiB | P1 | 中 | 纯逻辑/领域/工具：优先迁移；补充行为等价测试和 Java 调用兼容检查 | 待认领 | — |
 | 92 | `module/src/ds/dsh/DeepSeek/ProactiveHeartbeatReceiver.java` | 31.1 KiB | P2-P3 | 高 | 服务/协议：按调用链迁移，保持线程、超时、重试、IPC 与协议兼容 | 待认领 | — |
 | 93 | `module/src/ds/dsh/DeepSeek/ProcessManagerActivity.java` | 26.8 KiB | P4 | 高 | UI：先拆职责与状态边界；保持资源 ID、主线程、生命周期和交互行为 | 待认领 | — |
-| 94 | `module/src/ds/dsh/DeepSeek/PromptLibrary.java` | 12.9 KiB | P1 | 中 | 纯逻辑/领域/工具：优先迁移；补充行为等价测试和 Java 调用兼容检查 | 待认领 | — |
+| 94 | `module/src/ds/dsh/DeepSeek/PromptLibrary.java` | 12.9 KiB | P1 | 中 | built-in 内容、JSON 与文件访问仍由 Java 管理；分类归一化和 UUID 生成策略提取到 Kotlin | 迁移中 | F/A |
 | 95 | `module/src/ds/dsh/DeepSeek/PromptLibraryUi.java` | 28.6 KiB | P4 | 高 | UI：先拆职责与状态边界；保持资源 ID、主线程、生命周期和交互行为 | 待认领 | — |
 | 96 | `module/src/ds/dsh/DeepSeek/PromptPickerActivity.java` | 2.2 KiB | P4 | 高 | UI：先拆职责与状态边界；保持资源 ID、主线程、生命周期和交互行为 | 待认领 | — |
 | 97 | `module/src/ds/dsh/DeepSeek/PublicTunnelBinderBridge.java` | 4.7 KiB | P2-P3 | 高 | 服务/协议：按调用链迁移，保持线程、超时、重试、IPC 与协议兼容 | 待认领 | — |
