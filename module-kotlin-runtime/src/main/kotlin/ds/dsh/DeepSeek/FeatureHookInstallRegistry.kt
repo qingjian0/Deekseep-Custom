@@ -102,6 +102,14 @@ class FeatureHookInstallRegistry {
         }
     }
 
+    /** True only when a required installer failed. DEGRADED entries are best-effort groups. */
+    fun hasRequiredFailures(): Boolean = entries.values.any { entry ->
+        synchronized(entry) {
+            entry.state == State.FAILED
+        }
+    }
+
+    /** Includes required failures and best-effort degradation for diagnostics. */
     fun hasFailures(): Boolean = entries.values.any { entry ->
         synchronized(entry) {
             entry.state == State.FAILED || entry.state == State.DEGRADED
