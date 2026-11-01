@@ -145,14 +145,13 @@ final class z17 {
             String body = readStream(conn.getInputStream());
             JSONObject json = new JSONObject(body);
             JSONArray data = json.optJSONArray("data");
-            ArrayList<String> models = new ArrayList<String>();
+            ArrayList<String> modelIds = new ArrayList<String>();
             if (data != null) {
                 for (int i = 0; i < data.length(); i++) {
-                    String id = data.optJSONObject(i).optString("id", "").trim();
-                    if (id.length() > 0 && !models.contains(id)) models.add(id);
+                    modelIds.add(data.optJSONObject(i).optString("id", ""));
                 }
             }
-            return models;
+            return ConversationRelayModelListPolicy.normalizeAndDeduplicate(modelIds);
         } finally {
             conn.disconnect();
         }
