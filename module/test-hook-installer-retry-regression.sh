@@ -119,7 +119,9 @@ done
 # Lazy native click callbacks must not be marked complete after partial installation;
 # successful Members remain tracked so a later callback retries only the failed ones.
 click_body="$(sed -n '/private void hookNativeSessionClickCallback(/,/static List copyListForHook/p' "$session_src")"
-grep -Fq 'if (registered != null && registered.contains(method)) continue;' <<<"$click_body"
+grep -Fq 'private static final HashSet<Method> NATIVE_CLICK_HOOKED_METHODS = new HashSet<>();' "$session_src"
+grep -Fq 'if (NATIVE_CLICK_HOOKED_METHODS.contains(method)) continue;' <<<"$click_body"
+grep -Fq 'NATIVE_CLICK_HOOKED_METHODS.add(method);' <<<"$click_body"
 grep -Fq 'if (complete)' <<<"$click_body"
 grep -Fq 'NATIVE_CLICK_HOOKED_CLASSES.add(callbackClass);' <<<"$click_body"
 grep -Fq 'complete = false;' <<<"$click_body"
