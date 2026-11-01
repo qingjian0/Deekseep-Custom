@@ -29,7 +29,7 @@ final class DshRemoteFileLogSink {
                 thread.setDaemon(true);
                 return thread;
             },
-            (runnable, executor) -> DROPPED_EVENTS.incrementAndGet());
+            new ThreadPoolExecutor.AbortPolicy());
 
     private DshRemoteFileLogSink() {}
 
@@ -49,27 +49,31 @@ final class DshRemoteFileLogSink {
             if (event.getErrorType() != null) {
                 line.append(" errorType=").append(event.getErrorType());
             }
-            long dropped = DROPPED_EVENTS.getAndSet(0L);
+            // Reserve the accumulated ingress-drop count for this record. It is restored
+            // if this record cannot be accepted by both provider-side store queues.
+            final long dropped = DROPPED_EVENTS.getAndSet(0L);
             if (dropped > 0L) line.append(" droppedBefore=").append(dropped);
+            final String record = line.toString();
             // Crash records cross the process boundary synchronously before the uncaught-
             // exception handler delegates to the previous handler, which normally terminates
             // this host process. The provider writes the bounded crash record immediately.
             if ("crash".equals(category)) {
-                writeToProvider(resolver, category, line.toString());
+                writeToProvider(resolver, category, record, dropped);
                 return;
             }
             try {
-                EXECUTOR.execute(() -> writeToProvider(resolver, category, line.toString()));
+                EXECUTOR.execute(() -> writeToProvider(resolver, category, record, dropped));
             } catch (RejectedExecutionException rejected) {
-                DROPPED_EVENTS.incrementAndGet();
+                DROPPED_EVENTS.addAndGet(dropped + 1L);
             } catch (Throwable failure) {
-                DROPPED_EVENTS.incrementAndGet();
+                DROPPED_EVENTS.addAndGet(dropped + 1L);
             }
         });
         installed = true;
     }
 
-    private static void writeToProvider(ContentResolver resolver, String category, String line) {
+    private static void writeToProvider(ContentResolver resolver, String category,
+                                        String line, long carriedDropCount) {
         Bundle payload = new Bundle();
         payload.putString("category", category);
         payload.putString("line", line);
@@ -80,13 +84,17 @@ final class DshRemoteFileLogSink {
                     && result.containsKey("private_written")
                     && result.containsKey("public_written")
                     && result.getBoolean("private_written") != result.getBoolean("public_written");
-            if (result == null || !result.getBoolean("accepted", false)
-                    || result.getBoolean("partial", false) || crashPartial) {
-                // Partial queue acceptance or a one-store crash write is not a dual-store success.
-                DROPPED_EVENTS.incrementAndGet();
+            boolean notAcceptedByBothStores = result == null
+                    || !result.getBoolean("accepted", false)
+                    || result.getBoolean("partial", false)
+                    || crashPartial;
+            if (notAcceptedByBothStores) {
+                // Restore the carried count as well as this failed record. The count is
+                // considered delivered only after the provider confirms both store paths.
+                DROPPED_EVENTS.addAndGet(carriedDropCount + 1L);
             }
         } catch (Throwable failure) {
-            DROPPED_EVENTS.incrementAndGet();
+            DROPPED_EVENTS.addAndGet(carriedDropCount + 1L);
         }
     }
 
