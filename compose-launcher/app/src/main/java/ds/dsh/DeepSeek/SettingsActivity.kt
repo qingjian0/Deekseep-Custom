@@ -287,9 +287,9 @@ class SettingsActivity : ComponentActivity() {
                     return@launch
                 }
                 busyMessage = if (zip) "正在打包 ZIP…" else "正在导出设置…"
-                val result = withContext(Dispatchers.IO) {
-                    runCatching {
-                        if (zip) {
+                val result: Result<Int?> = withContext(Dispatchers.IO) {
+                    try {
+                        val count = if (zip) {
                             contentResolver.openOutputStream(uri, "wt")?.use { out ->
                                 ZipOutputStream(out.buffered()).use { zos ->
                                     backupRepository.writeZip(
@@ -306,17 +306,22 @@ class SettingsActivity : ComponentActivity() {
                             } ?: error("无法打开目标文件")
                         } else {
                             contentResolver.openOutputStream(uri, "wt")?.use {
-                                it.write(json!!.toByteArray(StandardCharsets.UTF_8))
+                                it.write(requireNotNull(json).toByteArray(StandardCharsets.UTF_8))
                             } ?: error("无法打开目标文件")
+                            null
                         }
+                        Result.success(count)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        Result.failure(error)
                     }
                 }
-                result.onSuccess { value ->
+                result.onSuccess { count ->
                     if (zip) {
-                        val count = value as Int
                         toast(
-                            if (json == null) "已导出启动器数据（$count 项）。DeepSeek 未响应，模块设置未包含"
-                            else "模块数据已导出（ZIP，$count 项）",
+                            if (json == null) "已导出启动器数据（${count ?: 0} 项）。DeepSeek 未响应，模块设置未包含"
+                            else "模块数据已导出（ZIP，${count ?: 0} 项）",
                         )
                     } else {
                         toast("设置已导出（JSON）")
