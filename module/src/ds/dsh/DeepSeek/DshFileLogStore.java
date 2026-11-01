@@ -170,16 +170,7 @@ final class DshFileLogStore {
     }
 
     private static String sanitize(String value) {
-        String result = value.replace('\\n', ' ').replace('\\r', ' ');
-        result = result.replaceAll(
-                "(?i)(\\\\bauthorization\\\\b\\\\s*[:=]\\\\s*)(?:[A-Za-z][A-Za-z0-9_-]*\\\\s+)?[^\\\\s,;]+",
-                "$1[redacted]");
-        result = result.replaceAll("(?i)(\\\\bbearer\\\\s+)[^\\\\s,;]+", "$1[redacted]");
-        result = result.replaceAll(
-                "(?i)(\\\\b(?:x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password|cookie|client_secret)\\\\b\\\\s*[\\\\"']?\\\\s*[:=]\\\\s*[\\\\"']?)[^\\\\s\\\\"',;}]+",
-                "$1[redacted]");
-        result = result.replaceAll("(?i)/(?:data|storage)/[^\\\\s,;]+", "[private-path]");
-        return result.length() > MAX_LINE_CHARS ? result.substring(0, MAX_LINE_CHARS) : result;
+        return DshLog.sanitizeForStorage(value);
     }
 
     private static boolean isAllowedCategory(String category) {
