@@ -56,7 +56,7 @@ grep -Fq 'throw new IllegalStateException("chat request constructors were not ho
 nav_body="$(sed -n '/void hookSettingsNavigation(ClassLoader cl)/,/private void rememberNavController/p' "$UI")"
 grep -Fq 'hookSettingsNavigationOnce(m, new Hooker()' <<<"$nav_body"
 grep -Fq 'if (installFailure != null) throw installFailure;' <<<"$nav_body"
-grep -Fq 'private int hookNavStateMethod(Class<?> nav, String name) throws Throwable' "$UI"
+grep -Fq 'private int hookNavStateMethod(Class<?> nav, String name)' "$UI"
 
 # Config rollout hooks must use per-Method registration memory so a later installer
 # retry cannot stack duplicate interceptors after a partial registration.
