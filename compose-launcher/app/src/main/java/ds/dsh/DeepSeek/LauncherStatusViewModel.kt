@@ -38,11 +38,17 @@ internal class LauncherStatusRepository(context: Context) {
             } else {
                 info.versionCode.toLong()
             }
-            when (code) {
-                287L -> LauncherHostInfo("国内版 2.7.1 (287)", true, true)
-                289L -> LauncherHostInfo("国内版 2.7.2 (289)", true, true)
-                290L -> LauncherHostInfo("国际版 2.7.2 (290)", true, true)
-                else -> LauncherHostInfo("不支持的版本 ${info.versionName} ($code)", false, true)
+            val versionName = info.versionName
+            val supported = versionName != null && HostCompat.supportsHostVersionName(versionName)
+            val channelLabel = when (code) {
+                245L, 249L, 257L, 287L, 289L -> "国内版"
+                246L, 268L, 290L -> "国际版"
+                else -> "DeepSeek"
+            }
+            if (supported) {
+                LauncherHostInfo("$channelLabel ${versionName} ($code)", true, true)
+            } else {
+                LauncherHostInfo("未验证版本 ${versionName ?: "unknown"} ($code)", false, true)
             }
         }.getOrDefault(LauncherHostInfo("未安装 DeepSeek", false, false))
 
