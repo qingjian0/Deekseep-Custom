@@ -48,7 +48,9 @@ jobs:
           for script in scripts/gradle-open-debug.sh scripts/build-all.sh \
               scripts/build-all-legacy.sh scripts/android-tools.sh \
               scripts/test-package-identity.sh scripts/test-launcher-activation-regression.sh \
-              scripts/test-launcher-config-architecture.sh scripts/test-launcher-backup-architecture.sh \\\n              scripts/test-universal-feature-parity.sh \\
+              scripts/test-launcher-config-architecture.sh \
+              scripts/test-launcher-backup-architecture.sh \
+              scripts/test-universal-feature-parity.sh \
               module-legacy/build.sh module-universal/build.sh \
               module-legacy/test-adapter-regression.sh module/test-target-process-guard.sh \
               module/test-hook-install-registry.sh module/test-config-rollout-install-regression.sh module/test-native-dual-root-install-regression.sh module/test-login-diagnostics-regression.sh \
@@ -59,6 +61,7 @@ jobs:
           bash scripts/test-package-identity.sh
           bash scripts/test-launcher-activation-regression.sh
           bash scripts/test-launcher-config-architecture.sh
+          bash scripts/test-launcher-backup-architecture.sh
           bash module/test-hook-install-registry.sh
           bash module/test-config-rollout-install-regression.sh
           bash module/test-native-dual-root-install-regression.sh
