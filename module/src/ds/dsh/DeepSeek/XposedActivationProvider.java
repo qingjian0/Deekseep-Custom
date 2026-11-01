@@ -108,7 +108,6 @@ public final class XposedActivationProvider extends ContentProvider {
         return null;
     }
 
-
     private Bundle writeDshLog(Bundle extras) {
         Bundle result = new Bundle();
         Context context = getContext();
@@ -125,9 +124,15 @@ public final class XposedActivationProvider extends ContentProvider {
             result.putString("error", "invalid log payload");
             return result;
         }
-        boolean written = DshFileLogStore.appendPrivate(context, category, line);
-        result.putBoolean("accepted", written);
-        if (!written) result.putString("error", "private log write failed");
+        if (!DshLogIpcQueue.isAllowedCategory(category)) {
+            result.putBoolean("accepted", false);
+            result.putString("error", "invalid log category");
+            return result;
+        }
+        boolean queued = DshLogIpcQueue.enqueue(context, category, line);
+        result.putBoolean("accepted", queued);
+        result.putBoolean("queued", queued);
+        if (!queued) result.putString("error", "log queue full");
         return result;
     }
 
