@@ -2794,7 +2794,7 @@ final class HookUiSurface {
      * resource-loader boundary, then its DrawScope canvas is transformed at draw time. This keeps
      * the rest of the ComposeView stationary and works without replacing DeepSeek's drawable.
      */
-    void hookWelcomeWhaleMotion(ClassLoader cl) {
+    void hookWelcomeWhaleMotion(ClassLoader cl) throws Throwable {
         final String loaderOwner;
         final String loaderMethod;
         final String painterOwner;
@@ -2992,6 +2992,7 @@ final class HookUiSurface {
             Main.log("welcome whale painter motion hooked owner=" + painterOwner);
         } catch (Throwable error) {
             Main.log("welcome whale painter motion unavailable: " + Main.safeThrowableMessage(error));
+            throw error;
         }
     }
 
@@ -3000,7 +3001,8 @@ final class HookUiSurface {
      * boundaries. Keeping the effect at the canvas boundary means host typography, layout,
      * selection, accessibility text and semantic error colours all remain intact.
      */
-    void hookTextWaveMotion(ClassLoader cl) {
+    void hookTextWaveMotion(ClassLoader cl) throws Throwable {
+        Throwable installFailure = null;
         int nativeHooks = 0;
         try {
             Method onDraw = HostRemap.declaredMethod(TextView.class, "onDraw", Canvas.class);
@@ -3021,6 +3023,7 @@ final class HookUiSurface {
             nativeHooks = 1;
         } catch (Throwable error) {
             Main.log("native text wave unavailable: " + Main.safeThrowableMessage(error));
+            installFailure = error;
         }
 
         final String canvasWrapperName;
@@ -3143,7 +3146,10 @@ final class HookUiSurface {
                     + ", node=" + textNodeName);
         } catch (Throwable error) {
             Main.log("compose text wave unavailable: " + Main.safeThrowableMessage(error));
+            if (installFailure == null) installFailure = error;
+            else installFailure.addSuppressed(error);
         }
+        if (installFailure != null) throw installFailure;
     }
 
     /** Replaces DeepSeek's model-specific and unified home welcome strings when configured. */
