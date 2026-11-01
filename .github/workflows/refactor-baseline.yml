@@ -31,6 +31,8 @@ jobs:
         run: bash module-legacy/test-adapter-regression.sh
       - name: Verify Android package identity contract
         run: bash scripts/test-package-identity.sh
+      - name: Run launcher activation semantics regression
+        run: bash scripts/test-launcher-activation-regression.sh
       - name: Run expert relay regression
         run: bash module/test-expert-relay-regression.sh
       - name: Run feature hook registry regression
@@ -122,3 +124,23 @@ jobs:
             test "$dex_count" -ge 1
             echo "$apk contains $dex_count DEX file(s)"
           done
+
+      - name: Verify shared APK signing identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUILD_TOOLS_DIR="$ANDROID_HOME/build-tools/37.0.0"
+          certificate_sha256() {
+            "$BUILD_TOOLS_DIR/apksigner" verify --print-certs "$1" \
+              | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' \
+              | head -n 1
+          }
+          legacy_cert="$(certificate_sha256 module-legacy/ds-probe-legacy.apk)"
+          universal_cert="$(certificate_sha256 module-universal/ds-probe-universal.apk)"
+          compose_cert="$(certificate_sha256 compose-launcher/app/build/outputs/apk/debug/app-debug.apk)"
+          test -n "$legacy_cert"
+          test -n "$universal_cert"
+          test -n "$compose_cert"
+          test "$legacy_cert" = "$universal_cert"
+          test "$universal_cert" = "$compose_cert"
+          echo "Legacy, Universal and Compose APKs share signing certificate $legacy_cert"
