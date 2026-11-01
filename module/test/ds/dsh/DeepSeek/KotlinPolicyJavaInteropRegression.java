@@ -60,6 +60,11 @@ public final class KotlinPolicyJavaInteropRegression {
         AgentRateLimiter.recordSent(1_000L);
         require(AgentRateLimiter.waitMs(1_000L) == 8_000L,
                 "Java caller observed a changed Agent minimum-gap policy");
+        AgentManualGateState.markPending("interop-call");
+        AgentManualGateState.approve("interop-call");
+        require(AgentManualGateState.consumeApproval("interop-call")
+                        && !AgentManualGateState.consumeApproval("interop-call"),
+                "Java caller could not use the migrated Kotlin manual-gate state");
         DshDiagnosticsRecorder diagnostics = new DshDiagnosticsRecorder(2);
         diagnostics.record("hook installed cost=16ms");
         diagnostics.record("server request Cookie: sid=interop-secret-123");
