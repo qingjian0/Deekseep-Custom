@@ -8,6 +8,8 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.util.LinkedHashMap
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -154,8 +156,12 @@ internal class LauncherBackupRepository {
             val temporary = File(parent, ".${target.name}.restore-${System.nanoTime()}")
             try {
                 temporary.outputStream().use { it.write(bytes) }
-                if (target.exists() && !target.delete()) error("无法替换启动器文件")
-                if (!temporary.renameTo(target)) error("无法写入启动器文件")
+                Files.move(
+                    temporary.toPath(),
+                    target.toPath(),
+                    StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.ATOMIC_MOVE,
+                )
                 restored++
             } finally {
                 if (temporary.exists()) temporary.delete()
