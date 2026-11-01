@@ -15,6 +15,14 @@ public final class KotlinPolicyJavaInteropRegression {
                 "Java caller could not use the Kotlin settings fallback policy");
         require(!NativeSettingsEntryPolicy.showFloating(true, true, true),
                 "Java caller observed a changed native-entry visibility decision");
+        require(AutoContinuePolicy.shouldResume(true, "WIP", "INCOMPLETE", "ASSISTANT"),
+                "Java caller could not use the migrated Kotlin auto-continue policy");
+        require(!AutoContinuePolicy.shouldResume(true, "INCOMPLETE", "INCOMPLETE", "ASSISTANT"),
+                "Java caller observed a changed auto-continue transition boundary");
+        require(ReplyReadyPolicy.shouldNotify("WIP", "FINISHED", "ASSISTANT", false),
+                "Java caller could not use the migrated Kotlin reply-ready policy");
+        require(!ReplyReadyPolicy.shouldNotify("WIP", "FINISHED", "ASSISTANT", true),
+                "Java caller observed a changed reply-ready foreground boundary");
         DshDiagnosticsRecorder diagnostics = new DshDiagnosticsRecorder(2);
         diagnostics.record("hook installed cost=16ms");
         diagnostics.record("server request Cookie: sid=interop-secret-123");
