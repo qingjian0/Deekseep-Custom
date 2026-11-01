@@ -86,9 +86,6 @@ object DshLog {
         result = COOKIE_PATTERN.replace(result) { match ->
             match.groupValues[1] + "[redacted]"
         }
-        result = COOKIE_HEADER_PATTERN.replace(result) { match ->
-            match.groupValues[1] + "[redacted]"
-        }
         result = SECRET_PATTERN.replace(result) { match ->
             match.groupValues[1] + "[redacted]"
         }
@@ -108,9 +105,6 @@ object DshLog {
     )
     private val COOKIE_PATTERN = Regex(
         "(?i)(\\bcookie\\b\\s*[:=]\\s*).*$"
-    )
-    private val COOKIE_HEADER_PATTERN = Regex(
-        "(?i)(\\\\bcookie\\\\b\\\\s*[:=]\\\\s*)[^\\\\s]+(?:\\\\s*;\\\\s*[^\\\\s;]+)*"
     )
     private val SECRET_PATTERN = Regex(
         "(?i)(\\b(?:x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|token|secret|password)\\b\\s*[\\\"']?\\s*[:=]\\s*[\\\"']?)[^\\s\\\"',;}]+"
