@@ -1321,6 +1321,7 @@ Main.log("[RISK] Android ID spoof installed");
     void installLoginRiskLogger(final ClassLoader cl) throws Throwable {
         if (cl == null) return;
         int bizCodeKindsInstalled = 0;
+        Throwable optionalFailure = null;
         if (installBizCodeLogger(cl, new String[]{"ox4", "f05"}, "sms")) bizCodeKindsInstalled++;
         if (installBizCodeLogger(cl, new String[]{"ix4", "iw5"}, "login")) bizCodeKindsInstalled++;
         if (installBizCodeLogger(cl, new String[]{"kt5", "cw5"}, "google")) bizCodeKindsInstalled++;
@@ -1343,7 +1344,9 @@ Main.log("[RISK] Android ID spoof installed");
                 });
                 try { Main.MODULE.deoptimize(method); } catch (Throwable ignored) {}
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable error) {
+            optionalFailure = appendOptionalHookFailure(optionalFailure, error);
+        }
         // GMS sign-in failure status (the Google-side step before DeepSeek's oauth endpoint).
         try {
             Class<?> pending = HostRemap.forName("eu9", false, cl);
@@ -1354,17 +1357,20 @@ Main.log("[RISK] Android ID spoof installed");
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object status = chain.getArg(0);
                         Object code = null;
-                        Object message = null;
+                
                         try { code = Main.readHostField(status, "a"); } catch (Throwable ignored) {}
-                        try { message = Main.readHostField(status, "b"); } catch (Throwable ignored) {}
+
                         Main.log("[LOGIN_RISK] gms sign-in status code=" + code
+                                + " message_present=" + (Main.readHostField(status, "b") != null));
                                 + " msg=" + message);
                         return chain.proceed();
                     }
                 });
                 try { Main.MODULE.deoptimize(method); } catch (Throwable ignored) {}
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable error) {
+            optionalFailure = appendOptionalHookFailure(optionalFailure, error);
+        }
         // The oauth/google/login HTTP request outcome (request wrapper dr3).
         try {
             Class<?> wrapper = HostRemap.forName("dr3", false, cl);
@@ -1384,12 +1390,12 @@ Main.log("[RISK] Android ID spoof installed");
                         if (!googleLogin) return chain.proceed();
                         try {
                             Object result = chain.proceed();
-                            Main.log("[LOGIN_RISK] google http ok url=" + path + " result="
+                            Main.log("[LOGIN_RISK] google http ok result="
                                     + (result == null ? "null"
                                             : HostRemap.simpleName(result.getClass())));
                             return result;
                         } catch (Throwable error) {
-                            Main.log("[LOGIN_RISK] google http failed url=" + path + " "
+                            Main.log("[LOGIN_RISK] google http failed type="
                                     + HostRemap.simpleName(error.getClass()) + ": "
                                     + String.valueOf(error.getMessage()));
                             throw error;
@@ -1398,7 +1404,9 @@ Main.log("[RISK] Android ID spoof installed");
                 });
                 try { Main.MODULE.deoptimize(method); } catch (Throwable ignored) {}
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable error) {
+            optionalFailure = appendOptionalHookFailure(optionalFailure, error);
+        }
         // The Credential Manager / HiddenActivity result entry: requestCode, resultCode, intent.
         try {
             Class<?> results = HostRemap.forName("ar1", false, cl);
@@ -1420,7 +1428,9 @@ Main.log("[RISK] Android ID spoof installed");
                 });
                 try { Main.MODULE.deoptimize(method); } catch (Throwable ignored) {}
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable error) {
+            optionalFailure = appendOptionalHookFailure(optionalFailure, error);
+        }
         // HiddenActivity internal failure logger (intent sender failures surface here).
         try {
             Class<?> hidden = HostRemap.forName(
@@ -1433,14 +1443,18 @@ Main.log("[RISK] Android ID spoof installed");
                     @Override public Object intercept(Chain chain) throws Throwable {
                         String tag = String.valueOf(chain.getArg(0));
                         String kind = String.valueOf(chain.getArg(1));
-                        String detail = String.valueOf(chain.getArg(2));
-                        Main.log("[LOGIN_RISK] hidden-activity " + tag + " " + kind + " " + detail);
+                        Object detail = chain.getArg(2);
+                        Main.log("[LOGIN_RISK] hidden-activity tag_present=" + !tag.isEmpty()
+                                + " kind_present=" + !kind.isEmpty()
+                                + " detail_present=" + (detail != null));
                         return chain.proceed();
                     }
                 });
                 try { Main.MODULE.deoptimize(method); } catch (Throwable ignored) {}
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable error) {
+            optionalFailure = appendOptionalHookFailure(optionalFailure, error);
+        }
         // Every UI event on the login page (clicks/results), the Google sign-in launcher, and
         // the Credential Manager launch entry. Together they show exactly how far a tap gets.
         try {
@@ -1459,7 +1473,9 @@ Main.log("[RISK] Android ID spoof installed");
                 });
                 try { Main.MODULE.deoptimize(method); } catch (Throwable ignored) {}
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable error) {
+            optionalFailure = appendOptionalHookFailure(optionalFailure, error);
+        }
         try {
             Class<?> launcher = HostRemap.forName("ey4", false, cl);
             for (Constructor<?> ctor : launcher.getDeclaredConstructors()) {
@@ -1470,7 +1486,9 @@ Main.log("[RISK] Android ID spoof installed");
                     }
                 });
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable error) {
+            optionalFailure = appendOptionalHookFailure(optionalFailure, error);
+        }
         try {
             Class<?> registryLauncher = HostRemap.forName("a7", false, cl);
             for (final Method method : registryLauncher.getDeclaredMethods()) {
@@ -1484,9 +1502,19 @@ Main.log("[RISK] Android ID spoof installed");
                 });
                 try { Main.MODULE.deoptimize(method); } catch (Throwable ignored) {}
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable error) {
+            optionalFailure = appendOptionalHookFailure(optionalFailure, error);
+        }
         Main.log("[LOGIN_RISK] biz-code logger installed kinds="
                 + bizCodeKindsInstalled + "/8");
+    }
+
+    private static Throwable appendOptionalHookFailure(Throwable previous, Throwable next) {
+        if (next instanceof VirtualMachineError) throw (VirtualMachineError) next;
+        if (next instanceof ThreadDeath) throw (ThreadDeath) next;
+        if (previous == null) return next;
+        previous.addSuppressed(next);
+        return previous;
     }
 
     /** Logs the shape of the Google oauth result: success, structured biz code, or raw failure. */
