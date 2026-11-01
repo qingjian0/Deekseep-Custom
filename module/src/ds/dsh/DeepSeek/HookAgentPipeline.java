@@ -1799,13 +1799,13 @@ final class HookAgentPipeline {
                     });
                     liveHooks++;
                 }
-            } catch (Throwable t) {
-            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
-            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            } catch (Throwable error) {
+                if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+                if (error instanceof ThreadDeath) throw (ThreadDeath) error;
                 Main.log("heartbeat live response hook unavailable for "
-                        + className + ": " + t);
-                if (firstFailure == null) firstFailure = t;
-                else firstFailure.addSuppressed(t);
+                        + className + ": " + error);
+                if (firstFailure == null) firstFailure = error;
+                else firstFailure.addSuppressed(error);
             }
         }
         String[] staticClasses = new String[]{"at7", "ht7"};
@@ -1872,13 +1872,13 @@ final class HookAgentPipeline {
                     });
                     staticHooks++;
                 }
-            } catch (Throwable t) {
-            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
-            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            } catch (Throwable error) {
+                if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+                if (error instanceof ThreadDeath) throw (ThreadDeath) error;
                 Main.log("heartbeat static response hook unavailable for "
-                        + className + ": " + t);
-                if (firstFailure == null) firstFailure = t;
-                else firstFailure.addSuppressed(t);
+                        + className + ": " + error);
+                if (firstFailure == null) firstFailure = error;
+                else firstFailure.addSuppressed(error);
             }
         }
         Main.log("heartbeat hidden-tool response hooks live=" + liveHooks
