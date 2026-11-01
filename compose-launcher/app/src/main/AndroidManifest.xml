@@ -37,7 +37,7 @@
             android:name="ds.dsh.DeepSeek.SettingsActivity"
             android:enabled="true"
             android:exported="true"
-            android:label="YunSeek"
+            android:label="KOI"
             android:launchMode="singleTask"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
             android:windowSoftInputMode="adjustResize"
