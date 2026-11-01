@@ -1638,7 +1638,13 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             installHookStep("config.attachment-guide-rollout", () -> HookConfigRollout.INSTANCE.hookAttachmentGuidePromptRollout(hookLoader));
             installHookStep("config.home-welcome-rollout", () -> HookConfigRollout.INSTANCE.hookHomeWelcomeRollout(hookLoader));
             installHookStep("ui.native-dual-chat-root", () -> HookUiSurface.INSTANCE.hookNativeDualChatRoot(hookLoader));
-            installHookStep("attachment.native-image-preview-boundary", () -> HookAttachmentPipeline.INSTANCE.hookNativeImagePreviewBoundary(hookLoader));
+            if (HostCompat.isV234()) {
+                installHookStep("attachment.native-image-preview-boundary",
+                        () -> HookAttachmentPipeline.INSTANCE.hookNativeImagePreviewBoundary(hookLoader));
+            } else {
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("attachment.native-image-preview-boundary",
+                        "native image-preview boundary is only mapped for host 2.3.4");
+            }
 
             if (HostCompat.isV236() && BuildInfo.PROTECTED_BUILD
                     && BuildInfo.LOCAL_API_INCLUDED
