@@ -259,7 +259,7 @@ final class HookAttachmentPipeline {
      * Keep the host path untouched for every normal attachment and unwrap only our private,
      * narrowly-scoped FileProvider prefix.
      */
-    void hookLocalEditorImageUris(final ClassLoader cl) {
+    void hookLocalEditorImageUris(final ClassLoader cl) throws Throwable {
         try {
             Class<?> imagePath = HostCompat.load(cl, "us");
             final Field signedPath = HostRemap.declaredField(imagePath, "b");
@@ -281,6 +281,7 @@ final class HookAttachmentPipeline {
             Main.log("hooked local editor image URI resolver");
         } catch (Throwable t) {
             Main.log("hook local editor image URI resolver failed: " + t);
+            throw t;
         }
     }
 
@@ -306,7 +307,7 @@ final class HookAttachmentPipeline {
     }
 
     /** Hides the module wallpaper before DeepSeek draws its native full-screen image viewer. */
-    void hookNativeImagePreviewBoundary(final ClassLoader cl) {
+    void hookNativeImagePreviewBoundary(final ClassLoader cl) throws Throwable {
         if (!HostCompat.isV234()) return;
         int resourceHooks = 0;
         try {
@@ -340,6 +341,10 @@ final class HookAttachmentPipeline {
             }
         } catch (Throwable error) {
             Main.log("native image preview resource boundary unavailable: " + error);
+            throw error;
+        }
+        if (resourceHooks == 0) {
+            throw new NoSuchMethodException("Resources image-preview boundary targets");
         }
         // Mainland 2.3.4/2.3.6 keep the full-screen image preview composable in no0.
         // au1 is an unrelated R8 utility class and therefore installed zero hooks, which left
@@ -373,11 +378,15 @@ final class HookAttachmentPipeline {
                 });
                 installed++;
             }
+            if (installed == 0) {
+                throw new NoSuchMethodException(owner + " image-preview composable targets");
+            }
             Main.log("native image preview appearance boundary=" + owner + " x" + installed
                     + " resources=" + resourceHooks);
         } catch (Throwable error) {
             Main.log("native image preview owner boundary unavailable: " + error
                     + " resources=" + resourceHooks);
+            throw error;
         }
     }
 
@@ -464,7 +473,7 @@ final class HookAttachmentPipeline {
 
     // ── 专家模式解锁：sf5(模型配置)构造后强改 final 字段点亮思考/搜索/上传 ──
     // 服务器默认给 expert 返回 f/g=true 但 j/k/l=null(禁思考/搜索/文件)；构造后回填真模板即本地点亮。
-    void hookExpertUnlock(ClassLoader cl) {
+    void hookExpertUnlock(ClassLoader cl) throws Throwable {
         try {
             final Class<?> sf5 = HostCompat.load(cl, "sf5");
             final Class<?> gf5c = HostCompat.load(cl, "gf5");
@@ -555,12 +564,18 @@ final class HookAttachmentPipeline {
                 m++;
             }
             Main.log("hooked sf5.b() x" + m + " (expert gate catch)");
-        } catch (Throwable t) { Main.log("hookExpertUnlock failed: " + t); }
+        } catch (Throwable t) {
+            if (n == 0 || m == 0) {
+                throw new NoSuchMethodException("hookExpertUnlock matched no hook targets");
+            }
+            Main.log("hookExpertUnlock failed: " + t);
+            throw t;
+        }
     }
 
     // 上传门禁 y91.a(Object,uz1)：事件对象里携带被 UI 消费的真实 sf5。在判空前扫描 arg0 的字段找到 sf5，
     // 打印它的 identityHashCode + l/k/j 状态（对比构造时 patch 的 @hash），并就地点亮 → 直接命中真正被读的实例。
-    void installExpertUploadGate(ClassLoader cl) {
+    void installExpertUploadGate(ClassLoader cl) throws Throwable {
         try {
             final Class<?> sf5 = HostCompat.load(cl, "sf5");
             final Class<?> y91 = HostCompat.load(cl, "y91");
@@ -593,7 +608,13 @@ final class HookAttachmentPipeline {
                 n++;
             }
             Main.log("installed expert upload gate on y91.a x" + n);
-        } catch (Throwable t) { Main.log("installExpertUploadGate failed: " + t); }
+        } catch (Throwable t) {
+            if (n == 0) {
+                throw new NoSuchMethodException("installExpertUploadGate matched no hook targets");
+            }
+            Main.log("installExpertUploadGate failed: " + t);
+            throw t;
+        }
     }
 
     // 每个 sf5(模型配置)构造后回调：俘获可用模板 + 给 expert 回填 + 事后 back-fill
@@ -742,7 +763,7 @@ final class HookAttachmentPipeline {
 
     private static volatile boolean imageComposerCaptureLogged;
 
-    void installImageCredentialBridge(final ClassLoader cl) {
+    void installImageCredentialBridge(final ClassLoader cl) throws Throwable {
         int installed = 0;
         try {
             Class<?> apiClass = HostCompat.load(cl, "pv0");
@@ -793,11 +814,14 @@ final class HookAttachmentPipeline {
                 installed++;
             }
         } catch (Throwable t) { Main.log("capture k31 file api failed: " + t); }
+        if (installed == 0) {
+            throw new NoSuchMethodException("image credential bridge constructors");
+        }
         Main.log("installed image credential bridge constructors=" + installed);
     }
 
     /** Removes the gateway's reusable server sessions before DeepSeek persists/renders its page. */
-    void f9(final ClassLoader cl) {
+    void f9(final ClassLoader cl) throws Throwable {
         try {
             Class<?> pageType = HostCompat.load(cl, "sb1");
             int installed = 0;
@@ -832,7 +856,11 @@ final class HookAttachmentPipeline {
             }
             Main.log("installed local API session visibility filter sb1 x" + installed);
         } catch (Throwable t) {
+            if (installed == 0) {
+                throw new NoSuchMethodException("f9 matched no hook targets");
+            }
             Main.log("f9 failed: " + t);
+            throw t;
         }
     }
 
