@@ -18,7 +18,7 @@ jobs:
   regression:
     name: Regression tests
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
@@ -33,11 +33,6 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-
-      - name: Set up Gradle 9.8.2
-        uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
-        with:
-          gradle-version: "9.8.2"
 
       - name: Install Android SDK components
         run: |
@@ -58,6 +53,7 @@ jobs:
           done
           bash scripts/test-package-identity.sh
           bash module-legacy/test-adapter-regression.sh
+          bash module-legacy/build.sh
           bash module/test-expert-relay-regression.sh
           bash module/test-language-catalog.sh
           bash module/test-target-process-guard.sh
@@ -131,7 +127,6 @@ jobs:
         run: |
           set -euo pipefail
           # Remove the developer's Termux-only AAPT2 override; CI uses the pinned SDK Build Tools.
-          sed -i '/^[[:space:]]*android\.aapt2FromMavenOverride[[:space:]]*=/d' gradle.properties
           sed -i '/^[[:space:]]*android\.aapt2FromMavenOverride[[:space:]]*=/d' gradle.properties
           gradle --no-daemon --stacktrace \
             -PprotectedBuild=false \
