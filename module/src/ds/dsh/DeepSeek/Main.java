@@ -782,24 +782,29 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         return HookSessionManagement.ui8Unit(cl);
     }
 
+    private static void rethrowFatalLogFailure(Throwable failure) {
+        if (failure instanceof VirtualMachineError) throw (VirtualMachineError) failure;
+        if (failure instanceof ThreadDeath) throw (ThreadDeath) failure;
+    }
+
     public static synchronized void log(String msg) {
         if (z8.shouldSuppressGeneralMessage(msg)) return;
         if (isLocalApiExecutionLogContext() && !z8.isError(msg)) return;
-        try { DeveloperDiagnostics.record(msg); } catch (Throwable ignored) {}
-        try { Main m = MODULE; if (m != null) m.log(Log.INFO, TAG, msg); } catch (Throwable ignored) {}
-        try { HookLogOverlay.onLog(msg); } catch (Throwable ignored) {}
-        try { RawHookTrace.module(msg); } catch (Throwable ignored) {}
+        try { DeveloperDiagnostics.record(msg); } catch (Throwable ignored) { rethrowFatalLogFailure(ignored); }
+        try { Main m = MODULE; if (m != null) m.log(Log.INFO, TAG, msg); } catch (Throwable ignored) { rethrowFatalLogFailure(ignored); }
+        try { HookLogOverlay.onLog(msg); } catch (Throwable ignored) { rethrowFatalLogFailure(ignored); }
+        try { RawHookTrace.module(msg); } catch (Throwable ignored) { rethrowFatalLogFailure(ignored); }
         String line = TS.format(new Date()) + "  " + msg + "\n";
         try {
             FileWriter w = new FileWriter(LOG_PATH, true);
             w.write(line);
             w.close();
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { rethrowFatalLogFailure(ignored); }
         try {
             FileWriter w = new FileWriter(EXT_MAIN_LOG, true);
             w.write(line);
             w.close();
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { rethrowFatalLogFailure(ignored); }
     }
 
     // 专门记录服务器返回内容的诊断日志：写 DeepSeek files 目录（root 可读），
@@ -812,31 +817,31 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             FileWriter w = new FileWriter(SRV_LOG_PATH, true);
             w.write(line);
             w.close();
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { rethrowFatalLogFailure(ignored); }
         try {
             FileWriter w = new FileWriter(SRV_LOG_EXT, true);
             w.write(line);
             w.close();
-        } catch (Throwable ignored) {}
-        try { Main m = MODULE; if (m != null) m.log(Log.INFO, TAG, "SRV " + msg); } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { rethrowFatalLogFailure(ignored); }
+        try { Main m = MODULE; if (m != null) m.log(Log.INFO, TAG, "SRV " + msg); } catch (Throwable ignored) { rethrowFatalLogFailure(ignored); }
     }
 
     // 视觉中继诊断日志：私有目录直写为主，同时尽力镜像一份到公共目录。
     public static synchronized void extLog(String msg) {
         if (z8.shouldSuppressGeneralMessage(msg)) return;
         if (isLocalApiExecutionLogContext() && !z8.isError(msg)) return;
-        try { Main m = MODULE; if (m != null) m.log(Log.INFO, TAG, msg); } catch (Throwable ignored) {}
+        try { Main m = MODULE; if (m != null) m.log(Log.INFO, TAG, msg); } catch (Throwable ignored) { rethrowFatalLogFailure(ignored); }
         String line = TS.format(new Date()) + "  " + msg + "\n";
         try {
             FileWriter w = new FileWriter(RELAY_LOG_PATH, true);
             w.write(line);
             w.close();
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { rethrowFatalLogFailure(ignored); }
         try {
             FileWriter w = new FileWriter(EXT_VISION_LOG, true);
             w.write(line);
             w.close();
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { rethrowFatalLogFailure(ignored); }
     }
 
     private static volatile boolean crashHandlerInstalled = false;
