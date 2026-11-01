@@ -52,6 +52,7 @@ final class DshAndroidLogSink {
                 }
                 Log.println(priority, tag, message.toString());
             });
+            DshLog.setConsoleSinkEnabled(false);
         } catch (Throwable failure) {
             INSTALLED.set(false);
             Log.e("DSH/Logger", "Unable to install Android Logcat sink; errorType="

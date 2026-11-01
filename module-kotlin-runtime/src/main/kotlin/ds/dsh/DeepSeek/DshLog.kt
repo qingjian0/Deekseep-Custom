@@ -24,10 +24,11 @@ object DshLog {
 
     private val sinks = CopyOnWriteArrayList<Sink>()
     @Volatile private var minimumLevel: Level = Level.INFO
+    @Volatile private var consoleSinkEnabled: Boolean = true
 
     init {
         sinks += Sink { event ->
-            System.err.println(
+            if (consoleSinkEnabled) System.err.println(
                 "DSH/${event.tag} ${event.level.name} t=${event.timestampMillis} " +
                     "thread=${event.threadName} message=${event.message}" +
                     (event.errorType?.let { " error=$it" } ?: "")
@@ -36,6 +37,9 @@ object DshLog {
     }
 
     @JvmStatic fun setMinimumLevel(level: Level) { minimumLevel = level }
+
+    /** Disable the JVM console mirror when a platform-native sink owns Android logging. */
+    @JvmStatic fun setConsoleSinkEnabled(enabled: Boolean) { consoleSinkEnabled = enabled }
 
     /** Applies the same credential and private-path redaction before records leave the runtime. */
     @JvmStatic fun sanitizeForStorage(value: String): String = sanitize(value)
