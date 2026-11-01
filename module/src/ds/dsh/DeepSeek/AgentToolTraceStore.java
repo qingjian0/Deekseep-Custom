@@ -280,35 +280,60 @@ final class AgentToolTraceStore {
 
     private static void ensureLoadedLocked() {
         if (loaded || !supportsPersistence()) return;
+        File target = new File(STORE_PATH);
+        File temporary = new File(STORE_PATH + ".tmp");
+        JSONArray values = readLedger(target);
+        if (values == null) {
+            // A process may die after syncing the temporary ledger but before rename().
+            // Recover only a complete, parseable snapshot; never promote a partial write.
+            JSONArray recovered = readLedger(temporary);
+            if (recovered != null) {
+                try {
+                    Os.rename(temporary.getAbsolutePath(), target.getAbsolutePath());
+                    values = recovered;
+                } catch (Throwable ignored) {
+                    // Keep the temporary snapshot and retry on the next access.
+                    return;
+                }
+            } else {
+                loaded = true;
+                if (temporary.exists()) temporary.delete();
+                return;
+            }
+        } else if (temporary.exists()) {
+            // The committed target wins. This is a stale pre-commit or superseded temp file.
+            temporary.delete();
+        }
         loaded = true;
-        File file = new File(STORE_PATH);
-        if (!file.isFile() || file.length() <= 0 || file.length() > MAX_STORE_BYTES) return;
+        for (int index = 0; index < values.length(); index++) {
+            JSONObject value = values.optJSONObject(index);
+            if (value == null) continue;
+            String key = value.optString("key", "").trim();
+            if (key.length() == 0) continue;
+            putLocked(key, new Trace(key,
+                    trim(value.optString("input", "{}"), MAX_INPUT_CHARS),
+                    trim(value.optString("output", ""), MAX_OUTPUT_CHARS),
+                    value.optBoolean("finished", false),
+                    value.optBoolean("success", false),
+                    value.optLong("started_at", 0L),
+                    value.optLong("finished_at", 0L)));
+        }
+    }
+
+    private static JSONArray readLedger(File file) {
+        if (file == null || !file.isFile()
+                || file.length() <= 0L || file.length() > MAX_STORE_BYTES) return null;
         try (FileInputStream input = new FileInputStream(file);
              ByteArrayOutputStream output = new ByteArrayOutputStream((int) file.length())) {
             byte[] buffer = new byte[16 * 1024];
             int count;
             while ((count = input.read(buffer)) > 0) {
-                if (output.size() + count > MAX_STORE_BYTES) return;
+                if (output.size() + count > MAX_STORE_BYTES) return null;
                 output.write(buffer, 0, count);
             }
-            JSONArray values = new JSONArray(new String(
-                    output.toByteArray(), StandardCharsets.UTF_8));
-            for (int index = 0; index < values.length(); index++) {
-                JSONObject value = values.optJSONObject(index);
-                if (value == null) continue;
-                String key = value.optString("key", "").trim();
-                if (key.length() == 0) continue;
-                putLocked(key, new Trace(key,
-                        trim(value.optString("input", "{}"), MAX_INPUT_CHARS),
-                        trim(value.optString("output", ""), MAX_OUTPUT_CHARS),
-                        value.optBoolean("finished", false),
-                        value.optBoolean("success", false),
-                        value.optLong("started_at", 0L),
-                        value.optLong("finished_at", 0L)));
-            }
+            return new JSONArray(new String(output.toByteArray(), StandardCharsets.UTF_8));
         } catch (Throwable ignored) {
-            TRACES.clear();
-            ORDER.clear();
+            return null;
         }
     }
 
