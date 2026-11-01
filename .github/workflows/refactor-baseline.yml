@@ -124,6 +124,9 @@ jobs:
             unzip -t "$apk" >/dev/null
             "$BUILD_TOOLS_DIR/zipalign" -c -v 4 "$apk" >/dev/null
             "$BUILD_TOOLS_DIR/apksigner" verify --verbose "$apk" >/dev/null
+            "$BUILD_TOOLS_DIR/aapt" dump badging "$apk" \
+              | grep -Fq "package: name='ds.dsh.DeepSeek'" \
+              || { echo "Unexpected package identity in $apk" >&2; exit 1; }
             dex_count="$(unzip -Z1 "$apk" | grep -Ec '^classes([0-9]+)?\.dex$' || true)"
             test "$dex_count" -ge 1
             echo "$apk contains $dex_count DEX file(s)"
