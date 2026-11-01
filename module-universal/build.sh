@@ -103,7 +103,7 @@ fi
 grep -v 'warning:' "$OUT/javac.err" || true
 
 echo "[3/7] d8"
-MODCLASSES=$(find "$OUT/classes/com/dsmod" -name '*.class')
+MODCLASSES=$(find "$OUT/classes/ds/dsh/DeepSeek" -name '*.class')
 java -cp "$R8_JAR" com.android.tools.r8.D8 \
   --min-api 24 --output "$OUT/dex" $MODCLASSES \
   "$KOTLIN_RUNTIME_JAR" "$KOTLIN_STDLIB_JAR" \
