@@ -38,7 +38,7 @@ jobs:
             module/test-session-deletion-install-regression.sh module/test-target-process-guard.sh \
             scripts/android-tools.sh scripts/build-all-legacy.sh \
             scripts/test-package-identity.sh scripts/test-launcher-activation-regression.sh \
-            scripts/test-launcher-config-architecture.sh scripts/test-universal-feature-parity.sh; do
+            scripts/test-launcher-config-architecture.sh scripts/test-launcher-backup-architecture.sh \\\n            scripts/test-universal-feature-parity.sh; do
             bash -n "$script"
           done
       - name: Run legacy Xposed adapter regression
