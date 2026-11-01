@@ -12,6 +12,7 @@ class AccountValidationPolicyTest {
     fun userAgentKeepsVersionFallbackAndSdkFloor() {
         assertEquals("DeepSeek/2.2.2 Android/1", AccountValidationPolicy.userAgent(" ", 0))
         assertEquals("DeepSeek/2.4.1 Android/35", AccountValidationPolicy.userAgent(" 2.4.1 ", 35))
+        assertEquals("DeepSeek/\u20032.4.1\u2003 Android/35", AccountValidationPolicy.userAgent("\u20032.4.1\u2003", 35))
     }
 
     @Test
@@ -60,5 +61,6 @@ class AccountValidationPolicyTest {
         assertEquals(-1L, AccountValidationPolicy.retryDelayMillis("11"))
         assertEquals(-1L, AccountValidationPolicy.retryDelayMillis("Wed, 21 Oct 2015 07:28:00 GMT"))
         assertEquals(-1L, AccountValidationPolicy.retryDelayMillis("not-a-number"))
+        assertEquals(-1L, AccountValidationPolicy.retryDelayMillis("\u2003"))
     }
 }
