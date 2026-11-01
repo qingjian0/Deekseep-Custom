@@ -333,6 +333,8 @@ final class HookAgentPipeline {
     // Keep successful Member registrations so retries install only the missing targets.
     private static final Set<Member> AGENT_TOOL_INSTALLED_HOOKS =
             Collections.newSetFromMap(new ConcurrentHashMap<Member, Boolean>());
+    private static final Set<Member> HEARTBEAT_RESPONSE_HOOKED_MEMBERS =
+            Collections.newSetFromMap(new ConcurrentHashMap<Member, Boolean>());
 
     private static boolean hookAgentToolOnce(Member member, Hooker hooker) throws Throwable {
         synchronized (AGENT_TOOL_INSTALLED_HOOKS) {
@@ -1725,6 +1727,15 @@ final class HookAgentPipeline {
                 || (value >= 'A' && value <= 'F');
     }
 
+    private static void hookHeartbeatResponseMember(Member member, Hooker hooker)
+            throws Throwable {
+        synchronized (HEARTBEAT_RESPONSE_HOOKED_MEMBERS) {
+            if (HEARTBEAT_RESPONSE_HOOKED_MEMBERS.contains(member)) return;
+            Main.MODULE.hook(member).intercept(hooker);
+            HEARTBEAT_RESPONSE_HOOKED_MEMBERS.add(member);
+        }
+    }
+
     void hookHeartbeatToolResponses(ClassLoader cl) throws Throwable {
         Throwable installFailure = null;
         int liveHooks = 0;
@@ -1739,7 +1750,7 @@ final class HookAgentPipeline {
             try {
                 Class<?> liveResponse = HostRemap.load(cl, className);
                 for (Constructor<?> ctor : liveResponse.getDeclaredConstructors()) {
-                    Main.MODULE.hook(ctor).intercept(new Hooker() {
+                    hookHeartbeatResponseMember(ctor, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             Object result = chain.proceed();
                             try {
@@ -1762,7 +1773,7 @@ final class HookAgentPipeline {
                             && HostCompat.isGooglePlay() ? "j" : "i";
                     if ((!appendMethod.equals(name) && !replaceMethod.equals(name))
                             || types.length == 0 || types[0] != String.class) continue;
-                    Main.MODULE.hook(method).intercept(new Hooker() {
+                    hookHeartbeatResponseMember(method, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             if ("content".equals(chain.getArg(0))) {
                                 String decoded = decodeHeartbeatJsonString(chain.getArg(1));
@@ -1852,7 +1863,7 @@ final class HookAgentPipeline {
                     } else {
                         continue;
                     }
-                    Main.MODULE.hook(ctor).intercept(new Hooker() {
+                    hookHeartbeatResponseMember(ctor, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             Object raw = chain.getArg(contentIndex);
                             if (!(raw instanceof String)) return chain.proceed();
