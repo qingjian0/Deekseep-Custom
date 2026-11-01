@@ -162,7 +162,8 @@ language_source = (root / "UiLanguage.java").read_text(encoding="utf-8")
 if "UiLanguageCatalog.toEnglish(value.toString())" not in language_source:
     raise SystemExit("UiLanguage.dynamic must use the exact catalog")
 wiring = {
-    "Main.java": ["UiLanguage.refreshHost(act);", "visionDescribePrompt()"],
+    "Main.java": ["UiLanguage.refreshHost(act);", "UiLanguage.detectedLanguage(act)",
+                  "UiLanguage.isChinese(act)"],
     "DeekseepUi.java": ["showLanguagePicker", "UiLanguage.MODE_AUTO",
                          "UiLanguage.MODE_CHINESE", "UiLanguage.MODE_ENGLISH"],
 }
