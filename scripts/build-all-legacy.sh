@@ -77,7 +77,8 @@ for apk in "$UNIVERSAL_APK" "$GOOGLE_PLAY_APK"; do
     package_metadata="$("$AAPT" dump badging "$apk")"
     grep -Fq "package: name='ds.dsh.DeepSeek'" <<< "$package_metadata"
     unzip -p "$apk" assets/xposed_init | grep -Fxq "ds.dsh.DeepSeek.Main"
-    if unzip -Z1 "$apk" | grep -Fxq 'META-INF/xposed/java_init.list'; then
+    apk_entries="$(unzip -Z1 "$apk")"
+    if grep -Fxq 'META-INF/xposed/java_init.list' <<< "$apk_entries"; then
         echo "Universal APK unexpectedly contains a modern libxposed entry: $apk" >&2
         exit 1
     fi
