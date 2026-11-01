@@ -53,7 +53,34 @@ public final class ResponsePreserverRegressionTest {
                 .put("id", 1).put("type", type).put("content", content)).toString();
     }
 
+    private static void checkResponsePreserverPolicy() {
+        require(ResponsePreserverPolicy.containsFilterStatus("CONTENT_FILTER"), "filter token");
+        require(ResponsePreserverPolicy.containsFilterStatus("prefix_CONTENT_FILTER_suffix"),
+                "filter substring compatibility");
+        require(!ResponsePreserverPolicy.containsFilterStatus("FINISHED"), "ordinary status");
+        require(!ResponsePreserverPolicy.containsFilterStatus(null), "null filter status");
+        require(ResponsePreserverPolicy.stateQuality("FINISHED", "STREAMING") == 3,
+                "explicit status precedence");
+        require(ResponsePreserverPolicy.stateQuality("", "FINISHED") == 3,
+                "empty status fallback");
+        require(ResponsePreserverPolicy.stateQuality(null, "ERROR") == 2,
+                "null status fallback");
+        require(ResponsePreserverPolicy.stateQuality("INTERRUPTED", null) == 2,
+                "interrupted quality");
+        require(ResponsePreserverPolicy.stateQuality("STREAMING", null) == 1,
+                "streaming quality");
+        require(ResponsePreserverPolicy.stateQuality("UNKNOWN", null) == 0,
+                "unknown quality");
+        require(ResponsePreserverPolicy.validSid("12345678-1234-1234-1234-123456789abc"),
+                "36-character session key");
+        require(!ResponsePreserverPolicy.validSid("1234567"), "short session key");
+        require(!ResponsePreserverPolicy.validSid("g2345678-1234-1234-1234-123456789abc"),
+                "non-hex session key");
+        require(!ResponsePreserverPolicy.validSid(null), "null session key");
+    }
+
     public static void main(String[] args) throws Exception {
+        checkResponsePreserverPolicy();
         File directory = new File("build/thinking-test/response-store-" + System.nanoTime());
         require(directory.mkdirs(), "could not create isolated response store");
         System.setProperty("deekseep.response_preserver_dir", directory.getAbsolutePath());

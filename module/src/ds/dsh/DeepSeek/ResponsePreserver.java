@@ -534,16 +534,11 @@ final class ResponsePreserver {
     }
 
     private static boolean containsFilterStatus(String value) {
-        return value != null && value.contains("CONTENT_FILTER");
+        return ResponsePreserverPolicy.containsFilterStatus(value);
     }
 
     private static int stateQuality(String status, String quasiStatus) {
-        String value = status == null || status.length() == 0 ? quasiStatus : status;
-        if (value == null) return 0;
-        if (value.contains("FINISHED")) return 3;
-        if (value.contains("INTERRUPTED") || value.contains("ERROR")) return 2;
-        if (value.contains("STREAMING")) return 1;
-        return 0;
+        return ResponsePreserverPolicy.stateQuality(status, quasiStatus);
     }
 
     private static File storageDir() {
@@ -619,7 +614,7 @@ final class ResponsePreserver {
     }
 
     private static boolean validSid(String sid) {
-        return sid != null && sid.matches("[0-9a-fA-F-]{36}");
+        return ResponsePreserverPolicy.validSid(sid);
     }
 
     private static Object staticField(Class<?> type, String name) throws Throwable {
