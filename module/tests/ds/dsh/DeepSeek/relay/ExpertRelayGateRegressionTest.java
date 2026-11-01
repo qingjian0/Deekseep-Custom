@@ -1,4 +1,4 @@
-package com.dsmod.relay;
+package ds.dsh.DeepSeek.relay;
 
 public final class ExpertRelayGateRegressionTest {
     private static void check(boolean condition, String message) {

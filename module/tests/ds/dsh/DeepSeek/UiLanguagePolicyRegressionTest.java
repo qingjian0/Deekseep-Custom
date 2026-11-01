@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 /** Regression coverage for host-locale fallback and representative English copy. */
 public final class UiLanguagePolicyRegressionTest {

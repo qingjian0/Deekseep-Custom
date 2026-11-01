@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import java.util.List;
 
@@ -8,8 +8,8 @@ public final class ProcessManagerRegressionTest {
                 + "  101 system_server               S\n"
                 + " 7244 com.deepseek.chat           S\n"
                 + " 7249 com.deepseek.chat:push      T\n"
-                + "22299 com.dsmod.probe             S\n"
-                + "22310 com.dsmod.probe:audio       S\n"
+                + "22299 ds.dsh.DeepSeek             S\n"
+                + "22310 ds.dsh.DeepSeek:audio       S\n"
                 + "30000 com.deepseek.chat.evil      S\n";
         List<ProcessManagerActivity.ProcessInfo> items =
                 ProcessManagerActivity.parseProcesses(ps);
@@ -22,7 +22,7 @@ public final class ProcessManagerRegressionTest {
                         7250, "com.deepseek.chat:worker", "S", true).frozen(),
                 "cgroup-v2 frozen state must be recognized even when ps still reports S");
         require(items.get(2).module(), "module main process missing");
-        require(items.get(3).name.equals("com.dsmod.probe:audio"),
+        require(items.get(3).name.equals("ds.dsh.DeepSeek:audio"),
                 "module subprocess missing");
         for (ProcessManagerActivity.ProcessInfo item : items) {
             require(!item.name.endsWith(".evil"), "prefix boundary accepted unrelated package");
