@@ -9,7 +9,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -41,9 +40,7 @@ final class AccountImportArchive {
                 zip.closeEntry();
                 continue;
             }
-            String lower = path.toLowerCase(Locale.US);
-            boolean supported = lower.endsWith(".json") || lower.endsWith(".txt")
-                    || lower.endsWith(".ds-account");
+            boolean supported = AccountImportArchivePolicy.isSupportedAccountFile(path);
             if (!supported) {
                 expanded += drainBounded(zip, MAX_ARCHIVE_UNCOMPRESSED_BYTES - expanded);
                 zip.closeEntry();
@@ -89,18 +86,7 @@ final class AccountImportArchive {
     }
 
     static String safePath(String raw) throws AccountCredentialCodec.FormatException {
-        String path = raw == null ? "" : raw.replace('\\', '/');
-        if (path.length() == 0 || path.startsWith("/") || path.indexOf('\0') >= 0
-                || path.matches("^[A-Za-z]:.*")) {
-            throw new AccountCredentialCodec.FormatException("ZIP 含不安全路径：" + path);
-        }
-        String[] segments = path.split("/", -1);
-        for (String segment : segments) {
-            if ("..".equals(segment)) {
-                throw new AccountCredentialCodec.FormatException("ZIP 含不安全路径：" + path);
-            }
-        }
-        return path;
+        return AccountImportArchivePolicy.safePath(raw);
     }
 
     private static byte[] readBounded(InputStream input, int limit) throws Exception {

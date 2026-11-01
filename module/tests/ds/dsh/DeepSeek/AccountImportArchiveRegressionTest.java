@@ -14,6 +14,7 @@ import java.util.zip.ZipOutputStream;
 public final class AccountImportArchiveRegressionTest {
     public static void main(String[] args) throws Exception {
         readsSupportedEntriesAndSkipsOtherFiles();
+        recognizesSupportedExtensions();
         rejectsUnsafePaths();
         rejectsUnsafePathInsideArchive();
         rejectsDuplicateIdsAcrossEntries();
@@ -36,6 +37,14 @@ public final class AccountImportArchiveRegressionTest {
         check(entries.size() == 2, "supported entries must be imported");
         check("account-00000001".equals(entries.get(0).id), "first account id");
         check("account-00000002".equals(entries.get(1).id), "second account id");
+    }
+
+    private static void recognizesSupportedExtensions() {
+        check(AccountImportArchivePolicy.isSupportedAccountFile("account.json"), "JSON extension");
+        check(AccountImportArchivePolicy.isSupportedAccountFile("nested/ACCOUNT.TXT"), "case-insensitive TXT extension");
+        check(AccountImportArchivePolicy.isSupportedAccountFile("backup.ds-account"), "DS account extension");
+        check(!AccountImportArchivePolicy.isSupportedAccountFile("readme.md"), "unsupported extension");
+        check(!AccountImportArchivePolicy.isSupportedAccountFile(null), "null filename");
     }
 
     private static void rejectsUnsafePaths() throws Exception {
