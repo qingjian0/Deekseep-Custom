@@ -51,13 +51,17 @@ jobs:
               scripts/test-launcher-config-architecture.sh scripts/test-universal-feature-parity.sh \
               module-legacy/build.sh module-universal/build.sh \
               module-legacy/test-adapter-regression.sh module/test-target-process-guard.sh \
-              module/test-hostmap-regression.sh; do
+              module/test-hook-install-registry.sh module/test-login-diagnostics-regression.sh \
+              module/test-session-deletion-install-regression.sh module/test-hostmap-regression.sh; do
             bash -n "$script"
           done
           bash module-legacy/test-adapter-regression.sh
           bash scripts/test-package-identity.sh
           bash scripts/test-launcher-activation-regression.sh
           bash scripts/test-launcher-config-architecture.sh
+          bash module/test-hook-install-registry.sh
+          bash module/test-login-diagnostics-regression.sh
+          bash module/test-session-deletion-install-regression.sh
           bash module/test-expert-relay-regression.sh
           bash module/test-language-catalog.sh
           bash module/test-target-process-guard.sh
