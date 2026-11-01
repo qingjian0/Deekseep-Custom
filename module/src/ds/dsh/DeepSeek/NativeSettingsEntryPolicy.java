@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 /** Decides whether the top-right module entry must remain available. */
 final class NativeSettingsEntryPolicy {

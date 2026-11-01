@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -22,7 +22,7 @@ import java.util.Set;
 
 /** A small authenticated bridge between the launcher APK and the injected target process. */
 final class ModuleConfigBridge {
-    static final String ACTION = "com.dsmod.probe.action.CONFIG_TRANSFER";
+    static final String ACTION = "ds.dsh.DeepSeek.action.CONFIG_TRANSFER";
     static final String EXTRA_MODE = "mode";
     static final String EXTRA_JSON = "json";
     static final String EXTRA_REPLY = "reply";

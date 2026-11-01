@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -18,7 +18,7 @@ public final class NativeApiPatchDecoder {
         public String reasoningSet;
     }
 
-    private static final String CORE = "com.dsmod.probe.z12decoder";
+    private static final String CORE = "ds.dsh.DeepSeek.z12decoder";
     private static Constructor<?> coreCtor;
     private static Method coreDecode;
 
