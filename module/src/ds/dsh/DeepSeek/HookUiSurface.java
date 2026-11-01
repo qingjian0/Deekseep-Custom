@@ -119,6 +119,7 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 /** Hook group extracted from Main.java: UI category (see JavaHookGuide). */
 final class HookUiSurface {
     static final HookUiSurface INSTANCE = new HookUiSurface();
+    private static final Set<Member> UI_SURFACE_HOOKED_MEMBERS = new HashSet<>();
 
     static final String WHALE_MOTION_FILE =
             "/data/data/com.deepseek.chat/files/deekseep_whale_motion";
@@ -3002,13 +3003,22 @@ final class HookUiSurface {
      * boundaries. Keeping the effect at the canvas boundary means host typography, layout,
      * selection, accessibility text and semantic error colours all remain intact.
      */
+    private static void hookUiSurfaceMember(Member member, Hooker hooker)
+            throws Throwable {
+        synchronized (UI_SURFACE_HOOKED_MEMBERS) {
+            if (UI_SURFACE_HOOKED_MEMBERS.contains(member)) return;
+            Main.MODULE.hook(member).intercept(hooker);
+            UI_SURFACE_HOOKED_MEMBERS.add(member);
+        }
+    }
+
     void hookTextWaveMotion(ClassLoader cl) throws Throwable {
         Throwable installFailure = null;
         int nativeHooks = 0;
         try {
             Method onDraw = HostRemap.declaredMethod(TextView.class, "onDraw", Canvas.class);
             onDraw.setAccessible(true);
-            Main.MODULE.hook(onDraw).intercept(new Hooker() {
+            hookUiSurfaceMember(onDraw, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     TextView text = (TextView) chain.getThisObject();
                     float density = text.getResources().getDisplayMetrics().density;
@@ -3084,7 +3094,7 @@ final class HookUiSurface {
                     continue;
                 }
                 candidate.setAccessible(true);
-                Main.MODULE.hook(candidate).intercept(new Hooker() {
+                hookUiSurfaceMember(candidate, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         List<Object> args = chain.getArgs();
                         Object last = args.isEmpty() ? null : args.get(args.size() - 1);
@@ -3135,7 +3145,7 @@ final class HookUiSurface {
             textDraw.setAccessible(true);
             invalidate.setAccessible(true);
             final Method nodeInvalidator = invalidate;
-            Main.MODULE.hook(textDraw).intercept(new Hooker() {
+            hookUiSurfaceMember(textDraw, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     TextWaveEngine.captureComposeTextNode(
                             chain.getThisObject(), nodeInvalidator);
@@ -3520,7 +3530,7 @@ final class HookUiSurface {
             localProvider.setAccessible(true);
             deoptimizeBubbleMethod(localProvider);
             final boolean[] appliedLogged = new boolean[1];
-            Main.MODULE.hook(localProvider).intercept(new Hooker() {
+            hookUiSurfaceMember(localProvider, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     ThemeColorConfig.Value config = ThemeColorConfig.get();
                     if (!config.enabled || chain.getThisObject() != colorLocal
@@ -3556,7 +3566,7 @@ final class HookUiSurface {
                         || "b".equals(HostRemap.name(method)))) continue;
                 method.setAccessible(true);
                 deoptimizeBubbleMethod(method);
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookUiSurfaceMember(method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         ThemeColorConfig.Value config = ThemeColorConfig.get();
                         if (!config.enabled || chain.getArgs().isEmpty()) return chain.proceed();
@@ -3611,7 +3621,7 @@ final class HookUiSurface {
             if (background != null) {
                 background.setAccessible(true);
                 deoptimizeBubbleMethod(background);
-                Main.MODULE.hook(background).intercept(new Hooker() {
+                hookUiSurfaceMember(background, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         ThemeColorConfig.Value config = ThemeColorConfig.get();
                         if (!config.enabled || chain.getArgs().size() < 2) return chain.proceed();
@@ -3639,7 +3649,7 @@ final class HookUiSurface {
                         || p[2] != long.class || p[3] != long.class) continue;
                 method.setAccessible(true);
                 deoptimizeBubbleMethod(method);
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookUiSurfaceMember(method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         ThemeColorConfig.Value config = ThemeColorConfig.get();
                         if (!config.enabled || chain.getArgs().size() < 4) return chain.proceed();
