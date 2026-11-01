@@ -7437,7 +7437,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             log("code249 reasoning code-copy result adapter unavailable: "
                     + safeThrowableMessage(error));
         }
-        if (installed == 0) V236_THINKING_CODE_COPY_HOOK_INSTALLED.set(false);
+        if (installed == 0 || firstFailure != null) {
+            V236_THINKING_CODE_COPY_HOOK_INSTALLED.set(false);
+        }
         log("installed code249 reasoning code-copy adapters=" + installed);
         if (firstFailure != null) throw firstFailure;
     }
@@ -7522,7 +7524,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             log("code257 reasoning code-copy result adapter unavailable: "
                     + safeThrowableMessage(error));
         }
-        if (installed == 0) {
+        if (installed == 0 || firstFailure != null) {
             V241_THINKING_CODE_COPY_HOOK_INSTALLED.set(false);
         }
         log("installed code257 reasoning code-copy adapters=" + installed);
