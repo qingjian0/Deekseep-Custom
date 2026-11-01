@@ -121,6 +121,7 @@ The Gradle launcher currently declares AGP 9.3.0, Kotlin Compose plugin 2.4.10, 
 - Gradle 9.8.2 bootstrap is shared by the runtime tests, Legacy/Universal builds and launcher Open build.
 - Manual Java/Xposed compilation now uses `javac --release 8` in Legacy and Universal, and the adapter regression harness uses the same API floor. This prevents JDK 21 platform APIs from leaking into Java 8 bytecode.
 - Legacy, domestic/Google Play Universal and Compose use the same ignored local debug keystore for local builds; CI creates an ephemeral shared debug key and compares signer fingerprints across the four outputs.
+- Artifact matrix now compiles Legacy, both Universal variants and the Compose Open APK; package/DEX/alignment checks pass on that run. The shared-signer gate still needs a correction: the first run failed to extract a Compose signer digest, so the workflow now prints the exact `apksigner` output on extraction failure and parses the digest without `head`.
 - Validation gate: earlier JVM CI passed the registry and process-admission regressions. The latest HEAD has not yet returned a workflow run/status, so the new `--release 8` builds and cross-artifact signing check remain unverified.
 
 ### P3 — Compose launcher decomposition (in progress)
