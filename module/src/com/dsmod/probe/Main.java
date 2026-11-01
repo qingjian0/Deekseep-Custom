@@ -1555,15 +1555,40 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     }
 
     private final AtomicBoolean FEATURE_HOOKS_INSTALLED = new AtomicBoolean(false);
+    private final FeatureHookInstallRegistry FEATURE_HOOK_INSTALL_REGISTRY =
+            new FeatureHookInstallRegistry();
+
+    void installHookStep(String id, FeatureHookInstallRegistry.Installer installer)
+            throws Throwable {
+        FEATURE_HOOK_INSTALL_REGISTRY.install(id, () -> {
+            String previous = beginHookRegistrationScope(id);
+            try {
+                installer.install();
+            } finally {
+                endHookRegistrationScope(previous);
+            }
+        });
+    }
+
+    void installBestEffortHook(String id, FeatureHookInstallRegistry.Installer installer,
+            String logPrefix) {
+        try {
+            installHookStep(id, installer);
+        } catch (Throwable error) {
+            FEATURE_HOOK_INSTALL_REGISTRY.markDegraded(id, error);
+            log(logPrefix + safeThrowableMessage(error));
+        }
+    }
 
     public synchronized void installAllFeatureHooks(ClassLoader cl) {
         if (cl == null) cl = hostClassLoader;
         if (cl == null) return;
-        if (!FEATURE_HOOKS_INSTALLED.compareAndSet(false, true)) return;
+        if (FEATURE_HOOKS_INSTALLED.get()) return;
         if (HostCompat.isV271Limited()) {
             // 2.7.1/code287: only the re-verified whitelist is installed. See HostV271.
             log("installAllFeatureHooks: 2.7.1 whitelist");
             HostV271.installFeatureHooks(cl);
+            FEATURE_HOOKS_INSTALLED.set(!FEATURE_HOOK_INSTALL_REGISTRY.hasFailures());
             return;
         }
         log("installAllFeatureHooks: installing all feature hooks (authorized)");
@@ -1571,19 +1596,19 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             // Hand-verified 2.7.1 settings entry (gt0.Q page_show) as a guaranteed module entry;
             // the translated 2.4.1 settings hooks below are best effort on top of it.
             log("installAllFeatureHooks: 2.7.1 full mode via HostRemap classes=" + HostRemap.classCount());
-            try { HostV271.installSettingsEntry(cl); }
-            catch (Throwable t) { log("2.7.1 settings entry failed: " + t); }
+            installBestEffortHook("host.v271.settings-entry", () -> HostV271.installSettingsEntry(cl),
+                    "2.7.1 settings entry failed: ");
         }
         try {
             if (HostCompat.isV236() || HostCompat.isV241()) {
-                HostNavigationBridge.install(this, cl);
+                installHookStep("host.navigation.bridge", () -> HostNavigationBridge.install(this, cl));
             }
-            HookAgentPipeline.INSTANCE.hookAgentToolLogRoundedRect(cl);
-            if (!HostCompat.isV271()) RemoteFeatureFlags.install(this, cl);
-            HookConfigRollout.INSTANCE.hookAttachmentGuidePromptRollout(cl);
-            HookConfigRollout.INSTANCE.hookHomeWelcomeRollout(cl);
-            HookUiSurface.INSTANCE.hookNativeDualChatRoot(cl);
-            HookAttachmentPipeline.INSTANCE.hookNativeImagePreviewBoundary(cl);
+            installHookStep("agent.tool-log.rounded-rect", () -> HookAgentPipeline.INSTANCE.hookAgentToolLogRoundedRect(cl));
+            if (!HostCompat.isV271()) installHookStep("remote.feature-flags", () -> RemoteFeatureFlags.install(this, cl));
+            installHookStep("config.attachment-guide-rollout", () -> HookConfigRollout.INSTANCE.hookAttachmentGuidePromptRollout(cl));
+            installHookStep("config.home-welcome-rollout", () -> HookConfigRollout.INSTANCE.hookHomeWelcomeRollout(cl));
+            installHookStep("ui.native-dual-chat-root", () -> HookUiSurface.INSTANCE.hookNativeDualChatRoot(cl));
+            installHookStep("attachment.native-image-preview-boundary", () -> HookAttachmentPipeline.INSTANCE.hookNativeImagePreviewBoundary(cl));
 
             if (HostCompat.isV236() && BuildInfo.PROTECTED_BUILD
                     && BuildInfo.LOCAL_API_INCLUDED
@@ -1606,12 +1631,12 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                             + safeThrowableMessage(error));
                 }
             }
-            HookAccountLoginSecurity.INSTANCE.hookNativeFakeMute(cl);
-            HookAccountLoginSecurity.INSTANCE.hookTrainingOptOutControl(cl);
-            HookConfigRollout.INSTANCE.hookHotUpdateDialog(cl);
-            HookConfigRollout.INSTANCE.hookRemoteConfigHotUpdates(cl);
-            if (!HostCompat.isV271()) HookAccountLoginSecurity.INSTANCE.hookCandidateLoginErrorMessages();
-            HookAccountLoginSecurity.INSTANCE.fa(cl);
+            installHookStep("account.native-fake-mute", () -> HookAccountLoginSecurity.INSTANCE.hookNativeFakeMute(cl));
+            installHookStep("account.training-opt-out", () -> HookAccountLoginSecurity.INSTANCE.hookTrainingOptOutControl(cl));
+            installHookStep("config.hot-update-dialog", () -> HookConfigRollout.INSTANCE.hookHotUpdateDialog(cl));
+            installHookStep("config.remote-hot-updates", () -> HookConfigRollout.INSTANCE.hookRemoteConfigHotUpdates(cl));
+            if (!HostCompat.isV271()) installHookStep("account.candidate-login-errors", () -> HookAccountLoginSecurity.INSTANCE.hookCandidateLoginErrorMessages());
+            installHookStep("account.fa-compat-hook", () -> HookAccountLoginSecurity.INSTANCE.fa(cl));
             restoreLocalEditorImages();
 
             File obsoleteTriggerCleanup = new File(
@@ -1645,11 +1670,12 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 }}, "Deekseep-Auto-Backup").start();
             }
 
-            HookUiSurface.INSTANCE.hookHomeGreeting(cl);
-            HookChatPipeline.INSTANCE.hookChatRequest(cl);
+            installHookStep("ui.home-greeting", () -> HookUiSurface.INSTANCE.hookHomeGreeting(cl));
+            installHookStep("chat.request-construction", () -> HookChatPipeline.INSTANCE.hookChatRequest(cl));
             ensureOptionalHooksForEnabledFeatures(cl);
-            try { HookAttachmentPipeline.INSTANCE.installExpertHistoryImagePreserver(cl); }
-            catch (Throwable t) { log("install history bridge wiring failed: " + t); }
+            installBestEffortHook("attachment.expert-history-image-preserver",
+                    () -> HookAttachmentPipeline.INSTANCE.installExpertHistoryImagePreserver(cl),
+                    "install history bridge wiring failed: ");
 
             File historyMigration = new File("/data/data/com.deepseek.chat/files/deekseep_history_migration_v3");
             if (!historyMigration.exists()) {
@@ -1666,71 +1692,91 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             }
 
             // Installed everywhere; on 2.7.1 it stays inert until the user gives explicit consent.
-            HookChatPipeline.INSTANCE.hookSafetyRetraction(cl);
-            HookChatPipeline.INSTANCE.installServerCapture(cl);
+            installHookStep("chat.safety-retraction", () -> HookChatPipeline.INSTANCE.hookSafetyRetraction(cl));
+            installHookStep("chat.server-capture", () -> HookChatPipeline.INSTANCE.installServerCapture(cl));
             // Installed everywhere: it also carries the Agent fragment sanitizer and reply-ready
             // notification. Its anti-recall branches are inert on 2.7.1 (isNoCensor()==false).
-            HookChatPipeline.INSTANCE.hookContentFilterApply(cl);
-            HookChatPipeline.INSTANCE.installMsgRebuildCapture(cl);
-            HookChatPipeline.INSTANCE.hookStatusWrite(cl);
-            HookChatPipeline.INSTANCE.hookTemplateProbe(cl);
-            HookChatPipeline.INSTANCE.hookFinalMessageMerge(cl);
-            HookChatPipeline.INSTANCE.hookFinalMessageApply(cl);
-            if (!HostCompat.isV271()) HookAttachmentPipeline.INSTANCE.hookExpertUnlock(cl);
-            if (!HostCompat.isV271()) hookV236LocalChatQuotaUnlock(cl);
-            if (!HostCompat.isV271()) hookV241LocalChatQuotaUnlock(cl);
-            hookV236ThinkingCodeCopy(cl);
-            hookV241ThinkingCodeCopy(cl);
-            hookV236AllFileTypes(cl);
-            hookV241AllFileTypes(cl);
-            if (!HostCompat.isV271()) HookAccountLoginSecurity.INSTANCE.hookRegionalLoginUnlock(cl);
-            if (!HostCompat.isV271()) HookAccountLoginSecurity.INSTANCE.hookLoginEntryPasswordUnlock(cl);
-            if (!HostCompat.isV271()) HookAccountLoginSecurity.INSTANCE.hookRegionOverride(cl);
-            if (!HostCompat.isV271()) HookAccountLoginSecurity.INSTANCE.hookCandidatePasswordLoginCapture(cl);
-            if (!HostCompat.isV271()) HookAccountLoginSecurity.INSTANCE.hookCandidateRegistrationCaptchaCallbacks(cl);
-            if (!HostCompat.isV271()) try { HookAccountLoginSecurity.INSTANCE.installRiskSdkNeutralizer(cl); }
-            catch (Throwable t) { log("installRiskSdkNeutralizer wiring failed: " + t); }
-            if (!HostCompat.isV271()) try { HookAccountLoginSecurity.INSTANCE.installLoginRiskLogger(cl); }
-            catch (Throwable t) { log("installLoginRiskLogger wiring failed: " + t); }
-            if (!HostCompat.isV271()) try { HookAttachmentPipeline.INSTANCE.installExpertUploadGate(cl); }
-            catch (Throwable t) { log("installExpertUploadGate wiring failed: " + t); }
-            if (!HostCompat.isV271()) try { installNetworkPayloadCapture(cl); } catch (Throwable t) { log("installNetworkPayloadCapture wiring failed: " + t); }
-            if (!HostCompat.isV271()) try { HookChatPipeline.INSTANCE.installPowManagerCapture(cl); } catch (Throwable t) { log("installPowManagerCapture wiring failed: " + t); }
-            try { HookAttachmentPipeline.INSTANCE.f9(cl); }
-            catch (Throwable t) { log("f9 wiring failed: " + t); }
-            if (!HostCompat.isV271()) try { installExpertImageFpCapture(cl); } catch (Throwable t) { log("installExpertImageFpCapture wiring failed: " + t); }
-            if (!HostCompat.isV271()) try { HookAttachmentPipeline.INSTANCE.installImageCredentialBridge(cl); }
-            catch (Throwable t) { log("installImageCredentialBridge wiring failed: " + t); }
-            HookAttachmentPipeline.INSTANCE.hookLocalEditorImageUris(cl);
-            HookSessionManagement.INSTANCE.hookLocalSessionDirectoryMerge(cl);
-            HookSessionManagement.INSTANCE.hookLocalNativeSessionRefresh(cl);
-            hookV236LiveSessionPublish(cl);
-            hookV241LiveSessionPublish(cl);
-            HookSessionManagement.INSTANCE.hookLocalSessionRemoteReload(cl);
-            HookSessionManagement.INSTANCE.hookNativeDetailRequest(cl);
-            HookSessionManagement.INSTANCE.hookLocalSessionDeletedFlow(cl);
-            HookSessionManagement.INSTANCE.hookLocalSessionDeletedResponse(cl);
-            HookSessionManagement.INSTANCE.hookV236FeedbackDeletedFlow(cl);
-            hookV241FeedbackDeletedFlow(cl);
-            HookSessionManagement.INSTANCE.hookActiveChatSessionCapture(cl);
-            HookAgentPipeline.INSTANCE.hookProactiveVisibleThreadFilter(cl);
-            HookUiSurface.INSTANCE.hookHostThemeColor(cl);
-            HookSessionManagement.INSTANCE.hookComposeVisibleThreadState(cl);
-            HookChatPipeline.INSTANCE.hookS11RenderFilter(cl);
-            HookChatPipeline.INSTANCE.hookCs1RenderFilter(cl);
-            HookAgentPipeline.INSTANCE.hookNativeUiHeartbeatCompletion(cl);
-            HookSessionManagement.INSTANCE.hookNativeSessionNavigator(cl);
-            HookSessionManagement.INSTANCE.hookHistoryLoadDiagnostics(cl);
+            installHookStep("chat.content-filter-apply", () -> HookChatPipeline.INSTANCE.hookContentFilterApply(cl));
+            installHookStep("chat.message-rebuild-capture", () -> HookChatPipeline.INSTANCE.installMsgRebuildCapture(cl));
+            installHookStep("chat.status-write", () -> HookChatPipeline.INSTANCE.hookStatusWrite(cl));
+            installHookStep("chat.template-probe", () -> HookChatPipeline.INSTANCE.hookTemplateProbe(cl));
+            installHookStep("chat.final-message-merge", () -> HookChatPipeline.INSTANCE.hookFinalMessageMerge(cl));
+            installHookStep("chat.final-message-apply", () -> HookChatPipeline.INSTANCE.hookFinalMessageApply(cl));
+            if (!HostCompat.isV271()) installHookStep("attachment.expert-unlock", () -> HookAttachmentPipeline.INSTANCE.hookExpertUnlock(cl));
+            if (!HostCompat.isV271()) installHookStep("host.v236.local-chat-quota", () -> hookV236LocalChatQuotaUnlock(cl));
+            if (!HostCompat.isV271()) installHookStep("host.v241.local-chat-quota", () -> hookV241LocalChatQuotaUnlock(cl));
+            installHookStep("host.v236.thinking-code-copy", () -> hookV236ThinkingCodeCopy(cl));
+            installHookStep("host.v241.thinking-code-copy", () -> hookV241ThinkingCodeCopy(cl));
+            installHookStep("host.v236.all-file-types", () -> hookV236AllFileTypes(cl));
+            installHookStep("host.v241.all-file-types", () -> hookV241AllFileTypes(cl));
+            if (!HostCompat.isV271()) installHookStep("account.regional-login-unlock", () -> HookAccountLoginSecurity.INSTANCE.hookRegionalLoginUnlock(cl));
+            if (!HostCompat.isV271()) installHookStep("account.login-entry-password-unlock", () -> HookAccountLoginSecurity.INSTANCE.hookLoginEntryPasswordUnlock(cl));
+            if (!HostCompat.isV271()) installHookStep("account.region-override", () -> HookAccountLoginSecurity.INSTANCE.hookRegionOverride(cl));
+            if (!HostCompat.isV271()) installHookStep("account.password-login-capture", () -> HookAccountLoginSecurity.INSTANCE.hookCandidatePasswordLoginCapture(cl));
+            if (!HostCompat.isV271()) installHookStep("account.registration-captcha-callbacks", () -> HookAccountLoginSecurity.INSTANCE.hookCandidateRegistrationCaptchaCallbacks(cl));
+            if (!HostCompat.isV271()) installBestEffortHook("account.risk-sdk-neutralizer",
+                    () -> HookAccountLoginSecurity.INSTANCE.installRiskSdkNeutralizer(cl),
+                    "installRiskSdkNeutralizer wiring failed: ");
+            if (!HostCompat.isV271()) installBestEffortHook("account.login-risk-logger",
+                    () -> HookAccountLoginSecurity.INSTANCE.installLoginRiskLogger(cl),
+                    "installLoginRiskLogger wiring failed: ");
+            if (!HostCompat.isV271()) installBestEffortHook("attachment.expert-upload-gate",
+                    () -> HookAttachmentPipeline.INSTANCE.installExpertUploadGate(cl),
+                    "installExpertUploadGate wiring failed: ");
+            if (!HostCompat.isV271()) installBestEffortHook("network.payload-capture",
+                    () -> installNetworkPayloadCapture(cl),
+                    "installNetworkPayloadCapture wiring failed: ");
+            if (!HostCompat.isV271()) installBestEffortHook("chat.pow-manager-capture",
+                    () -> HookChatPipeline.INSTANCE.installPowManagerCapture(cl),
+                    "installPowManagerCapture wiring failed: ");
+            installBestEffortHook("attachment.f9-bridge", () -> HookAttachmentPipeline.INSTANCE.f9(cl),
+                    "f9 wiring failed: ");
+            if (!HostCompat.isV271()) installBestEffortHook("attachment.expert-image-fingerprint",
+                    () -> installExpertImageFpCapture(cl),
+                    "installExpertImageFpCapture wiring failed: ");
+            if (!HostCompat.isV271()) installBestEffortHook("attachment.image-credential-bridge",
+                    () -> HookAttachmentPipeline.INSTANCE.installImageCredentialBridge(cl),
+                    "installImageCredentialBridge wiring failed: ");
+            installHookStep("attachment.local-editor-image-uris", () -> HookAttachmentPipeline.INSTANCE.hookLocalEditorImageUris(cl));
+            installHookStep("session.local-directory-merge", () -> HookSessionManagement.INSTANCE.hookLocalSessionDirectoryMerge(cl));
+            installHookStep("session.native-refresh", () -> HookSessionManagement.INSTANCE.hookLocalNativeSessionRefresh(cl));
+            installHookStep("host.v236.live-session-publish", () -> hookV236LiveSessionPublish(cl));
+            installHookStep("host.v241.live-session-publish", () -> hookV241LiveSessionPublish(cl));
+            installHookStep("session.remote-reload", () -> HookSessionManagement.INSTANCE.hookLocalSessionRemoteReload(cl));
+            installHookStep("session.native-detail-request", () -> HookSessionManagement.INSTANCE.hookNativeDetailRequest(cl));
+            installHookStep("session.local-delete-flow", () -> HookSessionManagement.INSTANCE.hookLocalSessionDeletedFlow(cl));
+            installHookStep("session.local-delete-response", () -> HookSessionManagement.INSTANCE.hookLocalSessionDeletedResponse(cl));
+            installHookStep("host.v236.feedback-delete-flow", () -> HookSessionManagement.INSTANCE.hookV236FeedbackDeletedFlow(cl));
+            installHookStep("host.v241.feedback-delete-flow", () -> hookV241FeedbackDeletedFlow(cl));
+            installHookStep("session.active-chat-capture", () -> HookSessionManagement.INSTANCE.hookActiveChatSessionCapture(cl));
+            installHookStep("agent.visible-thread-filter", () -> HookAgentPipeline.INSTANCE.hookProactiveVisibleThreadFilter(cl));
+            installHookStep("ui.host-theme-color", () -> HookUiSurface.INSTANCE.hookHostThemeColor(cl));
+            installHookStep("session.compose-visible-thread", () -> HookSessionManagement.INSTANCE.hookComposeVisibleThreadState(cl));
+            installHookStep("chat.s11-render-filter", () -> HookChatPipeline.INSTANCE.hookS11RenderFilter(cl));
+            installHookStep("chat.cs1-render-filter", () -> HookChatPipeline.INSTANCE.hookCs1RenderFilter(cl));
+            installHookStep("agent.native-heartbeat-completion", () -> HookAgentPipeline.INSTANCE.hookNativeUiHeartbeatCompletion(cl));
+            installHookStep("session.native-navigator", () -> HookSessionManagement.INSTANCE.hookNativeSessionNavigator(cl));
+            installHookStep("session.history-load-diagnostics", () -> HookSessionManagement.INSTANCE.hookHistoryLoadDiagnostics(cl));
             scheduleRealSessionProbe();
-            HookUiSurface.INSTANCE.hookSettingsNavigation(cl);
-            HookUiSurface.INSTANCE.hookNativeSettingsEntry(cl);
+            installHookStep("ui.settings-navigation", () -> HookUiSurface.INSTANCE.hookSettingsNavigation(cl));
+            installHookStep("ui.native-settings-entry", () -> HookUiSurface.INSTANCE.hookNativeSettingsEntry(cl));
             // 2.7.1 has native batch select/delete/pin in the sidebar: keep the overlay off there.
-            if (!HostCompat.isV271()) try { HookSessionManagement.INSTANCE.hookSidebarMultiSelectDelete(cl); } catch (Throwable t) { log("hookSidebarMultiSelectDelete wiring failed: " + t); }
-            if (!HostCompat.isV271()) try { HookSessionManagement.INSTANCE.hookSidebarToggleCleanup(cl); } catch (Throwable t) { log("hookSidebarToggleCleanup wiring failed: " + t); }
+            if (!HostCompat.isV271()) installBestEffortHook("session.sidebar-multi-select-delete",
+                    () -> HookSessionManagement.INSTANCE.hookSidebarMultiSelectDelete(cl),
+                    "hookSidebarMultiSelectDelete wiring failed: ");
+            if (!HostCompat.isV271()) installBestEffortHook("session.sidebar-toggle-cleanup",
+                    () -> HookSessionManagement.INSTANCE.hookSidebarToggleCleanup(cl),
+                    "hookSidebarToggleCleanup wiring failed: ");
 
-            hookSettingsComposable(cl);
+            installHookStep("ui.settings-composable", () -> hookSettingsComposable(cl));
         } catch (Throwable error) {
+            FEATURE_HOOKS_INSTALLED.set(false);
             log("installAllFeatureHooks failed: " + safeThrowableMessage(error));
+        }
+        if (!FEATURE_HOOK_INSTALL_REGISTRY.hasFailures()) {
+            FEATURE_HOOKS_INSTALLED.set(true);
+        } else {
+            FEATURE_HOOKS_INSTALLED.set(false);
         }
     }
 
