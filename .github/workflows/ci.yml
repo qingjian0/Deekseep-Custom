@@ -143,34 +143,19 @@ jobs:
             :app:assembleRelease :app:lintRelease
 
       - name: Verify CI APK structure, alignment, and signature
+        shell: bash
         run: |
           set -euo pipefail
           BUILD_TOOLS_DIR="$ANDROID_SDK_ROOT/build-tools/37.0.0"
-          APKS=(
-            "module-legacy/ds-probe-legacy.apk"
-            "module-universal/ds-probe-universal.apk"
-            "module-universal/ds-probe-universal-google-play.apk"
-            "compose-launcher/app/build/outputs/apk/release/app-release.apk"
-          )
-          for apk in "${APKS[@]}"; do
+
+          for apk in module-legacy/ds-probe-legacy.apk module-universal/ds-probe-universal.apk module-universal/ds-probe-universal-google-play.apk compose-launcher/app/build/outputs/apk/release/app-release.apk; do
             test -s "$apk"
             unzip -t "$apk" >/dev/null
             "$BUILD_TOOLS_DIR/zipalign" -c -p 4 "$apk"
             "$BUILD_TOOLS_DIR/apksigner" verify --verbose "$apk"
             package_metadata="$("$BUILD_TOOLS_DIR/aapt" dump badging "$apk")"
             grep -Fq "package: name='ds.dsh.DeepSeek'" <<< "$package_metadata"
-            dex_count="$(unzip -Z1 "$apk" | grep -Ec '^classes([0-9]+)?[.]dex
-
-      - name: Upload Android Lint reports
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: yunseek-android-lint-reports
-          if-no-files-found: warn
-          path: |
-            compose-launcher/app/build/reports/lint-results-release*
-            compose-launcher/app/build/intermediates/lint_intermediate_text_report/release/lintReportRelease/*
- || true)"
+            dex_count="$(unzip -Z1 "$apk" | grep -Ec '^classes([0-9]+)?[.]dex$' || true)"
             test "$dex_count" -ge 1
             echo "$apk passed package, DEX, alignment and signature checks ($dex_count DEX)"
           done
@@ -180,12 +165,13 @@ jobs:
           done
 
           certificate_sha256() {
-            "$BUILD_TOOLS_DIR/apksigner" verify --print-certs "$1" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1
+            apksigner_output="$("$BUILD_TOOLS_DIR/apksigner" verify --print-certs "$1")"
+            awk -F': ' '/Signer #1 certificate SHA-256 digest:/ { print $2; exit }' <<< "$apksigner_output"
           }
-          legacy_cert="$(certificate_sha256 "${APKS[0]}")"
-          universal_cert="$(certificate_sha256 "${APKS[1]}")"
-          google_play_cert="$(certificate_sha256 "${APKS[2]}")"
-          compose_cert="$(certificate_sha256 "${APKS[3]}")"
+          legacy_cert="$(certificate_sha256 module-legacy/ds-probe-legacy.apk)"
+          universal_cert="$(certificate_sha256 module-universal/ds-probe-universal.apk)"
+          google_play_cert="$(certificate_sha256 module-universal/ds-probe-universal-google-play.apk)"
+          compose_cert="$(certificate_sha256 compose-launcher/app/build/outputs/apk/release/app-release.apk)"
           test -n "$legacy_cert"
           test "$legacy_cert" = "$universal_cert"
           test "$universal_cert" = "$google_play_cert"
