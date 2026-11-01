@@ -194,6 +194,7 @@ final class HookAttachmentPipeline {
     /** Opens generated-file links inside the current DeepSeek Activity instead of a browser. */
     void hookModelFileLinks() {
         int hooked = 0;
+        Throwable firstFailure = null;
         try {
             Method startActivity = HostRemap.method(Activity.class, "startActivity", Intent.class);
             startActivity.setAccessible(true);
@@ -212,7 +213,9 @@ final class HookAttachmentPipeline {
             });
             hooked++;
         } catch (Throwable error) {
-            Main.log("model file Activity link hook unavailable: " + Main.safeThrowableMessage(error));
+            Main.log("model file Activity link hook unavailable: "
+                    + Main.safeThrowableMessage(error));
+            firstFailure = error;
         }
         try {
             Method startActivity = HostRemap.method(ContextWrapper.class, 
@@ -235,8 +238,15 @@ final class HookAttachmentPipeline {
         } catch (Throwable error) {
             Main.log("model file ContextWrapper link hook unavailable: "
                     + Main.safeThrowableMessage(error));
+            if (firstFailure == null) firstFailure = error;
+            else firstFailure.addSuppressed(error);
         }
         Main.log("model file native-message link hooks installed=" + hooked);
+        if (firstFailure != null || hooked != 2) {
+            throw new IllegalStateException(
+                    "model-file link hooks were only partially installed: " + hooked + "/2",
+                    firstFailure);
+        }
     }
 
     private static Activity activityFromContext(Context context) {
@@ -387,9 +397,9 @@ final class HookAttachmentPipeline {
         // 2.7.1: AssistantTextItem ch2.e -> u73.e/d, same 14-arg shape (alias ch2r).
         final String rendererName = HostCompat.isV271() ? "ch2r" : HostCompat.isV241() ? "ch2"
                 : HostCompat.isGooglePlay() ? "zj4" : "we0";
+        int installed = 0;
         try {
             Class<?> renderer = HostRemap.load(cl, rendererName);
-            int installed = 0;
             for (Method method : renderer.getDeclaredMethods()) {
                 Class<?>[] types = method.getParameterTypes();
                 if (!Modifier.isStatic(method.getModifiers())
@@ -429,7 +439,15 @@ final class HookAttachmentPipeline {
             Main.log("native model-file message cards=" + installed
                     + " renderer=" + rendererName);
         } catch (Throwable error) {
-            Main.log("native model-file message card hook unavailable: " + error);
+            Main.log("native model-file message card hook unavailable: "
+                    + Main.safeThrowableMessage(error));
+            throw new IllegalStateException(
+                    "native model-file message card hooks were only partially installed",
+                    error);
+        }
+        if (installed == 0) {
+            throw new IllegalStateException(
+                    "native model-file message card hook discovery returned no methods");
         }
     }
 
