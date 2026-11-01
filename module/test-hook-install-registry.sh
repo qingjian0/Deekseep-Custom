@@ -51,6 +51,8 @@ grep -Fq 'object ExpertRelayGate' "$RUNTIME_DIR/src/main/kotlin/ds/dsh/DeepSeek/
 ! test -e "$MODULE_DIR/src/ds/dsh/DeepSeek/relay/ExpertRelayGate.java"
 grep -Fq 'object AgentRateLimiter' "$RUNTIME_DIR/src/main/kotlin/ds/dsh/DeepSeek/AgentRateLimiter.kt"
 ! test -e "$MODULE_DIR/src/ds/dsh/DeepSeek/AgentRateLimiter.java"
+grep -Fq 'object AndroidManifestVersion' "$RUNTIME_DIR/src/main/kotlin/ds/dsh/DeepSeek/AndroidManifestVersion.kt"
+! test -e "$MODULE_DIR/src/ds/dsh/DeepSeek/AndroidManifestVersion.java"
 # The exported provider is required for cross-process IPC; both package variants must declare it.
 grep -A4 -Fq 'android:name="ds.dsh.DeepSeek.XposedActivationProvider"' "$LEGACY_MANIFEST"
 grep -A4 -Fq 'android:name="ds.dsh.DeepSeek.XposedActivationProvider"' "$UNIVERSAL_MANIFEST"
