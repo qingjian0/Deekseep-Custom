@@ -1,0 +1,90 @@
+package ds.dsh.DeepSeek
+
+import java.util.concurrent.CopyOnWriteArrayList
+
+/**
+ * Small, platform-neutral structured logger shared by the Kotlin runtime.
+ *
+ * Do not pass prompts, message bodies, credentials, tokens, account data, or raw hook arguments.
+ * Exception messages are deliberately omitted because host exceptions may embed private data.
+ */
+object DshLog {
+    enum class Level(val priority: Int) { DEBUG(10), INFO(20), WARN(30), ERROR(40) }
+
+    data class Event(
+        val timestampMillis: Long,
+        val level: Level,
+        val tag: String,
+        val message: String,
+        val threadName: String,
+        val errorType: String?,
+    )
+
+    fun interface Sink { fun write(event: Event) }
+
+    private val sinks = CopyOnWriteArrayList<Sink>()
+    @Volatile private var minimumLevel: Level = Level.INFO
+
+    init {
+        sinks += Sink { event ->
+            System.err.println(
+                "DSH/${event.tag} ${event.level.name} t=${event.timestampMillis} " +
+                    "thread=${event.threadName} message=${event.message}" +
+                    (event.errorType?.let { " error=$it" } ?: "")
+            )
+        }
+    }
+
+    @JvmStatic fun setMinimumLevel(level: Level) { minimumLevel = level }
+
+    /** Adds a sink and returns a handle that removes it. */
+    @JvmStatic fun addSink(sink: Sink): AutoCloseable {
+        sinks += sink
+        return AutoCloseable { sinks -= sink }
+    }
+
+    @JvmStatic fun debug(tag: String, message: String) = log(Level.DEBUG, tag, message, null)
+    @JvmStatic fun info(tag: String, message: String) = log(Level.INFO, tag, message, null)
+    @JvmStatic fun warn(tag: String, message: String) = log(Level.WARN, tag, message, null)
+    @JvmStatic fun error(tag: String, message: String, failure: Throwable? = null) =
+        log(Level.ERROR, tag, message, failure)
+
+    private fun log(level: Level, tag: String, message: String, failure: Throwable?) {
+        if (level.priority < minimumLevel.priority) return
+        val event = Event(
+            timestampMillis = System.currentTimeMillis(),
+            level = level,
+            tag = safeTag(tag),
+            message = sanitize(message),
+            threadName = Thread.currentThread().name.take(MAX_THREAD_CHARS),
+            errorType = failure?.javaClass?.name?.take(MAX_ERROR_TYPE_CHARS),
+        )
+        sinks.forEach { sink -> runCatching { sink.write(event) } }
+    }
+
+    private fun safeTag(value: String): String {
+        val normalized = value.filter { it.isLetterOrDigit() || it == '_' || it == '-' }
+        return normalized.take(MAX_TAG_CHARS).ifEmpty { "General" }
+    }
+
+    private fun sanitize(value: String): String {
+        var result = value.replace('\n', ' ').replace('\r', ' ')
+        result = SECRET_PATTERN.replace(result) { match ->
+            match.groupValues[1] + match.groupValues[2] + "[redacted]"
+        }
+        result = PRIVATE_PATH_PATTERN.replace(result, "[private-path]")
+        return result.take(MAX_MESSAGE_CHARS)
+    }
+
+    private const val MAX_TAG_CHARS = 32
+    private const val MAX_THREAD_CHARS = 48
+    private const val MAX_ERROR_TYPE_CHARS = 120
+    private const val MAX_MESSAGE_CHARS = 512
+    private val SECRET_PATTERN = Regex(
+        "(?i)(authorization|bearer|api[_-]?key|token)(\\s*[:=]\\s*|\\s+)[^\\s,;]{6,}"
+    )
+    private val PRIVATE_PATH_PATTERN = Regex(
+        "/(?:data|storage)/[^\\s,;]+",
+        RegexOption.IGNORE_CASE,
+    )
+}

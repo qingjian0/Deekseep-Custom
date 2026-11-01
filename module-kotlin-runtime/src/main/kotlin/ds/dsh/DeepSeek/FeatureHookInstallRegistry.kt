@@ -11,14 +11,7 @@ import java.util.concurrent.ConcurrentHashMap
  * and SKIPPED boundaries are terminal for the lifetime of this process.
  */
 class FeatureHookInstallRegistry {
-    enum class State {
-        NEW,
-        INSTALLING,
-        INSTALLED,
-        SKIPPED,
-        DEGRADED,
-        FAILED,
-    }
+    enum class State { NEW, INSTALLING, INSTALLED, SKIPPED, DEGRADED, FAILED }
 
     fun interface Installer {
         @Throws(Throwable::class)
@@ -44,16 +37,11 @@ class FeatureHookInstallRegistry {
 
     private val entries = ConcurrentHashMap<String, Entry>()
 
-    /**
-     * Runs an installer once per stable ID. A failed installer is eligible for another attempt.
-     * The entry lock is held across installation so concurrent callers cannot double-register it.
-     */
     @Throws(Throwable::class)
     fun install(id: String?, installer: Installer?) {
         requireId(id)
         requireNotNull(installer) { "installer == null" }
         val stableId = id!!
-
         val entry = entries.computeIfAbsent(stableId) { Entry() }
         synchronized(entry) {
             if (entry.state == State.INSTALLED || entry.state == State.SKIPPED) return
@@ -64,48 +52,54 @@ class FeatureHookInstallRegistry {
             entry.startedAtMillis = System.currentTimeMillis()
             entry.completedAtMillis = 0L
             entry.detail = null
+            DshLog.info("HookInstall", "id=$stableId state=INSTALLING attempt=${entry.attempts}")
 
             try {
                 installer.install()
                 entry.state = State.INSTALLED
                 entry.completedAtMillis = System.currentTimeMillis()
+                DshLog.info("HookInstall", "id=$stableId state=INSTALLED")
             } catch (failure: Throwable) {
                 entry.state = State.FAILED
                 entry.completedAtMillis = System.currentTimeMillis()
                 entry.detail = describe(failure)
+                DshLog.error("HookInstall", "id=$stableId state=FAILED", failure)
                 throw failure
             }
         }
     }
 
-    /** Records an explicit host/version gate; skipped hooks are not retried in this process. */
     fun markSkipped(id: String?, reason: String?) {
         requireId(id)
-        val entry = entries.computeIfAbsent(id!!) { Entry() }
+        val stableId = id!!
+        val entry = entries.computeIfAbsent(stableId) { Entry() }
         synchronized(entry) {
             if (entry.state == State.INSTALLED) return
             entry.state = State.SKIPPED
             entry.completedAtMillis = System.currentTimeMillis()
             entry.detail = reason ?: ""
+            DshLog.info("HookInstall", "id=$stableId state=SKIPPED")
         }
     }
 
-    /** Records a best-effort installer that returned control but could not complete fully. */
     fun markDegraded(id: String?, failure: Throwable?) {
         requireId(id)
-        val entry = entries.computeIfAbsent(id!!) { Entry() }
+        val stableId = id!!
+        val entry = entries.computeIfAbsent(stableId) { Entry() }
         synchronized(entry) {
             if (entry.state == State.INSTALLED || entry.state == State.SKIPPED) return
             entry.state = State.DEGRADED
             entry.completedAtMillis = System.currentTimeMillis()
             entry.detail = failure?.let(::describe) ?: "best-effort installation incomplete"
+            DshLog.warn(
+                "HookInstall",
+                "id=$stableId state=DEGRADED errorType=${failure?.javaClass?.name ?: "none"}",
+            )
         }
     }
 
     fun hasFailures(): Boolean = entries.values.any { entry ->
-        synchronized(entry) {
-            entry.state == State.FAILED || entry.state == State.DEGRADED
-        }
+        synchronized(entry) { entry.state == State.FAILED || entry.state == State.DEGRADED }
     }
 
     fun snapshot(): List<Status> {
