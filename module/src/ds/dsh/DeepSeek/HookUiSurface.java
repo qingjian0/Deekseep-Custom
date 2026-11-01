@@ -544,9 +544,14 @@ final class HookUiSurface {
                     + iconOwnerName + "." + iconFieldName + " arrow="
                     + arrowIconOwnerName + "." + arrowFieldName);
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             nativeSettingsRowHooked = false;
             nativeSettingsRowEmitted = false;
-            Main.log("native settings section unavailable: " + Main.safeThrowableMessage(error));
+            Main.log("native settings section unavailable: "
+                    + Main.safeThrowableMessage(error));
+            throw new IllegalStateException(
+                    "native settings entry hook installation failed", error);
         }
     }
 
@@ -3369,7 +3374,11 @@ final class HookUiSurface {
                     + Integer.toHexString(hostWelcomeMessageResourceId)
                     + ",0x" + Integer.toHexString(hostWelcomeTitleResourceId));
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             Main.log("home greeting hook unavailable: " + Main.safeThrowableMessage(error));
+            throw new IllegalStateException(
+                    "home greeting hook installation failed", error);
         }
     }
 
