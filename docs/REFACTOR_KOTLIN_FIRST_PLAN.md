@@ -96,8 +96,9 @@ The Gradle launcher currently declares AGP 9.3.0, Kotlin Compose plugin 2.4.10, 
 
 - Added `FeatureHookInstallRegistry` with `NEW / INSTALLING / INSTALLED / SKIPPED / DEGRADED / FAILED` states, attempt counts and a status snapshot.
 - Wrapped the main feature installer groups with stable IDs. Best-effort failures are represented as degraded instead of being treated as installed.
-- Added a ThreadLocal installer scope to the legacy adapter. A retry skips the same scoped interceptor class on the same reflected `Member`; a different scope may still add a separate interceptor.
-- Extended the API 82–102 adapter regression with a scoped retry test, and added pure-JVM registry tests for success, failure/retry, skipped state and concurrent callers.
+- Added a ThreadLocal installer scope to the legacy adapter. Its deduplication key uses `(scope, Member, Hooker class, occurrence ordinal)`, so multiple same-class interceptors on one Member are preserved while a retry skips the exact prior occurrences.
+- Best-effort and top-level installers propagate `VirtualMachineError` and `ThreadDeath` instead of treating fatal VM/control signals as recoverable Hook failures.
+- Extended the API 82–102 adapter regression with scoped retry and same-class multiplicity tests, and added pure-JVM registry tests for success, failure/retry, skipped state, fatal error propagation and concurrent callers.
 - Remaining work: convert installers that swallow internal failures, audit version-specific atomic guards, and add fault-injection tests for partial registration across multi-member installers.
 
 ### P2 — Kotlin runtime migration (in progress)
