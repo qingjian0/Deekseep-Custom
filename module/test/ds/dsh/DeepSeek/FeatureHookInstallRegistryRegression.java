@@ -144,6 +144,15 @@ public final class FeatureHookInstallRegistryRegression {
             release.countDown();
             throw new AssertionError("skip caller did not start");
         }
+        long blockedDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(3);
+        while (skipper.getState() != Thread.State.BLOCKED
+                && System.nanoTime() < blockedDeadline) {
+            Thread.yield();
+        }
+        if (skipper.getState() != Thread.State.BLOCKED) {
+            release.countDown();
+            throw new AssertionError("skip caller did not block behind the in-flight installer");
+        }
         release.countDown();
         installer.join(3000L);
         skipper.join(3000L);
