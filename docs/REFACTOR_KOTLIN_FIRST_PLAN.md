@@ -1,6 +1,6 @@
 # Kotlin-first Hook Architecture Refactor Plan
 
-> Status: source audit complete; implementation has not started.
+> Status: implementation in progress. P0 build validation and P1 per-step Hook installation tracking are active; P2 Kotlin source migration, P3 UI decomposition and P4 device validation remain gated.
 > Baseline: `dev` at `8e2edf53b4982a11e720f39437ee562df696136c`.
 > Work branch: `refactor/kotlin-hook-architecture`.
 > Scope: preserve the existing DeepSeek host features and LSPosed/Xposed compatibility while moving new and migrated application logic toward Kotlin.
@@ -23,7 +23,10 @@ The target is a **Kotlin-first implementation with a narrow Java compatibility b
 - `module/src/com/dsmod/probe/Main.java`: 10,724 lines / approximately 535 KB in the audited `dev` snapshot.
 - `Main` currently combines package admission, host compatibility initialization, main-thread bootstrap, application lifecycle callbacks, feature-hook orchestration, compatibility forwarders, and remaining feature implementations.
 - The existing `TargetProcessGuard` is already a small pure-JVM boundary for target-package admission and duplicate-process suppression.
-- `Main.installAllFeatureHooks()` is a large sequential installer. It marks `FEATURE_HOOKS_INSTALLED` before installation completes and logs a top-level failure without rolling back or recording which groups completed. A naïve reset of that flag is unsafe: successful hooks may already be registered, and retrying can add duplicate interceptor instances. This needs an explicit per-hook/per-group state machine, not a boolean-only patch.
+- `Main.installAllFeatureHooks()` is a large sequential installer. The current refactor introduces stable per-step IDs, a process-local `FeatureHookInstallRegistry`, scoped interceptor registration and independent best-effort groups. The global installed flag is now set only when the tracked steps complete without failures.
+- `LegacyXposedModule` scopes registrations by installer ID and interceptor class per reflected `Member`. A retry can revisit a failed feature group while skipping hookers already registered by that same group; unscoped legacy callers retain their historical append behavior.
+- Startup preparation with external side effects (local image/session restore, obsolete-trigger cleanup, auto-backup scheduling and history migration) is now represented as separately tracked steps, preventing completed work from being repeated merely because a later Hook group failed.
+- Remaining limitation: several older feature installers still catch/log internal failures and return normally. Until those installers expose completion/degraded results, their registry entry may be marked installed even when an internal sub-hook was unavailable. Convert and test these boundaries incrementally; do not claim the registry proves every reflected host member was installed.
 
 ### 2.2 Existing feature extraction
 
@@ -77,6 +80,36 @@ The repository has two materially different compilation paths:
 This is the main blocker to moving shared Hook feature code to Kotlin. Adding `.kt` files under the shared module source tree without first unifying or explicitly extending these build paths would silently omit those classes from legacy/universal APKs.
 
 The Gradle launcher currently declares AGP 9.3.0, Kotlin Compose plugin 2.4.10, Gradle 9.8.2 in CI, compile SDK 37, min SDK 24, target SDK 34, Material 3 1.4.0, and an older Compose BOM 2025.10.00. The Compose BOM should be refreshed as a coordinated set; explicit versions should not be scattered across dependencies.
+
+## 2.7 Implementation status (2026-11-01)
+
+### P0 — build baseline and CI
+
+- Added a dedicated refactor validation workflow with separate JVM regression and Android artifact jobs.
+- SDK bootstrap now uses the runner's installed command-line tools directly; Android 17 is installed using the platform package ID `platforms;android-37.0`, not the unavailable `platforms;android-37`.
+- The CI order builds Legacy and Universal before running `test-thinking-regression.sh`, because that test consumes the Universal class output.
+- The workflow verifies APK ZIP structure and DEX presence. Full Legacy, Universal and Compose build validation remains pending a successful Android job.
+- CI signing material is ephemeral and limited to debug verification. No release keystore or publication path is used.
+
+### P1 — Hook install lifecycle
+
+- Added `FeatureHookInstallRegistry` with `NEW / INSTALLING / INSTALLED / SKIPPED / DEGRADED / FAILED` states, attempt counts and a status snapshot.
+- Wrapped the main feature installer groups with stable IDs. Best-effort failures are represented as degraded instead of being treated as installed.
+- Added a ThreadLocal installer scope to the legacy adapter. A retry skips the same scoped interceptor class on the same reflected `Member`; a different scope may still add a separate interceptor.
+- Extended the API 82–102 adapter regression with a scoped retry test, and added pure-JVM registry tests for success, failure/retry, skipped state and concurrent callers.
+- Remaining work: convert installers that swallow internal failures, audit version-specific atomic guards, and add fault-injection tests for partial registration across multi-member installers.
+
+### P2 — Kotlin runtime migration
+
+Not started. The hand-built Legacy and Universal scripts still use `javac` and D8; they do not compile shared Kotlin sources. Do not add shared `.kt` runtime sources until the shared Kotlin compilation artifact and Kotlin runtime packaging are part of both distributions.
+
+### P3 — Compose launcher decomposition
+
+Not started. `SettingsActivity.kt` remains the current compatibility surface. First freeze IPC, component, preference, storage and import/export contracts; then split the Activity into Route/Screen/ViewModel/repository slices without changing those contracts.
+
+### P4 — distribution and device validation
+
+Partially prepared only. The CI matrix is in place, but no completed APK matrix or real-device LSPosed validation has been confirmed. Host-version compatibility claims remain limited to existing tested evidence.
 
 ## 3. Target architecture
 
