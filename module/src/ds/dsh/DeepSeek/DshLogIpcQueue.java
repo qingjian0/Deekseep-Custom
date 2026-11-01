@@ -18,6 +18,7 @@ final class DshLogIpcQueue {
     private static final AtomicLong PRIVATE_FAILURES = new AtomicLong();
     private static final AtomicLong PUBLIC_WRITES = new AtomicLong();
     private static final AtomicLong PUBLIC_FAILURES = new AtomicLong();
+    private static final AtomicLong INGRESS_REJECTIONS = new AtomicLong();
     private static final ThreadPoolExecutor WRITER = new ThreadPoolExecutor(
             1, 1, 0L, TimeUnit.MILLISECONDS,
             new ArrayBlockingQueue<>(CAPACITY),
@@ -35,7 +36,10 @@ final class DshLogIpcQueue {
 
     static boolean enqueue(final Context context, final String category, final String line) {
         if (context == null || !isAllowedCategory(category) || line == null
-                || line.length() > 4096) return false;
+                || line.length() > 4096) {
+            INGRESS_REJECTIONS.incrementAndGet();
+            return false;
+        }
         final Context appContext = context.getApplicationContext();
         final Context safeContext = appContext == null ? context : appContext;
         try {
@@ -55,6 +59,7 @@ final class DshLogIpcQueue {
             });
             return true;
         } catch (java.util.concurrent.RejectedExecutionException full) {
+            INGRESS_REJECTIONS.incrementAndGet();
             return false;
         }
     }
@@ -80,6 +85,7 @@ final class DshLogIpcQueue {
         result.putLong("private_failures", PRIVATE_FAILURES.get());
         result.putLong("public_writes", PUBLIC_WRITES.get());
         result.putLong("public_failures", PUBLIC_FAILURES.get());
+        result.putLong("ingress_rejections", INGRESS_REJECTIONS.get());
         result.putInt("queue_depth", WRITER.getQueue().size());
         result.putInt("queue_capacity", CAPACITY);
     }
