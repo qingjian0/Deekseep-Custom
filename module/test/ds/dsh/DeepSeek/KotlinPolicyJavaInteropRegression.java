@@ -23,6 +23,10 @@ public final class KotlinPolicyJavaInteropRegression {
                 "Java caller could not use the migrated Kotlin reply-ready policy");
         require(!ReplyReadyPolicy.shouldNotify("WIP", "FINISHED", "ASSISTANT", true),
                 "Java caller observed a changed reply-ready foreground boundary");
+        require(ds.dsh.DeepSeek.relay.ExpertRelayGate.matches("expert", null, true),
+                "Java caller could not use the migrated Kotlin expert relay gate");
+        require(!ds.dsh.DeepSeek.relay.ExpertRelayGate.matches("vision", "expert", true),
+                "Java caller observed a changed expert relay model precedence rule");
         DshDiagnosticsRecorder diagnostics = new DshDiagnosticsRecorder(2);
         diagnostics.record("hook installed cost=16ms");
         diagnostics.record("server request Cookie: sid=interop-secret-123");
