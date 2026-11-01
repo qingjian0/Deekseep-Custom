@@ -36,6 +36,11 @@ for manifest in module-legacy/AndroidManifest.xml module-universal/AndroidManife
     || fail "$manifest does not reference the migrated launcher activity"
 done
 
+for manifest in module-legacy/AndroidManifest.xml module-universal/AndroidManifest.xml; do
+  grep -Fq 'package="ds.dsh.DeepSeek"' "$manifest" \
+    || fail "$manifest does not declare the module application package"
+done
+
 for entry in module-legacy/assets/xposed_init module-universal/assets/xposed_init; do
   test "$(tr -d '\r\n' < "$entry")" = 'ds.dsh.DeepSeek.Main' \
     || fail "$entry does not point to ds.dsh.DeepSeek.Main"
@@ -58,8 +63,12 @@ grep -Fq 'AUTHORITY = "ds.dsh.DeepSeek.XposedService"' \
   module/src/ds/dsh/DeepSeek/XposedActivationProvider.java \
   || fail "provider authority constant does not match the manifests"
 
-grep -Fq 'com.deepseek.chat' module/src/ds/dsh/DeepSeek/Main.java \
-  || fail "DeepSeek host package identity was lost"
+grep -Fq 'private static final String TARGET = "com.deepseek.chat";' \
+  module/src/ds/dsh/DeepSeek/Main.java \
+  || fail "DeepSeek host package identity changed"
+grep -Fq '"com.deepseek.chat.embedded"' \
+  module-kotlin-runtime/src/main/kotlin/ds/dsh/DeepSeek/TargetProcessGuard.kt \
+  || fail "embedded DeepSeek process scope was lost"
 grep -Fq 'com.deepseek.chat' module/src/ds/dsh/DeepSeek/XposedActivationProvider.java \
   || fail "DeepSeek host package identity was lost from provider"
 
