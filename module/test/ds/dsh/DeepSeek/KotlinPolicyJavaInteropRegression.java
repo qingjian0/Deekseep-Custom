@@ -43,6 +43,13 @@ public final class KotlinPolicyJavaInteropRegression {
                         "com.deepseek.chat.ui.pages.ChatRoute".getBytes(StandardCharsets.ISO_8859_1)))
                         .contains("com.deepseek.chat.ui.pages.ChatRoute"),
                 "Java caller could not use the migrated DEX route parser");
+        require(AgentRateLimiter.MIN_GAP_MS == 8_000L
+                        && AgentRateLimiter.PER_MINUTE == 5
+                        && AgentRateLimiter.PER_HOUR == 60,
+                "Java caller could not read the migrated Kotlin rate-limit constants");
+        AgentRateLimiter.recordSent(1_000L);
+        require(AgentRateLimiter.waitMs(1_000L) == 8_000L,
+                "Java caller observed a changed Agent minimum-gap policy");
         DshDiagnosticsRecorder diagnostics = new DshDiagnosticsRecorder(2);
         diagnostics.record("hook installed cost=16ms");
         diagnostics.record("server request Cookie: sid=interop-secret-123");
