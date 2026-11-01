@@ -382,6 +382,7 @@ final class HookAccountLoginSecurity {
         };
         int installed = 0;
         for (String[] generation : generations) {
+            int generationHooks = 0;
             try {
                 // JADX displays R8's default-package classes under a synthetic
                 // "defpackage" directory, but that prefix is not part of the runtime name.
@@ -407,11 +408,13 @@ final class HookAccountLoginSecurity {
                             return chain.proceed(args);
                         }
                     });
-                    installed++;
+                    generationHooks++;
                 }
-                Main.log("native fake mute renderer hooked model=" + HostRemap.className(muteType)
-                        + " owner=" + HostRemap.className(renderer));
-                break;
+                installed += generationHooks;
+                Main.log("native fake mute renderer candidate model="
+                        + HostRemap.className(muteType) + " owner="
+                        + HostRemap.className(renderer) + " hooks=" + generationHooks);
+                if (generationHooks > 0) break;
             } catch (Throwable error) {
                 if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
                 if (error instanceof ThreadDeath) throw (ThreadDeath) error;
@@ -801,7 +804,7 @@ final class HookAccountLoginSecurity {
         if (!Main.HARD_LINES_ENABLED) return; // YunSeek hard line: hard-gated off
         try {
             Class<?> captcha = HostRemap.load(cl, "com.ishumei.sdk.captcha.SmCaptchaWebView");
-            int hooked = 0;
+            int captchaHooks = 0;
             for (Method method : captcha.getDeclaredMethods()) {
                 final String name = HostRemap.name(method);
                 if (!("notifySuccess".equals(name) || "notifyClose".equals(name)
@@ -837,7 +840,7 @@ final class HookAccountLoginSecurity {
                         return result;
                     }
                 });
-                hooked++;
+                captchaHooks++;
             }
             Class<?> analytics = HostCompat.load(cl, "c3a");
             Method verificationResult = HostCompat.isV241()
@@ -854,11 +857,13 @@ final class HookAccountLoginSecurity {
                     return result;
                 }
             });
-            hooked++;
-            Main.log("hooked quick-registration captcha callbacks=" + hooked);
-            if (hooked == 0) {
+            int analyticsHooks = 1;
+            Main.log("hooked quick-registration captcha callbacks=" + captchaHooks
+                    + " analytics=" + analyticsHooks);
+            if (captchaHooks == 0 || analyticsHooks == 0) {
                 throw new IllegalStateException(
-                        "quick-registration captcha discovery returned no callbacks");
+                        "quick-registration captcha callbacks were only partially installed: "
+                                + "captcha=" + captchaHooks + " analytics=" + analyticsHooks);
             }
         } catch (Throwable error) {
             if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
