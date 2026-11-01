@@ -2372,20 +2372,15 @@ final class HeartbeatToolProtocol {
     }
 
     private static String cleanId(String value) {
-        String token = cleanToken(value, 80);
-        return token.matches("[A-Za-z0-9_.:-]{4,80}") ? token : "";
+        return HeartbeatToolProtocolPolicy.cleanId(value);
     }
 
     static String cleanScope(String value) {
-        String token = cleanToken(value, 160);
-        return token.matches("[A-Za-z0-9_.:-]{4,160}") ? token : "";
+        return HeartbeatToolProtocolPolicy.cleanScope(value);
     }
 
     private static String cleanToken(String value, int max) {
-        if (value == null) return "";
-        String out = value.trim();
-        if (out.length() > max) out = out.substring(0, max);
-        return out;
+        return HeartbeatToolProtocolPolicy.cleanToken(value, max);
     }
 
     private static String firstNonEmpty(String... values) {

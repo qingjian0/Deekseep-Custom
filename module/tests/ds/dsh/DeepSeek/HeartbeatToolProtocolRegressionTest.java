@@ -145,7 +145,32 @@ public final class HeartbeatToolProtocolRegressionTest {
                 + HeartbeatToolProtocol.CONTROL_END;
     }
 
+    private static void checkProtocolTokenPolicy() {
+        require("conversation-1234".equals(HeartbeatToolProtocol.cleanScope("  conversation-1234  ")),
+                "scope trims surrounding Java whitespace");
+        require("".equals(HeartbeatToolProtocol.cleanScope("abc")),
+                "scope enforces minimum length");
+        require("".equals(HeartbeatToolProtocol.cleanScope("scope/escape")),
+                "scope rejects separators");
+        require("".equals(HeartbeatToolProtocol.cleanScope("scope\nnext")),
+                "scope rejects line breaks");
+        require("".equals(HeartbeatToolProtocol.cleanScope(null)), "null scope");
+        require("id-1234".equals(HeartbeatToolProtocolPolicy.cleanId(" id-1234 ")),
+                "tool id normalization");
+        require("".equals(HeartbeatToolProtocolPolicy.cleanId("abc")),
+                "tool id minimum length");
+        require("".equals(HeartbeatToolProtocolPolicy.cleanId("id/1234")),
+                "tool id rejects separators");
+        require("".equals(HeartbeatToolProtocolPolicy.cleanToken(null, 8)),
+                "null token");
+        require("12345678".equals(HeartbeatToolProtocolPolicy.cleanToken(" 123456789 ", 8)),
+                "token is trimmed then bounded without a second trim");
+        require("".equals(HeartbeatToolProtocolPolicy.cleanToken("   ", 8)),
+                "whitespace-only token");
+    }
+
     public static void main(String[] args) {
+        checkProtocolTokenPolicy();
         String ordinary = "普通回答，不含任何本地控制块。";
         HeartbeatToolProtocol.Result plain = HeartbeatToolProtocol.parse(ordinary);
         require(ordinary.equals(plain.visibleText), "ordinary assistant text changed");
