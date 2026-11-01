@@ -89,7 +89,8 @@ The Gradle launcher currently declares AGP 9.3.0, Kotlin Compose plugin 2.4.10, 
 - Added a dedicated refactor validation workflow with separate JVM regression and Android artifact jobs.
 - SDK bootstrap now uses the runner's installed command-line tools directly; Android 17 is installed using the platform package ID `platforms;android-37.0`, not the unavailable `platforms;android-37`.
 - The CI order builds Legacy and Universal before running `test-thinking-regression.sh`, because that test consumes the Universal class output.
-- The workflow verifies APK ZIP structure, at least one DEX file (including multi-dex outputs), 4-byte ZIP alignment and APK signatures. Full Legacy, Universal and Compose build validation remains pending a successful Android job.
+- The workflow verifies APK ZIP structure, at least one DEX file (including multi-dex outputs), 4-byte ZIP alignment and APK signatures. A completed artifact job built both Legacy and Universal APKs with R8 9.1.29, then stopped at the Android-dependent thinking regression; the Compose artifact stage was skipped. The regression assertion was corrected to match the documented clipboard opt-in default, and the workflow is awaiting a fresh complete run.
+- The main Android CI now installs API 37 / Build Tools 37 and compiles with `androidCompileSdk=37`, matching AndroidX Lifecycle 2.11.0's AAR metadata requirement. The previous CI job explicitly forced API 36 and failed AAR metadata validation.
 - CI signing material is ephemeral and limited to debug verification. No release keystore or publication path is used.
 
 ### P1 — Hook install lifecycle
@@ -116,6 +117,7 @@ The Gradle launcher currently declares AGP 9.3.0, Kotlin Compose plugin 2.4.10, 
 - Extracted stateless building blocks into `LauncherSharedScreens.kt` and Home/Features/Settings/Help/About/Data/Category pages into `LauncherStaticScreens.kt`. Activity behavior is supplied through callbacks and a status slot; visual hierarchy is retained.
 - The Data screen emits export/import/full-backup actions through callbacks; ActivityResult launchers, ZIP/JSON codecs, SAF I/O and the Closed full-backup bridge remain owned by the Activity.
 - Restored the previously missing Category screen using the existing config catalog; bridge status, config file bytes, refresh and write actions are injected by the Activity. The original flag read-only behavior, JSON/positive-integer validation and edit/reset interactions are retained.
+- Fixed compile issues surfaced by the first Android CI attempt: shared OpenInNew icon import, unified `ConfigBridgeUiStatus` references, `ConfigKeyRow` write callback wiring, and the Home fallback status slot. These fixes are not yet verified by a completed post-fix Android build.
 - Added `LauncherStatusRepository`, `LauncherStatusViewModel` and immutable `LauncherStatusUiState`. Host-version and activation reads run on `Dispatchers.IO`; Compose observes the state using `collectAsStateWithLifecycle`.
 - Added AndroidX Lifecycle 2.11.0 dependencies for ViewModel coroutine scope and lifecycle-aware Compose collection.
 - The configuration bridge state, file import/export, Activity Result launchers and full-backup activity results remain in `SettingsActivity`. They are not yet migrated to repositories/ViewModels. Preserve the authenticated broadcast contract, ZIP/JSON shape, backup paths and SAF behavior while extracting that slice.
