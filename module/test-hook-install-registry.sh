@@ -61,6 +61,8 @@ grep -Fq 'code249 feedback deletion hook installation failed' "$SESSION_PIPELINE
 grep -Fq 'native session navigator hook installation failed' "$SESSION_PIPELINE"
 grep -Fq 'history-load diagnostics hook installation failed' "$SESSION_PIPELINE"
 grep -Fq 'active chat session capture hook installation failed' "$SESSION_PIPELINE"
+grep -Fq '2.3.4 local deletion-flow hook installation failed' "$SESSION_PIPELINE"
+grep -Fq '2.3.4 deletion presenter hook installation failed' "$SESSION_PIPELINE"
 grep -Fq 'compose visible-thread state hook installation failed' "$SESSION_PIPELINE"
 test "$(grep -Fc 'if (t instanceof VirtualMachineError)' "$SESSION_PIPELINE")" -ge 11
 test "$(grep -Fc 'if (t instanceof ThreadDeath)' "$SESSION_PIPELINE")" -ge 11
