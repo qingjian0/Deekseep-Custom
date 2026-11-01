@@ -38,7 +38,9 @@ jobs:
             module/test-session-deletion-install-regression.sh module/test-target-process-guard.sh \
             scripts/android-tools.sh scripts/build-all-legacy.sh \
             scripts/test-package-identity.sh scripts/test-launcher-activation-regression.sh \
-            scripts/test-launcher-config-architecture.sh scripts/test-launcher-backup-architecture.sh \\\n            scripts/test-universal-feature-parity.sh; do
+            scripts/test-launcher-config-architecture.sh \
+            scripts/test-launcher-backup-architecture.sh \
+            scripts/test-universal-feature-parity.sh; do
             bash -n "$script"
           done
       - name: Run legacy Xposed adapter regression
@@ -49,6 +51,8 @@ jobs:
         run: bash scripts/test-launcher-activation-regression.sh
       - name: Run launcher config architecture regression
         run: bash scripts/test-launcher-config-architecture.sh
+      - name: Run launcher backup architecture regression
+        run: bash scripts/test-launcher-backup-architecture.sh
       - name: Run expert relay regression
         run: bash module/test-expert-relay-regression.sh
       - name: Run feature hook registry regression
