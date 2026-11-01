@@ -198,17 +198,32 @@ object DshFileLogStore {
 
     private fun rotateMediaStore(
         resolver: ContentResolver, collection: Uri, category: String, relative: String,
-    ): Boolean = try {
-        val oldest = findDownload(resolver, collection, "$category.log.$BACKUP_COUNT", relative)
-        if (oldest != null && resolver.delete(oldest, null, null) <= 0) return false
-        for (i in BACKUP_COUNT - 1 downTo 1) {
-            val source = findDownload(resolver, collection, "$category.log.$i", relative)
-            if (source != null && !renameMediaStore(resolver, source, "$category.log.${i + 1}"))
-                return false
+    ): Boolean {
+        return try {
+            val oldest = findDownload(resolver, collection, "$category.log.$BACKUP_COUNT", relative)
+            if (oldest != null && resolver.delete(oldest, null, null) <= 0) {
+                false
+            } else {
+                var successful = true
+                for (i in BACKUP_COUNT - 1 downTo 1) {
+                    val source = findDownload(resolver, collection, "$category.log.$i", relative)
+                    if (source != null &&
+                        !renameMediaStore(resolver, source, "$category.log.${i + 1}")
+                    ) {
+                        successful = false
+                        break
+                    }
+                }
+                if (!successful) false
+                else {
+                    val active = findDownload(resolver, collection, "$category.log", relative)
+                    active == null || renameMediaStore(resolver, active, "$category.log.1")
+                }
+            }
+        } catch (_: Throwable) {
+            false
         }
-        val active = findDownload(resolver, collection, "$category.log", relative)
-        active == null || renameMediaStore(resolver, active, "$category.log.1")
-    } catch (_: Throwable) { false }
+    }
 
     private fun renameMediaStore(resolver: ContentResolver, uri: Uri, name: String): Boolean {
         val values = ContentValues().apply { put(MediaStore.MediaColumns.DISPLAY_NAME, name) }
