@@ -487,11 +487,15 @@ public class SettingsActivity extends Activity {
     private void ensureStoragePermission() {
         try {
             if (Build.VERSION.SDK_INT >= 30 && !Environment.isExternalStorageManager()) return;
-            if (Build.VERSION.SDK_INT >= 23 && Build.VERSION.SDK_INT <= 28
-                    && checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE)
-                    != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE,
-                        Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQ_STORAGE);
+            if (Build.VERSION.SDK_INT >= 23 && Build.VERSION.SDK_INT <= 28) {
+                boolean readGranted = checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE)
+                        == PackageManager.PERMISSION_GRANTED;
+                boolean writeGranted = checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                        == PackageManager.PERMISSION_GRANTED;
+                if (!readGranted || !writeGranted) {
+                    requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE,
+                            Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQ_STORAGE);
+                }
             }
         } catch (Throwable ignored) {}
     }
