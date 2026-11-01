@@ -63,7 +63,9 @@ object DshLog {
             level = level,
             tag = safeTag(tag),
             message = sanitize(message),
-            threadName = Thread.currentThread().name.take(MAX_THREAD_CHARS),
+            // Thread names are metadata, not inherently trusted: executors and callers can
+            // assign dynamic names that contain credentials, cookies, or private paths.
+            threadName = sanitize(Thread.currentThread().name).take(MAX_THREAD_CHARS),
             errorType = failure?.javaClass?.name?.take(MAX_ERROR_TYPE_CHARS),
         )
         sinks.forEach { sink -> runCatching { sink.write(event) } }
