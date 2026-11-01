@@ -56,8 +56,7 @@ final class HostV271 {
     static void installFeatureHooks(final ClassLoader cl) {
         final Main module = Main.MODULE;
         if (module == null) {
-            Main.log("v271 whitelist skipped: module instance unavailable");
-            return;
+            throw new IllegalStateException("v271 whitelist cannot install without Main.MODULE");
         }
         // Keep the original best-effort ordering: one unavailable whitelist hook must not block
         // the remaining verified hooks for this host generation.
@@ -137,6 +136,9 @@ final class HostV271 {
                 }
             });
             n++;
+        }
+        if (n == 0) {
+            throw new NoSuchMethodException(HISTORY_RESPONSE + " history sanitizer constructors");
         }
         Main.log("v271 installed history sanitizer " + HISTORY_RESPONSE + " ctor x" + n);
     }
