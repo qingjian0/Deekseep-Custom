@@ -10,6 +10,8 @@ test -s "$ACTIVITY"
 
 grep -Fq 'isActive = targetRecentlyActive,' "$STATUS"
 grep -Fq 'frameworkConnected = frameworkConnected' "$STATUS"
+grep -Fq 'HostCompat.supportsHostVersionName(versionName)' "$STATUS"
+grep -Fq '"2.7.2".equals(value)' "$ROOT/module/src/ds/dsh/DeepSeek/HostCompat.java"
 if grep -Fq 'isActive = frameworkConnected || targetRecentlyActive' "$STATUS"; then
   echo "Framework binder state must not count as target-process injection." >&2
   exit 1
