@@ -13,6 +13,22 @@ class DshLogTest {
     }
 
     @Test
+    fun redactsAuthorizationAssignmentAndStandaloneBearerVariants() {
+        val inputs = listOf(
+            "authorization=Bearer assignment-secret-123",
+            "Authorization: Basic basic-secret-123",
+            "Bearer standalone-secret-123",
+        )
+        inputs.forEach { input ->
+            val safe = DshLog.sanitizeForStorage(input)
+            assertFalse(safe.contains("assignment-secret-123"))
+            assertFalse(safe.contains("basic-secret-123"))
+            assertFalse(safe.contains("standalone-secret-123"))
+            assertTrue(safe.contains("[redacted]"))
+        }
+    }
+
+    @Test
     fun redactsApiKeyHeadersAndJsonSecrets() {
         val input = """x-api-key: key-123456 {"api_key":"json-secret-123"}"""
         val safe = DshLog.sanitizeForStorage(input)
