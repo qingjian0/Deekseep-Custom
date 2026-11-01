@@ -572,7 +572,7 @@ final class HookChatPipeline {
 
     // ── ChatFullCompletionRequest 系统提示词注入 ─────────────────────
 
-    boolean hookChatRequest(ClassLoader cl) {
+    boolean hookChatRequest(ClassLoader cl) throws Throwable {
         try {
             // 2.4.1 moved the real completion request to az0. Keep this explicit because
             // ew0->qw0->nx0 is also used by older fallback paths and can resolve an unrelated
@@ -837,6 +837,8 @@ final class HookChatPipeline {
             Main.log("hooked completion request " + HostRemap.simpleName(k) + " constructors x" + n);
             return n > 0;
         } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
             Main.log("hookChatRequest failed: " + t);
             return false;
         }
