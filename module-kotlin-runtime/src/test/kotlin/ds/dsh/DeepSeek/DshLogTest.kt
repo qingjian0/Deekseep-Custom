@@ -46,6 +46,17 @@ class DshLogTest {
     }
 
     @Test
+    fun redactsEveryPairInMultiCookieHeader() {
+        val safe = DshLog.sanitizeForStorage(
+            "request Cookie: sessionid=session-secret-123; csrftoken=csrf-secret-456; auth=auth-secret-789"
+        )
+        assertFalse(safe.contains("session-secret-123"))
+        assertFalse(safe.contains("csrf-secret-456"))
+        assertFalse(safe.contains("auth-secret-789"))
+        assertTrue(safe.contains("Cookie: [redacted]"))
+    }
+
+    @Test
     fun redactsPrivatePathsAndFlattensMultilineInput() {
         val safe = DshLog.sanitizeForStorage("failure\n/data/user/0/com.example/files/private.db")
         assertFalse(safe.contains("/data/user/0"))
