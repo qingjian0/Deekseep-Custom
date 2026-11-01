@@ -135,7 +135,6 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         return intent;
     }
 
-    private static final String LOG_PATH = "/data/data/com.deepseek.chat/files/dsprobe.log";
 
     static final SimpleDateFormat TS = new SimpleDateFormat("HH:mm:ss.SSS", Locale.US);
 
@@ -304,7 +303,6 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     private static volatile CloudPromptPickCallback cloudPromptPickCallback;
 
     // 视觉探针诊断日志（私有目录，直写，最可靠）
-    static final String RELAY_LOG_PATH = "/data/data/com.deepseek.chat/files/deekseep_vision.log";
 
     private static final String[] IMAGE_EXTS = {"jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif"};
 
@@ -445,9 +443,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     static final ThreadLocal<String> tlPendingModel = new ThreadLocal<>();
 
     // 诊断：记录服务器返回的 SSE 原始事件（受 SRVLOG_FILE 开关控制）
-    static final String SRV_LOG_PATH = "/data/data/com.deepseek.chat/files/deekseep_srv.log";
 
-    static final String SRV_LOG_EXT  = "/storage/emulated/0/deekseep_srv.log";
 
     // DeekseepUi 选完文件后的 UI 刷新回调
     static volatile Runnable onPickComplete;
@@ -463,11 +459,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     static final String LOADED_MARK_EXT = "/storage/emulated/0/deekseep_loaded_m.txt";
 
     // modern 专属外部镜像日志（新文件，避免与 legacy-owned 文件权限冲突导致静默写失败）
-    static final String EXT_MAIN_LOG   = "/storage/emulated/0/dsprobe_m.log";
 
-    static final String EXT_VISION_LOG = "/storage/emulated/0/deekseep_vision_m.log";
 
-    static final String EXT_CRASH_LOG  = "/storage/emulated/0/dsprobe_crash.log";
 
     // 首次注入 DeepSeek 时弹出的简短使用说明；确认后写此标记，之后不再弹
     static final String DISCLAIMER_FILE = "/data/data/com.deepseek.chat/files/deekseep_disclaimer_ok";
