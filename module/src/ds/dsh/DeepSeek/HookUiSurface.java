@@ -2992,7 +2992,12 @@ final class HookUiSurface {
             });
             Main.log("welcome whale painter motion hooked owner=" + painterOwner);
         } catch (Throwable error) {
-            Main.log("welcome whale painter motion unavailable: " + Main.safeThrowableMessage(error));
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            Main.log("welcome whale painter motion unavailable: "
+                    + Main.safeThrowableMessage(error));
+            throw new IllegalStateException(
+                    "welcome whale painter motion hook installation failed", error);
         }
     }
 
@@ -3143,7 +3148,11 @@ final class HookUiSurface {
                     + ", composeCanvas=" + composeCanvasHooks
                     + ", node=" + textNodeName);
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             Main.log("compose text wave unavailable: " + Main.safeThrowableMessage(error));
+            throw new IllegalStateException(
+                    "Compose text wave hook installation failed", error);
         }
     }
 
