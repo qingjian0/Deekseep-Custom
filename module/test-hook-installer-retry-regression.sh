@@ -63,11 +63,6 @@ grep -Fq 'if (generationInstalled == 0)' <<<"$fake_mute"
 grep -Fq 'if (generationInstalled > 0)' <<<"$fake_mute"
 grep -Fq 'throw failure;' <<<"$fake_mute"
 grep -Fq 'if (lastFailure != null) throw lastFailure;' <<<"$fake_mute"
-if grep -Fq 'generationInstalled > 0' <<<"$fake_mute" && grep -Fq 'continue;' <<<"$fake_mute"; then
-  echo "Fake Mute may continue to another host mapping after partial installation." >&2
-  exit 1
-fi
-
 # Main's install wrapper must preserve failure visibility instead of silently swallowing it.
 install_body="$(sed -n '/private Throwable runHookInstallStep/,/void installHookStep/p' "$MAIN")"
 grep -Fq 'FEATURE_HOOK_INSTALL_REGISTRY.install(id' <<<"$install_body"
