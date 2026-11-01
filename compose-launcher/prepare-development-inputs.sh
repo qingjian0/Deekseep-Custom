@@ -5,10 +5,10 @@ PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 OUT="$PROJECT_DIR/app/build/generated/protectedInputs"
 
 rm -rf "$OUT"
-mkdir -p "$OUT/src/com/dsmod/probe" "$OUT/resources"
+mkdir -p "$OUT/src/ds/dsh/DeepSeek" "$OUT/resources"
 
-cat > "$OUT/src/com/dsmod/probe/BuildInfo.java" <<EOF
-package com.dsmod.probe;
+cat > "$OUT/src/ds/dsh/DeepSeek/BuildInfo.java" <<EOF
+package ds.dsh.DeepSeek;
 public final class BuildInfo {
     public static final String API_VERSION = "universal (Xposed API 82-102 verified)";
     public static final String MODULE_VERSION = "1.8.1";
@@ -44,8 +44,8 @@ EOF
 # ship the Closed URL, request protocol, device identifiers, authorization flow or payload key
 # handling.  Keeping the shell here lets javac compile the shared UI without importing any Closed
 # implementation into the Open staged source tree.
-cat > "$OUT/src/com/dsmod/probe/CloudPromptClient.java" <<'EOF'
-package com.dsmod.probe;
+cat > "$OUT/src/ds/dsh/DeepSeek/CloudPromptClient.java" <<'EOF'
+package ds.dsh.DeepSeek;
 
 import android.content.Context;
 import java.util.Collections;
@@ -144,8 +144,8 @@ final class CloudPromptClient {
 EOF
 
 
-cat > "$OUT/src/com/dsmod/probe/CommunityUi.java" <<'EOF'
-package com.dsmod.probe;
+cat > "$OUT/src/ds/dsh/DeepSeek/CommunityUi.java" <<'EOF'
+package ds.dsh.DeepSeek;
 
 import android.app.Activity;
 
@@ -157,8 +157,8 @@ EOF
 
 
 
-cat > "$OUT/src/com/dsmod/probe/LoaderSecurityGuard.java" <<'EOF'
-package com.dsmod.probe;
+cat > "$OUT/src/ds/dsh/DeepSeek/LoaderSecurityGuard.java" <<'EOF'
+package ds.dsh.DeepSeek;
 
 import android.content.Context;
 
@@ -182,8 +182,8 @@ public final class LoaderSecurityGuard {
 }
 EOF
 
-cat > "$OUT/src/com/dsmod/probe/z16.java" <<'EOF'
-package com.dsmod.probe;
+cat > "$OUT/src/ds/dsh/DeepSeek/z16.java" <<'EOF'
+package ds.dsh.DeepSeek;
 
 import android.content.Context;
 
@@ -197,16 +197,16 @@ public final class z16 {
 }
 EOF
 
-cat > "$OUT/src/com/dsmod/probe/RuntimeProofPartA.java" <<'EOF'
-package com.dsmod.probe;
+cat > "$OUT/src/ds/dsh/DeepSeek/RuntimeProofPartA.java" <<'EOF'
+package ds.dsh.DeepSeek;
 final class RuntimeProofPartA {
     static byte[] material() { return null; }
     private RuntimeProofPartA() {}
 }
 EOF
 
-cat > "$OUT/src/com/dsmod/probe/RuntimeProofPartB.java" <<'EOF'
-package com.dsmod.probe;
+cat > "$OUT/src/ds/dsh/DeepSeek/RuntimeProofPartB.java" <<'EOF'
+package ds.dsh.DeepSeek;
 final class RuntimeProofPartB {
     static byte[] material() { return null; }
     private RuntimeProofPartB() {}
