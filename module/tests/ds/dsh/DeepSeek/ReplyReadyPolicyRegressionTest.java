@@ -27,6 +27,18 @@ public final class ReplyReadyPolicyRegressionTest {
         require(!ReplyReadyPolicy.shouldNotify(
                         "WIP", "CONTENT_FILTER", "ASSISTANT", false),
                 "a failed or filtered generation must not masquerade as ready");
+        require(ReplyReadyPolicy.shouldNotify(
+                        " wip\\t", " finished ", " assistant ", false),
+                "ASCII whitespace and case normalization must remain compatible");
+        require(!ReplyReadyPolicy.shouldNotify(
+                        "\\u00A0WIP\\u00A0", "FINISHED", "ASSISTANT", false),
+                "normalization must preserve Java String.trim semantics for non-ASCII whitespace");
+        require(ReplyReadyPolicy.isGenerating("  streaming\\t"),
+                "generating-state normalization must trim ASCII whitespace");
+        require(!ReplyReadyPolicy.isGenerating("\\u00A0WIP\\u00A0"),
+                "generating-state normalization must not broaden Java trim semantics");
+        require(ReplyReadyPolicy.isCompleted(" success "),
+                "completed-state normalization must trim ASCII whitespace");
 
         System.out.println("Reply-ready notification policy regression passed.");
     }
