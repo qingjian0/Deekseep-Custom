@@ -45,8 +45,14 @@ abstract class LegacyXposedModule {
             String base = member.toString() + "#" + hooker.getClass().getName();
             Integer previous = occurrenceCounts.get(base);
             int ordinal = previous == null ? 0 : previous.intValue();
-            occurrenceCounts.put(base, Integer.valueOf(ordinal + 1));
             return id + "#" + base + "#" + ordinal;
+        }
+
+        void commitKey(Member member, Hooker hooker) {
+            String base = member.toString() + "#" + hooker.getClass().getName();
+            Integer previous = occurrenceCounts.get(base);
+            int ordinal = previous == null ? 0 : previous.intValue();
+            occurrenceCounts.put(base, Integer.valueOf(ordinal + 1));
         }
     }
 
@@ -265,14 +271,18 @@ abstract class LegacyXposedModule {
             if (registrationKey != null && scopedRegistrations.contains(registrationKey)) return;
             hookers.add(hooker);
             if (registered) {
-                if (registrationKey != null) scopedRegistrations.add(registrationKey);
+                if (registrationKey != null) {
+                    scopedRegistrations.add(registrationKey);
+                    scope.commitKey(member, hooker);
+                }
                 return;
             }
             // Run after ordinary before callbacks, then publish our result so their matching
             // after callbacks still execute. A highest-priority replacement would silently
             // suppress every other module hooked to the same host member.
+            XC_MethodHook.Unhook unhook;
             try {
-                XposedBridge.hookMethod(member, new XC_MethodHook(Integer.MIN_VALUE) {
+                unhook = XposedBridge.hookMethod(member, new XC_MethodHook(Integer.MIN_VALUE) {
                     @Override protected void beforeHookedMethod(MethodHookParam param) {
                         long started = System.nanoTime();
                         long traceId = RawHookTrace.enter(member, param.thisObject, param.args);
@@ -307,8 +317,20 @@ abstract class LegacyXposedModule {
                 registrationFailure = error;
                 throw error;
             }
+            if (unhook == null) {
+                // LSPosed's legacy bridge returns null when its native HookBridge reports that
+                // installation failed. Unlike an exception after callback publication, this is
+                // an explicit unsuccessful result and can be retried. Roll back both the staged
+                // Hooker and the scope ordinal so the same logical registration keeps its key.
+                hookers.remove(hooker);
+                throw new IllegalStateException(
+                        "XposedBridge.hookMethod returned null for " + member);
+            }
             registered = true;
-            if (registrationKey != null) scopedRegistrations.add(registrationKey);
+            if (registrationKey != null) {
+                scopedRegistrations.add(registrationKey);
+                scope.commitKey(member, hooker);
+            }
             RawHookTrace.registered(member);
             JavaPluginRuntimeBridge.registered(member);
         }
