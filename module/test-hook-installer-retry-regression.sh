@@ -347,7 +347,8 @@ for method in \
   hookWelcomeWhaleMotion \
   hookHomeGreeting \
   hookNativeDualChatRoot; do
-  body="$(sed -n "/void $method(/,/^    }/p" "$UI")"
+  body="$(sed -n "/^[[:space:]]*\\(public\\|private\\|protected\\|static\\|void\\)[^;]*[[:space:]]$method[[:space:]]*(/,/^    }/p" "$UI")"
+  test -n "$body"
   grep -Fq "hookUiFeatureMember(\"$method\"," <<<"$body"
   if [ "$method" = "hookChatBubbleCustomization" ]; then
     grep -Fq 'hookUiFeatureMember("hookChatBubbleCustomization", runtime.clipMethod' <<<"$body"
