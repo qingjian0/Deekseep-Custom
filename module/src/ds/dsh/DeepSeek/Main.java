@@ -1197,7 +1197,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                         hostApplicationContext = app;
                     }
                     if ((!BuildInfo.PROTECTED_BUILD || CloudPromptClient.hasValidLicense(app))
-                            && !FEATURE_HOOKS_INSTALLED.get()) {
+                            && (!FEATURE_HOOKS_INSTALLED.get()
+                            || FEATURE_HOOK_INSTALL_REGISTRY.hasRetryableFailures())) {
                         log("lifecycle bootstrap: license verified, installing feature hooks");
                         installAllFeatureHooks(cl);
                     }
@@ -1585,7 +1586,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     public synchronized void installAllFeatureHooks(ClassLoader cl) {
         if (cl == null) cl = hostClassLoader;
         if (cl == null) return;
-        if (FEATURE_HOOKS_INSTALLED.get()) return;
+        if (FEATURE_HOOKS_INSTALLED.get()
+                && !FEATURE_HOOK_INSTALL_REGISTRY.hasRetryableFailures()) return;
         final ClassLoader hookLoader = cl;
         if (HostCompat.isV271Limited()) {
             // 2.7.1/code287: only the re-verified whitelist is installed. See HostV271.
@@ -1806,7 +1808,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             installHookStep("agent.native-heartbeat-completion", () -> HookAgentPipeline.INSTANCE.hookNativeUiHeartbeatCompletion(hookLoader));
             installHookStep("session.native-navigator", () -> HookSessionManagement.INSTANCE.hookNativeSessionNavigator(hookLoader));
             installHookStep("session.history-load-diagnostics", () -> HookSessionManagement.INSTANCE.hookHistoryLoadDiagnostics(hookLoader));
-            scheduleRealSessionProbe();
+            installHookStep("session.real-probe.schedule", () -> scheduleRealSessionProbe());
             installHookStep("ui.settings-navigation", () -> HookUiSurface.INSTANCE.hookSettingsNavigation(hookLoader));
             installHookStep("ui.native-settings-entry", () -> HookUiSurface.INSTANCE.hookNativeSettingsEntry(hookLoader));
             // 2.7.1 has native batch select/delete/pin in the sidebar: keep the overlay off there.
@@ -1941,7 +1943,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             // Core hooks must be complete before one-shot post-injection work is allowed to run.
             // A failed required group is retried on the next Activity resume; successful groups
             // are skipped by the registry, so this does not duplicate installed callbacks.
-            if (!FEATURE_HOOKS_INSTALLED.get()) {
+            if (!FEATURE_HOOKS_INSTALLED.get()
+                    || FEATURE_HOOK_INSTALL_REGISTRY.hasRetryableFailures()) {
                 installAllFeatureHooks(cl);
             }
             if (!FEATURE_HOOKS_INSTALLED.get()) return;
