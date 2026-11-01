@@ -524,7 +524,7 @@ final class AgentRunStore {
     }
 
     private static String callKey(String scope, String callId) {
-        return clean(scope, 2048) + "|" + clean(callId, 128);
+        return AgentRunRecordPolicy.callKey(scope, callId);
     }
 
     private static Record findByKey(List<Record> records, String key) {
@@ -544,18 +544,11 @@ final class AgentRunStore {
     }
 
     private static String clean(String value, int max) {
-        String out = value == null ? "" : value.trim();
-        if (out.length() > max) out = out.substring(0, max);
-        return out;
+        return AgentRunRecordPolicy.clean(value, max);
     }
 
     private static String cleanEvent(String value) {
-        String event = value == null ? "" : value.trim();
-        // A 48 KiB tool output can grow substantially when JSON escapes control characters.
-        // This ceiling is above the protocol's worst practical envelope, so recovery never stores
-        // a truncated marker or half a JSON string.
-        if (event.length() > 512 * 1024) event = event.substring(0, 512 * 1024);
-        return event;
+        return AgentRunRecordPolicy.cleanEvent(value);
     }
 
     private static final Comparator<Record> NEWEST_FIRST = new Comparator<Record>() {
