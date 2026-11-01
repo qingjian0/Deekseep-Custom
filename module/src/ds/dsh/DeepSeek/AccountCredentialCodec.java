@@ -75,6 +75,9 @@ final class AccountCredentialCodec {
         } else if (root instanceof JSONArray) {
             // 兼容人工整理的多账号数组，以及旧 dsmod_accounts.json 的 {cred:{...}} 包装。
             JSONArray array = (JSONArray) root;
+            if (array.length() > MAX_ACCOUNTS) {
+                throw new FormatException("单次最多导入 " + MAX_ACCOUNTS + " 个账号");
+            }
             for (int i = 0; i < array.length(); i++) {
                 JSONObject wrapper = array.optJSONObject(i);
                 if (wrapper == null) {
@@ -111,6 +114,9 @@ final class AccountCredentialCodec {
         }
         JSONArray accounts = root.optJSONArray("accounts");
         if (accounts == null) throw new FormatException("缺少 accounts 数组");
+        if (accounts.length() > MAX_ACCOUNTS) {
+            throw new FormatException("单次最多导入 " + MAX_ACCOUNTS + " 个账号");
+        }
         for (int i = 0; i < accounts.length(); i++) {
             JSONObject wrapper = accounts.optJSONObject(i);
             if (wrapper == null) {

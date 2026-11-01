@@ -17,6 +17,7 @@ public final class AccountCredentialCodecRegressionTest {
         duplicateIdsAreRejected();
         duplicateIdsAreRejectedDuringExport();
         paddedCredentialIdentifiersAreRejected();
+        oversizedAccountArraysAreRejected();
         System.out.println("AccountCredentialCodecRegressionTest OK");
     }
 
@@ -102,6 +103,23 @@ public final class AccountCredentialCodecRegressionTest {
         JSONObject paddedToken = credential("account-00000001", "Alice");
         paddedToken.put("token", " token-abcdefghijklmnopqrstuvwxyz-0123456789 ");
         expectFailure(paddedToken.toString(), "padded token");
+    }
+
+    private static void oversizedAccountArraysAreRejected() throws Exception {
+        JSONArray legacy = new JSONArray();
+        JSONArray envelopeAccounts = new JSONArray();
+        for (int i = 0; i <= AccountCredentialCodec.MAX_ACCOUNTS; i++) {
+            JSONObject value = credential(String.format("account-%08d", i), "User " + i);
+            legacy.put(value);
+            envelopeAccounts.put(new JSONObject().put("name", "User " + i)
+                    .put("credential", value));
+        }
+        expectFailure(legacy.toString(), "legacy array account limit");
+        JSONObject envelope = new JSONObject()
+                .put("format", AccountCredentialCodec.FORMAT)
+                .put("version", AccountCredentialCodec.VERSION)
+                .put("accounts", envelopeAccounts);
+        expectFailure(envelope.toString(), "versioned envelope account limit");
     }
 
     private static JSONObject credential(String id, String name) throws Exception {
