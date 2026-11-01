@@ -237,7 +237,7 @@ final class HookSessionManagement {
 
     // 会话行渲染器 mc.e(tp,..,xa3 click,..,xa3 delete,..,qg5 modifier,..) 12 参。
     // modern：拦到后按需改 args[4]=长按代理、args[9]=追加坐标捕获的 Modifier，再一次性 proceed(args)。
-    void hookSidebarMultiSelectDelete(final ClassLoader cl) {
+    void hookSidebarMultiSelectDelete(final ClassLoader cl) throws Throwable {
         try {
             // code257 split the old sc container: the row renderer moved to ch2.f,
             // while the session directory moved independently to gi0.c. Resolve
@@ -323,9 +323,13 @@ final class HookSessionManagement {
                 });
                 n++;
             }
+            if (n == 0) throw new NoSuchMethodException("sidebar multi-select delete row targets");
             Main.log("installed sidebar multi-select delete hook mc.e x" + n);
             if (HostCompat.isV241()) hookV241SidebarNativeMenuSuppression(cl);
-        } catch (Throwable t) { Main.log("hookSidebarMultiSelectDelete failed: " + t); }
+        } catch (Throwable t) {
+            Main.log("hookSidebarMultiSelectDelete failed: " + t);
+            throw t;
+        }
     }
 
     /**
