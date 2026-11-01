@@ -214,7 +214,7 @@ final class HookUiSurface {
      * WeKit registers a native WeChat setting-item provider. DeepSeek uses Compose instead, so
      * the equivalent integration is a host-native section header followed by one host-native row.
      */
-    void hookNativeSettingsEntry(final ClassLoader cl) {
+    void hookNativeSettingsEntry(final ClassLoader cl) throws Throwable {
         final String rootOwnerName;
         final String rootMethodName;
         final String componentOwnerName;
@@ -544,9 +544,8 @@ final class HookUiSurface {
                     + iconOwnerName + "." + iconFieldName + " arrow="
                     + arrowIconOwnerName + "." + arrowFieldName);
         } catch (Throwable error) {
-            nativeSettingsRowHooked = false;
-            nativeSettingsRowEmitted = false;
             Main.log("native settings section unavailable: " + Main.safeThrowableMessage(error));
+            throw error;
         }
     }
 
@@ -3148,7 +3147,7 @@ final class HookUiSurface {
     }
 
     /** Replaces DeepSeek's model-specific and unified home welcome strings when configured. */
-    void hookHomeGreeting(final ClassLoader cl) {
+    void hookHomeGreeting(final ClassLoader cl) throws Throwable {
         final String helperName;
         final String formattedMethodName;
         final String plainMethodName;
@@ -3361,6 +3360,7 @@ final class HookUiSurface {
                     + ",0x" + Integer.toHexString(hostWelcomeTitleResourceId));
         } catch (Throwable error) {
             Main.log("home greeting hook unavailable: " + Main.safeThrowableMessage(error));
+            throw error;
         }
     }
 
@@ -3425,7 +3425,7 @@ final class HookUiSurface {
     private final AtomicBoolean NATIVE_DUAL_ROOT_HOOK_INSTALLED = new AtomicBoolean(false);
 
     /** Captures only DeepSeek MainActivity's own root Compose lambda, never a module surface. */
-    void hookNativeDualChatRoot(final ClassLoader cl) {
+    void hookNativeDualChatRoot(final ClassLoader cl) throws Throwable {
         if (!NATIVE_DUAL_ROOT_HOOK_INSTALLED.compareAndSet(false, true)) return;
         try {
             Class<?> compose = HostRemap.load(cl, "androidx.compose.ui.platform.ComposeView");
@@ -3461,10 +3461,13 @@ final class HookUiSurface {
                 });
                 installed++;
             }
+            if (installed == 0) {
+                throw new NoSuchMethodException("ComposeView.setContent targets");
+            }
             Main.log("installed native dual root capture ComposeView.setContent x" + installed);
         } catch (Throwable error) {
-            NATIVE_DUAL_ROOT_HOOK_INSTALLED.set(false);
             Main.log("native dual root capture unavailable: " + error);
+            throw error;
         }
     }
 
@@ -3474,7 +3477,7 @@ final class HookUiSurface {
      * readers; this hook covers the actual render path.
      */
     /** Replaces Material3 ColorScheme at its provider boundary; never mutates host singletons. */
-    void hookHostThemeColor(final ClassLoader cl) {
+    void hookHostThemeColor(final ClassLoader cl) throws Throwable {
         try {
             final Class<?> schemeClass = HostRemap.forName(
                     HostCompat.isV241() ? "ew1" : "vs1", false, cl);
@@ -3563,10 +3566,14 @@ final class HookUiSurface {
                 });
                 hooks++;
             }
+            if (hooks == 0) {
+                throw new NoSuchMethodException("theme color provider targets");
+            }
             Main.log("theme color hook ready providers=" + hooks);
             hookHostThemeDrawColors(cl);
         } catch (Throwable error) {
             Main.log("theme color hook unavailable: " + Main.safeThrowableMessage(error));
+            throw error;
         }
     }
 
@@ -3760,10 +3767,11 @@ final class HookUiSurface {
                 b = Color.blue(color) / 255f;
         return 0.2126f * r + 0.7152f * g + 0.0722f * b;
     }
-
-    void hookSettingsNavigation(ClassLoader cl) {
+    void hookSettingsNavigation(ClassLoader cl) throws Throwable {
+        Throwable installFailure = null;
         try {
             Class<?> nav = HostCompat.load(cl, "rm5");
+            int routeHooks = 0;
             for (Method m : nav.getDeclaredMethods()) {
                 if (!HostRemap.name(m).equals("n") || m.getParameterTypes().length != 2) continue;
                 Main.MODULE.hook(m).intercept(new Hooker() {
@@ -3775,17 +3783,25 @@ final class HookUiSurface {
                     }
                 });
                 Main.log("hooked nav route rm5.n");
+                routeHooks++;
                 break;
             }
-            hookNavStateMethod(nav, "b");
-            hookNavStateMethod(nav, "m");
-            hookNavStateMethod(nav, "q");
-            hookNavStateMethod(nav, "r");
-            hookNavStateMethod(nav, "u");
-        } catch (Throwable t) { Main.log("hook nav route failed: " + t); }
+            routeHooks += hookNavStateMethod(nav, "b");
+            routeHooks += hookNavStateMethod(nav, "m");
+            routeHooks += hookNavStateMethod(nav, "q");
+            routeHooks += hookNavStateMethod(nav, "r");
+            routeHooks += hookNavStateMethod(nav, "u");
+            if (routeHooks == 0) {
+                throw new NoSuchMethodException("settings navigation controller targets");
+            }
+        } catch (Throwable error) {
+            Main.log("hook nav route failed: " + error);
+            installFailure = error;
+        }
 
         try {
             Class<?> gf8 = HostCompat.load(cl, "gf8");
+            int popHooks = 0;
             for (Method m : gf8.getDeclaredMethods()) {
                 if (!HostRemap.name(m).equals("A0") || m.getParameterTypes().length != 1) continue;
                 Main.MODULE.hook(m).intercept(new Hooker() {
@@ -3807,12 +3823,21 @@ final class HookUiSurface {
                     }
                 });
                 Main.log("hooked nav pop gf8.A0");
+                popHooks++;
                 break;
             }
-        } catch (Throwable t) { Main.log("hook nav pop failed: " + t); }
+            if (popHooks == 0) {
+                throw new NoSuchMethodException("settings navigation pop gf8.A0");
+            }
+        } catch (Throwable error) {
+            Main.log("hook nav pop failed: " + error);
+            if (installFailure == null) installFailure = error;
+            else installFailure.addSuppressed(error);
+        }
+        if (installFailure != null) throw installFailure;
     }
 
-    private void hookNavStateMethod(Class<?> nav, String name) {
+    private int hookNavStateMethod(Class<?> nav, String name) {
         int count = 0;
         for (Method m : nav.getDeclaredMethods()) {
             if (!HostRemap.name(m).equals(name)) continue;
@@ -3827,6 +3852,7 @@ final class HookUiSurface {
             count++;
         }
         Main.log("hooked nav state rm5." + name + " x" + count);
+        return count;
     }
 
     private void rememberNavController(Object nav) {
