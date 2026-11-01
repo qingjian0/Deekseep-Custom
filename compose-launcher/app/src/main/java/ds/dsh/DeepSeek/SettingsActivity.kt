@@ -338,17 +338,6 @@ class SettingsActivity : ComponentActivity() {
         }
     }
 
-    private fun launchImport() {
-        runCatching {
-            importLauncher.launch(
-                arrayOf(
-                    "application/zip", "application/x-zip-compressed", "application/json",
-                    "text/json", "text/plain", "application/octet-stream",
-                ),
-            )
-        }.onFailure { toast("无法打开文件选择器：${it.message}") }
-    }
-
     private fun importData(uri: Uri) {
         busyMessage = "正在读取备份…"
         lifecycleScope.launch {
