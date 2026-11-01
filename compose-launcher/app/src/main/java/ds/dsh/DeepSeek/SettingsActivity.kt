@@ -4,8 +4,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.widget.TextView
 import android.widget.Toast
@@ -17,7 +15,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -133,7 +134,6 @@ class SettingsActivity : ComponentActivity() {
         private const val ROUTE_ABOUT = "about"
     }
 
-    private val main = Handler(Looper.getMainLooper())
     private val backupRepository = LauncherBackupRepository()
 
     // ---- Compose-observed state owned by the activity -----------------------------------------
@@ -141,7 +141,6 @@ class SettingsActivity : ComponentActivity() {
     private lateinit var configViewModel: LauncherConfigViewModel
     private var busyMessage by mutableStateOf<String?>(null)
 
-    private var pendingExportZip = true
     private val exportZipLauncher = registerForActivityResult(
         ActivityResultContracts.CreateDocument("application/zip")
     ) { uri -> if (uri != null) exportData(uri, zip = true) }
@@ -197,9 +196,13 @@ class SettingsActivity : ComponentActivity() {
             toast("无法打开 DeepSeek")
             return
         }
-        main.postDelayed({
-            runCatching { sendBroadcast(ModuleConfigBridge.requestOpenSettings()) }
-        }, 900L)
+        lifecycleScope.launch {
+            delay(900L)
+            if (!isFinishing && !isDestroyed) {
+                runCatching { sendBroadcast(ModuleConfigBridge.requestOpenSettings()) }
+                    .onFailure { Log.w(TAG, "open DeepSeek settings broadcast failed", it) }
+            }
+        }
     }
 
     private fun openUrl(url: String) {
@@ -250,7 +253,6 @@ class SettingsActivity : ComponentActivity() {
     private fun timestamp(): String = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())
 
     private fun launchExport(zip: Boolean) {
-        pendingExportZip = zip
         val name = "yunseek-${BuildConfig.VERSION_NAME}-${timestamp()}" + if (zip) ".zip" else ".json"
         runCatching {
             if (zip) exportZipLauncher.launch(name) else exportJsonLauncher.launch(name)
@@ -271,122 +273,124 @@ class SettingsActivity : ComponentActivity() {
     private fun exportData(uri: Uri, zip: Boolean) {
         busyMessage = "正在读取模块设置…"
         lifecycleScope.launch {
-            val json = try {
-                configViewModel.loadConfig()
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (error: Exception) {
-                Log.w(TAG, "config export read failed", error)
-                null
-            }
-            if (!zip) {
-                if (json == null) {
-                    busyMessage = null
+            try {
+                val json = try {
+                    configViewModel.loadConfig()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    Log.w(TAG, "config export read failed", error)
+                    null
+                }
+                if (!zip && json == null) {
                     toast(configViewModel.state.value.errorMessage ?: "DeepSeek 未响应，请重试")
                     return@launch
                 }
-                writeInBackground(uri, json.toByteArray(StandardCharsets.UTF_8), "设置已导出（JSON）")
-                return@launch
-            }
-            busyMessage = "正在打包 ZIP…"
-            Thread {
-                val result = runCatching {
-                    contentResolver.openOutputStream(uri, "wt")!!.use { out ->
-                        ZipOutputStream(out.buffered()).use { zos ->
-                            backupRepository.writeZip(
-                                output = zos,
-                                settingsJson = json,
-                                filesDirectory = filesDir,
-                                sharedPreferencesDirectory = File(applicationInfo.dataDir, "shared_prefs"),
-                                appName = APP_NAME,
-                                appVersion = BuildConfig.VERSION_NAME,
-                                appVersionCode = BuildConfig.VERSION_CODE,
-                                hostLabel = statusViewModel.state.value.host.label,
-                            )
+                busyMessage = if (zip) "正在打包 ZIP…" else "正在导出设置…"
+                val result = withContext(Dispatchers.IO) {
+                    runCatching {
+                        if (zip) {
+                            contentResolver.openOutputStream(uri, "wt")?.use { out ->
+                                ZipOutputStream(out.buffered()).use { zos ->
+                                    backupRepository.writeZip(
+                                        output = zos,
+                                        settingsJson = json,
+                                        filesDirectory = filesDir,
+                                        sharedPreferencesDirectory = File(applicationInfo.dataDir, "shared_prefs"),
+                                        appName = APP_NAME,
+                                        appVersion = BuildConfig.VERSION_NAME,
+                                        appVersionCode = BuildConfig.VERSION_CODE,
+                                        hostLabel = statusViewModel.state.value.host.label,
+                                    )
+                                }
+                            } ?: error("无法打开目标文件")
+                        } else {
+                            contentResolver.openOutputStream(uri, "wt")?.use {
+                                it.write(json!!.toByteArray(StandardCharsets.UTF_8))
+                            } ?: error("无法打开目标文件")
                         }
                     }
                 }
-                main.post {
-                    busyMessage = null
-                    result.onSuccess { count ->
+                result.onSuccess { value ->
+                    if (zip) {
+                        val count = value as Int
                         toast(
                             if (json == null) "已导出启动器数据（$count 项）。DeepSeek 未响应，模块设置未包含"
                             else "模块数据已导出（ZIP，$count 项）",
                         )
-                    }.onFailure { toast("导出失败：${it.message}") }
-                }
-            }.start()
+                    } else {
+                        toast("设置已导出（JSON）")
+                    }
+                }.onFailure { toast("导出失败：${it.message}") }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.w(TAG, "export failed", error)
+                toast("导出失败：${error.message}")
+            } finally {
+                busyMessage = null
+            }
         }
     }
 
-    private fun writeInBackground(uri: Uri, bytes: ByteArray, success: String) {
-        Thread {
-            val result = runCatching {
-                contentResolver.openOutputStream(uri, "wt")!!.use { it.write(bytes) }
-            }
-            main.post {
-                busyMessage = null
-                result.onSuccess { toast(success) }.onFailure { toast("导出失败：${it.message}") }
-            }
-        }.start()
+    private fun launchImport() {
+        runCatching {
+            importLauncher.launch(
+                arrayOf(
+                    "application/zip", "application/x-zip-compressed", "application/json",
+                    "text/json", "text/plain", "application/octet-stream",
+                ),
+            )
+        }.onFailure { toast("无法打开文件选择器：${it.message}") }
     }
 
     private fun importData(uri: Uri) {
         busyMessage = "正在读取备份…"
-        Thread {
-            val plan = runCatching {
-                contentResolver.openInputStream(uri)!!.use { backupRepository.parse(it) }
-            }
-            main.post {
-                plan.onSuccess { applyImport(it) }.onFailure {
-                    busyMessage = null
-                    toast("导入失败：${it.message}")
+        lifecycleScope.launch {
+            try {
+                val plan = withContext(Dispatchers.IO) {
+                    contentResolver.openInputStream(uri)?.use { backupRepository.parse(it) }
+                        ?: error("无法读取所选文件")
                 }
+                applyImport(plan)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.w(TAG, "import failed", error)
+                toast("导入失败：${error.message}")
+            } finally {
+                busyMessage = null
             }
-        }.start()
+        }
     }
 
-    private fun applyImport(plan: LauncherBackupPlan) {
-        Thread {
-            val restored = runCatching {
-                backupRepository.restore(
-                    plan = plan,
-                    filesDirectory = filesDir,
-                    sharedPreferencesDirectory = File(applicationInfo.dataDir, "shared_prefs"),
-                )
-            }
-            main.post {
-                restored.onFailure {
-                    busyMessage = null
-                    toast("恢复启动器数据失败：${it.message}")
-                    return@post
-                }
-                val launcherRestored = restored.getOrDefault(0)
-                val settings = plan.settingsJson
-                if (settings == null) {
-                    busyMessage = null
-                    toast("已恢复启动器数据 $launcherRestored 项（备份中不含模块设置）")
-                    return@post
-                }
-                busyMessage = "正在写入 DeepSeek…"
-                lifecycleScope.launch {
-                    val success = try {
-                        configViewModel.importConfig(settings)
-                    } catch (cancelled: CancellationException) {
-                        throw cancelled
-                    } catch (error: Exception) {
-                        Log.w(TAG, "config import failed", error)
-                        false
-                    }
-                    busyMessage = null
-                    if (success) {
-                        toast("导入完成。请强制停止并重新打开 DeepSeek 后生效")
-                    } else {
-                        toast(configViewModel.state.value.errorMessage ?: "DeepSeek 未响应，请重试")
-                    }
-                }
-            }
-        }.start()
+    private suspend fun applyImport(plan: LauncherBackupPlan) {
+        val launcherRestored = withContext(Dispatchers.IO) {
+            backupRepository.restore(
+                plan = plan,
+                filesDirectory = filesDir,
+                sharedPreferencesDirectory = File(applicationInfo.dataDir, "shared_prefs"),
+            )
+        }
+        val settings = plan.settingsJson
+        if (settings == null) {
+            toast("已恢复启动器数据 $launcherRestored 项（备份中不含模块设置）")
+            return
+        }
+        busyMessage = "正在写入 DeepSeek…"
+        val success = try {
+            configViewModel.importConfig(settings)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Log.w(TAG, "config import failed", error)
+            false
+        }
+        if (success) {
+            toast("导入完成。请强制停止并重新打开 DeepSeek 后生效")
+        } else {
+            toast(configViewModel.state.value.errorMessage ?: "DeepSeek 未响应，请重试")
+        }
     }
 
     @Deprecated("Deprecated in Java")
