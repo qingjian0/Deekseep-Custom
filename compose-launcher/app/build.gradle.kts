@@ -272,6 +272,9 @@ android {
 
     sourceSets["main"].apply {
         manifest.srcFile(moduleManifestFile)
+        // AGP 9 built-in Kotlin requires additional Kotlin roots to be declared separately.
+        // Keep the shared staged root in both source sets: javac compiles .java, Kotlin compiles .kt.
+        kotlin.directories += stagedModuleSources.get().asFile.path
         java.directories += setOf(
             stagedModuleSources.get().asFile.path,
             protectedInputs.get().dir("src").asFile.path,
