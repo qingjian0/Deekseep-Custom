@@ -225,8 +225,6 @@ class SettingsActivity : ComponentActivity() {
 
     // ---- Config bridge --------------------------------------------------------------------------
 
-    // ---- Config bridge --------------------------------------------------------------------------
-
     private fun loadConfig() {
         lifecycleScope.launch {
             try {
