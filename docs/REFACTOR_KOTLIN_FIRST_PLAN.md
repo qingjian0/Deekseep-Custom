@@ -113,8 +113,9 @@ The Gradle launcher currently declares AGP 9.3.0, Kotlin Compose plugin 2.4.10, 
 
 ### P3 — Compose launcher decomposition (in progress)
 
-- Extracted stateless building blocks into `LauncherSharedScreens.kt` and Home/Features/Settings/Help/About/Data pages into `LauncherStaticScreens.kt`. Activity behavior is supplied through callbacks and a status slot; visual hierarchy is retained.
+- Extracted stateless building blocks into `LauncherSharedScreens.kt` and Home/Features/Settings/Help/About/Data/Category pages into `LauncherStaticScreens.kt`. Activity behavior is supplied through callbacks and a status slot; visual hierarchy is retained.
 - The Data screen emits export/import/full-backup actions through callbacks; ActivityResult launchers, ZIP/JSON codecs, SAF I/O and the Closed full-backup bridge remain owned by the Activity.
+- Restored the previously missing Category screen using the existing config catalog; bridge status, config file bytes, refresh and write actions are injected by the Activity. The original flag read-only behavior, JSON/positive-integer validation and edit/reset interactions are retained.
 - Added `LauncherStatusRepository`, `LauncherStatusViewModel` and immutable `LauncherStatusUiState`. Host-version and activation reads run on `Dispatchers.IO`; Compose observes the state using `collectAsStateWithLifecycle`.
 - Added AndroidX Lifecycle 2.11.0 dependencies for ViewModel coroutine scope and lifecycle-aware Compose collection.
 - The configuration bridge state, file import/export, Activity Result launchers and full-backup activity results remain in `SettingsActivity`. They are not yet migrated to repositories/ViewModels. Preserve the authenticated broadcast contract, ZIP/JSON shape, backup paths and SAF behavior while extracting that slice.
