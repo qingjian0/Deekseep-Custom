@@ -30,7 +30,10 @@ test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$MAIN_SOURCE")" -ge 1
 ACCOUNT_PIPELINE="$MODULE_DIR/src/ds/dsh/DeepSeek/HookAccountLoginSecurity.java"
 grep -Fq 'Local API account routing hooks were only partially installed' "$ACCOUNT_PIPELINE"
 grep -Fq 'code257 Local API upload route hooks were incomplete' "$ACCOUNT_PIPELINE"
-test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$ACCOUNT_PIPELINE")" -ge 2
+grep -Fq 'native fake mute renderer discovery returned no installable methods' "$ACCOUNT_PIPELINE"
+grep -Fq 'native training opt-out hook installation failed' "$ACCOUNT_PIPELINE"
+grep -Fq 'candidate password-login error mapper hook installation failed' "$ACCOUNT_PIPELINE"
+test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$ACCOUNT_PIPELINE")" -ge 5
 test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$ACCOUNT_PIPELINE")" -ge 2
 grep -Fq 'if (uploadRouteError instanceof VirtualMachineError)' "$ACCOUNT_PIPELINE"
 grep -Fq 'if (uploadRouteError instanceof ThreadDeath)' "$ACCOUNT_PIPELINE"
