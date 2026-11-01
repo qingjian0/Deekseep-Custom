@@ -14,6 +14,7 @@ import android.provider.MediaStore;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
+import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 
 final class DshFileLogStore {
@@ -28,6 +29,28 @@ final class DshFileLogStore {
     static synchronized boolean appendPrivate(Context context, String category, String line) {
         if (context == null || !isAllowedCategory(category) || line == null) return false;
         return appendFile(context.getFilesDir(), category + ".log", line);
+    }
+
+    /** Reads only the bounded tail of the module-private crash log for the authenticated host UI. */
+    static synchronized String readPrivateCrashTail(Context context, int requestedMaxBytes) {
+        if (context == null) return "";
+        int maxBytes = Math.max(1, Math.min(requestedMaxBytes, 512 * 1024));
+        File target = new File(context.getFilesDir(), "crash.log");
+        if (!target.isFile() || target.length() <= 0L) return "";
+        try (RandomAccessFile input = new RandomAccessFile(target, "r")) {
+            long start = Math.max(0L, input.length() - maxBytes);
+            input.seek(start);
+            if (start > 0L) {
+                // Drop a partial first line; the remainder is valid UTF-8 log content.
+                while (input.getFilePointer() < input.length() && input.read() != '\\n') { }
+            }
+            int remaining = (int) Math.min(maxBytes, input.length() - input.getFilePointer());
+            byte[] bytes = new byte[remaining];
+            input.readFully(bytes);
+            return new String(bytes, StandardCharsets.UTF_8);
+        } catch (Throwable ignored) {
+            return "";
+        }
     }
 
     /** Writes Download/ds through MediaStore on Q+, with the legacy permission path on P-. */
