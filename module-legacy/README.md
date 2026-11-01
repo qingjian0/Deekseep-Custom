@@ -17,6 +17,11 @@ bash build.sh
 bash test-adapter-regression.sh
 ```
 
-The unrenamed output is an internal adapter APK. Use `scripts/build-all.sh` from
-the repository root to produce the two signed universal release filenames, run
-the canonical regressions and verify both channel layouts.
+The unrenamed output is an internal adapter APK. Use
+`scripts/build-all-legacy.sh` from the repository root to build both domestic and
+Google Play Universal validation APKs, run the canonical regressions, verify both
+channel layouts, package the artifacts under `dist/`, and write `SHA256SUMS.txt`.
+These artifacts use the shared local debug key; they are not formally release-signed.
+
+For the standalone Compose Open build, use `scripts/build-all.sh`, which produces
+an unsigned, zip-aligned APK for signing with your own key.
