@@ -63,6 +63,7 @@ javac -source 8 -target 8 -cp "$JSON_JAR:$ANDROID_JAR:$UNIVERSAL_CLASSES:build/c
     tests/ds/dsh/DeepSeek/ResponsePreserverRegressionTest.java \
     tests/ds/dsh/DeepSeek/AccountCredentialCodecRegressionTest.java \
     tests/ds/dsh/DeepSeek/AccountImportArchiveRegressionTest.java \
+    tests/ds/dsh/DeepSeek/AndroidManifestVersionRegressionTest.java \
     tests/ds/dsh/DeepSeek/AccountServerValidationRegressionTest.java \
     tests/ds/dsh/DeepSeek/GoogleLoginUnlockRegressionTest.java \
     tests/ds/dsh/DeepSeek/NativeApiPatchDecoderRegressionTest.java \
@@ -107,6 +108,7 @@ javac -source 8 -target 8 -cp "$JSON_JAR:$ANDROID_JAR:$UNIVERSAL_CLASSES:build/c
     src/ds/dsh/DeepSeek/XposedActivationReceiver.java \
     src/ds/dsh/DeepSeek/AccountCredentialCodec.java \
     src/ds/dsh/DeepSeek/AccountImportArchive.java \
+    src/ds/dsh/DeepSeek/AndroidManifestVersion.java \
     src/ds/dsh/DeepSeek/AccountManager.java \
     src/ds/dsh/DeepSeek/RemoteFeatureFlags.java \
     src/ds/dsh/DeepSeek/ProcessManagerActivity.java \
@@ -160,6 +162,9 @@ java -cp "$TEST_CP" \
 
 java -cp "$TEST_CP" \
     ds.dsh.DeepSeek.AccountImportArchiveRegressionTest
+
+java -cp "$TEST_CP" \
+    ds.dsh.DeepSeek.AndroidManifestVersionRegressionTest
 
 java -cp "$TEST_CP" \
     ds.dsh.DeepSeek.AccountServerValidationRegressionTest
