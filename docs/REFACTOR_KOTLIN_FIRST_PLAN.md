@@ -1,3 +1,5 @@
+[android-validate]
+<!-- android validation trigger: current branch head requires a full artifact matrix -->
 # Kotlin-first Hook Architecture Refactor Plan
 
 > Status: implementation in progress. P1 installer audit is being handled separately; P2 includes the shared Kotlin runtime and Java 8 API enforcement; P3 includes screen, config/status and backup repositories/ViewModels plus maintained host-version detection; P0/P4 automated artifact validation is running on the current branch head, while real-device evidence remains pending.
