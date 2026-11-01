@@ -3500,6 +3500,8 @@ final class HookAgentPipeline {
                     : HostCompat.isV234() ? "v" : "s";
             final boolean mutableSnapshotList = HostCompat.isV234();
             int installed = 0;
+            int sessionHooks = 0;
+            int outcomeHooks = 0;
             for (Method method : sessionType.getDeclaredMethods()) {
                 if (!visibleThreadMethod.equals(HostRemap.name(method))
                         || method.getParameterTypes().length != 0
@@ -3552,10 +3554,19 @@ final class HookAgentPipeline {
                 });
                 installed++;
             }
+            if (installed == 0) {
+                throw new NoSuchMethodException(
+                        "native proactive visible-thread filter method not found: "
+                                + HostRemap.className(sessionType) + "." + visibleThreadMethod);
+            }
             Main.log("installed native proactive visible-thread filter "
                     + HostRemap.className(sessionType) + "." + visibleThreadMethod + " x" + installed);
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             Main.log("hook proactive visible-thread filter failed: " + error);
+            throw new IllegalStateException(
+                    "native proactive visible-thread filter hook installation failed", error);
         }
     }
 
@@ -3595,6 +3606,7 @@ final class HookAgentPipeline {
                         }
                     });
                     installed++;
+                    sessionHooks++;
                 } else if (finalMerge && types.length == 2
                         && types[0] == sessionType
                         && List.class.isAssignableFrom(types[1])) {
@@ -3612,6 +3624,7 @@ final class HookAgentPipeline {
                         }
                     });
                     installed++;
+                    sessionHooks++;
                 }
             }
             for (Method method : viewModelType.getDeclaredMethods()) {
@@ -3647,10 +3660,20 @@ final class HookAgentPipeline {
                     }
                 });
                 installed++;
+                outcomeHooks++;
+            }
+            if (sessionHooks == 0 || outcomeHooks == 0) {
+                throw new NoSuchMethodException(
+                        "native proactive stream completion hooks were only partially discovered: "
+                                + "session=" + sessionHooks + " outcome=" + outcomeHooks);
             }
             Main.log("installed native proactive stream completion hooks x" + installed);
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             Main.log("hook native proactive stream completion failed: " + error);
+            throw new IllegalStateException(
+                    "native proactive stream completion hook installation failed", error);
         }
     }
 
