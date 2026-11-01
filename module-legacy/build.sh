@@ -72,7 +72,7 @@ if ! javac -source 8 -target 8 \
   cat "$OUT/javac.err"
   exit 1
 fi
-MODCLASSES=$(find "$OUT/classes/com/dsmod" -name '*.class')
+MODCLASSES=$(find "$OUT/classes/ds/dsh/DeepSeek" -name '*.class')
 java -cp "$R8_JAR" com.android.tools.r8.D8 \
   --min-api 24 --output "$OUT/dex" $MODCLASSES \
   "$KOTLIN_RUNTIME_JAR" "$KOTLIN_STDLIB_JAR" \
