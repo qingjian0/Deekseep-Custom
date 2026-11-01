@@ -1243,7 +1243,7 @@ Main.log("f9 failed: " + t);
         return null;
     }
 
-    void hookSendPointFps(final ClassLoader cl, final String cls, final boolean directList) {
+    void hookSendPointFps(final ClassLoader cl, final String cls, final boolean directList) throws Throwable {
         try {
             Class<?> c = HostCompat.load(cl, cls);
             final Method y = HostRemap.declaredMethod(c, "y", Object.class);
@@ -1286,7 +1286,10 @@ Main.log("f9 failed: " + t);
             });
             Main.log("installed send-point fp capture on "
                     + HostCompat.name(cls) + ".y");
-        } catch (Throwable t) { Main.log("hookSendPointFps " + cls + " failed: " + t); }
+        } catch (Throwable t) {
+            Main.log("hookSendPointFps " + cls + " failed: " + t);
+            throw t;
+        }
     }
 
     private static String readSendPointModel(Object sendPoint, boolean directList) {
