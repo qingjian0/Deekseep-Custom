@@ -18,6 +18,7 @@ public final class FeatureHookInstallRegistryRegression {
         testConcurrentCallersDoNotDoubleInstall();
         testSnapshotIsStableAndUnmodifiable();
         testBlankIdsAreRejected();
+        testJavaInteropSurfaceIsStable();
         testFailureIsRethrownAndRecorded();
         testDegradedEntryCanBeRetried();
         testFatalFailureIsRethrown();
@@ -267,6 +268,38 @@ public final class FeatureHookInstallRegistryRegression {
     @FunctionalInterface
     private interface ThrowingAction {
         void run() throws Throwable;
+    }
+
+    private static void testJavaInteropSurfaceIsStable() throws Throwable {
+        Class<FeatureHookInstallRegistry> registryClass = FeatureHookInstallRegistry.class;
+        registryClass.getConstructor();
+        registryClass.getMethod("install", String.class, FeatureHookInstallRegistry.Installer.class);
+        registryClass.getMethod("markSkipped", String.class, String.class);
+        registryClass.getMethod("markDegraded", String.class, Throwable.class);
+        registryClass.getMethod("hasFailures");
+        registryClass.getMethod("snapshot");
+
+        String[] expectedStates = {
+                "NEW", "INSTALLING", "INSTALLED", "SKIPPED", "DEGRADED", "FAILED"
+        };
+        FeatureHookInstallRegistry.State[] actualStates =
+                FeatureHookInstallRegistry.State.values();
+        assertEquals(expectedStates.length, actualStates.length, "public state count");
+        for (int i = 0; i < expectedStates.length; i++) {
+            assertEquals(expectedStates[i], actualStates[i].name(), "public state name " + i);
+        }
+
+        Class<FeatureHookInstallRegistry.Status> statusClass =
+                FeatureHookInstallRegistry.Status.class;
+        for (String field : new String[] {
+                "id", "state", "attempts", "startedAtMillis", "completedAtMillis", "detail"
+        }) {
+            java.lang.reflect.Field reflected = statusClass.getField(field);
+            assertTrue(java.lang.reflect.Modifier.isPublic(reflected.getModifiers()),
+                    "Status." + field + " must remain a public Java field");
+        }
+        assertTrue(FeatureHookInstallRegistry.Installer.class.isInterface(),
+                "Installer must remain a Java SAM interface");
     }
 
     private static void testFailureIsRethrownAndRecorded() throws Throwable {
