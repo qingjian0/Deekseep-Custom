@@ -7,6 +7,7 @@ public final class FeatureHookInstallRegistryRegressionTest {
     public static void main(String[] args) throws Throwable {
         retriesFailedInstallWithoutRepeatingSuccessfulInstall();
         retriesDegradedBestEffortInstall();
+        separatesRequiredFailuresFromBestEffortDegradation();
         keepsSkippedInstallTerminal();
         System.out.println("FeatureHookInstallRegistryRegressionTest OK");
     }
@@ -69,6 +70,37 @@ public final class FeatureHookInstallRegistryRegressionTest {
         check(status(registry, "test.optional").attempts == 2,
                 "degraded retry attempt count");
         check(!registry.hasFailures(), "successful retry must clear failure state");
+    }
+
+    private static void separatesRequiredFailuresFromBestEffortDegradation()
+            throws Throwable {
+        FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
+
+        try {
+            registry.install("test.required-failed", () -> {
+                throw new IllegalStateException("required hook unavailable");
+            });
+        } catch (IllegalStateException expected) {
+            // Required failures remain FAILED until a later retry succeeds.
+        }
+        try {
+            registry.install("test.optional-degraded", () -> {
+                throw new IllegalArgumentException("optional hook unavailable");
+            });
+        } catch (IllegalArgumentException expected) {
+            registry.markDegraded("test.optional-degraded", expected);
+        }
+
+        check(registry.hasRequiredFailures(),
+                "required FAILED entry must block core installation completion");
+        check(registry.hasFailures(),
+                "diagnostic failure query must include optional degradation");
+
+        registry.install("test.required-failed", () -> { });
+        check(!registry.hasRequiredFailures(),
+                "successful required retry must unblock core installation completion");
+        check(registry.hasFailures(),
+                "optional degradation must remain visible after required retry");
     }
 
     private static void keepsSkippedInstallTerminal() throws Throwable {
