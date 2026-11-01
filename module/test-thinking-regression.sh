@@ -80,6 +80,7 @@ javac -source 8 -target 8 -cp "$JSON_JAR:$ANDROID_JAR:$UNIVERSAL_CLASSES:build/c
     tests/ds/dsh/DeepSeek/AutoContinuePolicyRegressionTest.java \
     tests/ds/dsh/DeepSeek/NativeSettingsEntryPolicyRegressionTest.java \
     tests/ds/dsh/DeepSeek/LocalApiKeepAliveDecisionRegressionTest.java \
+    tests/ds/dsh/DeepSeek/AgentRateLimiterRegressionTest \
     tests/ds/dsh/DeepSeek/relay/ExpertRelayGateRegressionTest.java \
     src/ds/dsh/DeepSeek/NativeApiPatchDecoder.java \
     src/ds/dsh/DeepSeek/SpatialMotionController.java \
@@ -110,6 +111,7 @@ javac -source 8 -target 8 -cp "$JSON_JAR:$ANDROID_JAR:$UNIVERSAL_CLASSES:build/c
     src/ds/dsh/DeepSeek/AutoContinuePolicy.java \
     src/ds/dsh/DeepSeek/GoogleLoginUnlock.java \
     src/ds/dsh/DeepSeek/ResponsePreserver.java \
+    src/ds/dsh/DeepSeek/AgentRateLimiter.java \
     src/ds/dsh/DeepSeek/HostCompat.java \
     tests/tp.java \
     tests/h61.java \
@@ -207,5 +209,8 @@ java -cp "$TEST_CP" \
 
 java -cp "$TEST_CP" \
     ds.dsh.DeepSeek.relay.ExpertRelayGateRegressionTest
+
+java -cp "$TEST_CP" \
+    ds.dsh.DeepSeek.AgentRateLimiterRegressionTest
 
 ./test-language-catalog.sh
