@@ -7,7 +7,7 @@ rm -rf "$OUT"
 mkdir -p "$OUT/classes"
 
 javac -source 8 -target 8 -d "$OUT/classes" \
-    src/com/dsmod/relay/ExpertRelayGate.java \
-    tests/com/dsmod/relay/ExpertRelayGateRegressionTest.java
+    src/ds/dsh/DeepSeek/relay/ExpertRelayGate.java \
+    tests/ds/dsh/DeepSeek/relay/ExpertRelayGateRegressionTest.java
 
-java -cp "$OUT/classes" com.dsmod.relay.ExpertRelayGateRegressionTest
+java -cp "$OUT/classes" ds.dsh.DeepSeek.relay.ExpertRelayGateRegressionTest

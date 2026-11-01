@@ -22,7 +22,7 @@ if [[ ! -f "$KOTLIN_RUNTIME_JAR" || ! -f "$KOTLIN_STDLIB_JAR" ]]; then
     echo "Shared Kotlin runtime artifact is missing; build module-universal before running tests" >&2
     exit 1
 fi
-if [[ ! -f "$UNIVERSAL_CLASSES/com/dsmod/probe/Main.class" ]]; then
+if [[ ! -f "$UNIVERSAL_CLASSES/ds/dsh/DeepSeek/Main.class" ]]; then
     echo "Universal classes are missing; build module-universal before running tests" >&2
     exit 1
 fi
@@ -55,59 +55,59 @@ cp "$JSON_CACHE" "$JSON_JAR"
 
 javac -source 8 -target 8 -cp "$JSON_JAR:$ANDROID_JAR:$UNIVERSAL_CLASSES:build/classes:$KOTLIN_RUNTIME_JAR:$KOTLIN_STDLIB_JAR" \
     -d "$OUT/classes" \
-    tests/com/dsmod/probe/ChatEditorThinkingRegressionTest.java \
-    tests/com/dsmod/probe/ChatEditorHistoryImageRegressionTest.java \
-    tests/com/dsmod/probe/HistoryBridgeRegressionTest.java \
-    tests/com/dsmod/probe/NativeSessionDeleteRegressionTest.java \
-    tests/com/dsmod/probe/NativeSessionRefreshRegressionTest.java \
-    tests/com/dsmod/probe/ResponsePreserverRegressionTest.java \
-    tests/com/dsmod/probe/AccountCredentialCodecRegressionTest.java \
-    tests/com/dsmod/probe/AccountServerValidationRegressionTest.java \
-    tests/com/dsmod/probe/GoogleLoginUnlockRegressionTest.java \
-    tests/com/dsmod/probe/NativeApiPatchDecoderRegressionTest.java \
-    tests/com/dsmod/probe/HostCompatRegressionTest.java \
-    tests/com/dsmod/probe/UiLanguagePolicyRegressionTest.java \
-    tests/com/dsmod/probe/ChatAppearanceConfigRegressionTest.java \
-    tests/com/dsmod/probe/ImageCutoutRegressionTest.java \
-    tests/com/dsmod/probe/HeartbeatToolProtocolRegressionTest.java \
-    tests/com/dsmod/probe/RichPanelRendererRegressionTest.java \
-    tests/com/dsmod/probe/AgentRunStoreRegressionTest.java \
-    tests/com/dsmod/probe/ChatBackupFormatRegressionTest.java \
-    tests/com/dsmod/probe/DeepSeekCacheCleanerRegressionTest.java \
-    tests/com/dsmod/probe/RemoteFeatureFlagsRegressionTest.java \
-    tests/com/dsmod/probe/ProcessManagerRegressionTest.java \
-    tests/com/dsmod/probe/ReplyReadyPolicyRegressionTest.java \
-    tests/com/dsmod/probe/AutoContinuePolicyRegressionTest.java \
-    src/com/dsmod/probe/NativeApiPatchDecoder.java \
-    src/com/dsmod/probe/SpatialMotionController.java \
-    src/com/dsmod/probe/SpatialLayerCache.java \
-    src/com/dsmod/probe/ChatAppearance.java \
-    src/com/dsmod/probe/ImageCutoutUi.java \
-    src/com/dsmod/probe/HeartbeatToolProtocol.java \
-    src/com/dsmod/probe/RichPanelRenderer.java \
-    src/com/dsmod/probe/AgentRunStore.java \
-    src/com/dsmod/probe/ChatBackupStore.java \
-    src/com/dsmod/probe/DeekseepTools.java \
-    src/com/dsmod/probe/AgentToolConfig.java \
-    src/com/dsmod/probe/AgentQuestionUi.java \
-    src/com/dsmod/probe/AgentDeviceBridge.java \
-    src/com/dsmod/probe/ProactiveHeartbeatReceiver.java \
-    src/com/dsmod/probe/QqMusicPlaybackService.java \
-    src/com/dsmod/probe/LocalAudioPlaybackService.java \
-    src/com/dsmod/probe/LocalAudioControlActivity.java \
-    src/com/dsmod/probe/QqMusicSessionAccessService.java \
-    src/com/dsmod/probe/HistoryBridge.java \
-    src/com/dsmod/probe/XposedActivationProvider.java \
-    src/com/dsmod/probe/XposedActivationReceiver.java \
-    src/com/dsmod/probe/AccountCredentialCodec.java \
-    src/com/dsmod/probe/AccountManager.java \
-    src/com/dsmod/probe/RemoteFeatureFlags.java \
-    src/com/dsmod/probe/ProcessManagerActivity.java \
-    src/com/dsmod/probe/ReplyReadyPolicy.java \
-    src/com/dsmod/probe/AutoContinuePolicy.java \
-    src/com/dsmod/probe/GoogleLoginUnlock.java \
-    src/com/dsmod/probe/ResponsePreserver.java \
-    src/com/dsmod/probe/HostCompat.java \
+    tests/ds/dsh/DeepSeek/ChatEditorThinkingRegressionTest.java \
+    tests/ds/dsh/DeepSeek/ChatEditorHistoryImageRegressionTest.java \
+    tests/ds/dsh/DeepSeek/HistoryBridgeRegressionTest.java \
+    tests/ds/dsh/DeepSeek/NativeSessionDeleteRegressionTest.java \
+    tests/ds/dsh/DeepSeek/NativeSessionRefreshRegressionTest.java \
+    tests/ds/dsh/DeepSeek/ResponsePreserverRegressionTest.java \
+    tests/ds/dsh/DeepSeek/AccountCredentialCodecRegressionTest.java \
+    tests/ds/dsh/DeepSeek/AccountServerValidationRegressionTest.java \
+    tests/ds/dsh/DeepSeek/GoogleLoginUnlockRegressionTest.java \
+    tests/ds/dsh/DeepSeek/NativeApiPatchDecoderRegressionTest.java \
+    tests/ds/dsh/DeepSeek/HostCompatRegressionTest.java \
+    tests/ds/dsh/DeepSeek/UiLanguagePolicyRegressionTest.java \
+    tests/ds/dsh/DeepSeek/ChatAppearanceConfigRegressionTest.java \
+    tests/ds/dsh/DeepSeek/ImageCutoutRegressionTest.java \
+    tests/ds/dsh/DeepSeek/HeartbeatToolProtocolRegressionTest.java \
+    tests/ds/dsh/DeepSeek/RichPanelRendererRegressionTest.java \
+    tests/ds/dsh/DeepSeek/AgentRunStoreRegressionTest.java \
+    tests/ds/dsh/DeepSeek/ChatBackupFormatRegressionTest.java \
+    tests/ds/dsh/DeepSeek/DeepSeekCacheCleanerRegressionTest.java \
+    tests/ds/dsh/DeepSeek/RemoteFeatureFlagsRegressionTest.java \
+    tests/ds/dsh/DeepSeek/ProcessManagerRegressionTest.java \
+    tests/ds/dsh/DeepSeek/ReplyReadyPolicyRegressionTest.java \
+    tests/ds/dsh/DeepSeek/AutoContinuePolicyRegressionTest.java \
+    src/ds/dsh/DeepSeek/NativeApiPatchDecoder.java \
+    src/ds/dsh/DeepSeek/SpatialMotionController.java \
+    src/ds/dsh/DeepSeek/SpatialLayerCache.java \
+    src/ds/dsh/DeepSeek/ChatAppearance.java \
+    src/ds/dsh/DeepSeek/ImageCutoutUi.java \
+    src/ds/dsh/DeepSeek/HeartbeatToolProtocol.java \
+    src/ds/dsh/DeepSeek/RichPanelRenderer.java \
+    src/ds/dsh/DeepSeek/AgentRunStore.java \
+    src/ds/dsh/DeepSeek/ChatBackupStore.java \
+    src/ds/dsh/DeepSeek/DeekseepTools.java \
+    src/ds/dsh/DeepSeek/AgentToolConfig.java \
+    src/ds/dsh/DeepSeek/AgentQuestionUi.java \
+    src/ds/dsh/DeepSeek/AgentDeviceBridge.java \
+    src/ds/dsh/DeepSeek/ProactiveHeartbeatReceiver.java \
+    src/ds/dsh/DeepSeek/QqMusicPlaybackService.java \
+    src/ds/dsh/DeepSeek/LocalAudioPlaybackService.java \
+    src/ds/dsh/DeepSeek/LocalAudioControlActivity.java \
+    src/ds/dsh/DeepSeek/QqMusicSessionAccessService.java \
+    src/ds/dsh/DeepSeek/HistoryBridge.java \
+    src/ds/dsh/DeepSeek/XposedActivationProvider.java \
+    src/ds/dsh/DeepSeek/XposedActivationReceiver.java \
+    src/ds/dsh/DeepSeek/AccountCredentialCodec.java \
+    src/ds/dsh/DeepSeek/AccountManager.java \
+    src/ds/dsh/DeepSeek/RemoteFeatureFlags.java \
+    src/ds/dsh/DeepSeek/ProcessManagerActivity.java \
+    src/ds/dsh/DeepSeek/ReplyReadyPolicy.java \
+    src/ds/dsh/DeepSeek/AutoContinuePolicy.java \
+    src/ds/dsh/DeepSeek/GoogleLoginUnlock.java \
+    src/ds/dsh/DeepSeek/ResponsePreserver.java \
+    src/ds/dsh/DeepSeek/HostCompat.java \
     tests/tp.java \
     tests/h61.java \
     tests/sl8.java \
@@ -128,72 +128,72 @@ javac -source 8 -target 8 -cp "$JSON_JAR:$ANDROID_JAR:$UNIVERSAL_CLASSES:build/c
 TEST_CP="$JSON_JAR:$ANDROID_JAR:$OUT/classes:$UNIVERSAL_CLASSES:build/classes:$KOTLIN_RUNTIME_JAR:$KOTLIN_STDLIB_JAR"
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.ChatEditorThinkingRegressionTest
+    ds.dsh.DeepSeek.ChatEditorThinkingRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.ChatEditorHistoryImageRegressionTest
+    ds.dsh.DeepSeek.ChatEditorHistoryImageRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.HistoryBridgeRegressionTest
+    ds.dsh.DeepSeek.HistoryBridgeRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.NativeSessionDeleteRegressionTest
+    ds.dsh.DeepSeek.NativeSessionDeleteRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.NativeSessionRefreshRegressionTest
+    ds.dsh.DeepSeek.NativeSessionRefreshRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.ResponsePreserverRegressionTest
+    ds.dsh.DeepSeek.ResponsePreserverRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.AccountCredentialCodecRegressionTest
+    ds.dsh.DeepSeek.AccountCredentialCodecRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.AccountServerValidationRegressionTest
+    ds.dsh.DeepSeek.AccountServerValidationRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.GoogleLoginUnlockRegressionTest
+    ds.dsh.DeepSeek.GoogleLoginUnlockRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.NativeApiPatchDecoderRegressionTest
+    ds.dsh.DeepSeek.NativeApiPatchDecoderRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.HostCompatRegressionTest
+    ds.dsh.DeepSeek.HostCompatRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.UiLanguagePolicyRegressionTest
+    ds.dsh.DeepSeek.UiLanguagePolicyRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.ChatAppearanceConfigRegressionTest
+    ds.dsh.DeepSeek.ChatAppearanceConfigRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.ImageCutoutRegressionTest
+    ds.dsh.DeepSeek.ImageCutoutRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.HeartbeatToolProtocolRegressionTest
+    ds.dsh.DeepSeek.HeartbeatToolProtocolRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.RichPanelRendererRegressionTest
+    ds.dsh.DeepSeek.RichPanelRendererRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.AgentRunStoreRegressionTest
+    ds.dsh.DeepSeek.AgentRunStoreRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.ChatBackupFormatRegressionTest
+    ds.dsh.DeepSeek.ChatBackupFormatRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.DeepSeekCacheCleanerRegressionTest
+    ds.dsh.DeepSeek.DeepSeekCacheCleanerRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.RemoteFeatureFlagsRegressionTest
+    ds.dsh.DeepSeek.RemoteFeatureFlagsRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.ProcessManagerRegressionTest
+    ds.dsh.DeepSeek.ProcessManagerRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.ReplyReadyPolicyRegressionTest
+    ds.dsh.DeepSeek.ReplyReadyPolicyRegressionTest
 
 java -cp "$TEST_CP" \
-    com.dsmod.probe.AutoContinuePolicyRegressionTest
+    ds.dsh.DeepSeek.AutoContinuePolicyRegressionTest
 
 ./test-language-catalog.sh

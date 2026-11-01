@@ -21,4 +21,4 @@ javac --release 8 \
   -d "$TMP_DIR/classes" \
   "$MODULE_DIR/test/FeatureHookInstallRegistryRegression.java"
 java -cp "$TMP_DIR/classes:$RUNTIME_JAR:$KOTLIN_STDLIB_JAR" \
-  com.dsmod.probe.FeatureHookInstallRegistryRegression
+  ds.dsh.DeepSeek.FeatureHookInstallRegistryRegression

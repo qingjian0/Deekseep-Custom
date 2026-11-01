@@ -19,4 +19,4 @@ test -s "$KOTLIN_STDLIB_JAR"
 javac --release 8 -nowarn -cp "$RUNTIME_JAR:$KOTLIN_STDLIB_JAR" -d "$OUT" \
     "$ROOT/module/tests/process/TargetProcessGuardRegressionTest.java"
 java -cp "$OUT:$RUNTIME_JAR:$KOTLIN_STDLIB_JAR" \
-    com.dsmod.probe.TargetProcessGuardRegressionTest
+    ds.dsh.DeepSeek.TargetProcessGuardRegressionTest

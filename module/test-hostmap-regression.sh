@@ -30,11 +30,11 @@ for code in 287 289 290; do
 done
 
 javac -source 8 -target 8 -nowarn -d "$CLASSES" \
-    "$MODULE/tests/hostmap/support/com/dsmod/probe/Main.java" \
-    "$MODULE/tests/hostmap/support/com/dsmod/probe/HostCompat.java" \
-    "$MODULE/src/com/dsmod/probe/HostRemap.java" \
+    "$MODULE/tests/hostmap/support/ds/dsh/DeepSeek/Main.java" \
+    "$MODULE/tests/hostmap/support/ds/dsh/DeepSeek/HostCompat.java" \
+    "$MODULE/src/ds/dsh/DeepSeek/HostRemap.java" \
     "$MODULE/tests/hostmap/HostRemapRegressionTest.java"
 
 for code in 287 289 290; do
-    java -cp "$CLASSES:$RESOURCES" com.dsmod.probe.HostRemapRegressionTest "$code"
+    java -cp "$CLASSES:$RESOURCES" ds.dsh.DeepSeek.HostRemapRegressionTest "$code"
 done
