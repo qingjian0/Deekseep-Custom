@@ -134,7 +134,7 @@ public final class XposedActivationProvider extends ContentProvider {
         Bundle result = new Bundle();
         Context context = getContext();
         int callingUid = Binder.getCallingUid();
-        if (context == null || !uidOwnsPackage(context, callingUid, TARGET_PACKAGE)) {
+        if (context == null || !uidOwnsExclusivePackage(context, callingUid, TARGET_PACKAGE)) {
             result.putBoolean("accepted", false);
             result.putString("error", "caller is not DeepSeek");
             return result;
