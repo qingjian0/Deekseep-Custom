@@ -323,9 +323,14 @@ final class HookSessionManagement {
                 });
                 n++;
             }
+            if (n == 0) throw new NoSuchMethodException("sidebar row multi-select renderer");
             Main.log("installed sidebar multi-select delete hook mc.e x" + n);
             if (HostCompat.isV241()) hookV241SidebarNativeMenuSuppression(cl);
-        } catch (Throwable t) { Main.log("hookSidebarMultiSelectDelete failed: " + t); }
+        } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw new IllegalStateException("sidebar multi-select delete hook installation failed", t);
+        }
     }
 
     /**
@@ -358,9 +363,13 @@ final class HookSessionManagement {
                 });
                 installed++;
             }
+            if (installed == 0) throw new NoSuchMethodException("ma.u native long-press menu wrapper");
             Main.log("installed code257 native long-press menu suppression ma.u x" + installed);
         } catch (Throwable error) {
-            Main.log("code257 native long-press menu suppression failed: " + error);
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            throw new IllegalStateException(
+                    "code257 native long-press menu suppression hook installation failed", error);
         }
     }
 
