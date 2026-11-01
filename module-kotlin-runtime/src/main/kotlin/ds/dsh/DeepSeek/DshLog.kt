@@ -81,6 +81,11 @@ object DshLog {
         result = BEARER_PATTERN.replace(result) { match ->
             match.groupValues[1] + "[redacted]"
         }
+        // Cookie headers may contain multiple semicolon-separated name/value pairs.
+        // Redact the complete header tail rather than only its first pair.
+        result = COOKIE_PATTERN.replace(result) { match ->
+            match.groupValues[1] + "[redacted]"
+        }
         result = SECRET_PATTERN.replace(result) { match ->
             match.groupValues[1] + "[redacted]"
         }
@@ -98,8 +103,11 @@ object DshLog {
     private val BEARER_PATTERN = Regex(
         "(?i)(\\bbearer\\s+)[^\\s,;]+"
     )
+    private val COOKIE_PATTERN = Regex(
+        "(?i)(\\bcookie\\b\\s*[:=]\\s*).*$"
+    )
     private val SECRET_PATTERN = Regex(
-        "(?i)(\\b(?:x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|cookie|token|secret|password)\\b\\s*[\\\"']?\\s*[:=]\\s*[\\\"']?)[^\\s\\\"',;}]+"
+        "(?i)(\\b(?:x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|token|secret|password)\\b\\s*[\\\"']?\\s*[:=]\\s*[\\\"']?)[^\\s\\\"',;}]+"
     )
     private val PRIVATE_PATH_PATTERN = Regex(
         "/(?:data|storage)/[^\\s,;]+",
