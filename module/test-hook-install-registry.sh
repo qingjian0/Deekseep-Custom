@@ -23,6 +23,10 @@ grep -Fq 'heartbeat tool status Compose hook installation failed' "$AGENT_PIPELI
 grep -Fq 'heartbeat tool status BasicText hook installation failed' "$AGENT_PIPELINE"
 test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$AGENT_PIPELINE")" -ge 11
 test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$AGENT_PIPELINE")" -ge 11
+MAIN_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/Main.java"
+grep -Fq 'code249 Local API routing hooks were only partially installed' "$MAIN_SOURCE"
+test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$MAIN_SOURCE")" -ge 1
+test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$MAIN_SOURCE")" -ge 1
 ACCOUNT_PIPELINE="$MODULE_DIR/src/ds/dsh/DeepSeek/HookAccountLoginSecurity.java"
 grep -Fq 'Local API account routing hooks were only partially installed' "$ACCOUNT_PIPELINE"
 test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$ACCOUNT_PIPELINE")" -ge 3
