@@ -127,6 +127,7 @@ public final class LegacyXposedModuleRegressionTest {
 
         runFailureIsolationTests(method, api);
         runScopedRegistrationRetryTest(method, api);
+        runScopedRegistrationNullRetryTest(method, api);
         runScopedRegistrationErrorRetryTest(method, api);
         runScopedRegistrationErrorAfterNativeInstallTest(method, api);
         runScopedRegistrationMultiplicityTest(method, api);
@@ -175,6 +176,48 @@ public final class LegacyXposedModuleRegressionTest {
                         + param.getResult());
         check(target.joinCalls == 1,
                 "API " + api + " retry must invoke the original exactly once");
+    }
+
+    private static void runScopedRegistrationNullRetryTest(
+            final Method method, int api) throws Throwable {
+        XposedBridge.resetTestState();
+        XposedBridge.originalMethodInvokerForTest =
+                new XposedBridge.OriginalMethodInvoker() {
+                    @Override public Object invoke(Member member, Object receiver,
+                                                   Object[] invokeArgs) throws Throwable {
+                        return ((Method) member).invoke(receiver, invokeArgs);
+                    }
+                };
+        Module module = new Module();
+        XposedBridge.returnNullForTest = true;
+        boolean failed = false;
+        try {
+            registerScopedRetryHook(module, method);
+        } catch (IllegalStateException expected) {
+            failed = expected.getMessage().contains("returned null");
+        }
+        check(failed, "API " + api + " null Unhook result was treated as success");
+        check(!XposedBridge.nativeHookInstalledForTest,
+                "API " + api + " null Unhook result must not mark native hook installed");
+
+        registerScopedRetryHook(module, method);
+        registerScopedRetryHook(module, method);
+        check(XposedBridge.nativeHookInstalledForTest,
+                "API " + api + " retry after explicit null result did not install");
+        check(XposedBridge.hookCountForTest == 1,
+                "API " + api + " explicit null retry duplicated native installation");
+
+        XC_MethodHook.MethodHookParam param = new XC_MethodHook.MethodHookParam();
+        param.method = method;
+        Target target = new Target();
+        param.thisObject = target;
+        param.args = new Object[] {"safe", "original"};
+        XposedBridge.callbackForTest.dispatchBeforeForTest(param);
+        check("safe:original:scoped".equals(param.getResult()),
+                "API " + api + " explicit null retry duplicated the logical Hooker: "
+                        + param.getResult());
+        check(target.joinCalls == 1,
+                "API " + api + " explicit null retry must invoke the original exactly once");
     }
 
     private static void runScopedRegistrationErrorRetryTest(final Method method, int api)
