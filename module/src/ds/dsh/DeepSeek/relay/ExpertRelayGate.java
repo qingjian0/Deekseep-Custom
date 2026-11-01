@@ -1,4 +1,4 @@
-package com.dsmod.relay;
+package ds.dsh.DeepSeek.relay;
 
 /** Pure model-resolution rules for the expert image relay. */
 public final class ExpertRelayGate {

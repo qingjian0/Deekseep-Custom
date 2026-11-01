@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -72,7 +72,7 @@ final class z22 {
         for (String abi : abis) {
             byte[] bytes = readResource(loader, "lib/" + abi + "/lib" + LIB_NAME + ".so");
             if (bytes != null) return bytes;
-            bytes = readResource(loader, "META-INF/com.dsmod.probe.native/"
+            bytes = readResource(loader, "META-INF/ds.dsh.DeepSeek.native/"
                     + abi + "/lib" + LIB_NAME + ".so");
             if (bytes != null) return bytes;
         }

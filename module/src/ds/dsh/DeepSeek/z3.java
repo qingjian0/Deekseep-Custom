@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 /**
  * Local API route/auth string provider.  The plaintext never appears in the DEX: the primary

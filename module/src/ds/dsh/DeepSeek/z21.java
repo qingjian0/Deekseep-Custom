@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -40,10 +40,10 @@ import java.nio.channels.FileLock;
 public final class z21 extends Service {
     static final String TARGET_PACKAGE = "com.deepseek.chat";
     static final String TARGET_RECEIVER = "com.deepseek.chat.system.ShareResultReceiver";
-    static final String ACTION_HEARTBEAT = "com.dsmod.probe.action.LOCAL_API_KEEPALIVE";
-    static final String ACTION_CONTROL = "com.dsmod.probe.action.LOCAL_API_CONTROL";
+    static final String ACTION_HEARTBEAT = "ds.dsh.DeepSeek.action.LOCAL_API_KEEPALIVE";
+    static final String ACTION_CONTROL = "ds.dsh.DeepSeek.action.LOCAL_API_CONTROL";
 
-    static final String ACTION_START = "com.dsmod.probe.action.START_LOCAL_API_KEEPALIVE";
+    static final String ACTION_START = "ds.dsh.DeepSeek.action.START_LOCAL_API_KEEPALIVE";
     static final String EXTRA_CONTROL_TOKEN = "dk_ctrl";
     static final String EXTRA_PROTOCOL = "protocol";
     static final String EXTRA_OPERATION = "operation";
