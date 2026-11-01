@@ -110,13 +110,7 @@ final class ChatBackupStore {
     }
 
     private static boolean validSid(String sid) {
-        if (sid == null || sid.length() == 0 || sid.length() > 128) return false;
-        for (int i = 0; i < sid.length(); i++) {
-            char c = sid.charAt(i);
-            if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
-                    || (c >= '0' && c <= '9') || c == '-' || c == '_')) return false;
-        }
-        return true;
+        return ChatBackupRecordPolicy.isValidSessionId(sid);
     }
 
     private static String quote(String name) {
