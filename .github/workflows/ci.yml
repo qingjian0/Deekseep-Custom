@@ -46,12 +46,18 @@ jobs:
         run: |
           set -euo pipefail
           for script in scripts/gradle-open-debug.sh scripts/build-all.sh \
+              scripts/build-all-legacy.sh scripts/android-tools.sh \
+              scripts/test-package-identity.sh scripts/test-launcher-activation-regression.sh \
+              scripts/test-launcher-config-architecture.sh scripts/test-universal-feature-parity.sh \
+              module-legacy/build.sh module-universal/build.sh \
               module-legacy/test-adapter-regression.sh module/test-target-process-guard.sh \
               module/test-hostmap-regression.sh; do
             bash -n "$script"
           done
           bash module-legacy/test-adapter-regression.sh
           bash scripts/test-package-identity.sh
+          bash scripts/test-launcher-activation-regression.sh
+          bash scripts/test-launcher-config-architecture.sh
           bash module/test-expert-relay-regression.sh
           bash module/test-language-catalog.sh
           bash module/test-target-process-guard.sh
@@ -116,6 +122,14 @@ jobs:
             -keyalg RSA -keysize 2048 -validity 2
           echo "Created an ephemeral key for CI validation only; it is not a release key."
 
+      - name: Build Legacy and both Universal artifacts
+        run: |
+          set -euo pipefail
+          bash module-legacy/build.sh
+          bash module-universal/build.sh
+          GOOGLE_PLAY_BUILD=true bash module-universal/build.sh
+          bash scripts/test-universal-feature-parity.sh
+
       - name: Build Open release and run Android Lint
         working-directory: compose-launcher
         run: |
@@ -131,14 +145,52 @@ jobs:
       - name: Verify CI APK structure, alignment, and signature
         run: |
           set -euo pipefail
-          APK="compose-launcher/app/build/outputs/apk/release/app-release.apk"
-          test -s "$APK"
-          unzip -t "$APK" >/dev/null
-          unzip -Z1 "$APK" | grep -Fxq "AndroidManifest.xml"
-          unzip -Z1 "$APK" | grep -E '^classes([0-9]+)?[.]dex$' >/dev/null
-          "$ANDROID_SDK_ROOT/build-tools/37.0.0/zipalign" -c -p 4 "$APK"
-          "$ANDROID_SDK_ROOT/build-tools/37.0.0/apksigner" verify --verbose "$APK"
-          echo "Open release APK passed structural, alignment, and CI-key signature checks."
+          BUILD_TOOLS_DIR="$ANDROID_SDK_ROOT/build-tools/37.0.0"
+          APKS=(
+            "module-legacy/ds-probe-legacy.apk"
+            "module-universal/ds-probe-universal.apk"
+            "module-universal/ds-probe-universal-google-play.apk"
+            "compose-launcher/app/build/outputs/apk/release/app-release.apk"
+          )
+          for apk in "${APKS[@]}"; do
+            test -s "$apk"
+            unzip -t "$apk" >/dev/null
+            "$BUILD_TOOLS_DIR/zipalign" -c -p 4 "$apk"
+            "$BUILD_TOOLS_DIR/apksigner" verify --verbose "$apk"
+            package_metadata="$("$BUILD_TOOLS_DIR/aapt" dump badging "$apk")"
+            grep -Fq "package: name='ds.dsh.DeepSeek'" <<< "$package_metadata"
+            dex_count="$(unzip -Z1 "$apk" | grep -Ec '^classes([0-9]+)?[.]dex
+
+      - name: Upload Android Lint reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: yunseek-android-lint-reports
+          if-no-files-found: warn
+          path: |
+            compose-launcher/app/build/reports/lint-results-release*
+            compose-launcher/app/build/intermediates/lint_intermediate_text_report/release/lintReportRelease/*
+ || true)"
+            test "$dex_count" -ge 1
+            echo "$apk passed package, DEX, alignment and signature checks ($dex_count DEX)"
+          done
+
+          for apk in module-legacy/ds-probe-legacy.apk module-universal/ds-probe-universal.apk module-universal/ds-probe-universal-google-play.apk; do
+            unzip -p "$apk" assets/xposed_init | grep -Fxq "ds.dsh.DeepSeek.Main"
+          done
+
+          certificate_sha256() {
+            "$BUILD_TOOLS_DIR/apksigner" verify --print-certs "$1" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1
+          }
+          legacy_cert="$(certificate_sha256 "${APKS[0]}")"
+          universal_cert="$(certificate_sha256 "${APKS[1]}")"
+          google_play_cert="$(certificate_sha256 "${APKS[2]}")"
+          compose_cert="$(certificate_sha256 "${APKS[3]}")"
+          test -n "$legacy_cert"
+          test "$legacy_cert" = "$universal_cert"
+          test "$universal_cert" = "$google_play_cert"
+          test "$google_play_cert" = "$compose_cert"
+          echo "All four artifacts share ephemeral CI signer $legacy_cert."
 
       - name: Upload Android Lint reports
         if: always()
