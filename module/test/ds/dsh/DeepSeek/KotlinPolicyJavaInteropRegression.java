@@ -51,6 +51,20 @@ public final class KotlinPolicyJavaInteropRegression {
         require(ModelDisplayNamePolicy.mapDisplay(
                         "普通聊天里提到快速", true, java.util.Collections.singletonMap("快速", "闪电")) == null,
                 "Kotlin display-label policy changed exact-match semantics");
+        require("DeepSeek/2.4.1 Android/35".equals(
+                        AccountValidationPolicy.userAgent(" 2.4.1 ", 35)),
+                "Java caller could not use the migrated account-validation User-Agent policy");
+        require("zh_CN".equals(AccountValidationPolicy.locale(null)),
+                "Java caller could not use the migrated account-validation locale policy");
+        require("Bearer interop-token".equals(AccountValidationPolicy.headers(
+                        "interop-token", null, 0, null, " ", 0).get("Authorization")),
+                "Java caller could not use the migrated account-validation headers");
+        require("com.deepseek.chat".equals(AccountValidationPolicy.headers(
+                        "interop-token", null, 0, null, null, 0).get("x-client-bundle-id")),
+                "Kotlin account-validation policy changed the host bundle identifier");
+        require(AccountValidationPolicy.retryDelayMillis("1") == 1500L
+                        && AccountValidationPolicy.retryDelayMillis("11") == -1L,
+                "Java caller observed changed account-validation retry boundaries");
         require(AndroidManifestVersion.parse(new byte[7]) == null,
                 "Java caller could not use the migrated Kotlin AXML parser");
         require(AgentRateLimiter.MIN_GAP_MS == 8_000L
