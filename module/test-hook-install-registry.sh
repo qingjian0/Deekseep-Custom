@@ -35,6 +35,13 @@ grep -Fq 'RECORDER.record(raw);' "$MODULE_DIR/src/ds/dsh/DeepSeek/DeveloperDiagn
 ! grep -Fq 'private static final Pattern BEARER' "$MODULE_DIR/src/ds/dsh/DeepSeek/DeveloperDiagnostics.java"
 ! grep -Fq 'private static final ArrayDeque<String> EVENTS' "$MODULE_DIR/src/ds/dsh/DeepSeek/DeveloperDiagnostics.java"
 grep -Fq 'DshDiagnosticsRecorder' "$RUNTIME_DIR/src/main/kotlin/ds/dsh/DeepSeek/DshDiagnosticsRecorder.kt"
+# Navigation parsing/policy is Kotlin-owned; Android version detection remains in the bridge.
+NAV_CATALOG_SOURCE="$RUNTIME_DIR/src/main/kotlin/ds/dsh/DeepSeek/HostNavigationCatalog.kt"
+NAV_BRIDGE_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/HostNavigationBridge.java"
+test -f "$NAV_CATALOG_SOURCE"
+test ! -e "$MODULE_DIR/src/ds/dsh/DeepSeek/HostNavigationCatalog.java"
+grep -Fq 'HostNavigationCatalog.obfuscatedRouteClass(route, HostCompat.isV236(), HostCompat.isV241())' "$NAV_BRIDGE_SOURCE"
+grep -Fq 'fun extractRoutes(input: InputStream?)' "$NAV_CATALOG_SOURCE"
 # Pure lifecycle and relay policies are Kotlin-owned; do not restore parallel Java implementations.
 grep -Fq 'object AutoContinuePolicy' "$RUNTIME_DIR/src/main/kotlin/ds/dsh/DeepSeek/LifecyclePolicies.kt"
 grep -Fq 'object ReplyReadyPolicy' "$RUNTIME_DIR/src/main/kotlin/ds/dsh/DeepSeek/LifecyclePolicies.kt"
