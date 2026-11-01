@@ -59,8 +59,8 @@ jobs:
           bash scripts/test-launcher-backup-architecture.sh
 
   android-build:
-    name: Android debug compilation (manual)
-    if: github.event_name == 'workflow_dispatch'
+    name: Android compile check (no APK packaging)
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -78,6 +78,6 @@ jobs:
         with:
           gradle-version: "9.8.2"
 
-      - name: Build Android debug APK
+      - name: Compile Android debug Kotlin sources only
         working-directory: compose-launcher
-        run: gradle --no-daemon :app:assembleDebug
+        run: gradle --no-daemon :app:compileDebugKotlin
