@@ -1691,6 +1691,7 @@ final class HookAgentPipeline {
     void hookHeartbeatToolResponses(ClassLoader cl) {
         int liveHooks = 0;
         int staticHooks = 0;
+        Throwable firstFailure = null;
         String[] liveClasses = new String[]{"fo2", "ho2"};
         for (String legacyClassName : liveClasses) {
             final boolean executeTools = "fo2".equals(legacyClassName);
@@ -1775,6 +1776,8 @@ final class HookAgentPipeline {
             } catch (Throwable t) {
                 Main.log("heartbeat live response hook unavailable for "
                         + className + ": " + t);
+                if (firstFailure == null) firstFailure = t;
+                else firstFailure.addSuppressed(t);
             }
         }
         String[] staticClasses = new String[]{"at7", "ht7"};
@@ -1844,10 +1847,22 @@ final class HookAgentPipeline {
             } catch (Throwable t) {
                 Main.log("heartbeat static response hook unavailable for "
                         + className + ": " + t);
+                if (firstFailure == null) firstFailure = t;
+                else firstFailure.addSuppressed(t);
             }
         }
         Main.log("heartbeat hidden-tool response hooks live=" + liveHooks
                 + " static=" + staticHooks);
+        if (firstFailure != null) {
+            throw new IllegalStateException(
+                    "heartbeat response hooks were only partially installed",
+                    firstFailure);
+        }
+        if (liveHooks == 0 || staticHooks == 0) {
+            throw new IllegalStateException(
+                    "heartbeat response hook discovery returned no hooks: live="
+                            + liveHooks + " static=" + staticHooks);
+        }
     }
 
     /**
