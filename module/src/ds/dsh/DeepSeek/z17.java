@@ -224,9 +224,9 @@ final class z17 {
         try {
             String line;
             while ((line = reader.readLine()) != null) {
-                if (line.isEmpty() || !line.startsWith("data: ")) continue;
-                String data = line.substring(6).trim();
-                if ("[DONE]".equals(data)) break;
+                String data = ConversationRelaySsePolicy.dataPayload(line);
+                if (data == null) continue;
+                if (ConversationRelaySsePolicy.isOpenAiDone(data)) break;
                 try {
                     JSONObject chunk = new JSONObject(data);
                     JSONArray choices = chunk.optJSONArray("choices");
@@ -256,8 +256,8 @@ final class z17 {
         try {
             String line;
             while ((line = reader.readLine()) != null) {
-                if (line.isEmpty() || !line.startsWith("data: ")) continue;
-                String data = line.substring(6).trim();
+                String data = ConversationRelaySsePolicy.dataPayload(line);
+                if (data == null) continue;
                 try {
                     JSONObject event = new JSONObject(data);
                     String type = event.optString("type", "");
