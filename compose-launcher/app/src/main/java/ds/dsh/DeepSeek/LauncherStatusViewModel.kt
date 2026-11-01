@@ -23,6 +23,7 @@ internal data class LauncherHostInfo(
 internal data class LauncherStatusUiState(
     val host: LauncherHostInfo = LauncherHostInfo("正在检测…", false, false),
     val isActive: Boolean = false,
+    val frameworkConnected: Boolean = false,
 )
 
 internal class LauncherStatusRepository(context: Context) {
@@ -54,7 +55,10 @@ internal class LauncherStatusRepository(context: Context) {
 
         return LauncherStatusUiState(
             host = host,
-            isActive = frameworkConnected || targetRecentlyActive,
+            // A framework binder connection proves only framework availability, not that
+            // the DeepSeek target process has loaded this module.
+            isActive = targetRecentlyActive,
+            frameworkConnected = frameworkConnected,
         )
     }
 
