@@ -18,7 +18,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Whitelisted hook set for mainland DeepSeek 2.7.1 (versionCode 287).
@@ -45,8 +44,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * </ul>
  */
 final class HostV271 {
-    private static final AtomicBoolean ENTRY_HOOKED = new AtomicBoolean();
-    private static final AtomicBoolean HISTORY_HOOKED = new AtomicBoolean();
     /** True when the settings page hook could not be installed; the entry is then always shown. */
     static volatile boolean entryFallback;
 
@@ -56,19 +53,26 @@ final class HostV271 {
 
     private HostV271() {}
 
-    static void installFeatureHooks(ClassLoader cl) {
-        try { installSettingsEntry(cl); }
-        catch (Throwable t) { Main.log("v271 settings entry wiring failed: " + t); }
-        try { HookChatPipeline.INSTANCE.hookChatRequest(cl); }
-        catch (Throwable t) { Main.log("v271 chat request wiring failed: " + t); }
-        try { installHistorySanitizer(cl); }
-        catch (Throwable t) { Main.log("v271 history sanitizer wiring failed: " + t); }
+    static void installFeatureHooks(final ClassLoader cl) {
+        final Main module = Main.MODULE;
+        if (module == null) {
+            Main.log("v271 whitelist skipped: module instance unavailable");
+            return;
+        }
+        // Keep the original best-effort ordering: one unavailable whitelist hook must not block
+        // the remaining verified hooks for this host generation.
+        module.installBestEffortHook("host.v271.settings-entry",
+                () -> installSettingsEntry(cl), "v271 settings entry wiring failed: ");
+        module.installBestEffortHook("host.v271.chat-request",
+                () -> HookChatPipeline.INSTANCE.hookChatRequest(cl),
+                "v271 chat request wiring failed: ");
+        module.installBestEffortHook("host.v271.history-sanitizer",
+                () -> installHistorySanitizer(cl), "v271 history sanitizer wiring failed: ");
         Main.log("v271 whitelist installed: entryFallback=" + entryFallback);
     }
 
     /** Module entry: show the floating Deekseep button while DeepSeek's settings page is open. */
     static void installSettingsEntry(ClassLoader cl) {
-        if (!ENTRY_HOOKED.compareAndSet(false, true)) return;
         Method method = HostCompat.settingsEntryMethod(cl);
         if (method == null) {
             entryFallback = true;
@@ -115,7 +119,6 @@ final class HostV271 {
      * system prompt never shows up inside the user's own bubbles after a history sync.
      */
     static void installHistorySanitizer(ClassLoader cl) throws Throwable {
-        if (!HISTORY_HOOKED.compareAndSet(false, true)) return;
         Class<?> response = HostRemap.load(cl, HISTORY_RESPONSE);
         int n = 0;
         for (Constructor<?> ctor : response.getDeclaredConstructors()) {
