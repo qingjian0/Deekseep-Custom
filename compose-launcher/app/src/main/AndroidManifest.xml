@@ -27,7 +27,7 @@
         android:forceQueryable="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:label="YunSeek">
+        android:label="KOI">
         <meta-data android:name="xposedmodule" android:value="true" />
         <meta-data android:name="xposeddescription" android:value="@string/moddesc" />
         <meta-data android:name="xposedminversion" android:value="82" />
@@ -50,7 +50,7 @@
         <activity
             android:name="ds.dsh.DeepSeek.ProcessManagerActivity"
             android:exported="true"
-            android:label="YunSeek · Process manager"
+            android:label="KOI · Process manager"
             android:theme="@android:style/Theme.Material.NoActionBar" />
         <activity android:name="ds.dsh.DeepSeek.PromptPickerActivity" android:exported="true" android:excludeFromRecents="true" android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
         <activity android:name="ds.dsh.DeepSeek.AgentDelayActivity" android:exported="true" android:excludeFromRecents="true" android:noHistory="true" android:taskAffinity="" android:theme="@android:style/Theme.Translucent.NoTitleBar">
@@ -70,7 +70,7 @@
         <service
             android:name="ds.dsh.DeepSeek.QqMusicSessionAccessService"
             android:exported="false"
-            android:label="YunSeek music control"
+            android:label="KOI music control"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
