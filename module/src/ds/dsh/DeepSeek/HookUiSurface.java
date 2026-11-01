@@ -1309,7 +1309,7 @@ final class HookUiSurface {
         }
     }
 
-    enderContext previous) {
+    private void restoreBubbleContext(BubbleRenderContext previous) {
         if (previous == null) BUBBLE_RENDER_CONTEXT.remove();
         else BUBBLE_RENDER_CONTEXT.set(previous);
     }
