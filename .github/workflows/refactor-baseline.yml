@@ -182,9 +182,20 @@ jobs:
           set -euo pipefail
           BUILD_TOOLS_DIR="$ANDROID_HOME/build-tools/37.0.0"
           certificate_sha256() {
-            "$BUILD_TOOLS_DIR/apksigner" verify --print-certs "$1" \
-              | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' \
-              | head -n 1
+            local apk="$1"
+            local signer_output digest
+            signer_output="$("$BUILD_TOOLS_DIR/apksigner" verify --print-certs "$apk" 2>&1)" || {
+              echo "Unable to inspect APK signer: $apk" >&2
+              echo "$signer_output" >&2
+              return 1
+            }
+            digest="$(awk -F': ' '/certificate SHA-256 digest:/ { print $2; exit }' <<< "$signer_output")"
+            if [[ -z "$digest" ]]; then
+              echo "No SHA-256 signer digest found for $apk; apksigner output follows:" >&2
+              echo "$signer_output" >&2
+              return 1
+            fi
+            printf '%s\\n' "$digest"
           }
           legacy_cert="$(certificate_sha256 module-legacy/ds-probe-legacy.apk)"
           universal_cert="$(certificate_sha256 module-universal/ds-probe-universal.apk)"
