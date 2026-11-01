@@ -59,7 +59,7 @@ jobs:
           bash scripts/test-launcher-backup-architecture.sh
 
   android-build:
-    name: Android compile check (no APK packaging)
+    name: Build Android APKs
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -78,6 +78,28 @@ jobs:
         with:
           gradle-version: "9.8.2"
 
-      - name: Compile Android debug Kotlin sources only
+      - name: Build Legacy APK
+        run: bash module-legacy/build.sh
+
+      - name: Build domestic Universal APK
+        run: bash module-universal/build.sh
+
+      - name: Build Google Play Universal APK
+        run: GOOGLE_PLAY_BUILD=true bash module-universal/build.sh
+
+      - name: Build Compose Launcher APK
         working-directory: compose-launcher
-        run: gradle --no-daemon :app:compileDebugKotlin
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Upload APK artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: deekseep-custom-debug-apks
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            module-legacy/ds-probe-legacy.apk
+            module-universal/ds-probe-universal.apk
+            module-universal/ds-probe-universal-google-play.apk
+            compose-launcher/app/build/outputs/apk/debug/*.apk
