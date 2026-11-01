@@ -26,6 +26,7 @@ The target is a **Kotlin-first implementation with a narrow Java compatibility b
 - `Main.installAllFeatureHooks()` is a large sequential installer. The current refactor introduces stable per-step IDs, a process-local `FeatureHookInstallRegistry`, scoped interceptor registration and independent best-effort groups. The global installed flag is now set only when the tracked steps complete without failures.
 - `LegacyXposedModule` scopes registrations by installer ID and interceptor class per reflected `Member`. A retry can revisit a failed feature group while skipping hookers already registered by that same group; unscoped legacy callers retain their historical append behavior.
 - Startup preparation with external side effects (local image/session restore, obsolete-trigger cleanup, auto-backup scheduling and history migration) is now represented as separately tracked steps, preventing completed work from being repeated merely because a later Hook group failed.
+- Best-effort and top-level installation handlers now rethrow `VirtualMachineError` and `ThreadDeath`; they are not downgraded to recoverable Hook failures. The registry JVM regression now covers fatal-error identity propagation.
 - Remaining limitation: several older feature installers still catch/log internal failures and return normally. Until those installers expose completion/degraded results, their registry entry may be marked installed even when an internal sub-hook was unavailable. Convert and test these boundaries incrementally; do not claim the registry proves every reflected host member was installed.
 
 ### 2.2 Existing feature extraction
@@ -103,9 +104,12 @@ The Gradle launcher currently declares AGP 9.3.0, Kotlin Compose plugin 2.4.10, 
 
 Not started. The hand-built Legacy and Universal scripts still use `javac` and D8; they do not compile shared Kotlin sources. Do not add shared `.kt` runtime sources until the shared Kotlin compilation artifact and Kotlin runtime packaging are part of both distributions.
 
-### P3 — Compose launcher decomposition
+### P3 — Compose launcher decomposition (in progress)
 
-Not started. `SettingsActivity.kt` remains the current compatibility surface. First freeze IPC, component, preference, storage and import/export contracts; then split the Activity into Route/Screen/ViewModel/repository slices without changing those contracts.
+- Extracted stateless building blocks into `LauncherSharedScreens.kt` and static Home/Features/Settings/Help/About pages into `LauncherStaticScreens.kt`. Activity behavior is supplied through callbacks and a status slot; visual hierarchy is retained.
+- Added `LauncherStatusRepository`, `LauncherStatusViewModel` and immutable `LauncherStatusUiState`. Host-version and activation reads run on `Dispatchers.IO`; Compose observes the state using `collectAsStateWithLifecycle`.
+- Added AndroidX Lifecycle 2.11.0 dependencies for ViewModel coroutine scope and lifecycle-aware Compose collection.
+- The configuration bridge state, file import/export, Activity Result launchers and full-backup activity results remain in `SettingsActivity`. They are not yet migrated to repositories/ViewModels. Preserve the authenticated broadcast contract, ZIP/JSON shape, backup paths and SAF behavior while extracting that slice.
 
 ### P4 — distribution and device validation
 
