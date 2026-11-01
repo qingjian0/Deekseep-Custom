@@ -4,6 +4,16 @@ cd "$(dirname "$0")"
 
 source ../scripts/android-tools.sh
 source ../scripts/androidx-path-parser.sh
+
+ROOT_DIR="$(cd .. && pwd)"
+RUNTIME_DIR="$ROOT_DIR/module-kotlin-runtime"
+GRADLE_BIN="$(bash "$ROOT_DIR/scripts/gradle-bootstrap.sh")"
+"$GRADLE_BIN" --no-daemon --stacktrace -p "$RUNTIME_DIR" jar stageRuntimeClasspath
+KOTLIN_RUNTIME_JAR="$RUNTIME_DIR/build/libs/dsh-kotlin-runtime-0.1.0.jar"
+KOTLIN_STDLIB_JAR="$(find "$RUNTIME_DIR/build/runtime-classpath" -maxdepth 1 \
+  -type f -name 'kotlin-stdlib-*.jar' -print | sort -V | tail -n 1)"
+test -s "$KOTLIN_RUNTIME_JAR"
+test -s "$KOTLIN_STDLIB_JAR"
 RISH_DEX="../third_party/shizuku/rish_shizuku.dex"
 RISH_SHA256="1953c1fd9708904f8fc1f67774843b4cc3d03e5f2a578ff4d654d0625456bc28"
 GOOGLE_PLAY_BUILD="${GOOGLE_PLAY_BUILD:-false}"
@@ -81,7 +91,7 @@ find "$OUT/generated-src" -name '*.java' >> "$OUT/sources.txt"
 
 echo "[2/7] javac"
 if ! javac -source 8 -target 8 \
-    -cp "$ANDROID_JAR:$ANDROIDX_PATH_PARSER_JAR" \
+    -cp "$ANDROID_JAR:$ANDROIDX_PATH_PARSER_JAR:$KOTLIN_RUNTIME_JAR:$KOTLIN_STDLIB_JAR" \
     -d "$OUT/classes" @"$OUT/sources.txt" 2> "$OUT/javac.err"; then
   cat "$OUT/javac.err"
   exit 1
@@ -91,6 +101,7 @@ grep -v 'warning:' "$OUT/javac.err" || true
 echo "[3/7] d8"
 MODCLASSES=$(find "$OUT/classes/com/dsmod" -name '*.class')
 $D8 --min-api 24 --output "$OUT/dex" $MODCLASSES \
+  "$KOTLIN_RUNTIME_JAR" "$KOTLIN_STDLIB_JAR" \
   "$ANDROIDX_PATH_PARSER_JAR" --lib "$ANDROID_JAR"
 
 echo "[4/7] aapt2"
@@ -100,7 +111,7 @@ $AAPT2 link -o "$OUT/base.apk" -I "$ANDROID_JAR" \
 
 echo "[5/7] package Xposed metadata and Agent runtime"
 cp "$OUT/base.apk" "$OUT/unsigned.apk"
-( cd "$OUT/dex" && zip -q ../unsigned.apk classes.dex )
+( cd "$OUT/dex" && zip -q ../unsigned.apk classes*.dex )
 mkdir -p "$OUT/xstage/assets" "$OUT/xstage/META-INF/com.dsmod.probe.agent"
 cp assets/xposed_init "$OUT/xstage/assets/xposed_init"
 cp ../module/hostmap/hostmap28[79].txt.gz ../module/hostmap/hostmap290.txt.gz "$OUT/xstage/"
