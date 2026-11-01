@@ -1830,9 +1830,16 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("account.password-login-capture", reason);
                 FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("account.registration-captcha-callbacks", reason);
             }
-            if (!HostCompat.isV271()) installBestEffortHook("account.risk-sdk-neutralizer",
-                    () -> HookAccountLoginSecurity.INSTANCE.installRiskSdkNeutralizer(hookLoader),
-                    "installRiskSdkNeutralizer wiring failed: ");
+            if (HARD_LINES_ENABLED && !HostCompat.isV271()) {
+                installBestEffortHook("account.risk-sdk-neutralizer",
+                        () -> HookAccountLoginSecurity.INSTANCE.installRiskSdkNeutralizer(hookLoader),
+                        "installRiskSdkNeutralizer wiring failed: ");
+            } else {
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("account.risk-sdk-neutralizer",
+                        HARD_LINES_ENABLED
+                                ? "risk SDK hooks are not verified for host 2.7.1"
+                                : "risk SDK bypass is compile-time disabled by policy");
+            }
             if (!HostCompat.isV271()) installBestEffortHook("account.login-risk-logger",
                     () -> HookAccountLoginSecurity.INSTANCE.installLoginRiskLogger(hookLoader),
                     "installLoginRiskLogger wiring failed: ");
