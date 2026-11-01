@@ -156,7 +156,7 @@ if uncovered:
 # text must not perform substring replacement.
 if "return EXACT.containsKey(value)" not in catalog_source:
     raise SystemExit("UiLanguageCatalog.mightTranslate must use exact lookup")
-if "return value;" not in catalog_source[catalog_source.find("fun toEnglish"):]:
+if "return value" not in catalog_source[catalog_source.find("fun toEnglish"): ]:
     raise SystemExit("UiLanguageCatalog.toEnglish must preserve unknown text unchanged")
 
 language_source = (root / "UiLanguage.java").read_text(encoding="utf-8")
