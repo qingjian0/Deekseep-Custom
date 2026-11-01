@@ -73,11 +73,11 @@ jobs:
         working-directory: compose-launcher
         run: |
           set -euo pipefail
-          sed -i '/^[[:space:]]*android\\.aapt2FromMavenOverride[[:space:]]*=/d' gradle.properties
-          gradle --no-daemon --stacktrace \\
-            -PprotectedBuild=false \\
-            -PlocalApiIncluded=false \\
-            -PandroidCompileSdk=36 \\
+          sed -i '/^[[:space:]]*android\.aapt2FromMavenOverride[[:space:]]*=/d' gradle.properties
+          gradle --no-daemon --stacktrace \
+            -PprotectedBuild=false \
+            -PlocalApiIncluded=false \
+            -PandroidCompileSdk=36 \
             :app:assembleDebug
           APK="app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
