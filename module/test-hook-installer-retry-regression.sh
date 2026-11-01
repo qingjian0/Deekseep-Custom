@@ -88,6 +88,19 @@ for method in \
   hookNativeSessionNavigator; do
   grep -Fq "void $method(" "$session_src"
 done
+for spec in \
+  'hookLocalSessionDirectoryMerge:t' \
+  'hookLocalNativeSessionRefresh:t' \
+  'hookLocalSessionRemoteReload:t' \
+  'hookLocalSessionDeletedFlow:t' \
+  'hookLocalSessionDeletedResponse:t' \
+  'hookActiveChatSessionCapture:error' \
+  'hookHistoryLoadDiagnostics:t' \
+  'hookNativeSessionNavigator:t'; do
+  IFS=: read -r method error_name <<<"$spec"
+  body="$(sed -n "/void $method(/,/^    }/p" "$session_src")"
+  grep -Fq "throw $error_name;" <<<"$body"
+done
 for marker in \
   'hookLocalSessionDirectoryMerge failed:' \
   'hookLocalNativeSessionRefresh failed:' \
