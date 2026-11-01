@@ -451,7 +451,7 @@ internal enum class ConfigBridgeUiStatus { IDLE, LOADING, READY, UNAVAILABLE }
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     SectionHeader("当前设置", Modifier.weight(1f))
-                    TextButton(onClick = onRefresh, enabled = bridgeStatus != BridgeStatus.LOADING) {
+                    TextButton(onClick = onRefresh, enabled = bridgeStatus != ConfigBridgeUiStatus.LOADING) {
                         Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text("刷新")
@@ -474,7 +474,7 @@ internal enum class ConfigBridgeUiStatus { IDLE, LOADING, READY, UNAVAILABLE }
                         )
                         BridgeStatus.READY -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             val files = configFiles
-                            category.keys.forEach { key -> ConfigKeyRow(key, files[key.path]) }
+                            category.keys.forEach { key -> ConfigKeyRow(key, files[key.path], onWrite) }
                             if (category.keys.any { it.kind == ConfigKind.FLAG }) {
                                 NoteCard(
                                     "开关类设置在启动器中只读：配置桥只能写入文件、无法删除开关文件，" +
