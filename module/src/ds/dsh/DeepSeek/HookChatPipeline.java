@@ -120,6 +120,8 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 final class HookChatPipeline {
     static final HookChatPipeline INSTANCE = new HookChatPipeline();
     private static final Set<Member> CHAT_DIAGNOSTIC_HOOKED_MEMBERS = new HashSet<>();
+    private static final ConcurrentHashMap<String, Set<Member>> CHAT_FEATURE_HOOKED_MEMBERS =
+            new ConcurrentHashMap<>();
 
     static final String PROMPT_LINK_FILE  = "/data/data/com.deepseek.chat/files/deekseep_prompt_link.txt";
 
@@ -855,6 +857,20 @@ final class HookChatPipeline {
         }
     }
 
+    private static void hookChatFeatureMember(
+            String feature, Member member, Hooker hooker) throws Throwable {
+        synchronized (CHAT_FEATURE_HOOKED_MEMBERS) {
+            Set<Member> installed = CHAT_FEATURE_HOOKED_MEMBERS.get(feature);
+            if (installed == null) {
+                installed = new HashSet<>();
+                CHAT_FEATURE_HOOKED_MEMBERS.put(feature, installed);
+            }
+            if (installed.contains(member)) return;
+            Main.MODULE.hook(member).intercept(hooker);
+            installed.add(member);
+        }
+    }
+
     private static String combineSystemPrompts(String first, String second) {
         String left = first == null ? "" : first.trim();
         String right = second == null ? "" : second.trim();
@@ -1136,7 +1152,7 @@ Main.log("installServerCapture failed: " + t);
                 // 2.7.1 dropped the trailing flags arg: i(String, Json, x, flags) -> l(String, Json, x).
                 int want = HostCompat.isV271() ? 3 : 4;
                 if (pts.length != want || pts[0] != String.class) continue;
-                Main.MODULE.hook(m).intercept(new Hooker() {
+                hookChatFeatureMember("hookContentFilterApply", m, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object completionMessage = chain.getThisObject();
                         String completionPrevious = null;
@@ -1304,7 +1320,7 @@ Main.log("hookContentFilterApply failed: " + t);
             int n = 0;
             for (Method m : k.getDeclaredMethods()) {
                 if (!HostRemap.name(m).equals("e") || m.getParameterTypes().length != 1) continue;
-                Main.MODULE.hook(m).intercept(new Hooker() {
+                hookChatFeatureMember("installMsgRebuildCapture", m, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object r = chain.proceed();
                         try {
@@ -1337,7 +1353,7 @@ Main.log("installMsgRebuildCapture failed: " + t);
                 final boolean primaryStatus = mn.equals(HostCompat.messageMethod("S"));
                 Class<?>[] pts = m.getParameterTypes();
                 if (pts.length != 1 || pts[0] != String.class) continue;
-                Main.MODULE.hook(m).intercept(new Hooker() {
+                hookChatFeatureMember("hookStatusWrite", m, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object message = chain.getThisObject();
                         String previousStatus = callStr(
@@ -1645,7 +1661,7 @@ Main.log("hookStatusWrite failed: " + t);
                 if (!HostRemap.name(m).equals("h")) continue;
                 Class<?>[] pts = m.getParameterTypes();
                 if (pts.length != 1) continue;
-                Main.MODULE.hook(m).intercept(new Hooker() {
+                hookChatFeatureMember("hookTemplateProbe", m, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         try {
                             if (Main.isSrvLog()) {
@@ -1682,7 +1698,7 @@ Main.log("hookTemplateProbe failed: " + t);
                 if (!HostRemap.name(m).equals(HostCompat.sessionMergeMethod())) continue;
                 Class<?>[] pts = m.getParameterTypes();
                 if (pts.length != 2 || !List.class.isAssignableFrom(pts[1])) continue;
-                Main.MODULE.hook(m).intercept(new Hooker() {
+                hookChatFeatureMember("hookFinalMessageMerge", m, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         try {
                             Object tp = chain.getArg(0);
@@ -1786,7 +1802,7 @@ Main.log("hookFinalMessageMerge failed: " + t);
                 Class<?>[] pts = m.getParameterTypes();
                 if (pts.length < 1
                         || (!HostCompat.isV241() && !uok.isAssignableFrom(pts[0]))) continue;
-                Main.MODULE.hook(m).intercept(new Hooker() {
+                hookChatFeatureMember("hookFinalMessageApply", m, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         try {
                             Object tp = chain.getThisObject();
@@ -2060,7 +2076,7 @@ Main.log("hookFinalMessageApply failed: " + t);
                 Class<?>[] types = method.getParameterTypes();
                 if (types.length != 10) continue;
                 if (!List.class.isAssignableFrom(types[4])) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookChatFeatureMember("hookS11RenderFilter", method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object raw = chain.getArg(4);
                         if (raw instanceof List) {
@@ -2111,7 +2127,7 @@ Main.log("hook s11 render filter failed: " + error);
                 Class<?>[] types = method.getParameterTypes();
                 if (types.length != 9) continue;
                 if (!List.class.isAssignableFrom(types[0])) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookChatFeatureMember("hookCs1RenderFilter", method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object raw = chain.getArg(0);
                         if (raw instanceof List) {
@@ -2208,7 +2224,7 @@ Main.log("hook cs1.m attachment filter failed: " + error);
 
     // 给定 transport 方法(签名 (rs0,Long)->Flow) 装上中继包装 hook
     void hookTransport(Method m) {
-        Main.MODULE.hook(m).intercept(new Hooker() {
+        hookChatFeatureMember("hookTransport", m, new Hooker() {
             @Override public Object intercept(Chain chain) throws Throwable {
                 Object[] args = chain.getArgs().toArray();
                 try { if (Main.liveR92 == null) Main.liveR92 = chain.getThisObject(); } catch (Throwable ignored) {}
@@ -2278,7 +2294,7 @@ Main.log("hook cs1.m attachment filter failed: " + error);
             Class<?> q71 = HostCompat.load(cl, "q71");
             int n = 0;
             for (Constructor<?> ctor : q71.getDeclaredConstructors()) {
-                Main.MODULE.hook(ctor).intercept(new Hooker() {
+                hookChatFeatureMember("installPowManagerCapture", ctor, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object result = chain.proceed();
                         captureApiManagers(chain.getThisObject());
@@ -2290,7 +2306,7 @@ Main.log("hook cs1.m attachment filter failed: " + error);
             for (Method m : q71.getDeclaredMethods()) {
                 String nm = HostRemap.name(m);
                 if ((nm.equals("j") || nm.equals("b")) && m.getParameterTypes().length == 1) {
-                    Main.MODULE.hook(m).intercept(new Hooker() {
+                    hookChatFeatureMember("installPowManagerCapture", m, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             captureApiManagers(chain.getThisObject());
                             return chain.proceed();
