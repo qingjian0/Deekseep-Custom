@@ -40,6 +40,9 @@ jobs:
         with:
           gradle-version: "9.8.2"
 
+      - name: Run Legacy Xposed adapter regression matrix
+        run: bash module-legacy/test-adapter-regression.sh
+
       - name: Install required Android SDK components
         run: |
           set -e
@@ -65,6 +68,23 @@ jobs:
 
       - name: Build Universal APK
         run: bash module-universal/build.sh
+
+      - name: Run feature-hook registry regression
+        run: |
+          set -e
+          OUT=build/feature-hook-registry-test
+          KOTLIN_RUNTIME_JAR=module-kotlin-runtime/build/libs/dsh-kotlin-runtime-0.1.0.jar
+          KOTLIN_STDLIB_JAR="$(find module-kotlin-runtime/build/runtime-classpath -maxdepth 1 \
+            -type f -name 'kotlin-stdlib-*.jar' -print | sort -V | tail -n 1)"
+          test -s "$KOTLIN_RUNTIME_JAR"
+          test -s "$KOTLIN_STDLIB_JAR"
+          mkdir -p "$OUT"
+          javac -source 8 -target 8 \
+            -cp "$KOTLIN_RUNTIME_JAR:$KOTLIN_STDLIB_JAR" \
+            -d "$OUT" \
+            module/tests/ds/dsh/DeepSeek/FeatureHookInstallRegistryRegressionTest.java
+          java -cp "$OUT:$KOTLIN_RUNTIME_JAR:$KOTLIN_STDLIB_JAR" \
+            ds.dsh.DeepSeek.FeatureHookInstallRegistryRegressionTest
 
       - name: Build Compose Launcher debug APK
         working-directory: compose-launcher
