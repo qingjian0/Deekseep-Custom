@@ -10,7 +10,11 @@ public final class LegacyXposedModuleRegressionTest {
     private static final class Module extends LegacyXposedModule {}
 
     private static final class Target {
-        String join(String left, String right) { return left + ":" + right; }
+        int joinCalls;
+        String join(String left, String right) {
+            joinCalls++;
+            return left + ":" + right;
+        }
         String fail(RuntimeException signal) { throw signal; }
     }
 
@@ -120,6 +124,136 @@ public final class LegacyXposedModuleRegressionTest {
                         + " incompatible replacement should fail open to the original arguments");
         check("safe:original".equals(failOpenParam.getResult()),
                 "API " + api + " fail-open invocation did not preserve the original arguments");
+
+        runFailureIsolationTests(method, api);
+    }
+
+    private static void runFailureIsolationTests(final Method method, int api) throws Throwable {
+        XposedBridge.resetTestState();
+        XposedBridge.originalMethodInvokerForTest = new XposedBridge.OriginalMethodInvoker() {
+            @Override public Object invoke(Member member, Object receiver,
+                                           Object[] invokeArgs) throws Throwable {
+                return ((Method) member).invoke(receiver, invokeArgs);
+            }
+        };
+        Module optionalBefore = new Module();
+        optionalBefore.hook(method).intercept(new LegacyXposedModule.Hooker() {
+            @Override public Object intercept(LegacyXposedModule.Chain chain) {
+                throw new IllegalStateException("optional pre-hook failure");
+            }
+        });
+        XC_MethodHook.MethodHookParam beforeParam = new XC_MethodHook.MethodHookParam();
+        beforeParam.method = method;
+        Target beforeTarget = new Target();
+        beforeParam.thisObject = beforeTarget;
+        beforeParam.args = new Object[] {"safe", "original"};
+        XposedBridge.callbackForTest.dispatchBeforeForTest(beforeParam);
+        check(!beforeParam.hasThrowable(),
+                "API " + api + " optional pre-hook failure escaped to the host");
+        check("safe:original".equals(beforeParam.getResult()),
+                "API " + api + " optional pre-hook failure did not invoke the original member");
+        check(beforeTarget.joinCalls == 1,
+                "API " + api + " optional pre-hook failure must invoke the original exactly once");
+
+        XposedBridge.resetTestState();
+        XposedBridge.originalMethodInvokerForTest = new XposedBridge.OriginalMethodInvoker() {
+            @Override public Object invoke(Member member, Object receiver,
+                                           Object[] invokeArgs) throws Throwable {
+                return ((Method) member).invoke(receiver, invokeArgs);
+            }
+        };
+        Module optionalAfter = new Module();
+        optionalAfter.hook(method).intercept(new LegacyXposedModule.Hooker() {
+            @Override public Object intercept(LegacyXposedModule.Chain chain) throws Throwable {
+                chain.proceed();
+                throw new IllegalStateException("optional post-hook failure");
+            }
+        });
+        XC_MethodHook.MethodHookParam afterParam = new XC_MethodHook.MethodHookParam();
+        afterParam.method = method;
+        Target afterTarget = new Target();
+        afterParam.thisObject = afterTarget;
+        afterParam.args = new Object[] {"safe", "original"};
+        XposedBridge.callbackForTest.dispatchBeforeForTest(afterParam);
+        check(!afterParam.hasThrowable(),
+                "API " + api + " optional post-hook failure escaped to the host");
+        check("safe:original".equals(afterParam.getResult()),
+                "API " + api + " optional post-hook failure lost the original result");
+        check(afterTarget.joinCalls == 1,
+                "API " + api + " optional post-hook failure must not invoke the original twice");
+
+        XposedBridge.resetTestState();
+        XposedBridge.originalMethodInvokerForTest = new XposedBridge.OriginalMethodInvoker() {
+            @Override public Object invoke(Member member, Object receiver,
+                                           Object[] invokeArgs) throws Throwable {
+                return ((Method) member).invoke(receiver, invokeArgs);
+            }
+        };
+        Module required = new Module();
+        required.hook(method).intercept(new LegacyXposedModule.Hooker() {
+            @Override public boolean isRequired() { return true; }
+            @Override public Object intercept(LegacyXposedModule.Chain chain) {
+                throw new IllegalStateException("required hook failure");
+            }
+        });
+        XC_MethodHook.MethodHookParam requiredParam = new XC_MethodHook.MethodHookParam();
+        requiredParam.method = method;
+        Target requiredTarget = new Target();
+        requiredParam.thisObject = requiredTarget;
+        requiredParam.args = new Object[] {"safe", "original"};
+        XposedBridge.callbackForTest.dispatchBeforeForTest(requiredParam);
+        check(requiredParam.getThrowable() instanceof IllegalStateException,
+                "API " + api + " required hook failure was incorrectly swallowed");
+        check(requiredTarget.joinCalls == 0,
+                "API " + api + " required hook failure must not silently invoke the original");
+
+        XposedBridge.resetTestState();
+        XposedBridge.originalMethodInvokerForTest = new XposedBridge.OriginalMethodInvoker() {
+            @Override public Object invoke(Member member, Object receiver,
+                                           Object[] invokeArgs) throws Throwable {
+                return ((Method) member).invoke(receiver, invokeArgs);
+            }
+        };
+        Module nestedRequired = new Module();
+        nestedRequired.hook(method).intercept(new LegacyXposedModule.Hooker() {
+            @Override public Object intercept(LegacyXposedModule.Chain chain) throws Throwable {
+                return chain.proceed();
+            }
+        });
+        nestedRequired.hook(method).intercept(new LegacyXposedModule.Hooker() {
+            @Override public boolean isRequired() { return true; }
+            @Override public Object intercept(LegacyXposedModule.Chain chain) {
+                throw new IllegalStateException("nested required hook failure");
+            }
+        });
+        XC_MethodHook.MethodHookParam nestedParam = new XC_MethodHook.MethodHookParam();
+        nestedParam.method = method;
+        nestedParam.thisObject = new Target();
+        nestedParam.args = new Object[] {"safe", "original"};
+        XposedBridge.callbackForTest.dispatchBeforeForTest(nestedParam);
+        check(nestedParam.getThrowable() instanceof IllegalStateException,
+                "API " + api + " outer optional hook swallowed a nested required failure");
+
+        XposedBridge.resetTestState();
+        XposedBridge.originalMethodInvokerForTest = new XposedBridge.OriginalMethodInvoker() {
+            @Override public Object invoke(Member member, Object receiver,
+                                           Object[] invokeArgs) throws Throwable {
+                return ((Method) member).invoke(receiver, invokeArgs);
+            }
+        };
+        Module fatal = new Module();
+        fatal.hook(method).intercept(new LegacyXposedModule.Hooker() {
+            @Override public Object intercept(LegacyXposedModule.Chain chain) {
+                throw new ThreadDeath();
+            }
+        });
+        XC_MethodHook.MethodHookParam fatalParam = new XC_MethodHook.MethodHookParam();
+        fatalParam.method = method;
+        fatalParam.thisObject = new Target();
+        fatalParam.args = new Object[] {"safe", "original"};
+        XposedBridge.callbackForTest.dispatchBeforeForTest(fatalParam);
+        check(fatalParam.getThrowable() instanceof ThreadDeath,
+                "API " + api + " fatal VM control error must not be swallowed");
     }
 
     private static void check(boolean condition, String message) {

@@ -28,6 +28,16 @@ abstract class LegacyXposedModule {
 
     interface Hooker {
         Object intercept(Chain chain) throws Throwable;
+
+        /** Required hooks fail visibly; optional hooks must not break the host when they fail. */
+        default boolean isRequired() { return false; }
+    }
+
+    private static final class InvocationState {
+        boolean originalInvoked;
+        Object originalResult;
+        Throwable originalThrowable;
+        boolean requiredHookFailed;
     }
 
     static final class Chain {
@@ -37,17 +47,26 @@ abstract class LegacyXposedModule {
         private final int nextHooker;
         private final Object[] args;
         private final Object[] originalArgs;
+        private final InvocationState invocationState;
         private boolean proceeded;
 
         Chain(Member executable, XC_MethodHook.MethodHookParam param,
               List<Hooker> hookers, int nextHooker, Object[] args,
               Object[] originalArgs) {
+            this(executable, param, hookers, nextHooker, args, originalArgs,
+                    new InvocationState());
+        }
+
+        private Chain(Member executable, XC_MethodHook.MethodHookParam param,
+              List<Hooker> hookers, int nextHooker, Object[] args,
+              Object[] originalArgs, InvocationState invocationState) {
             this.executable = executable;
             this.param = param;
             this.hookers = hookers;
             this.nextHooker = nextHooker;
             this.args = args == null ? new Object[0] : args;
             this.originalArgs = originalArgs == null ? new Object[0] : originalArgs;
+            this.invocationState = invocationState;
         }
 
         Object getThisObject() { return param.thisObject; }
@@ -67,8 +86,37 @@ abstract class LegacyXposedModule {
             proceeded = true;
             Object[] actual = args == null ? new Object[0] : args;
             if (nextHooker < hookers.size()) {
-                return hookers.get(nextHooker).intercept(new Chain(
-                        executable, param, hookers, nextHooker + 1, actual, originalArgs));
+                Hooker hooker = hookers.get(nextHooker);
+                try {
+                    return hooker.intercept(new Chain(
+                            executable, param, hookers, nextHooker + 1, actual,
+                            originalArgs, invocationState));
+                } catch (Throwable error) {
+                    if (hooker.isRequired() || invocationState.requiredHookFailed
+                            || error instanceof VirtualMachineError
+                            || error instanceof ThreadDeath) {
+                        invocationState.requiredHookFailed = true;
+                        throw error;
+                    }
+                    // Optional interceptors are isolated individually. If the original member
+                    // already ran, keep its unmodified result/exception; otherwise continue the
+                    // remaining chain with the current arguments and invoke the original once.
+                    try {
+                        XposedBridge.log("Deekseep universal: optional hook failed open for "
+                                + executable + ": " + error);
+                    } catch (RuntimeException ignored) {}
+                    try {
+                        JavaPluginRuntimeBridge.error(executable, error, 0L);
+                    } catch (RuntimeException ignored) {}
+                    if (invocationState.originalInvoked) {
+                        if (invocationState.originalThrowable != null) {
+                            throw invocationState.originalThrowable;
+                        }
+                        return invocationState.originalResult;
+                    }
+                    return new Chain(executable, param, hookers, nextHooker + 1,
+                            actual, originalArgs, invocationState).proceed(actual);
+                }
             }
             // Keep MethodHookParam consistent for traditional after callbacks registered by
             // other modules. invokeOriginalMethod bypasses hook dispatch but uses these exact
@@ -86,16 +134,23 @@ abstract class LegacyXposedModule {
                 invokeArgs = originalArgs.clone();
             }
             param.args = invokeArgs;
+            invocationState.originalInvoked = true;
             try {
-                return XposedBridge.invokeOriginalMethod(
+                Object result = XposedBridge.invokeOriginalMethod(
                         executable, param.thisObject, invokeArgs);
+                invocationState.originalResult = result;
+                return result;
             } catch (InvocationTargetException wrapped) {
                 // Some traditional bridges implement invokeOriginalMethod with Method.invoke().
                 // Preserve the exception contract seen by the host instead of leaking the
                 // reflection wrapper. This matters for Kotlin coroutine cancellation signals.
                 Throwable cause = wrapped.getCause();
-                if (cause != null) throw cause;
-                throw wrapped;
+                Throwable original = cause != null ? cause : wrapped;
+                invocationState.originalThrowable = original;
+                throw original;
+            } catch (Throwable original) {
+                invocationState.originalThrowable = original;
+                throw original;
             }
         }
 
