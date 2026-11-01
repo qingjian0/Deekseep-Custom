@@ -9503,12 +9503,13 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     }
 
     /** Original pre-code257 account-header bridge, retained as an independent legacy adapter. */
-    void hookLegacyLocalApiAccountRouting(final ClassLoader loader) {
+    void hookLegacyLocalApiAccountRouting(final ClassLoader loader) throws Throwable {
         String authOwner = HostCompat.localApiAuthInterceptorClass();
         String headerOwner = HostCompat.localApiHeaderBuilderClass();
         String setterName = HostCompat.localApiHeaderSetterMethod();
         int marked = 0;
         int replaced = 0;
+        Throwable installFailure = null;
         try {
             Class<?> owner = HostRemap.forName(authOwner, false, loader);
             for (Method method : owner.getDeclaredMethods()) {
@@ -9533,6 +9534,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         } catch (Throwable error) {
             log("local API account auth marker unavailable " + authOwner + ": "
                     + safeThrowableMessage(error));
+            installFailure = error;
         }
         try {
             Class<?> builder = HostRemap.forName(headerOwner, false, loader);
@@ -9570,7 +9572,16 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         } catch (Throwable error) {
             log("local API account header hook unavailable " + headerOwner + ": "
                     + safeThrowableMessage(error));
+            if (installFailure == null) installFailure = error;
+            else installFailure.addSuppressed(error);
         }
+        if (marked == 0) {
+            throw new NoSuchMethodException(authOwner + " local API account auth marker");
+        }
+        if (replaced == 0) {
+            throw new NoSuchMethodException(headerOwner + "." + setterName + " Authorization setter");
+        }
+        if (installFailure != null) throw installFailure;
         log("local API multi-account hooks auth=" + marked + " header=" + replaced
                 + " generation=" + HostCompat.generationName());
         z13.diagnostic("ROUTING_HOOK_READY auth=" + marked + " header=" + replaced
