@@ -106,9 +106,9 @@ internal class LauncherBackupRepository {
             if (!root.isDirectory) return@forEach
             root.walkTopDown().filter { it.isFile && it.length() <= MAX_LAUNCHER_FILE }.forEach { file ->
                 val relative = file.relativeTo(root).invariantSeparatorsPath
-                runCatching {
-                    val bytes = file.readBytes()
-                    if (bytes.size <= MAX_LAUNCHER_FILE) put(prefix + relative, bytes)
+                val bytes = runCatching { file.readBytes() }.getOrNull()
+                if (bytes != null && bytes.size <= MAX_LAUNCHER_FILE) {
+                    put(prefix + relative, bytes)
                 }
             }
         }
