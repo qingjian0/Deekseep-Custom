@@ -1,6 +1,6 @@
 # Kotlin-first Hook Architecture Refactor Plan
 
-> Status: implementation in progress. P0 build validation and P1 per-step Hook installation tracking are active; P2 Kotlin source migration, P3 UI decomposition and P4 device validation remain gated.
+> Status: implementation in progress. P0 CI/build integration and P1 per-step Hook installation tracking are active; P2 has a first shared Kotlin runtime migration; P3 has extracted screens and a lifecycle-aware status ViewModel; P4 device validation remains pending.
 > Baseline: `dev` at `8e2edf53b4982a11e720f39437ee562df696136c`.
 > Work branch: `refactor/kotlin-hook-architecture`.
 > Scope: preserve the existing DeepSeek host features and LSPosed/Xposed compatibility while moving new and migrated application logic toward Kotlin.
@@ -100,9 +100,15 @@ The Gradle launcher currently declares AGP 9.3.0, Kotlin Compose plugin 2.4.10, 
 - Extended the API 82–102 adapter regression with a scoped retry test, and added pure-JVM registry tests for success, failure/retry, skipped state and concurrent callers.
 - Remaining work: convert installers that swallow internal failures, audit version-specific atomic guards, and add fault-injection tests for partial registration across multi-member installers.
 
-### P2 — Kotlin runtime migration
+### P2 — Kotlin runtime migration (in progress)
 
-Not started. The hand-built Legacy and Universal scripts still use `javac` and D8; they do not compile shared Kotlin sources. Do not add shared `.kt` runtime sources until the shared Kotlin compilation artifact and Kotlin runtime packaging are part of both distributions.
+- Added the standalone `module-kotlin-runtime` Gradle JVM project using Kotlin 2.4.10 and JVM 1.8 bytecode.
+- Migrated the first shared runtime unit, `FeatureHookInstallRegistry`, from Java to Kotlin. The API retains Java-callable constructors, state fields, installer SAM and methods used by `Main.java`.
+- Legacy and Universal build scripts now compile the shared runtime JAR, include the resolved Kotlin standard library in javac/D8 inputs, and package all generated `classes*.dex` files.
+- The Compose Launcher source set includes the same runtime Kotlin source root through AGP 9 `kotlin.directories`.
+- The registry JVM test runner builds the Kotlin runtime artifact and runs the existing Java regression against that artifact; the Android-dependent thinking test also includes the runtime JAR/stdlib on its classpath.
+- Gradle 9.8.2 bootstrap is shared by the runtime tests, Legacy/Universal builds and launcher Open build.
+- Validation gate: these changes have not yet received a green full Android artifact matrix. Expand the Kotlin runtime incrementally; do not migrate host-reflection logic until both distribution paths prove the runtime class and stdlib are present in APK DEX output.
 
 ### P3 — Compose launcher decomposition (in progress)
 
