@@ -3630,6 +3630,10 @@ Main.log("[RISK] Android ID spoof installed");
         Class<?> uploadCoroutine = HostRemap.forName("rz", false, loader);
         int constructors = 0;
         int resumes = 0;
+        int uploadCoroutineHooks = 0;
+        int multipartUploadHooks = 0;
+        int filePowHooks = 0;
+        int fileModelApiHooks = 0;
         for (Constructor<?> constructor : uploadCoroutine.getDeclaredConstructors()) {
             Class<?>[] p = constructor.getParameterTypes();
             if (p.length == 0 || p[p.length - 1] != int.class) continue;
@@ -3675,6 +3679,7 @@ Main.log("[RISK] Android ID spoof installed");
                 }
             });
             resumes++;
+            uploadCoroutineHooks++;
         }
         // q71 is the code257 multipart upload coroutine created after ly0.a's optional file-PoW
         // suspension. Re-enter the selected route only for our hidden context_*.txt attachment;
@@ -3706,6 +3711,7 @@ Main.log("[RISK] Android ID spoof installed");
                 }
             });
             resumes++;
+            multipartUploadHooks++;
         }
         // i8 discriminator 1 obtains the authed PoW challenge specifically for
         // /api/v0/file/upload_file. It runs before q71 and must use the same routed account;
@@ -3734,6 +3740,7 @@ Main.log("[RISK] Android ID spoof installed");
                 }
             });
             resumes++;
+            filePowHooks++;
         }
         // g71.a suspends while it waits for the source-model attachment state. The actual
         // default->expert/vision request is created later by q63.a(ag3, Continuation) on another
@@ -3761,11 +3768,21 @@ Main.log("[RISK] Android ID spoof installed");
                 }
             });
             resumes++;
+            fileModelApiHooks++;
         }
         String ready = "V241_UPLOAD_ROUTE_HOOK_READY constructors=" + constructors
                 + " resumes=" + resumes;
         Main.log(ready);
         z13.diagnostic(ready);
+        if (constructors == 0 || uploadCoroutineHooks == 0
+                || multipartUploadHooks == 0 || filePowHooks == 0
+                || fileModelApiHooks == 0) {
+            throw new IllegalStateException(
+                    "code257 Local API upload route hooks were incomplete: constructors="
+                            + constructors + " upload=" + uploadCoroutineHooks
+                            + " multipart=" + multipartUploadHooks + " filePow=" + filePowHooks
+                            + " fileModel=" + fileModelApiHooks);
+        }
     }
 
     static void loadReusableApiSessionsLocked() {
