@@ -463,16 +463,16 @@ internal enum class ConfigBridgeUiStatus { IDLE, LOADING, READY, UNAVAILABLE }
                     label = "bridge",
                 ) { status ->
                     when (status) {
-                        BridgeStatus.IDLE, BridgeStatus.LOADING -> Box(
+                        ConfigBridgeUiStatus.IDLE, ConfigBridgeUiStatus.LOADING -> Box(
                             Modifier.fillMaxWidth().padding(24.dp),
                             contentAlignment = Alignment.Center,
                         ) { CircularProgressIndicator() }
-                        BridgeStatus.UNAVAILABLE -> NoteCard(
+                        ConfigBridgeUiStatus.UNAVAILABLE -> NoteCard(
                             "无法读取设置：DeepSeek 未响应。请先打开一次 DeepSeek（确认模块已在 LSPosed 中启用并勾选 DeepSeek），" +
                                 "返回此页后点\u201c刷新\u201d。也可以直接点击上方按钮在 DeepSeek 中修改。",
                             icon = Icons.Filled.Info,
                         )
-                        BridgeStatus.READY -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        ConfigBridgeUiStatus.READY -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             val files = configFiles
                             category.keys.forEach { key -> ConfigKeyRow(key, files[key.path], onWrite) }
                             if (category.keys.any { it.kind == ConfigKind.FLAG }) {
