@@ -10,6 +10,7 @@ public final class GoogleLoginUnlockRegressionTest {
 
     public static void main(String[] args) {
         addsGoogleWithoutDroppingDomesticOptions();
+        addsPasswordAfterGoogleWithoutDuplicates();
         doesNotDuplicateNativeGoogleOption();
         addsWechatAndMobileToInternationalOptions();
         fillsOnlyMissingRegionalOptionWithoutDuplicates();
@@ -41,6 +42,27 @@ public final class GoogleLoginUnlockRegressionTest {
         List<?> result = GoogleLoginUnlock.ensureGoogleFirst(
                 international, google, LoginOption.class);
         check(result == international, "existing Google option was copied or duplicated");
+    }
+
+    private static void addsPasswordAfterGoogleWithoutDuplicates() {
+        LoginOption google = new LoginOption();
+        LoginOption password = new LoginOption();
+        LoginOption register = new LoginOption();
+        List<LoginOption> international = Collections.unmodifiableList(
+                Arrays.asList(google, register));
+        List<?> unlocked = GoogleLoginUnlock.ensurePasswordAfterGoogle(
+                international, google, password, LoginOption.class);
+        check(unlocked.equals(Arrays.asList(google, password, register)),
+                "password option was not inserted after Google");
+        check(GoogleLoginUnlock.ensurePasswordAfterGoogle(
+                unlocked, google, password, LoginOption.class) == unlocked,
+                "existing password option was copied or duplicated");
+
+        List<LoginOption> withoutGoogle = Arrays.asList(register);
+        check(GoogleLoginUnlock.ensurePasswordAfterGoogle(
+                withoutGoogle, google, password, LoginOption.class)
+                .equals(Arrays.asList(password, register)),
+                "password option without Google must be inserted first");
     }
 
     private static void addsWechatAndMobileToInternationalOptions() {
