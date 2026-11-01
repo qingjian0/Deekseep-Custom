@@ -7,7 +7,7 @@ final class NativeSettingsEntryPolicy {
     static boolean showFloating(boolean nativeModeEnabled,
                                 boolean nativeHookInstalled,
                                 boolean nativeRowEmitted) {
-        return ds.dsh.DeepSeek.NativeSettingsEntryPolicy.showFloating(
+        return ds.dsh.DeepSeek.NativeSettingsEntryVisibilityPolicy.showFloating(
                 nativeModeEnabled, nativeHookInstalled, nativeRowEmitted);
     }
 }

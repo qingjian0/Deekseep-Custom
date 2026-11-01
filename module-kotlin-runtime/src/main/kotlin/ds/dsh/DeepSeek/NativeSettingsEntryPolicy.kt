@@ -6,7 +6,7 @@ package ds.dsh.DeepSeek
  * A successfully installed hook is not sufficient evidence that the host rendered the native
  * row. Keep the floating entry available until a native row has actually been emitted.
  */
-object NativeSettingsEntryPolicy {
+object NativeSettingsEntryVisibilityPolicy {
     @JvmStatic
     fun showFloating(
         nativeModeEnabled: Boolean,
