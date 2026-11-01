@@ -1210,7 +1210,7 @@ final class HookAttachmentPipeline {
                     break;
                 }
             }
-            if (send == null) return;
+            if (send == null) throw new NoSuchMethodException(className + ".x(Object) send-point method");
             Main.MODULE.hook(send).intercept(new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     if (!isExpertRelayEnabled()) return chain.proceed();
@@ -1238,8 +1238,10 @@ final class HookAttachmentPipeline {
             Main.log("installed 2.3.4 send-point attachment capture on "
                     + className + ".x");
         } catch (Throwable error) {
-            Main.log("2.3.4 send-point capture skipped " + className + ": "
-                    + Main.safeThrowableMessage(error));
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            throw new IllegalStateException("2.3.4 send-point capture hook installation failed: "
+                    + className, error);
         }
     }
 
@@ -1341,7 +1343,12 @@ final class HookAttachmentPipeline {
             });
             Main.log("installed send-point fp capture on "
                     + HostCompat.name(cls) + ".y");
-        } catch (Throwable t) { Main.log("hookSendPointFps " + cls + " failed: " + t); }
+        } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw new IllegalStateException("send-point fp capture hook installation failed: "
+                    + cls, t);
+        }
     }
 
     private static String readSendPointModel(Object sendPoint, boolean directList) {
@@ -1869,7 +1876,7 @@ final class HookAttachmentPipeline {
                 Class<?>[] p = m.getParameterTypes();
                 if (HostRemap.name(m).equals("b") && p.length == 2 && p[0] == q03) { bColl = m; break; }
             }
-            if (bColl == null) { Main.log("expert flow collect hook: b41.b(q03,uz1) not found"); return; }
+            if (bColl == null) throw new NoSuchMethodException("expert flow collect hook: b41.b(q03,uz1) not found");
             Main.MODULE.hook(bColl).intercept(new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Object self = chain.getThisObject();
@@ -1911,7 +1918,11 @@ final class HookAttachmentPipeline {
                 }
             });
             Main.log("installed expert flow collect hook on b41.b x1");
-        } catch (Throwable t) { Main.log("installExpertFlowCollectHook failed: " + t); }
+        } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw new IllegalStateException("expert flow collect hook installation failed", t);
+        }
     }
 
     private Object bCollInvoke(Chain chain, Object flow, Object collector, Object cont) throws Throwable {
