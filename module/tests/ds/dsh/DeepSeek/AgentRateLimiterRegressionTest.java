@@ -21,19 +21,25 @@ public final class AgentRateLimiterRegressionTest {
         require(AgentRateLimiter.waitMs(base + 60_000L) == 0L,
                 "a turn exactly one minute old must leave the rolling-minute window");
 
-        for (long elapsed = 40_000L; elapsed <= 472_000L; elapsed += 8_000L) {
+        // Fill the hourly budget using a schedule that respects both the 8s minimum gap
+        // and the rolling five-turns-per-minute limit.  The first five turns above remain
+        // in the same process-wide queue, so begin the next block at the exact 60s boundary.
+        for (long elapsed = 60_000L; elapsed <= 708_000L; elapsed += 12_000L) {
+            require(AgentRateLimiter.waitMs(base + elapsed) == 0L,
+                    "a scheduled turn must be admitted without violating the minute or gap limits");
             AgentRateLimiter.recordSent(base + elapsed);
         }
-        require(AgentRateLimiter.waitMs(base + 472_000L) == 3_128_000L,
-                "the sixtieth turn must wait for the oldest turn to leave the rolling-hour window");
-        require(AgentRateLimiter.shouldWarnHourCap(base + 472_000L),
+
+        require(AgentRateLimiter.waitMs(base + 708_000L) == 2_892_000L,
+                "the sixtieth admissible turn must wait for the oldest turn to leave the rolling-hour window");
+        require(AgentRateLimiter.shouldWarnHourCap(base + 708_000L),
                 "the hourly-cap warning must be shown when the cap is first reached");
-        require(!AgentRateLimiter.shouldWarnHourCap(base + 472_000L + 599_999L),
+        require(!AgentRateLimiter.shouldWarnHourCap(base + 708_000L + 599_999L),
                 "the hourly-cap warning must be suppressed for ten minutes");
-        require(AgentRateLimiter.shouldWarnHourCap(base + 472_000L + 600_000L),
+        require(AgentRateLimiter.shouldWarnHourCap(base + 708_000L + 600_000L),
                 "the hourly-cap warning must be allowed at the ten-minute boundary");
         require(AgentRateLimiter.waitMs(base + 3_600_000L) == 0L,
-                "a turn exactly one hour old must leave the rolling-hour window");
+                "a turn exactly one hour after the first send must be admitted");
 
         System.out.println("Agent rate limiter regression passed.");
     }
