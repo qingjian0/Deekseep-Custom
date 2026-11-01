@@ -183,6 +183,26 @@ if grep -Fq 'Main.MODULE.hook(' <<<"$patch_body$state_body"; then
   exit 1
 fi
 
+# Chat diagnostic constructor hooks preserve successful registrations across retries.
+chat_src="$SRC/HookChatPipeline.java"
+grep -Fq 'CHAT_DIAGNOSTIC_HOOKED_MEMBERS' "$chat_src"
+chat_helper="$(sed -n '/private static void hookChatDiagnosticMember/,/void hookSafetyRetraction/p' "$chat_src")"
+grep -Fq 'synchronized (CHAT_DIAGNOSTIC_HOOKED_MEMBERS)' <<<"$chat_helper"
+grep -Fq 'CHAT_DIAGNOSTIC_HOOKED_MEMBERS.contains(member)' <<<"$chat_helper"
+grep -Fq 'CHAT_DIAGNOSTIC_HOOKED_MEMBERS.add(member)' <<<"$chat_helper"
+safety_body="$(sed -n '/void hookSafetyRetraction(/,/诊断：抓取服务器返回的 SSE 原始事件/p' "$chat_src")"
+grep -Fq 'hookChatDiagnosticMember(ctor, new Hooker()' <<<"$safety_body"
+if grep -Fq 'Main.MODULE.hook(' <<<"$safety_body"; then
+  echo "Safety-retraction installer bypasses retry-safe registration." >&2
+  exit 1
+fi
+server_capture_body="$(sed -n '/void installServerCapture(/,/Sanitizes 2.3.4/p' "$chat_src")"
+grep -Fq 'hookChatDiagnosticMember(ctor, new Hooker()' <<<"$server_capture_body"
+if grep -Fq 'Main.MODULE.hook(' <<<"$server_capture_body"; then
+  echo "Server-capture installer bypasses retry-safe registration." >&2
+  exit 1
+fi
+
 # Session installers propagate installation failures to Main/Registry.
 session_src="$SRC/HookSessionManagement.java"
 for method in \
