@@ -17,6 +17,7 @@ KOTLIN_STDLIB_JAR="$(find "$RUNTIME_DIR/build/runtime-classpath" -maxdepth 1 \
 test -s "$KOTLIN_RUNTIME_JAR"
 test -s "$KOTLIN_STDLIB_JAR"
 test -s "$R8_JAR"
+java -cp "$R8_JAR" com.android.tools.r8.D8 --version
 RISH_DEX="../third_party/shizuku/rish_shizuku.dex"
 RISH_SHA256="1953c1fd9708904f8fc1f67774843b4cc3d03e5f2a578ff4d654d0625456bc28"
 GOOGLE_PLAY_BUILD="${GOOGLE_PLAY_BUILD:-false}"
