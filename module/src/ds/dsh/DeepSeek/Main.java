@@ -1921,19 +1921,22 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     private final AtomicBoolean MODULE_INJECTED = new AtomicBoolean(false);
 
     public void performModuleInjection(Activity act, ClassLoader cl) {
+        if (cl == null) cl = hostClassLoader;
+
+        // Core hooks must be complete before one-shot post-injection work is allowed to run.
+        // A failed required group is retried on the next Activity resume; successful groups are
+        // skipped by the registry, so this does not duplicate previously installed callbacks.
+        if (!FEATURE_HOOKS_INSTALLED.get()) {
+            installAllFeatureHooks(cl);
+        }
+        if (!FEATURE_HOOKS_INSTALLED.get()) return;
+
         if (!MODULE_INJECTED.compareAndSet(false, true)) {
-            // Keep post-injection initialization one-shot, but retry incomplete hook groups on
-            // later Activity resumes. The registry skips installed groups and retries failures.
-            if (!FEATURE_HOOKS_INSTALLED.get()) {
-                installAllFeatureHooks(cl);
-            } else {
-                // Optional groups may become enabled after the initial injection.
-                ensureOptionalHooksForEnabledFeatures(cl);
-            }
+            // Optional groups may become enabled or recover after the initial injection.
+            ensureOptionalHooksForEnabledFeatures(cl);
             return;
         }
         try {
-            installAllFeatureHooks(cl);
             ensureOptionalHooksForEnabledFeatures(cl);
             // Remote-flag MMKV keys were not re-verified on 2.7.1; leave host flags untouched.
             if (!HostCompat.isV271()) RemoteFeatureFlags.enforce(cl);
