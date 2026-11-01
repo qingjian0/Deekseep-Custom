@@ -79,6 +79,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.Member;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
@@ -117,6 +118,8 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
 /** Hook group extracted from Main.java: ACCTSEC category (see JavaHookGuide). */
 final class HookAccountLoginSecurity {
+    private static final Set<Member> LOGIN_RISK_HOOKED_MEMBERS = new HashSet<>();
+
     static final HookAccountLoginSecurity INSTANCE = new HookAccountLoginSecurity();
 
     static final String RISK_BYPASS_FILE =
@@ -1329,6 +1332,15 @@ Main.log("[RISK] Android ID spoof installed");
      * numbers or any other request/response content. Class names cover 2.3.6 (ox4/ix4) and
      * 2.3.4 (f05/iw5) hosts; every candidate is optional.
      */
+    private static void hookLoginRiskMember(Member member, Hooker hooker)
+            throws Throwable {
+        synchronized (LOGIN_RISK_HOOKED_MEMBERS) {
+            if (LOGIN_RISK_HOOKED_MEMBERS.contains(member)) return;
+            Main.MODULE.hook(member).intercept(hooker);
+            LOGIN_RISK_HOOKED_MEMBERS.add(member);
+        }
+    }
+
     void installLoginRiskLogger(final ClassLoader cl) throws Throwable {
         if (cl == null) return;
         int bizCodeKindsInstalled = 0;
@@ -1347,7 +1359,7 @@ Main.log("[RISK] Android ID spoof installed");
                 if (!"f".equals(HostRemap.name(method))
                         || !java.lang.reflect.Modifier.isStatic(method.getModifiers())
                         || method.getParameterTypes().length != 3) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookLoginRiskMember(method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         logGoogleLoginResult(chain.getArg(1));
                         return chain.proceed();
@@ -1364,7 +1376,7 @@ Main.log("[RISK] Android ID spoof installed");
             for (final Method method : pending.getDeclaredMethods()) {
                 if (!"g".equals(HostRemap.name(method))
                         || method.getParameterTypes().length != 1) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookLoginRiskMember(method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object status = chain.getArg(0);
                         Object code = null;
@@ -1389,7 +1401,7 @@ Main.log("[RISK] Android ID spoof installed");
             for (final Method method : wrapper.getDeclaredMethods()) {
                 if (!"c".equals(HostRemap.name(method))
                         || method.getParameterTypes().length != 1) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookLoginRiskMember(method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object url = null;
                         try {
@@ -1426,7 +1438,7 @@ Main.log("[RISK] Android ID spoof installed");
                         || method.getParameterTypes().length != 3
                         || method.getParameterTypes()[0] != int.class
                         || method.getParameterTypes()[1] != int.class) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookLoginRiskMember(method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         int requestCode = ((Number) chain.getArg(0)).intValue();
                         int resultCode = ((Number) chain.getArg(1)).intValue();
@@ -1450,7 +1462,7 @@ Main.log("[RISK] Android ID spoof installed");
                 if (!"a".equals(HostRemap.name(method))
                         || method.getParameterTypes().length != 3
                         || method.getParameterTypes()[0] != String.class) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookLoginRiskMember(method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         String tag = String.valueOf(chain.getArg(0));
                         String kind = String.valueOf(chain.getArg(1));
@@ -1473,7 +1485,7 @@ Main.log("[RISK] Android ID spoof installed");
             for (final Method method : viewModel.getDeclaredMethods()) {
                 if (!"g".equals(HostRemap.name(method))
                         || method.getParameterTypes().length != 1) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookLoginRiskMember(method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object event = chain.getArg(0);
                         Main.log("[LOGIN_RISK] gy4 event "
@@ -1490,7 +1502,7 @@ Main.log("[RISK] Android ID spoof installed");
         try {
             Class<?> launcher = HostRemap.forName("ey4", false, cl);
             for (Constructor<?> ctor : launcher.getDeclaredConstructors()) {
-                Main.MODULE.hook(ctor).intercept(new Hooker() {
+                hookLoginRiskMember(ctor, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Main.log("[LOGIN_RISK] google sign-in launcher created");
                         return chain.proceed();
@@ -1505,7 +1517,7 @@ Main.log("[RISK] Android ID spoof installed");
             for (final Method method : registryLauncher.getDeclaredMethods()) {
                 if (!"b0".equals(HostRemap.name(method))
                         || method.getParameterTypes().length != 2) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookLoginRiskMember(method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Main.log("[LOGIN_RISK] credential launcher launch");
                         return chain.proceed();
@@ -1558,7 +1570,7 @@ Main.log("[RISK] Android ID spoof installed");
                 for (Constructor<?> ctor : type.getDeclaredConstructors()) {
                     if (ctor.getParameterTypes().length != 1
                             || ctor.getParameterTypes()[0] != int.class) continue;
-                    Main.MODULE.hook(ctor).intercept(new Hooker() {
+                    hookLoginRiskMember(ctor, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             int code = ((Number) chain.getArg(0)).intValue();
                             Main.log("[LOGIN_RISK] biz_code kind=" + kind + " code=" + code);
