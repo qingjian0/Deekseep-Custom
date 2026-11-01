@@ -29,6 +29,7 @@ test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$MAIN_SOURCE")" -g
 test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$MAIN_SOURCE")" -ge 1
 ACCOUNT_PIPELINE="$MODULE_DIR/src/ds/dsh/DeepSeek/HookAccountLoginSecurity.java"
 grep -Fq 'Local API account routing hooks were only partially installed' "$ACCOUNT_PIPELINE"
+grep -Fq 'code257 Local API upload route hooks were incomplete' "$ACCOUNT_PIPELINE"
 test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$ACCOUNT_PIPELINE")" -ge 3
 test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$ACCOUNT_PIPELINE")" -ge 3
 UI_PIPELINE="$MODULE_DIR/src/ds/dsh/DeepSeek/HookUiSurface.java"
