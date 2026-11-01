@@ -240,15 +240,10 @@ object DshFileLogStore {
                 move("$category.log.1", "$category.log.2") &&
                 move("$category.log", "$category.log.1")
             if (!shifted) {
-                var rollbackSucceeded = true
                 for ((uri, originalName) in moved.asReversed()) {
-                    if (!renameMediaStore(resolver, uri, originalName)) {
-                        rollbackSucceeded = false
-                    }
+                    renameMediaStore(resolver, uri, originalName)
                 }
-                if (oldest != null && !renameMediaStore(resolver, oldest, oldestName)) {
-                    rollbackSucceeded = false
-                }
+                if (oldest != null) renameMediaStore(resolver, oldest, oldestName)
                 return false
             }
 
