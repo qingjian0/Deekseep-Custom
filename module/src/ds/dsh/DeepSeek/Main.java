@@ -7408,12 +7408,12 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     + safeThrowableMessage(error));
         }
         Throwable incomplete = null;
-        if (!factoryInstalled) {
+        if (!factoryInstalled || factoryFailure != null) {
             incomplete = new IllegalStateException(
                     "code249 thinking code-copy factory adapter was not installed",
                     factoryFailure);
         }
-        if (providerInstalled == 0) {
+        if (providerInstalled == 0 || providerFailure != null) {
             IllegalStateException missingProvider = new IllegalStateException(
                     "code249 thinking code-copy result adapter was not installed",
                     providerFailure);
@@ -7505,12 +7505,12 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     + safeThrowableMessage(error));
         }
         Throwable incomplete = null;
-        if (!factoryInstalled) {
+        if (!factoryInstalled || factoryFailure != null) {
             incomplete = new IllegalStateException(
                     "code257 thinking code-copy factory adapter was not installed",
                     factoryFailure);
         }
-        if (providerInstalled == 0) {
+        if (providerInstalled == 0 || providerFailure != null) {
             IllegalStateException missingProvider = new IllegalStateException(
                     "code257 thinking code-copy result adapter was not installed",
                     providerFailure);
