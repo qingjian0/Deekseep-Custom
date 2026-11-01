@@ -83,9 +83,12 @@ final class DshFileLogStore {
         Uri collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI;
         Uri current = findDownload(resolver, collection, fileName, relativePath);
         long currentSize = current == null ? 0L : querySize(resolver, current);
-        if (current != null && currentSize + bytes.length > MAX_FILE_BYTES) {
-            rotateMediaStore(resolver, collection, category, relativePath);
-            current = null;
+        if (current != null) {
+            if (currentSize < 0L) return false;
+            if (currentSize + bytes.length > MAX_FILE_BYTES) {
+                if (!rotateMediaStore(resolver, collection, category, relativePath)) return false;
+                current = null;
+            }
         }
         if (current == null) {
             ContentValues values = new ContentValues();
@@ -123,30 +126,32 @@ final class DshFileLogStore {
                 new String[] { MediaStore.MediaColumns.SIZE }, null, null, null)) {
             if (cursor != null && cursor.moveToFirst()) return cursor.getLong(0);
         } catch (Throwable ignored) {}
-        return 0L;
+        return -1L;
     }
 
-    private static void rotateMediaStore(ContentResolver resolver, Uri collection,
-                                         String category, String relativePath) {
+    private static boolean rotateMediaStore(ContentResolver resolver, Uri collection,
+                                            String category, String relativePath) {
         try {
             Uri oldest = findDownload(resolver, collection,
                     category + ".log." + BACKUP_COUNT, relativePath);
-            if (oldest != null) resolver.delete(oldest, null, null);
+            if (oldest != null && resolver.delete(oldest, null, null) <= 0) return false;
             for (int index = BACKUP_COUNT - 1; index >= 1; index--) {
                 Uri source = findDownload(resolver, collection,
                         category + ".log." + index, relativePath);
-                if (source != null) renameMediaStore(resolver, source,
-                        category + ".log." + (index + 1));
+                if (source != null && !renameMediaStore(resolver, source,
+                        category + ".log." + (index + 1))) return false;
             }
             Uri current = findDownload(resolver, collection, category + ".log", relativePath);
-            if (current != null) renameMediaStore(resolver, current, category + ".log.1");
-        } catch (Throwable ignored) {}
+            return current == null || renameMediaStore(resolver, current, category + ".log.1");
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
-    private static void renameMediaStore(ContentResolver resolver, Uri uri, String newName) {
+    private static boolean renameMediaStore(ContentResolver resolver, Uri uri, String newName) {
         ContentValues values = new ContentValues();
         values.put(MediaStore.MediaColumns.DISPLAY_NAME, newName);
-        resolver.update(uri, values, null, null);
+        return resolver.update(uri, values, null, null) > 0;
     }
 
     private static boolean rotateFile(File target) {

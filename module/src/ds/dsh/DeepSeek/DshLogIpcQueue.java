@@ -9,11 +9,14 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLong;
 
 /** Bounded asynchronous ingress and single-writer for authenticated host log records. */
 final class DshLogIpcQueue {
     private static final int CAPACITY = 512;
     private static final AtomicInteger THREAD_IDS = new AtomicInteger();
+    private static final AtomicLong PRIVATE_WRITE_FAILURES = new AtomicLong();
+    private static final AtomicLong PUBLIC_WRITE_FAILURES = new AtomicLong();
     private static final AtomicLong PRIVATE_WRITES = new AtomicLong();
     private static final AtomicLong PRIVATE_FAILURES = new AtomicLong();
     private static final AtomicLong PUBLIC_WRITES = new AtomicLong();
@@ -67,6 +70,10 @@ final class DshLogIpcQueue {
         result.putInt("queue_depth", WRITER.getQueue().size());
         result.putInt("queue_capacity", CAPACITY);
     }
+
+    static long privateWriteFailures() { return PRIVATE_WRITE_FAILURES.get(); }
+
+    static long publicWriteFailures() { return PUBLIC_WRITE_FAILURES.get(); }
 
     static boolean isAllowedCategory(String category) {
         return "main".equals(category) || "server".equals(category)
