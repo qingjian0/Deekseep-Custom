@@ -36,7 +36,7 @@ object AccountValidationPolicy {
 
     @JvmStatic
     fun headers(
-        token: String,
+        token: String?,
         version: String?,
         sdkInt: Int,
         locale: String?,
