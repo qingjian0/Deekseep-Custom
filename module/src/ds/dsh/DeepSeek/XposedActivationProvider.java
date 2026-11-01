@@ -38,6 +38,7 @@ public final class XposedActivationProvider extends ContentProvider {
     static final String METHOD_CONTROL_LOCAL_AUDIO = "ControlLocalAudio";
     static final String METHOD_GET_LOCAL_AUDIO_STATUS = "GetLocalAudioStatus";
     static final String METHOD_WRITE_DSH_LOG = "WriteDshLog";
+    static final String METHOD_GET_DSH_LOG_STATUS = "GetDshLogStatus";
 
     private static final String METHOD_SEND_BINDER = "SendBinder";
     private static final String SERVICE_DESCRIPTOR = "io.github.libxposed.service.IXposedService";
@@ -105,6 +106,9 @@ public final class XposedActivationProvider extends ContentProvider {
         if (METHOD_WRITE_DSH_LOG.equals(method)) {
             return writeDshLog(extras);
         }
+        if (METHOD_GET_DSH_LOG_STATUS.equals(method)) {
+            return getDshLogStatus();
+        }
         return null;
     }
 
@@ -133,6 +137,20 @@ public final class XposedActivationProvider extends ContentProvider {
         result.putBoolean("accepted", queued);
         result.putBoolean("queued", queued);
         if (!queued) result.putString("error", "log queue full");
+        return result;
+    }
+
+    private Bundle getDshLogStatus() {
+        Bundle result = new Bundle();
+        Context context = getContext();
+        int callingUid = Binder.getCallingUid();
+        if (context == null || !uidOwnsPackage(context, callingUid, TARGET_PACKAGE)) {
+            result.putBoolean("accepted", false);
+            result.putString("error", "caller is not DeepSeek");
+            return result;
+        }
+        result.putBoolean("accepted", true);
+        DshLogIpcQueue.putStatus(result);
         return result;
     }
 
