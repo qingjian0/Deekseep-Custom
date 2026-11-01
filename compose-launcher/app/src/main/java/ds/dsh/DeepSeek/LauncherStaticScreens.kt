@@ -420,8 +420,6 @@ internal fun AboutScreen(
             }
         }
     }
-internal enum class ConfigBridgeUiStatus { IDLE, LOADING, READY, UNAVAILABLE }
-
 @Composable
     internal fun CategoryScreen(
     category: FeatureCategory,
