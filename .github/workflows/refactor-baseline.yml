@@ -188,3 +188,18 @@ jobs:
           test "$universal_cert" = "$google_play_cert"
           test "$google_play_cert" = "$compose_cert"
           echo "Legacy, domestic Universal, Google Play Universal and Compose APKs share signing certificate $legacy_cert"
+
+      - name: Upload Android artifacts and verification reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: refactor-android-validation-${{ github.run_number }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            module-legacy/ds-probe-legacy.apk
+            module-universal/ds-probe-universal.apk
+            module-universal/ds-probe-universal-google-play.apk
+            compose-launcher/app/build/outputs/apk/debug/app-debug.apk
+            compose-launcher/app/build/reports/
+            compose-launcher/app/build/outputs/logs/
