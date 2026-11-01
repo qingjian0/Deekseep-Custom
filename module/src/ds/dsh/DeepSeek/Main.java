@@ -2005,6 +2005,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 maybeShowDisclaimer(act);
             }
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             log("performModuleInjection failed: " + safeThrowableMessage(error));
         }
     }
