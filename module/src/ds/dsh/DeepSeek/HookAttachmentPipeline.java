@@ -1141,7 +1141,7 @@ Main.log("f9 failed: " + t);
 
     /** 2.3.4 builds the request inside a suspend lambda named x(Object). Capture the lambda's
      * native attachment list and pq/lq session model immediately before it enters transport. */
-    void hookSendPointFps234(final ClassLoader cl, final String className) {
+    void hookSendPointFps234(final ClassLoader cl, final String className) throws Throwable {
         try {
             // These R8 classes live in the default package. "defpackage" is only JADX's
             // source-directory label and must never be included in ClassLoader lookups.
@@ -1155,7 +1155,7 @@ Main.log("f9 failed: " + t);
                     break;
                 }
             }
-            if (send == null) return;
+            if (send == null) throw new NoSuchMethodException(className + ".x(Object) send-point hook");
             Main.MODULE.hook(send).intercept(new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     if (!isExpertRelayEnabled()) return chain.proceed();
@@ -1183,8 +1183,9 @@ Main.log("f9 failed: " + t);
             Main.log("installed 2.3.4 send-point attachment capture on "
                     + className + ".x");
         } catch (Throwable error) {
-            Main.log("2.3.4 send-point capture skipped " + className + ": "
+            Main.log("2.3.4 send-point capture failed " + className + ": "
                     + Main.safeThrowableMessage(error));
+            throw error;
         }
     }
 
