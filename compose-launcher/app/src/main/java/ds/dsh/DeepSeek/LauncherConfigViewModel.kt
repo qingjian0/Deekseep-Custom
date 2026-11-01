@@ -38,7 +38,7 @@ internal class LauncherConfigViewModel(application: Application) : AndroidViewMo
             val json = reply.json
             if (reply.code == ModuleConfigBridge.RESULT_OK && !json.isNullOrEmpty()) {
                 val files = withContext(Dispatchers.Default) {
-                    runCatching { repository.parseConfigFiles(json) }.getOrDefault(emptyMap())
+                    repository.parseConfigFiles(json)
                 }
                 mutableState.value = LauncherConfigUiState(
                     bridgeStatus = ConfigBridgeUiStatus.READY,
@@ -55,6 +55,12 @@ internal class LauncherConfigViewModel(application: Application) : AndroidViewMo
         } catch (cancelled: CancellationException) {
             mutableState.value = previous
             throw cancelled
+        } catch (error: Exception) {
+            mutableState.value = previous.copy(
+                bridgeStatus = ConfigBridgeUiStatus.UNAVAILABLE,
+                errorMessage = "配置响应无效（${error.javaClass.simpleName}）",
+            )
+            null
         }
     }
 
@@ -85,6 +91,11 @@ internal class LauncherConfigViewModel(application: Application) : AndroidViewMo
         } catch (cancelled: CancellationException) {
             mutableState.value = previous
             throw cancelled
+        } catch (error: Exception) {
+            mutableState.value = previous.copy(
+                errorMessage = "配置写入失败（${error.javaClass.simpleName}）",
+            )
+            false
         }
     }
 
@@ -92,12 +103,13 @@ internal class LauncherConfigViewModel(application: Application) : AndroidViewMo
         val previous = mutableState.value
         mutableState.value = previous.copy(errorMessage = null)
         try {
+            withContext(Dispatchers.Default) { repository.parseConfigFiles(json) }
             val reply = withContext(Dispatchers.IO) {
                 repository.request(ModuleConfigBridge.MODE_IMPORT, json)
             }
             if (reply.code == ModuleConfigBridge.RESULT_OK) {
                 val files = withContext(Dispatchers.Default) {
-                    runCatching { repository.parseConfigFiles(json) }.getOrDefault(emptyMap())
+                    repository.parseConfigFiles(json)
                 }
                 mutableState.value = LauncherConfigUiState(
                     bridgeStatus = ConfigBridgeUiStatus.READY,
@@ -113,6 +125,11 @@ internal class LauncherConfigViewModel(application: Application) : AndroidViewMo
         } catch (cancelled: CancellationException) {
             mutableState.value = previous
             throw cancelled
+        } catch (error: Exception) {
+            mutableState.value = previous.copy(
+                errorMessage = "配置导入失败（${error.javaClass.simpleName}）",
+            )
+            false
         }
     }
 
