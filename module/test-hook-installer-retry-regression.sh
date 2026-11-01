@@ -122,6 +122,26 @@ fi
 preview_body="$(sed -n '/void hookNativeImagePreviewBoundary/,/void hookNativeModelFileCards/p' "$attachment_src")"
 grep -Fq 'hookAttachmentMember(boundary, new Hooker()' <<<"$preview_body"
 grep -Fq 'hookAttachmentMember(method, new Hooker()' <<<"$preview_body"
+# Remaining attachment installers share the same Member-level idempotent registrar.
+for spec in \
+  'void hookLocalEditorImageUris(:resolve' \
+  'void hookNativeModelFileCards(:method' \
+  'void hookExpertUnlock(:ctor' \
+  'void hookExpertUnlock(:mtd' \
+  'void installExpertUploadGate(:mtd' \
+  'void f9(:ctor' \
+  'void hookSendPointFps234(:send' \
+  'void hookSendPointFps(final:y' \
+  'void installExpertFlowCollectHook(:bColl'; do
+  IFS=: read -r method target <<<"$spec"
+  body="$(sed -n "/$method/,/^    }/p" "$attachment_src")"
+  grep -Fq "hookAttachmentMember($target, new Hooker()" <<<"$body"
+  if grep -Fq "Main.MODULE.hook($target)" <<<"$body"; then
+    echo "$method bypasses attachment retry-safe registration." >&2
+    exit 1
+  fi
+done
+
 
 # Login-risk diagnostic retries must not register the same host Member more than once.
 login_src="$SRC/HookAccountLoginSecurity.java"
