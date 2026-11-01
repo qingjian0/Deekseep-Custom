@@ -6,6 +6,15 @@ ACTIVITY="$ROOT/compose-launcher/app/src/main/java/ds/dsh/DeepSeek/SettingsActiv
 
 test -s "$ACTIVITY"
 
+# Guard against duplicate Activity handlers introduced by broad source rewrites.
+for declaration in launchImport exportData importData applyImport; do
+  count="$(grep -Ec "^[[:space:]]*private (suspend )?fun ${declaration}\\(" "$ACTIVITY" || true)"
+  if [[ "$count" != "1" ]]; then
+    echo "Expected exactly one ${declaration} declaration, found ${count}." >&2
+    exit 1
+  fi
+done
+
 # SAF result contracts must remain registered on the Activity before STARTED.
 grep -Fq 'ActivityResultContracts.CreateDocument("application/zip")' "$ACTIVITY"
 grep -Fq 'ActivityResultContracts.CreateDocument("application/json")' "$ACTIVITY"
@@ -28,6 +37,7 @@ fi
 
 # Coroutine cancellation must not be converted into an ordinary operation failure.
 grep -Fq 'catch (cancelled: CancellationException)' "$ACTIVITY"
+grep -Fq 'throw cancelled' "$ACTIVITY"
 grep -Fq 'finally {' "$ACTIVITY"
 
 echo "Launcher Activity SAF/lifecycle architecture regression passed."
