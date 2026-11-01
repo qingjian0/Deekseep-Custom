@@ -1318,16 +1318,17 @@ Main.log("[RISK] Android ID spoof installed");
      * numbers or any other request/response content. Class names cover 2.3.6 (ox4/ix4) and
      * 2.3.4 (f05/iw5) hosts; every candidate is optional.
      */
-    void installLoginRiskLogger(final ClassLoader cl) {
+    void installLoginRiskLogger(final ClassLoader cl) throws Throwable {
         if (cl == null) return;
-        installBizCodeLogger(cl, new String[]{"ox4", "f05"}, "sms");
-        installBizCodeLogger(cl, new String[]{"ix4", "iw5"}, "login");
-        installBizCodeLogger(cl, new String[]{"kt5", "cw5"}, "google");
-        installBizCodeLogger(cl, new String[]{"qt5"}, "wechat");
-        installBizCodeLogger(cl, new String[]{"mx5", "f06"}, "onetap");
-        installBizCodeLogger(cl, new String[]{"g14", "zz4"}, "toast");
-        installBizCodeLogger(cl, new String[]{"qx4"}, "google-toast");
-        installBizCodeLogger(cl, new String[]{"sn5"}, "google-toast2");
+        int bizCodeKindsInstalled = 0;
+        if (installBizCodeLogger(cl, new String[]{"ox4", "f05"}, "sms")) bizCodeKindsInstalled++;
+        if (installBizCodeLogger(cl, new String[]{"ix4", "iw5"}, "login")) bizCodeKindsInstalled++;
+        if (installBizCodeLogger(cl, new String[]{"kt5", "cw5"}, "google")) bizCodeKindsInstalled++;
+        if (installBizCodeLogger(cl, new String[]{"qt5"}, "wechat")) bizCodeKindsInstalled++;
+        if (installBizCodeLogger(cl, new String[]{"mx5", "f06"}, "onetap")) bizCodeKindsInstalled++;
+        if (installBizCodeLogger(cl, new String[]{"g14", "zz4"}, "toast")) bizCodeKindsInstalled++;
+        if (installBizCodeLogger(cl, new String[]{"qx4"}, "google-toast")) bizCodeKindsInstalled++;
+        if (installBizCodeLogger(cl, new String[]{"sn5"}, "google-toast2")) bizCodeKindsInstalled++;
         try {
             Class<?> flow = HostRemap.forName("gy4", false, cl);
             for (final Method method : flow.getDeclaredMethods()) {
@@ -1484,7 +1485,8 @@ Main.log("[RISK] Android ID spoof installed");
                 try { Main.MODULE.deoptimize(method); } catch (Throwable ignored) {}
             }
         } catch (Throwable ignored) {}
-        Main.log("[LOGIN_RISK] biz-code logger installed");
+        Main.log("[LOGIN_RISK] biz-code logger installed kinds="
+                + bizCodeKindsInstalled + "/8");
     }
 
     /** Logs the shape of the Google oauth result: success, structured biz code, or raw failure. */
@@ -1504,8 +1506,9 @@ Main.log("[RISK] Android ID spoof installed");
         Main.log("[LOGIN_RISK] google result=" + shape + " code=" + code);
     }
 
-    private void installBizCodeLogger(final ClassLoader cl, String[] classNames,
-                                      final String kind) {
+    private boolean installBizCodeLogger(final ClassLoader cl, String[] classNames,
+                                         final String kind) throws Throwable {
+        Throwable lastFailure = null;
         for (String className : classNames) {
             try {
                 Class<?> type = HostRemap.forName(className, false, cl);
@@ -1519,14 +1522,22 @@ Main.log("[RISK] Android ID spoof installed");
                             return chain.proceed();
                         }
                     });
-                    break;
+                    Main.log("[LOGIN_RISK] biz-code hook class=" + className + " kind=" + kind);
+                    return true;
                 }
-                Main.log("[LOGIN_RISK] biz-code hook class=" + className + " kind=" + kind);
-                return;
-            } catch (Throwable ignored) {}
+            } catch (VirtualMachineError fatal) {
+                throw fatal;
+            } catch (ThreadDeath fatal) {
+                throw fatal;
+            } catch (Throwable error) {
+                lastFailure = error;
+            }
         }
         Main.log("[LOGIN_RISK] biz-code hook missing kind=" + kind + " tried="
-                + java.util.Arrays.toString(classNames));
+                + java.util.Arrays.toString(classNames)
+                + (lastFailure == null ? "" : " last_error="
+                        + Main.safeThrowableMessage(lastFailure)));
+        return false;
     }
 
     private Object proceedWithRegionalLoginOptions(Chain chain, int listIndex,
