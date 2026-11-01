@@ -13,6 +13,7 @@ public final class DshLogRegression {
             DshLog.info(
                     "Security",
                     "Authorization: Bearer bearer-secret-123456 api_key=api-secret-123456 " +
+                            "client_secret=client-secret-123456 cookie=session-cookie-123456 " +
                             "path=/data/user/0/example/files/private.txt"
             );
             DshLog.error(
@@ -28,6 +29,13 @@ public final class DshLogRegression {
             assertContains(security, "[private-path]", "private path redaction");
             assertNotContains(security, "bearer-secret-123456", "bearer credential leakage");
             assertNotContains(security, "api-secret-123456", "API key leakage");
+            assertNotContains(security, "client-secret-123456", "client secret leakage");
+            assertNotContains(security, "session-cookie-123456", "cookie leakage");
+
+            String storageSafe = DshLog.sanitizeForStorage(
+                    "client_secret=storage-secret cookie=storage-cookie");
+            assertNotContains(storageSafe, "storage-secret", "storage client secret leakage");
+            assertNotContains(storageSafe, "storage-cookie", "storage cookie leakage");
 
             DshLog.Event crash = events.get(1);
             assertEquals("java.lang.IllegalStateException", crash.getErrorType(),
