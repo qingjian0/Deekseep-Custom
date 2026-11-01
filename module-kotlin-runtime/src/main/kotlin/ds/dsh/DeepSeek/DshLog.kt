@@ -37,6 +37,9 @@ object DshLog {
 
     @JvmStatic fun setMinimumLevel(level: Level) { minimumLevel = level }
 
+    /** Applies the same credential and private-path redaction before records leave the runtime. */
+    @JvmStatic fun sanitizeForStorage(value: String): String = sanitize(value)
+
     /** Adds a sink and returns a handle that removes it. */
     @JvmStatic fun addSink(sink: Sink): AutoCloseable {
         sinks += sink
@@ -96,7 +99,7 @@ object DshLog {
         "(?i)(\\bbearer\\s+)[^\\s,;]+"
     )
     private val SECRET_PATTERN = Regex(
-        "(?i)(\\b(?:x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password)\\b\\s*[\\\"']?\\s*[:=]\\s*[\\\"']?)[^\\s\\\"',;}]+"
+        "(?i)(\\b(?:x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|cookie|token|secret|password)\\b\\s*[\\\"']?\\s*[:=]\\s*[\\\"']?)[^\\s\\\"',;}]+"
     )
     private val PRIVATE_PATH_PATTERN = Regex(
         "/(?:data|storage)/[^\\s,;]+",
