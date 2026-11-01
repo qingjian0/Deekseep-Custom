@@ -98,12 +98,13 @@ internal class LauncherConfigRepository(context: Context) {
         return root.toString(2)
     }
 
-    fun failureText(reply: ConfigBridgeReply): String = when {
-        reply.code == RESULT_TIMEOUT ->
-            "DeepSeek 未响应：请先打开一次 DeepSeek（确认模块已在 LSPosed 中启用），再回来重试"
-        reply.data?.getString("error") != null ->
-            "DeepSeek 返回错误：${reply.data.getString("error")}"
-        else -> "请先打开一次 DeepSeek，再重试"
+    fun failureText(reply: ConfigBridgeReply): String {
+        if (reply.code == RESULT_TIMEOUT) {
+            return "DeepSeek 未响应：请先打开一次 DeepSeek（确认模块已在 LSPosed 中启用），再回来重试"
+        }
+        val error = reply.data?.getString("error")
+        return if (error != null) "DeepSeek 返回错误：$error"
+        else "请先打开一次 DeepSeek，再重试"
     }
 
     private fun finish(
