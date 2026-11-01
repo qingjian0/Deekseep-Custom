@@ -2497,9 +2497,17 @@ final class HookAgentPipeline {
             Main.log("heartbeat tool status Compose hooks string=" + stringHooks
                     + " annotated=" + annotatedHooks
                     + " renderer=" + rendererClassName);
+            if (stringHooks + annotatedHooks == 0) {
+                throw new IllegalStateException(
+                        "heartbeat tool status Compose discovery returned no methods");
+            }
         } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
             Main.log("heartbeat tool status renderer unavailable "
-                    + rendererClassName + ": " + t);
+                    + rendererClassName + ": " + Main.safeThrowableMessage(t));
+            throw new IllegalStateException(
+                    "heartbeat tool status Compose hook installation failed", t);
         }
     }
 
@@ -2618,9 +2626,18 @@ final class HookAgentPipeline {
             }
             Main.log("heartbeat tool status BasicText hooks=" + hooked
                     + " renderer=" + rendererClassName + "." + methodName);
+            if (hooked == 0) {
+                throw new IllegalStateException(
+                        "heartbeat tool status BasicText discovery returned no methods");
+            }
         } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
             Main.log("heartbeat tool status BasicText renderer unavailable "
-                    + rendererClassName + "." + methodName + ": " + t);
+                    + rendererClassName + "." + methodName + ": "
+                    + Main.safeThrowableMessage(t));
+            throw new IllegalStateException(
+                    "heartbeat tool status BasicText hook installation failed", t);
         }
     }
 
