@@ -78,12 +78,17 @@ class FeatureHookInstallRegistry {
         }
     }
 
-    /** Records an explicit host/version gate; skipped hooks are not retried in this process. */
+    /**
+     * Records an explicit host/version gate only for a feature that has not started.
+     *
+     * A skip must never erase evidence of an attempted installation: FAILED and DEGRADED
+     * remain visible and retryable, while INSTALLED and an existing SKIPPED state are terminal.
+     */
     fun markSkipped(id: String?, reason: String?) {
         requireId(id)
         val entry = entries.computeIfAbsent(id!!) { Entry() }
         synchronized(entry) {
-            if (entry.state == State.INSTALLED) return
+            if (entry.state != State.NEW) return
             entry.state = State.SKIPPED
             entry.completedAtMillis = System.currentTimeMillis()
             entry.detail = reason ?: ""
