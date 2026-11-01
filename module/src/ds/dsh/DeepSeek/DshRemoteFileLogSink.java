@@ -4,6 +4,7 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -38,6 +39,23 @@ final class DshRemoteFileLogSink {
         Context context = source.getApplicationContext() == null
                 ? source : source.getApplicationContext();
         ContentResolver resolver = context.getContentResolver();
+        DshLog.addSink(event -> {
+            int priority;
+            switch (event.getLevel()) {
+                case DEBUG: priority = Log.DEBUG; break;
+                case INFO: priority = Log.INFO; break;
+                case WARN: priority = Log.WARN; break;
+                case ERROR: priority = Log.ERROR; break;
+                default: priority = Log.INFO;
+            }
+            String tag = ("DSH-" + event.getTag());
+            if (tag.length() > 23) tag = tag.substring(0, 23);
+            String message = event.getMessage();
+            if (event.getErrorType() != null) {
+                message += " errorType=" + event.getErrorType();
+            }
+            Log.println(priority, tag, message);
+        });
         DshLog.addSink(event -> {
             String category = categoryFor(event.getTag());
             StringBuilder line = new StringBuilder(256)
