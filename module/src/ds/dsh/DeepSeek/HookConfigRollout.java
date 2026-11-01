@@ -153,10 +153,12 @@ final class HookConfigRollout {
                     + HostCompat.generationName());
         }
         int count = 0;
+        Throwable installFailure = null;
         String[] owners = HostCompat.isV241()
                 ? new String[]{"fv5", "ys1"}
                 : new String[]{"lp5", "pp1"};
         for (String ownerName : owners) {
+            int ownerCount = 0;
             try {
                 Class<?> owner = HostRemap.forName(ownerName, false, loader);
                 for (final Method method : owner.getDeclaredMethods()) {
@@ -175,12 +177,19 @@ final class HookConfigRollout {
                         }
                     });
                     count++;
+                    ownerCount++;
+                }
+                if (ownerCount == 0) {
+                    throw new NoSuchMethodException(ownerName + " remote settings hot-update targets");
                 }
             } catch (Throwable error) {
                 Main.log("remote settings blocker unavailable owner=" + ownerName + ": "
                         + Main.safeThrowableMessage(error));
+                if (installFailure == null) installFailure = error;
+                else installFailure.addSuppressed(error);
             }
         }
+        if (installFailure != null) throw installFailure;
         if (count == 0) throw new NoSuchMethodException("remote settings hot-update blocker targets");
         Main.log("remote settings hot-update blocker hooks=" + count);
     }
