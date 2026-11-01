@@ -1729,214 +1729,6 @@ final class HookAgentPipeline {
                 || (value >= 'A' && value <= 'F');
     }
 
-    private static void hookHeartbeatResponseMember(Member member, Hooker hooker)
-            throws Throwable {
-        synchronized (HEARTBEAT_RESPONSE_HOOKED_MEMBERS) {
-            if (HEARTBEAT_RESPONSE_HOOKED_MEMBERS.contains(member)) return;
-            Main.MODULE.hook(member).intercept(hooker);
-            HEARTBEAT_RESPONSE_HOOKED_MEMBERS.add(member);
-        }
-    }
-
-    void hookHeartbeatToolResponses(ClassLoader cl) throws Throwable {
-        Throwable installFailure = null;
-        int liveHooks = 0;
-        int staticHooks = 0;
-        String[] liveClasses = new String[]{"fo2", "ho2"};
-        for (String legacyClassName : liveClasses) {
-            int ownerHooksBefore = liveHooks;
-            final boolean executeTools = "fo2".equals(legacyClassName);
-            String className = HostCompat.name(legacyClassName);
-            final String appendMethod =
-                    HostCompat.method(legacyClassName, "g");
-            try {
-                Class<?> liveResponse = HostRemap.load(cl, className);
-                for (Constructor<?> ctor : liveResponse.getDeclaredConstructors()) {
-                    hookHeartbeatResponseMember(ctor, new Hooker() {
-                        @Override public Object intercept(Chain chain) throws Throwable {
-                            Object result = chain.proceed();
-                            try {
-                                registerHeartbeatFragmentState(
-                                        chain.getThisObject(), executeTools);
-                                sanitizeLiveHeartbeatResponse(
-                                        chain.getThisObject(), false, executeTools);
-                            } catch (Throwable t) {
-                                Main.log("heartbeat response constructor filter failed: " + t);
-                            }
-                            return result;
-                        }
-                    });
-                    liveHooks++;
-                }
-                for (Method method : liveResponse.getDeclaredMethods()) {
-                    final String name = HostRemap.name(method);
-                    Class<?>[] types = method.getParameterTypes();
-                    final String replaceMethod = HostCompat.isV234()
-                            && HostCompat.isGooglePlay() ? "j" : "i";
-                    if ((!appendMethod.equals(name) && !replaceMethod.equals(name))
-                            || types.length == 0 || types[0] != String.class) continue;
-                    hookHeartbeatResponseMember(method, new Hooker() {
-                        @Override public Object intercept(Chain chain) throws Throwable {
-                            if ("content".equals(chain.getArg(0))) {
-                                String decoded = decodeHeartbeatJsonString(chain.getArg(1));
-                                if (decoded != null) {
-                                    Object fragment = chain.getThisObject();
-                                    Object state = liveResponseTextState(fragment);
-                                    Object current = state == null
-                                            ? null : Main.invokeNoArg(state, "getValue");
-                                    boolean append = appendMethod.equals(name);
-                                    String hostText = append
-                                            ? (current instanceof String ? (String) current : "")
-                                                    + decoded
-                                            : decoded;
-                                    Main.HeartbeatSanitizedUpdate update = executeTools
-                                            ? prepareHeartbeatStateUpdate(
-                                                    fragment, hostText, append, true)
-                                            : prepareThinkingStateUpdate(
-                                                    fragment, hostText, append);
-                                    if (state != null
-                                            && setHeartbeatSanitizedState(
-                                                    state, update.safe)) {
-                                        markHeartbeatContentChanged(
-                                                chain.getArg(chain.getArgs().size() - 1));
-                                        if (!update.calls.isEmpty()) {
-                                            Main.log("Agent live pre-write accepted calls="
-                                                    + update.calls.size()
-                                                    + " method=" + name);
-                                        }
-                                        Main.dispatchHeartbeatStateUpdate(update);
-                                        return null;
-                                    }
-                                }
-                            }
-                            Object result = chain.proceed();
-                            try {
-                                if ("content".equals(chain.getArg(0))) {
-                                        sanitizeLiveHeartbeatResponse(
-                                            chain.getThisObject(), appendMethod.equals(name),
-                                            executeTools);
-                                }
-                            } catch (Throwable t) {
-                                Main.log("heartbeat streaming response filter failed: " + t);
-                            }
-                            return result;
-                        }
-                    });
-                    liveHooks++;
-                }
-            } catch (Throwable t) {
-                Main.log("heartbeat live response hook unavailable for "
-                        + className + ": " + t);
-                if (installFailure == null) installFailure = t;
-                else installFailure.addSuppressed(t);
-            }
-            if (liveHooks == ownerHooksBefore) {
-                NoSuchMethodException missing = new NoSuchMethodException(
-                        className + " heartbeat live response targets");
-                if (installFailure == null) installFailure = missing;
-                else installFailure.addSuppressed(missing);
-            }
-        }
-        String[] staticClasses = new String[]{"at7", "ht7"};
-        for (String legacyClassName : staticClasses) {
-            int ownerHooksBefore = staticHooks;
-            final boolean renderToolRows = "at7".equals(legacyClassName);
-            String className = HostCompat.name(legacyClassName);
-            try {
-                Class<?> staticResponse = HostRemap.load(cl, className);
-                for (Constructor<?> ctor : staticResponse.getDeclaredConstructors()) {
-                    Class<?>[] types = ctor.getParameterTypes();
-                    final int contentIndex;
-                    if ((types.length == 3 || types.length == 4)
-                            && types[1] == String.class) {
-                        contentIndex = 1;
-                    } else if (types.length >= 5
-                            && types[0] == String.class
-                            && types[1] == int.class
-                            && types[2] == String.class) {
-                        // 2.3.4's normal RESPONSE/THINK fragments are constructed as
-                        // (type, id, content, ...). This is the live p() render path. Hooking
-                        // only the kotlinx serialization constructor (mask, type, id, content,
-                        // ...) cleans the database eventually but lets the raw control block
-                        // flash and remain in the active Compose tree.
-                        contentIndex = 2;
-                    } else if (types.length >= 4 && types[3] == String.class) {
-                        contentIndex = 3;
-                    } else {
-                        continue;
-                    }
-                    hookHeartbeatResponseMember(ctor, new Hooker() {
-                        @Override public Object intercept(Chain chain) throws Throwable {
-                            Object raw = chain.getArg(contentIndex);
-                            if (!(raw instanceof String)) return chain.proceed();
-                            HeartbeatToolProtocol.Result parsed = renderToolRows
-                                    ? HeartbeatToolProtocol.parseForConversation((String) raw)
-                                    : HeartbeatToolProtocol.parse((String) raw);
-                            String safe = renderToolRows
-                                    ? HeartbeatToolProtocol.renderConversationToolRows(
-                                            (String) raw)
-                                    : (AgentToolConfig.hideToolLogs()
-                                            ? HeartbeatToolProtocol
-                                                    .sanitizeThinkingToolNarration((String) raw)
-                                            : parsed.visibleText);
-                            Object result;
-                            if (safe.equals(raw)) {
-                                result = chain.proceed();
-                            } else {
-                                Object[] args = chain.getArgs().toArray();
-                                args[contentIndex] = safe;
-                                result = chain.proceed(args);
-                            }
-                            // Some 2.3.4 responses are materialized directly as their immutable
-                            // RESPONSE fragment and never pass through the mutable streaming
-                            // object. The old code hid/rendered those calls here but executed tools
-                            // only in the streaming hook, leaving a convincing status row with no
-                            // real action. Use the final fragment as an authorized fallback. The
-                            // durable call-id claim in executeHeartbeatToolCalls prevents a second
-                            // execution when both paths do fire.
-                            if (renderToolRows) {
-                                dispatchStaticAgentToolFallback(parsed);
-                            }
-                            return result;
-                        }
-                    });
-                    staticHooks++;
-                }
-            } catch (Throwable t) {
-                Main.log("heartbeat static response hook unavailable for "
-                        + className + ": " + t);
-                if (installFailure == null) installFailure = t;
-                else installFailure.addSuppressed(t);
-            }
-            if (staticHooks == ownerHooksBefore) {
-                NoSuchMethodException missing = new NoSuchMethodException(
-                        className + " heartbeat static response targets");
-                if (installFailure == null) installFailure = missing;
-                else installFailure.addSuppressed(missing);
-            }
-        }
-        if (installFailure != null) throw installFailure;
-        if (liveHooks == 0 || staticHooks == 0) {
-            throw new NoSuchMethodException("heartbeat live/static response hook targets");
-        }
-        Main.log("heartbeat hidden-tool response hooks live=" + liveHooks
-                + " static=" + staticHooks);
-    }
-
-    /**
-     * Intercepts 2.3.4's non-inlined JSON Patch dispatcher.  ART/R8 may bypass hooks on the
-     * concrete us2.e/i methods, but every nested fragment patch still reaches cj0.g before the
-     * RESPONSE State and its Markdown cache are updated.
-     */
-    private static void hookHeartbeatPipelineMember(Member member, Hooker hooker)
-            throws Throwable {
-        synchronized (HEARTBEAT_PIPELINE_HOOKED_MEMBERS) {
-            if (HEARTBEAT_PIPELINE_HOOKED_MEMBERS.contains(member)) return;
-            Main.MODULE.hook(member).intercept(hooker);
-            HEARTBEAT_PIPELINE_HOOKED_MEMBERS.add(member);
-        }
-    }
-
     void hookHeartbeatPatchDispatcher(ClassLoader cl) throws Throwable {
         if (!HostCompat.isV234()) return;
         final String dispatcherName = HostCompat.isV241() ? "jo0"
@@ -3833,4 +3625,212 @@ final class HookAgentPipeline {
     private static boolean messageContainsAnonymousHeartbeatEvent(Object message) {
         return HookAttachmentPipeline.messageContainsPrivateTransport(message, false);
     }
-}
+}    private static void hookHeartbeatResponseMember(Member member, Hooker hooker)
+            throws Throwable {
+        synchronized (HEARTBEAT_RESPONSE_HOOKED_MEMBERS) {
+            if (HEARTBEAT_RESPONSE_HOOKED_MEMBERS.contains(member)) return;
+            Main.MODULE.hook(member).intercept(hooker);
+            HEARTBEAT_RESPONSE_HOOKED_MEMBERS.add(member);
+        }
+    }
+
+    void hookHeartbeatToolResponses(ClassLoader cl) throws Throwable {
+        Throwable installFailure = null;
+        int liveHooks = 0;
+        int staticHooks = 0;
+        String[] liveClasses = new String[]{"fo2", "ho2"};
+        for (String legacyClassName : liveClasses) {
+            int ownerHooksBefore = liveHooks;
+            final boolean executeTools = "fo2".equals(legacyClassName);
+            String className = HostCompat.name(legacyClassName);
+            final String appendMethod =
+                    HostCompat.method(legacyClassName, "g");
+            try {
+                Class<?> liveResponse = HostRemap.load(cl, className);
+                for (Constructor<?> ctor : liveResponse.getDeclaredConstructors()) {
+                    hookHeartbeatResponseMember(ctor, new Hooker() {
+                        @Override public Object intercept(Chain chain) throws Throwable {
+                            Object result = chain.proceed();
+                            try {
+                                registerHeartbeatFragmentState(
+                                        chain.getThisObject(), executeTools);
+                                sanitizeLiveHeartbeatResponse(
+                                        chain.getThisObject(), false, executeTools);
+                            } catch (Throwable t) {
+                                Main.log("heartbeat response constructor filter failed: " + t);
+                            }
+                            return result;
+                        }
+                    });
+                    liveHooks++;
+                }
+                for (Method method : liveResponse.getDeclaredMethods()) {
+                    final String name = HostRemap.name(method);
+                    Class<?>[] types = method.getParameterTypes();
+                    final String replaceMethod = HostCompat.isV234()
+                            && HostCompat.isGooglePlay() ? "j" : "i";
+                    if ((!appendMethod.equals(name) && !replaceMethod.equals(name))
+                            || types.length == 0 || types[0] != String.class) continue;
+                    hookHeartbeatResponseMember(method, new Hooker() {
+                        @Override public Object intercept(Chain chain) throws Throwable {
+                            if ("content".equals(chain.getArg(0))) {
+                                String decoded = decodeHeartbeatJsonString(chain.getArg(1));
+                                if (decoded != null) {
+                                    Object fragment = chain.getThisObject();
+                                    Object state = liveResponseTextState(fragment);
+                                    Object current = state == null
+                                            ? null : Main.invokeNoArg(state, "getValue");
+                                    boolean append = appendMethod.equals(name);
+                                    String hostText = append
+                                            ? (current instanceof String ? (String) current : "")
+                                                    + decoded
+                                            : decoded;
+                                    Main.HeartbeatSanitizedUpdate update = executeTools
+                                            ? prepareHeartbeatStateUpdate(
+                                                    fragment, hostText, append, true)
+                                            : prepareThinkingStateUpdate(
+                                                    fragment, hostText, append);
+                                    if (state != null
+                                            && setHeartbeatSanitizedState(
+                                                    state, update.safe)) {
+                                        markHeartbeatContentChanged(
+                                                chain.getArg(chain.getArgs().size() - 1));
+                                        if (!update.calls.isEmpty()) {
+                                            Main.log("Agent live pre-write accepted calls="
+                                                    + update.calls.size()
+                                                    + " method=" + name);
+                                        }
+                                        Main.dispatchHeartbeatStateUpdate(update);
+                                        return null;
+                                    }
+                                }
+                            }
+                            Object result = chain.proceed();
+                            try {
+                                if ("content".equals(chain.getArg(0))) {
+                                        sanitizeLiveHeartbeatResponse(
+                                            chain.getThisObject(), appendMethod.equals(name),
+                                            executeTools);
+                                }
+                            } catch (Throwable t) {
+                                Main.log("heartbeat streaming response filter failed: " + t);
+                            }
+                            return result;
+                        }
+                    });
+                    liveHooks++;
+                }
+            } catch (Throwable t) {
+                Main.log("heartbeat live response hook unavailable for "
+                        + className + ": " + t);
+                if (installFailure == null) installFailure = t;
+                else installFailure.addSuppressed(t);
+            }
+            if (liveHooks == ownerHooksBefore) {
+                NoSuchMethodException missing = new NoSuchMethodException(
+                        className + " heartbeat live response targets");
+                if (installFailure == null) installFailure = missing;
+                else installFailure.addSuppressed(missing);
+            }
+        }
+        String[] staticClasses = new String[]{"at7", "ht7"};
+        for (String legacyClassName : staticClasses) {
+            int ownerHooksBefore = staticHooks;
+            final boolean renderToolRows = "at7".equals(legacyClassName);
+            String className = HostCompat.name(legacyClassName);
+            try {
+                Class<?> staticResponse = HostRemap.load(cl, className);
+                for (Constructor<?> ctor : staticResponse.getDeclaredConstructors()) {
+                    Class<?>[] types = ctor.getParameterTypes();
+                    final int contentIndex;
+                    if ((types.length == 3 || types.length == 4)
+                            && types[1] == String.class) {
+                        contentIndex = 1;
+                    } else if (types.length >= 5
+                            && types[0] == String.class
+                            && types[1] == int.class
+                            && types[2] == String.class) {
+                        // 2.3.4's normal RESPONSE/THINK fragments are constructed as
+                        // (type, id, content, ...). This is the live p() render path. Hooking
+                        // only the kotlinx serialization constructor (mask, type, id, content,
+                        // ...) cleans the database eventually but lets the raw control block
+                        // flash and remain in the active Compose tree.
+                        contentIndex = 2;
+                    } else if (types.length >= 4 && types[3] == String.class) {
+                        contentIndex = 3;
+                    } else {
+                        continue;
+                    }
+                    hookHeartbeatResponseMember(ctor, new Hooker() {
+                        @Override public Object intercept(Chain chain) throws Throwable {
+                            Object raw = chain.getArg(contentIndex);
+                            if (!(raw instanceof String)) return chain.proceed();
+                            HeartbeatToolProtocol.Result parsed = renderToolRows
+                                    ? HeartbeatToolProtocol.parseForConversation((String) raw)
+                                    : HeartbeatToolProtocol.parse((String) raw);
+                            String safe = renderToolRows
+                                    ? HeartbeatToolProtocol.renderConversationToolRows(
+                                            (String) raw)
+                                    : (AgentToolConfig.hideToolLogs()
+                                            ? HeartbeatToolProtocol
+                                                    .sanitizeThinkingToolNarration((String) raw)
+                                            : parsed.visibleText);
+                            Object result;
+                            if (safe.equals(raw)) {
+                                result = chain.proceed();
+                            } else {
+                                Object[] args = chain.getArgs().toArray();
+                                args[contentIndex] = safe;
+                                result = chain.proceed(args);
+                            }
+                            // Some 2.3.4 responses are materialized directly as their immutable
+                            // RESPONSE fragment and never pass through the mutable streaming
+                            // object. The old code hid/rendered those calls here but executed tools
+                            // only in the streaming hook, leaving a convincing status row with no
+                            // real action. Use the final fragment as an authorized fallback. The
+                            // durable call-id claim in executeHeartbeatToolCalls prevents a second
+                            // execution when both paths do fire.
+                            if (renderToolRows) {
+                                dispatchStaticAgentToolFallback(parsed);
+                            }
+                            return result;
+                        }
+                    });
+                    staticHooks++;
+                }
+            } catch (Throwable t) {
+                Main.log("heartbeat static response hook unavailable for "
+                        + className + ": " + t);
+                if (installFailure == null) installFailure = t;
+                else installFailure.addSuppressed(t);
+            }
+            if (staticHooks == ownerHooksBefore) {
+                NoSuchMethodException missing = new NoSuchMethodException(
+                        className + " heartbeat static response targets");
+                if (installFailure == null) installFailure = missing;
+                else installFailure.addSuppressed(missing);
+            }
+        }
+        if (installFailure != null) throw installFailure;
+        if (liveHooks == 0 || staticHooks == 0) {
+            throw new NoSuchMethodException("heartbeat live/static response hook targets");
+        }
+        Main.log("heartbeat hidden-tool response hooks live=" + liveHooks
+                + " static=" + staticHooks);
+    }
+
+    /**
+     * Intercepts 2.3.4's non-inlined JSON Patch dispatcher.  ART/R8 may bypass hooks on the
+     * concrete us2.e/i methods, but every nested fragment patch still reaches cj0.g before the
+     * RESPONSE State and its Markdown cache are updated.
+     */
+    private static void hookHeartbeatPipelineMember(Member member, Hooker hooker)
+            throws Throwable {
+        synchronized (HEARTBEAT_PIPELINE_HOOKED_MEMBERS) {
+            if (HEARTBEAT_PIPELINE_HOOKED_MEMBERS.contains(member)) return;
+            Main.MODULE.hook(member).intercept(hooker);
+            HEARTBEAT_PIPELINE_HOOKED_MEMBERS.add(member);
+        }
+    }
+
+
