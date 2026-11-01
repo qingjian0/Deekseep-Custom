@@ -77,9 +77,9 @@ final class HeartbeatToolProtocol {
 
     private static final int MAX_CONTROL_JSON = 48 * 1024;
     /**
-     * The native chat bridge has one generation lane per conversation.  Keeping this at one is
-     * not just a prompt preference: it is the protocol-level guard that makes execution order,
-     * result delivery and side-effect deduplication deterministic.
+     * Bound the number of legacy batched calls accepted from one response. Calls in a batch
+     * share one conversation scope and are executed through that conversation's serialized
+     * generation lane. The same cap also bounds rendering and private result aggregation.
      */
     private static final int MAX_CALLS_PER_RESPONSE = 4;
     private static final int MAX_INSTRUCTION = 1200;
