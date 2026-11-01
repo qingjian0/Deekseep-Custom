@@ -56,6 +56,8 @@ jobs:
         run: bash module/test-login-diagnostics-regression.sh
       - name: Run session deletion install regression
         run: bash module/test-session-deletion-install-regression.sh
+      - name: Run native session click install regression
+        run: bash module/test-native-session-click-install-regression.sh
       - name: Run target process admission regression
         run: bash module/test-target-process-guard.sh
 
