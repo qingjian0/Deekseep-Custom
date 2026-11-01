@@ -665,36 +665,7 @@ class SettingsActivity : ComponentActivity() {
         }
     }
 
-    @Composable
-    private fun BusyDialog(message: String) {
-        AlertDialog(
-            onDismissRequest = {},
-            confirmButton = {},
-            text = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(modifier = Modifier.size(28.dp))
-                    Spacer(Modifier.width(18.dp))
-                    Text(message)
-                }
-            },
-        )
-    }
-
-    @Composable
-    private fun PageColumn(content: @Composable () -> Unit) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            content()
-            Spacer(Modifier.height(12.dp))
-        }
-    }
-
-    @Composable
+            @Composable
     private fun StatusCard(index: Int) {
         val tick = refreshTick
         val active = remember(tick) { isActive() }
@@ -743,28 +714,7 @@ class SettingsActivity : ComponentActivity() {
         }
     }
 
-    @Composable
-    private fun ActionTile(icon: ImageVector, label: String, modifier: Modifier, onClick: () -> Unit) {
-        val interaction = remember { MutableInteractionSource() }
-        Card(
-            onClick = onClick,
-            interactionSource = interaction,
-            shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
-            modifier = modifier.pressScale(interaction),
-        ) {
-            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
-                Text(
-                    label,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer,
-                )
-            }
-        }
-    }
-
-    @Composable
+        @Composable
     private fun FeaturesScreen(onOpen: (String) -> Unit) {
         PageColumn {
             NoteCard(
@@ -786,7 +736,7 @@ class SettingsActivity : ComponentActivity() {
                     onClick = { onOpen(category.id) },
                 )
             }
-            OpenInDeepSeekButton(Modifier.staggeredEntrance(10), "打开 DeepSeek 模块设置")
+            OpenInDeepSeekButton(Modifier.staggeredEntrance(10), "打开 DeepSeek 模块设置") { openDeepSeekSettings() }
         }
     }
 
@@ -821,49 +771,14 @@ class SettingsActivity : ComponentActivity() {
         }
     }
 
-    @Composable
-    private fun OpenInDeepSeekButton(modifier: Modifier = Modifier, label: String = "在 DeepSeek 中打开此设置") {
-        val interaction = remember { MutableInteractionSource() }
-        Button(
-            onClick = { openDeepSeekSettings() },
-            interactionSource = interaction,
-            modifier = modifier.fillMaxWidth().height(52.dp).pressScale(interaction),
-        ) {
-            Icon(Icons.Outlined.OpenInNew, contentDescription = null, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(10.dp))
-            Text(label)
-        }
-    }
-
-    @Composable
-    private fun CategoryHeader(category: FeatureCategory, index: Int) {
-        Card(
-            shape = RoundedCornerShape(26.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-            modifier = Modifier.fillMaxWidth().staggeredEntrance(index),
-        ) {
-            Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(category.icon, contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(36.dp))
-                Spacer(Modifier.width(16.dp))
-                Column {
-                    Text(category.title, style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer)
-                    Text(category.description, style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f))
-                }
-            }
-        }
-    }
-
-    @Composable
+            @Composable
     private fun CategoryScreen(category: FeatureCategory) {
         LaunchedEffect(category.id) {
             if (category.keys.isNotEmpty() && bridgeStatus != BridgeStatus.LOADING) loadConfig()
         }
         PageColumn {
             CategoryHeader(category, 0)
-            OpenInDeepSeekButton(Modifier.staggeredEntrance(1))
+            OpenInDeepSeekButton(Modifier.staggeredEntrance(1)) { openDeepSeekSettings() }
             NoteCard(
                 "在启动器中修改的设置会写入 DeepSeek 内的模块配置，需强制停止并重新打开 DeepSeek 后生效。",
                 Modifier.staggeredEntrance(2),
@@ -1128,7 +1043,7 @@ class SettingsActivity : ComponentActivity() {
                     }
                 }
             }
-            OpenInDeepSeekButton(Modifier.staggeredEntrance(3), "打开 DeepSeek 模块设置")
+            OpenInDeepSeekButton(Modifier.staggeredEntrance(3), "打开 DeepSeek 模块设置") { openDeepSeekSettings() }
             CategoryCard(Icons.Outlined.Gavel, "开源声明与关于", "GPL-3.0 · 原作者与维护者",
                 Modifier.staggeredEntrance(4), onAbout)
         }
