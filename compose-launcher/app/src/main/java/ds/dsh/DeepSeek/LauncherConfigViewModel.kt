@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 
+internal enum class ConfigBridgeUiStatus { IDLE, LOADING, READY, UNAVAILABLE }
+
 internal data class LauncherConfigUiState(
     val bridgeStatus: ConfigBridgeUiStatus = ConfigBridgeUiStatus.IDLE,
     val files: Map<String, ByteArray> = emptyMap(),
