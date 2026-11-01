@@ -76,6 +76,9 @@ grep -Fq 'local editor image URI hook installation failed' "$ATTACHMENT_PIPELINE
 grep -Fq 'expert unlock hook installation failed' "$ATTACHMENT_PIPELINE"
 grep -Fq 'expert upload gate hook installation failed' "$ATTACHMENT_PIPELINE"
 grep -Fq 'local API session visibility hook installation failed' "$ATTACHMENT_PIPELINE"
+grep -Fq 'image credential bridge was only partially installed' "$ATTACHMENT_PIPELINE"
+grep -Fq 'history repository hooks were only partially installed' "$ATTACHMENT_PIPELINE"
+grep -Fq 'online history bridge hook installation failed' "$ATTACHMENT_PIPELINE"
 grep -Fq 'native image preview hooks were only partially installed' "$ATTACHMENT_PIPELINE"
 grep -Fq 'if (resourceHooks != 3 || ownerHooks == 0 || firstFailure != null)' "$ATTACHMENT_PIPELINE"
 
