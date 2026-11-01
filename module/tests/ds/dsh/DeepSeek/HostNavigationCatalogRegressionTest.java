@@ -13,6 +13,7 @@ public final class HostNavigationCatalogRegressionTest {
         handlesNullInput();
         classifiesRoutesFailClosed();
         preservesDisplayTitles();
+        preservesVersionSpecificObfuscatedRouteMappings();
         rejectsOversizedDexStreams();
         System.out.println("Host navigation catalog regression tests passed.");
     }
@@ -64,6 +65,21 @@ public final class HostNavigationCatalogRegressionTest {
                 "minor-mode title");
         check("CustomRoute".equals(HostNavigationCatalog.title("x.CustomRoute")),
                 "unknown route simple-name fallback");
+    }
+
+    private static void preservesVersionSpecificObfuscatedRouteMappings() {
+        String chat = "x.ChatRoute";
+        String birthday = "x.MinorModeBirthdayModifyRoute";
+        check("oa1".equals(HostNavigationCatalog.obfuscatedRouteClass249(chat)),
+                "2.4.9 chat route mapping");
+        check("id1".equals(HostNavigationCatalog.obfuscatedRouteClass257(chat)),
+                "2.5.7 chat route mapping");
+        check(HostNavigationCatalog.obfuscatedRouteClass249(birthday) == null,
+                "2.4.9 catalog must not gain the 2.5.7 birthday route");
+        check("gv7".equals(HostNavigationCatalog.obfuscatedRouteClass257(birthday)),
+                "2.5.7 birthday route mapping");
+        check(HostNavigationCatalog.obfuscatedRouteClass257(null) == null,
+                "null route remains unmapped");
     }
 
     private static void rejectsOversizedDexStreams() throws Exception {
