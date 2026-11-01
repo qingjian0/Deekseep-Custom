@@ -6,6 +6,8 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.pm.PackageInfo;
+import android.net.Uri;
+import android.os.Bundle;
 import android.os.Build;
 import android.os.Environment;
 import android.os.SystemClock;
@@ -102,7 +104,36 @@ final class DeveloperDiagnostics {
                     + "\nmaxCost=" + maxCostMs + "ms"
                     + "\nslowEvents(>=32ms)=" + slow;
         }
+        report += "\n\n" + logStorageStatus(activity);
         showReport(activity, "Hook 性能统计", report);
+    }
+
+    /** Reads the module-owned dual-store counters through the authenticated provider. */
+    private static String logStorageStatus(Context context) {
+        try {
+            Bundle status = context.getContentResolver().call(
+                    Uri.parse("content://" + XposedActivationProvider.AUTHORITY),
+                    XposedActivationProvider.METHOD_GET_DSH_LOG_STATUS, null, null);
+            if (status == null || !status.getBoolean("accepted", false)) {
+                return "logStorage=unavailable";
+            }
+            int privateDepth = status.getInt("private_queue_depth", -1);
+            int privateCapacity = status.getInt("private_queue_capacity", -1);
+            int publicDepth = status.getInt("public_queue_depth", -1);
+            int publicCapacity = status.getInt("public_queue_capacity", -1);
+            return "logStorage=active"
+                    + "\nprivateWrites=" + status.getLong("private_writes", 0L)
+                    + " privateFailures=" + status.getLong("private_failures", 0L)
+                    + " privateQueue=" + privateDepth + "/" + privateCapacity
+                    + "\npublicWrites=" + status.getLong("public_writes", 0L)
+                    + " publicFailures=" + status.getLong("public_failures", 0L)
+                    + " publicQueue=" + publicDepth + "/" + publicCapacity
+                    + "\ningressRejections=" + status.getLong("ingress_rejections", 0L)
+                    + " publicStorage=" + status.getString("public_storage_state", "unknown")
+                    + " api=" + status.getInt("public_storage_api", 0);
+        } catch (Throwable failure) {
+            return "logStorage=unavailable errorType=" + failure.getClass().getName();
+        }
     }
 
     static void exportTrace(Activity activity) {
