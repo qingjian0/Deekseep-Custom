@@ -533,6 +533,10 @@ final class HookSessionManagement {
 
     // 侧栏收起时 mq5.i 的 toggle 回调(xa3)：包一层，收起动作触发时把多选覆盖层滑出并退出。
     void hookSidebarToggleCleanup(final ClassLoader cl) {
+        Throwable firstFailure = null;
+        int toggleHooks = 0;
+        int offsetHooks = 0;
+        int clickHooks = 0;
         try {
             // code257's sidebar toggle composable is qp0.s(fv2,a81,il3,mv5,r12,int).
             // Keep the earlier mq5 adapter untouched for all legacy hosts.
@@ -541,7 +545,6 @@ final class HookSessionManagement {
             final Class<?> xa3 = HostCompat.load(cl, "xa3");
             final String toggleMethod = HostCompat.isV241()
                     ? "s" : HostCompat.method("mq5", "i");
-            int n = 0;
             for (Method m : mq5.getDeclaredMethods()) {
                 Class<?>[] pts = m.getParameterTypes();
                 if (!HostRemap.name(m).equals(toggleMethod)
@@ -573,17 +576,22 @@ final class HookSessionManagement {
                         return args != null ? chain.proceed(args) : chain.proceed();
                     }
                 });
-                n++;
+                toggleHooks++;
             }
-            Main.log("installed sidebar toggle cleanup hook mq5.i x" + n);
-        } catch (Throwable t) { Main.log("hookSidebarToggleCleanup failed: " + t); }
+            if (toggleHooks == 0) throw new NoSuchMethodException("sidebar toggle composable");
+            Main.log("installed sidebar toggle cleanup hook mq5.i x" + toggleHooks);
+        } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            firstFailure = t;
+            Main.log("hookSidebarToggleCleanup failed: " + t);
+        }
 
         // DrawerState.c() is the exact animated pixel offset: closed≈-width, open=0. It is read
         // on every native drawer frame and therefore also covers closing, swipe gestures, and
         // interrupted/reversed animations.
         try {
             Class<?> bn2 = HostCompat.load(cl, "bn2");
-            int n = 0;
             for (Method m : bn2.getDeclaredMethods()) {
                 if (!HostRemap.name(m).equals("c") || m.getParameterTypes().length != 0
                         || m.getReturnType() != float.class) {
@@ -629,10 +637,15 @@ final class HookSessionManagement {
                         return result;
                     }
                 });
-                n++;
+                offsetHooks++;
             }
-            Main.log("installed sidebar live-offset hook bn2.c x" + n);
+            if (offsetHooks == 0) throw new NoSuchMethodException("DrawerState.c float offset getter");
+            Main.log("installed sidebar live-offset hook bn2.c x" + offsetHooks);
         } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            if (firstFailure == null) firstFailure = t;
+            else firstFailure.addSuppressed(t);
             Main.log("hook sidebar live offset failed: " + t);
         }
 
@@ -644,7 +657,6 @@ final class HookSessionManagement {
             // legacy synthetic action keeps its existing lookup below.
             Class<?> n51 = HostCompat.isV241()
                     ? HostRemap.load(cl, "y91") : HostCompat.load(cl, "n51");
-            int n = 0;
             for (Method m : n51.getDeclaredMethods()) {
                 if (!HostRemap.name(m).equals("u") || m.getParameterTypes().length != 0) continue;
                 Main.MODULE.hook(m).intercept(new Hooker() {
@@ -675,11 +687,22 @@ final class HookSessionManagement {
                         return chain.proceed();
                     }
                 });
-                n++;
+                clickHooks++;
             }
-            Main.log("installed sidebar appearance click hook n51.u x" + n);
+            if (clickHooks == 0) throw new NoSuchMethodException("sidebar appearance click action getter");
+            Main.log("installed sidebar appearance click hook n51.u x" + clickHooks);
         } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            if (firstFailure == null) firstFailure = t;
+            else firstFailure.addSuppressed(t);
             Main.log("hook sidebar appearance click failed: " + t);
+        }
+        if (firstFailure != null) {
+            throw new IllegalStateException(
+                    "sidebar toggle cleanup hooks were only partially installed: toggle="
+                            + toggleHooks + " offset=" + offsetHooks + " click=" + clickHooks,
+                    firstFailure);
         }
     }
 
