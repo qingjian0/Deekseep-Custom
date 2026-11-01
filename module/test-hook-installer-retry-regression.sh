@@ -78,6 +78,17 @@ grep -Fq 'if (generationInstalled == 0)' <<<"$fake_mute"
 grep -Fq 'if (generationInstalled > 0)' <<<"$fake_mute"
 grep -Fq 'throw failure;' <<<"$fake_mute"
 grep -Fq 'if (lastFailure != null) throw lastFailure;' <<<"$fake_mute"
+# Image credential bridge must remember successful constructor hooks and surface partial failure.
+attachment_src="$SRC/HookAttachmentPipeline.java"
+grep -Fq 'IMAGE_CREDENTIAL_BRIDGE_HOOKED' "$attachment_src"
+bridge_helper="$(sed -n '/private static boolean hookImageCredentialBridgeConstructor/,/void installImageCredentialBridge/p' "$attachment_src")"
+grep -Fq 'synchronized (IMAGE_CREDENTIAL_BRIDGE_HOOKED)' <<<"$bridge_helper"
+grep -Fq 'IMAGE_CREDENTIAL_BRIDGE_HOOKED.contains(constructor)' <<<"$bridge_helper"
+grep -Fq 'IMAGE_CREDENTIAL_BRIDGE_HOOKED.add(constructor)' <<<"$bridge_helper"
+bridge_body="$(sed -n '/void installImageCredentialBridge(/,/\/\*\* Removes the gateway/p' "$attachment_src")"
+grep -Fq 'if (installFailure != null) throw installFailure;' <<<"$bridge_body"
+grep -Fq 'installFailure.addSuppressed(t)' <<<"$bridge_body"
+
 # Session installers propagate installation failures to Main/Registry.
 session_src="$SRC/HookSessionManagement.java"
 for method in \
