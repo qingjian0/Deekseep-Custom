@@ -94,9 +94,17 @@ final class AgentManualGate {
      */
     static int check(Context context, final String key, final String preview) {
         if (isAuto()) return ALLOW;
-        if (APPROVED.remove(key)) return ALLOW;
-        if (REFUSED.remove(key)) return DECLINED;
-        if (PENDING.contains(key)) return WAIT;
+        boolean approved = APPROVED.remove(key);
+        if (approved) {
+            return AgentManualDeliveryPolicy.decide(false, true, false, false);
+        }
+        boolean refused = REFUSED.remove(key);
+        if (refused) {
+            return AgentManualDeliveryPolicy.decide(false, false, true, false);
+        }
+        int decision = AgentManualDeliveryPolicy.decide(
+                false, false, false, PENDING.contains(key));
+        if (decision == AgentManualDeliveryPolicy.WAIT) return WAIT;
         final Activity activity = Main.currentHostActivityForAgent();
         if (activity == null || activity.isFinishing()) return WAIT;
         PENDING.add(key);
