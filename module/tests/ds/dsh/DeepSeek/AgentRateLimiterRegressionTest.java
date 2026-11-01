@@ -7,6 +7,8 @@ public final class AgentRateLimiterRegressionTest {
         require(AgentRateLimiter.waitMs(base) == 0L,
                 "an empty limiter must allow the first turn");
         AgentRateLimiter.recordSent(base);
+        require(AgentRateLimiter.waitMs(base - 1_000L) == 9_000L,
+                "a backwards clock adjustment must not clear the pending minimum gap");
         require(AgentRateLimiter.waitMs(base + AgentRateLimiter.MIN_GAP_MS - 1L) == 1L,
                 "the minimum inter-turn gap must be enforced");
         require(AgentRateLimiter.waitMs(base + AgentRateLimiter.MIN_GAP_MS) == 0L,
