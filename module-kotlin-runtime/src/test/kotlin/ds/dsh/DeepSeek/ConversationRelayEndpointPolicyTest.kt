@@ -14,6 +14,10 @@ class ConversationRelayEndpointPolicyTest {
         assertEquals("https://relay.example/prefix", ConversationRelayEndpointPolicy.normalizeBaseUrl(
             "  https://relay.example/prefix///  "
         ))
+        // Java String.trim() leaves NBSP untouched; the migration must retain that behavior.
+        assertEquals("\u00a0https://relay.example\u00a0", ConversationRelayEndpointPolicy.normalizeBaseUrl(
+            "\u00a0https://relay.example\u00a0"
+        ))
     }
 
     @Test
