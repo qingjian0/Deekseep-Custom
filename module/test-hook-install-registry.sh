@@ -33,6 +33,11 @@ grep -Fq 'code257 Local API upload route hooks were incomplete' "$ACCOUNT_PIPELI
 grep -Fq 'native fake mute renderer discovery returned no installable methods' "$ACCOUNT_PIPELINE"
 grep -Fq 'native training opt-out hook installation failed' "$ACCOUNT_PIPELINE"
 grep -Fq 'candidate password-login error mapper hook installation failed' "$ACCOUNT_PIPELINE"
+grep -Fq 'regional login hook installation failed' "$ACCOUNT_PIPELINE"
+grep -Fq 'login entry password hook installation failed' "$ACCOUNT_PIPELINE"
+grep -Fq 'candidate password login capture hook installation failed' "$ACCOUNT_PIPELINE"
+grep -Fq 'quick-registration captcha hook installation failed' "$ACCOUNT_PIPELINE"
+grep -Fq 'region override hook unavailable for all mapped host classes' "$ACCOUNT_PIPELINE"
 test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$ACCOUNT_PIPELINE")" -ge 5
 test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$ACCOUNT_PIPELINE")" -ge 2
 grep -Fq 'if (uploadRouteError instanceof VirtualMachineError)' "$ACCOUNT_PIPELINE"
