@@ -1623,6 +1623,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             installBestEffortHook("host.v271.settings-entry", () -> HostV271.installSettingsEntry(hookLoader),
                     "2.7.1 settings entry failed: ");
         }
+        boolean pipelineCompleted = true;
         try {
             if (HostCompat.isV236() || HostCompat.isV241()) {
                 installHookStep("host.navigation.bridge", () -> HostNavigationBridge.install(this, hookLoader));
@@ -1899,12 +1900,13 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
             installHookStep("ui.settings-composable", () -> hookSettingsComposable(hookLoader));
         } catch (Throwable error) {
+            pipelineCompleted = false;
             FEATURE_HOOKS_INSTALLED.set(false);
             if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
             if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             log("installAllFeatureHooks failed: " + safeThrowableMessage(error));
         }
-        if (!FEATURE_HOOK_INSTALL_REGISTRY.hasFailures()) {
+        if (pipelineCompleted && !FEATURE_HOOK_INSTALL_REGISTRY.hasFailures()) {
             FEATURE_HOOKS_INSTALLED.set(true);
         } else {
             FEATURE_HOOKS_INSTALLED.set(false);
