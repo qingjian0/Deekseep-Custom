@@ -530,7 +530,7 @@ final class HookAccountLoginSecurity {
      *
      * Password/email login is handled by a separate hook on v45 / i45 for the login entry page.
      */
-    void hookRegionalLoginUnlock(final ClassLoader cl) {
+    void hookRegionalLoginUnlock(final ClassLoader cl) throws Throwable {
         if (!Main.HARD_LINES_ENABLED) return; // YunSeek hard line: hard-gated off
         try {
             final Class<?> stateType = HostCompat.load(cl, "cy4");
@@ -583,6 +583,7 @@ final class HookAccountLoginSecurity {
                     + ", wechatMobile=" + isWechatMobileLoginUnlock());
         } catch (Throwable t) {
             Main.log("hookRegionalLoginUnlock failed: " + t);
+            throw t;
         }
     }
 
@@ -592,7 +593,7 @@ final class HookAccountLoginSecurity {
      * options; we ensure i45.d (password/email login) is always present when Google login
      * unlock is enabled.
      */
-    void hookLoginEntryPasswordUnlock(final ClassLoader cl) {
+    void hookLoginEntryPasswordUnlock(final ClassLoader cl) throws Throwable {
         if (!Main.HARD_LINES_ENABLED) return; // YunSeek hard line: hard-gated off
         try {
             final Class<?> stateType = HostCompat.load(cl, "n45");
@@ -629,6 +630,7 @@ final class HookAccountLoginSecurity {
                     + ", google=" + isGoogleLoginUnlock());
         } catch (Throwable t) {
             Main.log("hookLoginEntryPasswordUnlock failed: " + t);
+            throw t;
         }
     }
 
