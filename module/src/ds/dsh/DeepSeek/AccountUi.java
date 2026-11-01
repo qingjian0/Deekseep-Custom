@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import android.animation.Animator;
 import android.animation.ValueAnimator;
@@ -1639,10 +1639,10 @@ final class AccountUi {
         Context resourceContext = context;
         try {
             resourceContext = context.createPackageContext(
-                    "com.dsmod.probe", Context.CONTEXT_IGNORE_SECURITY);
+                    "ds.dsh.DeepSeek", Context.CONTEXT_IGNORE_SECURITY);
         } catch (Throwable ignored) {}
         int resourceId = resourceContext.getResources().getIdentifier(resource, "drawable",
-                "com.dsmod.probe");
+                "ds.dsh.DeepSeek");
         ImageView icon = new ImageView(context);
         if (resourceId != 0) try {
             icon.setImageDrawable(android.os.Build.VERSION.SDK_INT >= 21
@@ -1655,7 +1655,7 @@ final class AccountUi {
         if (resourceId == 0) {
             InputStream input = null;
             try {
-                String entryName = "META-INF/com.dsmod.probe.icons/ic_category_login_"
+                String entryName = "META-INF/ds.dsh.DeepSeek.icons/ic_category_login_"
                         + ("GOOGLE".equals(kind) ? "google" : "wechat") + ".png";
                 android.graphics.Bitmap bitmap;
                 if (HostCompat.isV236()) {
@@ -1696,7 +1696,7 @@ final class AccountUi {
         LinkedHashSet<String> candidates = new LinkedHashSet<String>();
         try {
             Context module = context.createPackageContext(
-                    "com.dsmod.probe", Context.CONTEXT_IGNORE_SECURITY);
+                    "ds.dsh.DeepSeek", Context.CONTEXT_IGNORE_SECURITY);
             android.content.pm.ApplicationInfo info = module.getApplicationInfo();
             if (info.sourceDir != null) candidates.add(info.sourceDir);
             if (info.splitSourceDirs != null) {

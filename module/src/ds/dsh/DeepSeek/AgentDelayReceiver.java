@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -7,8 +7,8 @@ import android.content.Intent;
 
 /** Delivers a completed durable delay back to the injected DeepSeek bridge. */
 public final class AgentDelayReceiver extends BroadcastReceiver {
-    static final String ACTION_FIRE = "com.dsmod.probe.action.AGENT_DELAY_FIRE";
-    static final String ACTION_COMPLETE = "com.dsmod.probe.action.AGENT_DELAY_COMPLETE";
+    static final String ACTION_FIRE = "ds.dsh.DeepSeek.action.AGENT_DELAY_FIRE";
+    static final String ACTION_COMPLETE = "ds.dsh.DeepSeek.action.AGENT_DELAY_COMPLETE";
     static final String EXTRA_TOKEN = "delay_token";
     static final String EXTRA_ID = "call_id";
     static final String EXTRA_SCOPE = "scope";

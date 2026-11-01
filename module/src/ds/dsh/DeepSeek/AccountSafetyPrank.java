@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import android.app.Activity;
 import android.app.Dialog;
@@ -443,7 +443,7 @@ final class AccountSafetyPrank {
         if (context != null) {
             try {
                 ApplicationInfo info = context.getPackageManager().getApplicationInfo(
-                        "com.dsmod.probe", 0);
+                        "ds.dsh.DeepSeek", 0);
                 if (info != null) {
                     if (info.sourceDir != null) paths.add(info.sourceDir);
                     if (info.splitSourceDirs != null) {

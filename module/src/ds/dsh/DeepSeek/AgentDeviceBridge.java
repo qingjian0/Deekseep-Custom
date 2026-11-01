@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import android.content.Context;
 import android.content.Intent;
@@ -57,9 +57,9 @@ import java.util.zip.ZipInputStream;
  */
 final class AgentDeviceBridge {
     static final String RISH_RESOURCE =
-            "META-INF/com.dsmod.probe.agent/rish_shizuku_rt.dat";
+            "META-INF/ds.dsh.DeepSeek.agent/rish_shizuku_rt.dat";
     private static final String RISH_LEGACY_RESOURCE =
-            "META-INF/com.dsmod.probe.agent/.rish_shizuku_rt.dat";
+            "META-INF/ds.dsh.DeepSeek.agent/.rish_shizuku_rt.dat";
     private static final String RISH_FILE =
             "/data/data/com.deepseek.chat/files/deekseep_agent/rish_shizuku.dex";
     private static final String SCREENSHOT_FILE =
@@ -2026,7 +2026,7 @@ final class AgentDeviceBridge {
             int dot = lower.lastIndexOf('.');
             String suffix = dot >= 0 && lower.substring(dot + 1).matches("[a-z0-9]{1,8}")
                     ? lower.substring(dot) : ".audio";
-            String componentPackage = RuntimeEmbeddingMode.componentPackage("com.dsmod.probe");
+            String componentPackage = RuntimeEmbeddingMode.componentPackage("ds.dsh.DeepSeek");
             String appDataRoot = "/data/user/0/" + componentPackage;
             String staged = appDataRoot + "/files/agent_audio/current" + suffix;
             String command = "/system/bin/mkdir -p " + shellQuote(appDataRoot + "/files/agent_audio")
@@ -2057,7 +2057,7 @@ final class AgentDeviceBridge {
                 }
             };
             final Intent bridge = new Intent();
-            String componentPackage = RuntimeEmbeddingMode.componentPackage("com.dsmod.probe");
+            String componentPackage = RuntimeEmbeddingMode.componentPackage("ds.dsh.DeepSeek");
             bridge.setClassName(componentPackage,
                     componentPackage + ".LocalAudioControlActivity");
             bridge.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
