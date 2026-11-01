@@ -1959,8 +1959,15 @@ final class HookAgentPipeline {
             }
             Main.log("heartbeat JSON Patch dispatcher hooks=" + installed
                     + " owner=" + dispatcherName + "." + dispatcherMethod);
+            if (installed == 0) {
+                throw new IllegalStateException(
+                        "heartbeat JSON Patch dispatcher discovery returned no methods");
+            }
         } catch (Throwable error) {
-            Main.log("heartbeat JSON Patch dispatcher hook unavailable: " + error);
+            Main.log("heartbeat JSON Patch dispatcher hook unavailable: "
+                    + Main.safeThrowableMessage(error));
+            throw new IllegalStateException(
+                    "heartbeat JSON Patch dispatcher installation failed", error);
         }
     }
 
@@ -2077,8 +2084,15 @@ final class HookAgentPipeline {
             }
             Main.log("heartbeat tracked RESPONSE state hooks=" + installed
                     + " owner=" + stateOwner);
+            if (installed == 0) {
+                throw new IllegalStateException(
+                        "heartbeat tracked State hook discovery returned no methods");
+            }
         } catch (Throwable error) {
-            Main.log("heartbeat tracked RESPONSE state hook unavailable: " + error);
+            Main.log("heartbeat tracked RESPONSE state hook unavailable: "
+                    + Main.safeThrowableMessage(error));
+            throw new IllegalStateException(
+                    "heartbeat tracked State hook installation failed", error);
         }
     }
 
@@ -2117,8 +2131,15 @@ final class HookAgentPipeline {
             }
             Main.log("heartbeat fragment screen monitor hooks=" + installed
                     + " renderer=" + rendererName + "." + renderMethod);
+            if (installed == 0) {
+                throw new IllegalStateException(
+                        "heartbeat fragment render discovery returned no methods");
+            }
         } catch (Throwable error) {
-            Main.log("heartbeat fragment screen monitor unavailable: " + error);
+            Main.log("heartbeat fragment screen monitor unavailable: "
+                    + Main.safeThrowableMessage(error));
+            throw new IllegalStateException(
+                    "heartbeat fragment render hook installation failed", error);
         }
     }
 
@@ -2156,8 +2177,15 @@ final class HookAgentPipeline {
             }
             Main.log("heartbeat Markdown input hooks=" + installed
                     + " renderer=" + markdownInputOwner + ".r");
+            if (installed == 0) {
+                throw new IllegalStateException(
+                        "heartbeat Markdown input discovery returned no methods");
+            }
         } catch (Throwable error) {
-            Main.log("heartbeat Markdown input hook unavailable: " + error);
+            Main.log("heartbeat Markdown input hook unavailable: "
+                    + Main.safeThrowableMessage(error));
+            throw new IllegalStateException(
+                    "heartbeat Markdown input hook installation failed", error);
         }
     }
 
@@ -2229,9 +2257,16 @@ final class HookAgentPipeline {
             }
             Main.log("heartbeat native Markdown privacy hooks parser=" + parserHooks
                     + " renderer=" + rendererHooks + " owner=" + ownerName);
+            if (parserHooks + rendererHooks == 0) {
+                throw new IllegalStateException(
+                        "native Markdown parser discovery returned no methods for " + ownerName);
+            }
         } catch (Throwable error) {
             Main.log("heartbeat native Markdown privacy hook unavailable owner="
-                    + ownerName + ": " + error);
+                    + ownerName + ": " + Main.safeThrowableMessage(error));
+            throw new IllegalStateException(
+                    "native Markdown privacy hook installation failed for " + ownerName,
+                    error);
         }
     }
 
