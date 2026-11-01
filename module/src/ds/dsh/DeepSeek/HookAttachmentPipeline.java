@@ -213,6 +213,8 @@ final class HookAttachmentPipeline {
             });
             hooked++;
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             Main.log("model file Activity link hook unavailable: "
                     + Main.safeThrowableMessage(error));
             firstFailure = error;
@@ -236,6 +238,8 @@ final class HookAttachmentPipeline {
             });
             hooked++;
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             Main.log("model file ContextWrapper link hook unavailable: "
                     + Main.safeThrowableMessage(error));
             if (firstFailure == null) firstFailure = error;
@@ -439,6 +443,8 @@ final class HookAttachmentPipeline {
             Main.log("native model-file message cards=" + installed
                     + " renderer=" + rendererName);
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             Main.log("native model-file message card hook unavailable: "
                     + Main.safeThrowableMessage(error));
             throw new IllegalStateException(
