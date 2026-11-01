@@ -120,6 +120,9 @@ public final class AccountServerValidationRegressionTest {
         check(AccountManager.retryDelayMillis("11") == -1L, "long retry deferred to user");
         check(AccountManager.retryDelayMillis("not-a-delay") == -1L,
                 "unparseable retry deferred to user");
+        String nbspWrappedFive = String.valueOf((char) 0x00A0) + "5" + (char) 0x00A0;
+        check(AccountManager.retryDelayMillis(nbspWrappedFive) == -1L,
+                "retry parsing must preserve Java String.trim whitespace semantics");
     }
 
     private static void check(boolean condition, String label) {
