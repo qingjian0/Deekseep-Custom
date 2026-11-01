@@ -1515,7 +1515,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         }
     }
 
-    private void hookSettingsComposable(ClassLoader cl) {
+    private void hookSettingsComposable(ClassLoader cl) throws Throwable {
         try {
             String settingsClass;
             String settingsMethod;
@@ -1549,9 +1549,18 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     n++;
                 }
             }
+            if (n == 0) {
+                throw new NoSuchMethodException(
+                        settingsClass + "." + settingsMethod + " has no hookable methods");
+            }
             log("hooked settings composable " + settingsClass + "."
                     + settingsMethod + " x" + n);
-        } catch (Throwable t) { log("hook settings composable failed: " + t); }
+        } catch (Throwable error) {
+            log("hook settings composable failed: " + safeThrowableMessage(error));
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            throw error;
+        }
     }
 
     private final AtomicBoolean FEATURE_HOOKS_INSTALLED = new AtomicBoolean(false);
