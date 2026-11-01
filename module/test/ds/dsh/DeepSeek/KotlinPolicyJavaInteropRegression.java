@@ -46,7 +46,7 @@ public final class KotlinPolicyJavaInteropRegression {
         require("闪电".equals(ModelDisplayNamePolicy.mapDisplay(
                         " 快速 ", true, java.util.Collections.singletonMap("快速", "闪电"))),
                 "Java caller could not use the Kotlin display-label policy");
-        require(ModelDisplayNamePolicy.clean(" alpha\\nbeta ").equals("alpha beta"),
+        require(ModelDisplayNamePolicy.clean(" alpha\nbeta ").equals("alpha beta"),
                 "Java caller observed a changed display-label cleanup rule");
         require(ModelDisplayNamePolicy.mapDisplay(
                         "普通聊天里提到快速", true, java.util.Collections.singletonMap("快速", "闪电")) == null,
