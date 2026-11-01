@@ -79,6 +79,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.Member;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
@@ -125,6 +126,7 @@ final class HookAttachmentPipeline {
             "content://com.deepseek.chat.provider/tmp_captured_images/";
 
     private static final Set<Constructor<?>> IMAGE_CREDENTIAL_BRIDGE_HOOKED = new HashSet<>();
+    private static final Set<Member> HISTORY_PRESERVER_HOOKED_MEMBERS = new HashSet<>();
 
     // 专家模式解锁：俘获任意"已启用"模型的真 feature 模板，回填给 expert
     private static volatile Object tplThink;
@@ -909,6 +911,15 @@ Main.log("f9 failed: " + t);
     }
 
     // 2) 通用历史清理/快照 + 专家图片保留。2.2.1=fm8/rl8，2.2.2=gm8/sl8。
+    private static void hookHistoryPreserverMember(Member member, Hooker hooker)
+            throws Throwable {
+        synchronized (HISTORY_PRESERVER_HOOKED_MEMBERS) {
+            if (HISTORY_PRESERVER_HOOKED_MEMBERS.contains(member)) return;
+            Main.MODULE.hook(member).intercept(hooker);
+            HISTORY_PRESERVER_HOOKED_MEMBERS.add(member);
+        }
+    }
+
     void installExpertHistoryImagePreserver(final ClassLoader cl) throws Throwable {
         int repoCount = 0;
         int ctorCount = 0;
@@ -928,7 +939,7 @@ Main.log("f9 failed: " + t);
                 if (writers.isEmpty()) continue; // 当前 fm8 是 synthetic Transaction，不能当仓库捕获。
                 repoCount++;
                 for (Constructor<?> ctor : repo.getDeclaredConstructors()) {
-                    Main.MODULE.hook(ctor).intercept(new Hooker() {
+                    hookHistoryPreserverMember(ctor, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             Object r = chain.proceed();
                             liveFm8 = chain.getThisObject();
@@ -938,7 +949,7 @@ Main.log("f9 failed: " + t);
                     ctorCount++;
                 }
                 for (Method writer : writers) {
-                    Main.MODULE.hook(writer).intercept(new Hooker() {
+                    hookHistoryPreserverMember(writer, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             Object[] args = chain.getArgs().toArray();
                             String writtenSid = args.length > 0 && args[0] instanceof String
@@ -981,7 +992,12 @@ Main.log("f9 failed: " + t);
                     });
                     writeCount++;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable error) {
+                Main.log("history repository hook unavailable for " + repoName + ": "
+                        + Main.safeThrowableMessage(error));
+                if (installFailure == null) installFailure = error;
+                else installFailure.addSuppressed(error);
+            }
         }
         if (repoCount == 0 || ctorCount == 0 || writeCount == 0) {
             installFailure = new NoSuchMethodException(
