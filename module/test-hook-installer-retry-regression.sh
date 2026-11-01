@@ -126,8 +126,12 @@ grep -Fq 'if (complete)' <<<"$click_body"
 grep -Fq 'NATIVE_CLICK_HOOKED_CLASSES.add(callbackClass);' <<<"$click_body"
 grep -Fq 'complete = false;' <<<"$click_body"
 grep -Fq 'NATIVE_CLICK_INSTALLING_CLASSES.remove(callbackClass);' <<<"$click_body"
-if grep -Fq 'NATIVE_CLICK_HOOKED_CLASSES.add(callbackClass);' <<<"$(sed -n '/} catch (Throwable error) {/,/} finally {/p' <<<"$click_body")"; then
-  echo "Session click callback may be marked installed on its failure path." >&2
+outer_catch_line="$(awk '/^        } catch (Throwable error) \{/ { line = NR } END { print line }' <<<"$click_body")"
+outer_finally_line="$(awk '/^        } finally \{/ { line = NR } END { print line }' <<<"$click_body")"
+test -n "$outer_catch_line" && test -n "$outer_finally_line"
+outer_failure_path="$(sed -n "${outer_catch_line},${outer_finally_line}p" <<<"$click_body")"
+if grep -Fq 'NATIVE_CLICK_HOOKED_CLASSES.add(callbackClass);' <<<"$outer_failure_path"; then
+  echo "Session click callback may be marked installed on its outer failure path." >&2
   exit 1
 fi
 
