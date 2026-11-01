@@ -1,6 +1,8 @@
 package ds.dsh.DeepSeek;
 
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /** Regression coverage for the shared Kotlin feature-hook installation registry. */
 public final class FeatureHookInstallRegistryRegressionTest {
@@ -8,6 +10,7 @@ public final class FeatureHookInstallRegistryRegressionTest {
         retriesFailedInstallWithoutRepeatingSuccessfulInstall();
         retriesDegradedBestEffortInstall();
         separatesRequiredFailuresFromBestEffortDegradation();
+        serializesConcurrentInstallAttempts();
         keepsSkippedInstallTerminal();
         System.out.println("FeatureHookInstallRegistryRegressionTest OK");
     }
@@ -101,6 +104,44 @@ public final class FeatureHookInstallRegistryRegressionTest {
                 "successful required retry must unblock core installation completion");
         check(registry.hasFailures(),
                 "optional degradation must remain visible after required retry");
+    }
+
+    private static void serializesConcurrentInstallAttempts() throws Throwable {
+        final FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
+        final AtomicInteger installerCalls = new AtomicInteger();
+        final AtomicReference<Throwable> failure = new AtomicReference<>();
+        final CountDownLatch start = new CountDownLatch(1);
+        Runnable install = () -> {
+            try {
+                start.await();
+                registry.install("test.concurrent", () -> {
+                    installerCalls.incrementAndGet();
+                    Thread.sleep(40L);
+                });
+            } catch (Throwable error) {
+                failure.compareAndSet(null, error);
+            }
+        };
+
+        Thread first = new Thread(install, "hook-registry-test-1");
+        Thread second = new Thread(install, "hook-registry-test-2");
+        first.start();
+        second.start();
+        start.countDown();
+        first.join(2000L);
+        second.join(2000L);
+
+        check(!first.isAlive() && !second.isAlive(),
+                "concurrent installers must complete without deadlock");
+        if (failure.get() != null) throw new AssertionError(
+                "concurrent installer failed", failure.get());
+        check(installerCalls.get() == 1,
+                "concurrent calls must not execute the same installer twice");
+        check(status(registry, "test.concurrent").attempts == 1,
+                "concurrent calls must count exactly one installation attempt");
+        check(status(registry, "test.concurrent").state
+                        == FeatureHookInstallRegistry.State.INSTALLED,
+                "concurrent installation must end in INSTALLED");
     }
 
     private static void keepsSkippedInstallTerminal() throws Throwable {
