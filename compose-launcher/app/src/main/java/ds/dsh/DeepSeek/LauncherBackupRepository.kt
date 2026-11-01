@@ -8,8 +8,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
 import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
+import android.system.Os
 import java.util.LinkedHashMap
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -156,12 +155,9 @@ internal class LauncherBackupRepository {
             val temporary = File(parent, ".${target.name}.restore-${System.nanoTime()}")
             try {
                 temporary.outputStream().use { it.write(bytes) }
-                Files.move(
-                    temporary.toPath(),
-                    target.toPath(),
-                    StandardCopyOption.REPLACE_EXISTING,
-                    StandardCopyOption.ATOMIC_MOVE,
-                )
+                // POSIX rename is atomic on the same filesystem and is available from API 21,
+                // preserving the app's minSdk 24 without using java.nio.file (API 26).
+                Os.rename(temporary.absolutePath, target.absolutePath)
                 restored++
             } finally {
                 if (temporary.exists()) temporary.delete()
