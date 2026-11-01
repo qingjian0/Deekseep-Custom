@@ -1,18 +1,18 @@
 package ds.dsh.DeepSeek;
 
-/** Pure state decisions shared by the foreground-keeper bridge and its regression test. */
+/** Java compatibility facade for local API keep-alive timing decisions. */
 final class LocalApiKeepAliveDecision {
     private LocalApiKeepAliveDecision() {}
 
     static boolean heartbeatAlreadySatisfies(boolean enabling, long heartbeatAgeMs,
                                              boolean apiKeepaliveRequested) {
-        return enabling && heartbeatAgeMs >= 0L && heartbeatAgeMs <= 15_000L
-                && apiKeepaliveRequested;
+        return LocalApiKeepAlivePolicy.heartbeatAlreadySatisfies(
+                enabling, heartbeatAgeMs, apiKeepaliveRequested);
     }
 
     static boolean throttleSameDirection(long nowMs, long lastLaunchMs,
                                          boolean lastEnabled, boolean nextEnabled) {
-        return lastLaunchMs > 0L && nowMs >= lastLaunchMs
-                && nowMs - lastLaunchMs < 3_000L && lastEnabled == nextEnabled;
+        return LocalApiKeepAlivePolicy.throttleSameDirection(
+                nowMs, lastLaunchMs, lastEnabled, nextEnabled);
     }
 }

@@ -79,6 +79,7 @@ javac -source 8 -target 8 -cp "$JSON_JAR:$ANDROID_JAR:$UNIVERSAL_CLASSES:build/c
     tests/ds/dsh/DeepSeek/ReplyReadyPolicyRegressionTest.java \
     tests/ds/dsh/DeepSeek/AutoContinuePolicyRegressionTest.java \
     tests/ds/dsh/DeepSeek/NativeSettingsEntryPolicyRegressionTest.java \
+    tests/ds/dsh/DeepSeek/LocalApiKeepAliveDecisionRegressionTest.java \
     src/ds/dsh/DeepSeek/NativeApiPatchDecoder.java \
     src/ds/dsh/DeepSeek/SpatialMotionController.java \
     src/ds/dsh/DeepSeek/SpatialLayerCache.java \
@@ -199,5 +200,8 @@ java -cp "$TEST_CP" \
 
 java -cp "$TEST_CP" \
     ds.dsh.DeepSeek.NativeSettingsEntryPolicyRegressionTest
+
+java -cp "$TEST_CP" \
+    ds.dsh.DeepSeek.LocalApiKeepAliveDecisionRegressionTest
 
 ./test-language-catalog.sh
