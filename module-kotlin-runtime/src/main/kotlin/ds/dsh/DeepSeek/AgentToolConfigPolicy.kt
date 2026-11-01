@@ -9,7 +9,7 @@ package ds.dsh.DeepSeek
 object AgentToolConfigPolicy {
     @JvmStatic
     fun backend(value: String?, inApp: String, root: String, shizuku: String): String =
-        if (value == root || value == shizuku) value else inApp
+        value?.takeIf { it == root || it == shizuku } ?: inApp
 
     @JvmStatic
     fun permission(value: String?, execute: String, all: String): String =
