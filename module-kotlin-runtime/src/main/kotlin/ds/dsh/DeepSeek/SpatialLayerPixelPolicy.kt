@@ -102,7 +102,7 @@ object SpatialLayerPixelPolicy {
                 left >= 0 && right < columns -> {
                     val fraction = (column - left) / (right - left).toFloat()
                     mix(
-                        averageColor(redSums, greenSums, blueSums,
+                        averageColor(redSums, greenSums, blueSums, samples,
                             gridRow * columns + left, fallback),
                         averageColor(redSums, greenSums, blueSums, samples,
                             gridRow * columns + right, fallback),
@@ -112,7 +112,7 @@ object SpatialLayerPixelPolicy {
                 left >= 0 -> averageColor(
                     redSums, greenSums, blueSums, samples, gridRow * columns + left, fallback)
                 right < columns -> averageColor(
-                    red, green, blue, samples, gridRow * columns + right, fallback)
+                    redSums, greenSums, blueSums, samples, gridRow * columns + right, fallback)
                 else -> fallback
             }
         }
