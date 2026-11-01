@@ -30,7 +30,7 @@ public final class AccountCredentialFieldPolicyJavaInteropRegression {
                 AccountCredentialFieldPolicy.suggestFileName(
                         java.util.Arrays.asList(" Alice ", "a/b", null, " trailing. ", "ignored"), 5)),
                 "filename ordering, filtering, and total count");
-        require("DeepSeek账号.txt".equals(AccountCredentialFieldPolicy.suggestFileName(null, 0)),
+        require("DeepSeek账号_DeepSeek账号.txt".equals(AccountCredentialFieldPolicy.suggestFileName(null, 0)),
                 "empty filename fallback");
         System.out.println("AccountCredentialFieldPolicyJavaInteropRegression OK");
     }

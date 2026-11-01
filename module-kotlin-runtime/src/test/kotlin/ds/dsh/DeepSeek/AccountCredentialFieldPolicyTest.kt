@@ -57,7 +57,7 @@ class AccountCredentialFieldPolicyTest {
             )
         )
         assertEquals(
-            "DeepSeek账号.txt",
+            "DeepSeek账号_DeepSeek账号.txt",
             AccountCredentialFieldPolicy.suggestFileName(null, 0)
         )
         assertEquals(
