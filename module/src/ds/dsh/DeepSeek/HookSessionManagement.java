@@ -225,6 +225,9 @@ final class HookSessionManagement {
     private static final ThreadLocal<Boolean> LOCAL_DIRECTORY_SYNC = new ThreadLocal<>();
 
     private static final HashSet<Class<?>> NATIVE_CLICK_HOOKED_CLASSES = new HashSet<>();
+    private static final HashSet<Class<?>> NATIVE_CLICK_INSTALLING_CLASSES = new HashSet<>();
+    private static final HashMap<Class<?>, HashSet<Method>> NATIVE_CLICK_HOOKED_METHODS =
+            new HashMap<>();
 
     private static volatile String PENDING_LOCAL_OPEN_SID;
 
@@ -2680,93 +2683,114 @@ final class HookSessionManagement {
         if (callback == null) return;
         Class<?> callbackClass = callback.getClass();
         synchronized (NATIVE_CLICK_HOOKED_CLASSES) {
-            if (NATIVE_CLICK_HOOKED_CLASSES.contains(callbackClass)) return;
-            // Reserve during registration to prevent concurrent duplicate hooks. Release the
-            // reservation below when no compatible method was registered so later discovery can retry.
-            NATIVE_CLICK_HOOKED_CLASSES.add(callbackClass);
+            if (NATIVE_CLICK_HOOKED_CLASSES.contains(callbackClass)
+                    || !NATIVE_CLICK_INSTALLING_CLASSES.add(callbackClass)) return;
         }
+        int matched = 0;
         int installed = 0;
+        boolean complete = true;
         try {
             for (Class<?> type = callbackClass; type != null; type = type.getSuperclass()) {
-                for (Method method : type.getDeclaredMethods()) {
+                for (final Method method : type.getDeclaredMethods()) {
                     if (!"g".equals(HostRemap.name(method))
                             || method.getParameterTypes().length != 1) continue;
-                    Main.MODULE.hook(method).intercept(new Hooker() {
-                        @Override public Object intercept(Chain chain) throws Throwable {
-                            if (chain.getThisObject() != NATIVE_SESSION_CLICK) {
-                                return chain.proceed();
-                            }
-                            Object session = chain.getArg(0);
-                            if (session == null
-                                    || !HostCompat.simpleNameIs(session, "tp")) {
-                                return chain.proceed();
-                            }
-                            try {
-                                Object id = Main.readHostField(session, "a");
-                                String sid = id == null ? null : String.valueOf(id);
-                                if (sid != null && sid.length() > 0 && !"null".equals(sid)) {
-                                    HashSet<String> locals =
-                                            ChatEditorUi.localSessionIdsFromAllBackups();
-                                    if (Main.FROZEN_SESSION_HEADS.containsKey(sid)
-                                            && (HostCompat.isV234() || !HostCompat.isV230())) {
-                                        // 2.3.0 abandoned the wg1/pe case-7 mapper used here;
-                                        // 2.3.4 restored an equivalent mapped loader. Skipping all
-                                        // isV230-family builds accidentally disabled hydration on
-                                        // 2.3.4 and made edited/local chats open as empty/deleted.
-                                        hydrateFrozenNativeSession(cl, session, sid);
-                                    }
-                                    Object messages = Main.readHostField(session, "f");
-                                    Object transactions = Main.readHostField(session, "q");
-                                    Object messageState = Main.readHostField(session, "j");
-                                    Object stateValue = messageState == null ? null
-                                            : Main.invokeNoArg(messageState, "getValue");
-                                    Object stateRows = Main.readHostField(stateValue, "a");
-                                    Main.log("native click state sid=" + sid
-                                            + " messages=" + (messages instanceof Map
-                                            ? ((Map) messages).size() : -1)
-                                            + " transactions=" + (transactions instanceof Map
-                                            ? ((Map) transactions).size() : -1)
-                                            + " head=" + nativeSessionHead(session)
-                                            + " n=" + Main.readHostField(session, "n")
-                                            + " o=" + Main.readHostField(session, "o")
-                                            + " state=" + (stateValue == null ? "null"
-                                            : HostRemap.className(stateValue.getClass()))
-                                            + " rows=" + (stateRows instanceof List
-                                            ? ((List) stateRows).size() : -1));
-                                    if (locals.contains(sid)) {
-                                        PENDING_LOCAL_OPEN_SID = sid;
-                                        Main.log("native click selected editor-local sid=" + sid);
-                                    } else {
-                                        PENDING_LOCAL_OPEN_SID = null;
-                                        Main.log("native click selected server sid=" + sid);
-                                    }
+                    matched++;
+                    synchronized (NATIVE_CLICK_HOOKED_CLASSES) {
+                        HashSet<Method> registered =
+                                NATIVE_CLICK_HOOKED_METHODS.get(callbackClass);
+                        if (registered != null && registered.contains(method)) continue;
+                    }
+                    try {
+                        Main.MODULE.hook(method).intercept(new Hooker() {
+                            @Override public Object intercept(Chain chain) throws Throwable {
+                                if (chain.getThisObject() != NATIVE_SESSION_CLICK) {
+                                    return chain.proceed();
                                 }
-                            } catch (Throwable t) {
-                                Main.log("inspect native session click failed: " + t);
+                                Object session = chain.getArg(0);
+                                if (session == null
+                                        || !HostCompat.simpleNameIs(session, "tp")) {
+                                    return chain.proceed();
+                                }
+                                try {
+                                    Object id = Main.readHostField(session, "a");
+                                    String sid = id == null ? null : String.valueOf(id);
+                                    if (sid != null && sid.length() > 0 && !"null".equals(sid)) {
+                                        HashSet<String> locals =
+                                                ChatEditorUi.localSessionIdsFromAllBackups();
+                                        if (Main.FROZEN_SESSION_HEADS.containsKey(sid)
+                                                && (HostCompat.isV234() || !HostCompat.isV230())) {
+                                            hydrateFrozenNativeSession(cl, session, sid);
+                                        }
+                                        Object messages = Main.readHostField(session, "f");
+                                        Object transactions = Main.readHostField(session, "q");
+                                        Object messageState = Main.readHostField(session, "j");
+                                        Object stateValue = messageState == null ? null
+                                                : Main.invokeNoArg(messageState, "getValue");
+                                        Object stateRows = Main.readHostField(stateValue, "a");
+                                        Main.log("native click state sid=" + sid
+                                                + " messages=" + (messages instanceof Map
+                                                ? ((Map) messages).size() : -1)
+                                                + " transactions=" + (transactions instanceof Map
+                                                ? ((Map) transactions).size() : -1)
+                                                + " head=" + nativeSessionHead(session)
+                                                + " n=" + Main.readHostField(session, "n")
+                                                + " o=" + Main.readHostField(session, "o")
+                                                + " state=" + (stateValue == null ? "null"
+                                                : HostRemap.className(stateValue.getClass()))
+                                                + " rows=" + (stateRows instanceof List
+                                                ? ((List) stateRows).size() : -1));
+                                        if (locals.contains(sid)) {
+                                            PENDING_LOCAL_OPEN_SID = sid;
+                                            Main.log("native click selected editor-local sid=" + sid);
+                                        } else {
+                                            PENDING_LOCAL_OPEN_SID = null;
+                                            Main.log("native click selected server sid=" + sid);
+                                        }
+                                    }
+                                } catch (Throwable t) {
+                                    Main.log("inspect native session click failed: " + t);
+                                }
+                                return chain.proceed();
                             }
-                            return chain.proceed();
+                        });
+                        synchronized (NATIVE_CLICK_HOOKED_CLASSES) {
+                            NATIVE_CLICK_HOOKED_METHODS.computeIfAbsent(
+                                    callbackClass, ignored -> new HashSet<>()).add(method);
                         }
-                    });
-                    installed++;
+                        installed++;
+                    } catch (Throwable error) {
+                        if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+                        if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+                        complete = false;
+                        Main.log("native session click method hook failed method="
+                                + method + ": " + error);
+                    }
                 }
             }
-            if (installed == 0) {
-                synchronized (NATIVE_CLICK_HOOKED_CLASSES) {
-                    NATIVE_CLICK_HOOKED_CLASSES.remove(callbackClass);
-                }
+            if (matched == 0) {
+                complete = false;
                 Main.log("native session click callback has no compatible hook methods; retry remains enabled class="
                         + HostRemap.className(callbackClass));
-                return;
-            }
-            Main.log("installed native session click callback hooks=" + installed
-                    + " class=" + HostRemap.className(callbackClass));
-        } catch (Throwable t) {
-            if (installed == 0) {
+            } else if (complete) {
                 synchronized (NATIVE_CLICK_HOOKED_CLASSES) {
-                    NATIVE_CLICK_HOOKED_CLASSES.remove(callbackClass);
+                    NATIVE_CLICK_HOOKED_CLASSES.add(callbackClass);
                 }
+                Main.log("installed native session click callback hooks=" + installed
+                        + " class=" + HostRemap.className(callbackClass));
+            } else {
+                Main.log("native session click callback partially installed matched=" + matched
+                        + " newly-installed=" + installed + "; retry remains enabled class="
+                        + HostRemap.className(callbackClass));
             }
-            Main.log("hook native session click callback failed: " + t);
+        } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            Main.log("hook native session click callback failed: " + error);
+        } finally {
+            synchronized (NATIVE_CLICK_HOOKED_CLASSES) {
+                NATIVE_CLICK_INSTALLING_CLASSES.remove(callbackClass);
+                if (matched == 0) NATIVE_CLICK_HOOKED_METHODS.remove(callbackClass);
+            }
         }
     }
 
