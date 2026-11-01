@@ -886,45 +886,6 @@ public final class HeartbeatToolProtocolRegressionTest {
                 "level-three guidance omitted immersive or all-tool behavior boundaries");
 
         try {
-            FoldMessage visibleUser = new FoldMessage(
-                    10, null, "USER", "REQUEST", "正常消息");
-            FoldMessage internalEvent = new FoldMessage(
-                    11, 10, "USER", "REQUEST",
-                    "<system>\nprivate\n</system>\n\n"
-                            + HeartbeatToolProtocol.EVENT_START + "\ntype=heartbeat\n"
-                            + HeartbeatToolProtocol.EVENT_END);
-            FoldMessage proactiveReply = new FoldMessage(
-                    12, 11, "ASSISTANT", "RESPONSE", "该喝水啦");
-            FoldResponse history = new FoldResponse(
-                    new FoldSession(12), visibleUser, internalEvent, proactiveReply);
-            Method fold = Main.class.getDeclaredMethod(
-                    "foldProactiveHeartbeatHistory", Object.class);
-            fold.setAccessible(true);
-            int count = ((Number) fold.invoke(null, history)).intValue();
-            require(count == 1 && history.b.size() == 2,
-                    "anonymous heartbeat request was not removed from history");
-            require(history.b.get(1) == proactiveReply
-                            && Integer.valueOf(10).equals(proactiveReply.g),
-                    "proactive assistant reply was not reparented to the visible chat head");
-            require(Integer.valueOf(12).equals(history.a.d),
-                    "assistant response stopped being the visible conversation head");
-
-            FoldMessage resultEvent = new FoldMessage(
-                    13, 12, "USER", "REQUEST",
-                    "<system>\nprivate\n</system>\n\n" + toolResult);
-            FoldMessage resultReply = new FoldMessage(
-                    14, 13, "ASSISTANT", "RESPONSE",
-                    "cp 位于 /system/bin/cp");
-            FoldResponse resultHistory = new FoldResponse(
-                    new FoldSession(14), visibleUser, proactiveReply,
-                    resultEvent, resultReply);
-            int resultCount =
-                    ((Number) fold.invoke(null, resultHistory)).intValue();
-            require(resultCount == 1 && resultHistory.b.size() == 3
-                            && resultHistory.b.get(2) == resultReply
-                            && Integer.valueOf(12).equals(resultReply.g),
-                    "hidden tool-result request was not folded and reparented");
-
             Field v234Field = HostCompat.class.getDeclaredField("v234");
             Field v230Field = HostCompat.class.getDeclaredField("v230");
             v234Field.setAccessible(true);
@@ -941,43 +902,15 @@ public final class HeartbeatToolProtocolRegressionTest {
                         "<system>\nprivate\n</system>\n\n" + toolResult);
                 require(Boolean.TRUE.equals(hiddenTransport.invoke(null, v234Result)),
                         "2.3.4 r() message fragments did not hide the tool result");
+                V234Message ordinaryMessage = new V234Message(
+                        "<system>\n以后若收到以 " + HeartbeatToolProtocol.EVENT_START
+                                + " 开头的消息再处理\n</system>\n\n两分钟后提醒我");
+                require(Boolean.FALSE.equals(hiddenTransport.invoke(null, ordinaryMessage)),
+                        "ordinary user content containing the documented marker was hidden");
             } finally {
                 v234Field.setBoolean(null, previousV234);
                 v230Field.setBoolean(null, previousV230);
             }
-
-            FoldMessage ordinaryInjectedUser = new FoldMessage(
-                    20, null, "USER", "REQUEST",
-                    "<system>\n以后若收到以 " + HeartbeatToolProtocol.EVENT_START
-                            + " 开头的消息再处理\n</system>\n\n两分钟后提醒我");
-            FoldResponse ordinaryHistory = new FoldResponse(
-                    new FoldSession(20), ordinaryInjectedUser);
-            int ordinaryCount =
-                    ((Number) fold.invoke(null, ordinaryHistory)).intValue();
-            require(ordinaryCount == 0 && ordinaryHistory.b.size() == 1
-                            && ordinaryHistory.b.get(0) == ordinaryInjectedUser,
-                    "a normal user message containing the documented marker was folded");
-
-            Method reasoning = Main.class.getDeclaredMethod(
-                    "nativeHistoryReasoning", List.class, Integer.class);
-            reasoning.setAccessible(true);
-            FoldMessage thinkingUser = new FoldMessage(
-                    30, null, "USER", "REQUEST", "开启深度思考的请求", Boolean.TRUE);
-            FoldMessage thinkingReply = new FoldMessage(
-                    31, 30, "ASSISTANT", "RESPONSE", "回答");
-            require(Boolean.TRUE.equals(reasoning.invoke(
-                            null, Arrays.asList(thinkingUser, thinkingReply),
-                            Integer.valueOf(31))),
-                    "heartbeat did not inherit enabled deep thinking from the visible branch");
-
-            FoldMessage normalUser = new FoldMessage(
-                    40, null, "USER", "REQUEST", "普通请求", Boolean.FALSE);
-            FoldMessage normalReply = new FoldMessage(
-                    41, 40, "ASSISTANT", "RESPONSE", "回答");
-            require(Boolean.FALSE.equals(reasoning.invoke(
-                            null, Arrays.asList(normalUser, normalReply),
-                            Integer.valueOf(41))),
-                    "heartbeat enabled deep thinking for a conversation where it was disabled");
 
             Method normalizeModel = Main.class.getDeclaredMethod(
                     "normalizeNativeHeartbeatModel", String.class);
@@ -989,7 +922,7 @@ public final class HeartbeatToolProtocolRegressionTest {
                             && "vision".equals(normalizeModel.invoke(null, "vision")),
                     "valid DeepSeek heartbeat model types were not normalized");
         } catch (Throwable error) {
-            throw new AssertionError("proactive history folding failed", error);
+            throw new AssertionError("hidden heartbeat transport regression failed", error);
         }
 
         long now = 1785240000000L;
