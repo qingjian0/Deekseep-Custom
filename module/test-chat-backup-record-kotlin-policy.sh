@@ -11,7 +11,7 @@ test -s "$POLICY"
 test -s "$TEST"
 test -s "$JAVA_TEST"
 grep -q 'ChatBackupRecordPolicy.isValidSessionId(sid)' "$STORE"
-! grep -q 'private static boolean validSid' "$STORE"
+grep -A2 'private static boolean validSid' "$STORE" | grep -q 'return ChatBackupRecordPolicy.isValidSessionId(sid);'
 grep -q 'MAX_SESSION_ID_LENGTH = 128' "$POLICY"
 grep -q "c in 'a'..'z'" "$POLICY"
 grep -q "c in 'A'..'Z'" "$POLICY"
