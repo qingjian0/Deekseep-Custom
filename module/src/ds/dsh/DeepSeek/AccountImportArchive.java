@@ -86,7 +86,11 @@ final class AccountImportArchive {
     }
 
     static String safePath(String raw) throws AccountCredentialCodec.FormatException {
-        return AccountImportArchivePolicy.safePath(raw);
+        String path = AccountImportArchivePolicy.normalizePath(raw);
+        if (!AccountImportArchivePolicy.isSafePath(path)) {
+            throw new AccountCredentialCodec.FormatException("ZIP 含不安全路径：" + path);
+        }
+        return path;
     }
 
     private static byte[] readBounded(InputStream input, int limit) throws Exception {
