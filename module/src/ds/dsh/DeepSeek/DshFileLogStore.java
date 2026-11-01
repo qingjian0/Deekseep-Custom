@@ -12,6 +12,7 @@ import android.os.Environment;
 import android.provider.MediaStore;
 
 import java.io.File;
+import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
@@ -31,25 +32,52 @@ final class DshFileLogStore {
         return appendFile(context.getFilesDir(), category + ".log", line);
     }
 
-    /** Reads only the bounded tail of the module-private crash log for the authenticated host UI. */
+    /** Reads a bounded chronological tail across the active crash log and its rotations. */
     static synchronized String readPrivateCrashTail(Context context, int requestedMaxBytes) {
         if (context == null) return "";
         int maxBytes = Math.max(1, Math.min(requestedMaxBytes, 512 * 1024));
-        File target = new File(context.getFilesDir(), "crash.log");
-        if (!target.isFile() || target.length() <= 0L) return "";
-        try (RandomAccessFile input = new RandomAccessFile(target, "r")) {
+        File directory = context.getFilesDir();
+        File[] files = {
+                new File(directory, "crash.log.3"),
+                new File(directory, "crash.log.2"),
+                new File(directory, "crash.log.1"),
+                new File(directory, "crash.log")
+        };
+        ByteArrayOutputStream combined = new ByteArrayOutputStream(maxBytes);
+        for (File file : files) {
+            if (!file.isFile() || file.length() <= 0L) continue;
+            byte[] chunk = readFileTail(file, maxBytes);
+            if (chunk.length == 0) continue;
+            try {
+                combined.write(chunk);
+                byte[] all = combined.toByteArray();
+                if (all.length > maxBytes) {
+                    int offset = all.length - maxBytes;
+                    while (offset < all.length && all[offset] != '\\n') offset++;
+                    if (offset < all.length) offset++;
+                    combined.reset();
+                    combined.write(all, offset, all.length - offset);
+                }
+            } catch (Throwable ignored) {
+                return new String(combined.toByteArray(), StandardCharsets.UTF_8);
+            }
+        }
+        return new String(combined.toByteArray(), StandardCharsets.UTF_8);
+    }
+
+    private static byte[] readFileTail(File file, int maxBytes) {
+        try (RandomAccessFile input = new RandomAccessFile(file, "r")) {
             long start = Math.max(0L, input.length() - maxBytes);
             input.seek(start);
             if (start > 0L) {
-                // Drop a partial first line; the remainder is valid UTF-8 log content.
-                while (input.getFilePointer() < input.length() && input.read() != '\n') { }
+                while (input.getFilePointer() < input.length() && input.read() != '\\n') { }
             }
             int remaining = (int) Math.min(maxBytes, input.length() - input.getFilePointer());
             byte[] bytes = new byte[remaining];
             input.readFully(bytes);
-            return new String(bytes, StandardCharsets.UTF_8);
+            return bytes;
         } catch (Throwable ignored) {
-            return "";
+            return new byte[0];
         }
     }
 
