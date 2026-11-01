@@ -96,7 +96,10 @@ val signingKeyAlias = if (protectedDistribution) {
 val signingKeyPassword = if (protectedDistribution) {
     closedSigningValue("keyPassword")
 } else {
-    providers.environmentVariable("ANDROID_KEY_PASSWORD").orElse("android").get()
+    providers.environmentVariable("ANDROID_KEY_PASSWORD")
+        .orElse(providers.environmentVariable("ANDROID_STORE_PASSWORD"))
+        .orElse("android")
+        .get()
 }
 
 // The official Material extended-icons AAR contains more than eleven thousand generated icon
