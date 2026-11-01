@@ -2378,7 +2378,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     }
 
     /** Exact code249 adapter: pp1.i supplies the Set consumed by n51.x. */
-    private void hookV236AllFileTypes(final ClassLoader cl) {
+    private void hookV236AllFileTypes(final ClassLoader cl) throws Throwable {
         if (!HostCompat.isV236()
                 || !V236_ALL_FILE_TYPES_HOOK_INSTALLED.compareAndSet(false, true)) return;
         try {
@@ -2416,11 +2416,12 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         } catch (Throwable error) {
             V236_ALL_FILE_TYPES_HOOK_INSTALLED.set(false);
             log("code249 all-file-types adapter unavailable: " + safeThrowableMessage(error));
+            throw error;
         }
     }
 
     /** Exact code257 adapter: ys1.i supplies the Set consumed by g71.y. */
-    private void hookV241AllFileTypes(final ClassLoader cl) {
+    private void hookV241AllFileTypes(final ClassLoader cl) throws Throwable {
         if (!HostCompat.isV241()
                 || !V241_ALL_FILE_TYPES_HOOK_INSTALLED.compareAndSet(false, true)) return;
         try {
@@ -2458,11 +2459,12 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         } catch (Throwable error) {
             V241_ALL_FILE_TYPES_HOOK_INSTALLED.set(false);
             log("code257 all-file-types adapter unavailable: " + safeThrowableMessage(error));
+            throw error;
         }
     }
 
     /** Exact 2.3.6/code249 adapter. uo5.p/q are consumed by l10. */
-    private void hookV236LocalChatQuotaUnlock(final ClassLoader cl) {
+    private void hookV236LocalChatQuotaUnlock(final ClassLoader cl) throws Throwable {
         if (!HostCompat.isV236()
                 || !V236_LOCAL_CHAT_QUOTA_HOOKS_INSTALLED.compareAndSet(false, true)) return;
         try {
@@ -2511,6 +2513,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             V236_LOCAL_CHAT_QUOTA_HOOKS_INSTALLED.set(false);
             log("code249 local chat quota unlock unavailable: "
                     + safeThrowableMessage(error));
+            throw error;
         }
     }
 
@@ -7278,7 +7281,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
      * producer and consumers so an already-created config is fixed on its next frame. The
      * original nullable values are weakly retained and restored when the setting is switched off.
      */
-    private void hookV241LocalChatQuotaUnlock(final ClassLoader cl) {
+    private void hookV241LocalChatQuotaUnlock(final ClassLoader cl) throws Throwable {
         if (!HostCompat.isV241()
                 || !V241_LOCAL_CHAT_QUOTA_HOOKS_INSTALLED.compareAndSet(false, true)) return;
         try {
@@ -7327,6 +7330,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             V241_LOCAL_CHAT_QUOTA_HOOKS_INSTALLED.set(false);
             log("code257 local chat quota unlock unavailable: "
                     + safeThrowableMessage(error));
+            throw error;
         }
     }
 
