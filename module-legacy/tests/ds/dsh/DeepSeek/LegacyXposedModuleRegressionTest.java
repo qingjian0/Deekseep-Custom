@@ -127,6 +127,7 @@ public final class LegacyXposedModuleRegressionTest {
 
         runFailureIsolationTests(method, api);
         runScopedRegistrationRetryTest(method, api);
+        runScopedRegistrationErrorRetryTest(method, api);
         runScopedRegistrationMultiplicityTest(method, api);
     }
 
@@ -172,6 +173,44 @@ public final class LegacyXposedModuleRegressionTest {
                         + param.getResult());
         check(target.joinCalls == 1,
                 "API " + api + " retry must invoke the original exactly once");
+    }
+
+    private static void runScopedRegistrationErrorRetryTest(final Method method, int api)
+            throws Throwable {
+        XposedBridge.resetTestState();
+        XposedBridge.originalMethodInvokerForTest =
+                new XposedBridge.OriginalMethodInvoker() {
+                    @Override public Object invoke(Member member, Object receiver,
+                                                   Object[] invokeArgs) throws Throwable {
+                        return ((Method) member).invoke(receiver, invokeArgs);
+                    }
+                };
+        Module module = new Module();
+        XposedBridge.hookFailureForTest = new LinkageError("first registration attempt");
+        boolean failed = false;
+        try {
+            registerScopedRetryHook(module, method);
+        } catch (LinkageError expected) {
+            failed = true;
+        }
+        check(failed, "API " + api + " injected registration Error was not propagated");
+
+        registerScopedRetryHook(module, method);
+        check(XposedBridge.hookCountForTest == 1,
+                "API " + api + " retry after registration Error duplicated Xposed callback");
+
+        XC_MethodHook.MethodHookParam param = new XC_MethodHook.MethodHookParam();
+        param.method = method;
+        Target target = new Target();
+        param.thisObject = target;
+        param.args = new Object[] {"safe", "original"};
+        XposedBridge.callbackForTest.dispatchBeforeForTest(param);
+        check(!param.hasThrowable(), "API " + api + " registration Error retry failed");
+        check("safe:original:scoped".equals(param.getResult()),
+                "API " + api + " failed registration left a duplicate staged interceptor: "
+                        + param.getResult());
+        check(target.joinCalls == 1,
+                "API " + api + " Error retry must invoke the original exactly once");
     }
 
     private static void registerTwoScopedSameClassHooks(Module module, Method method) {
