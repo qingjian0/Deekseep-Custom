@@ -583,8 +583,16 @@ final class HookAccountLoginSecurity {
             Main.log("hooked native regional login options: cy4 ctors=" + constructors
                     + ", copies=" + copies + ", google=" + isGoogleLoginUnlock()
                     + ", wechatMobile=" + isWechatMobileLoginUnlock());
+            if (constructors == 0 || copies == 0) {
+                throw new IllegalStateException(
+                        "regional login option hooks were not fully discovered: ctors="
+                                + constructors + " copies=" + copies);
+            }
         } catch (Throwable t) {
-            Main.log("hookRegionalLoginUnlock failed: " + t);
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            Main.log("hookRegionalLoginUnlock failed: " + Main.safeThrowableMessage(t));
+            throw new IllegalStateException("regional login hook installation failed", t);
         }
     }
 
@@ -629,8 +637,15 @@ final class HookAccountLoginSecurity {
             }
             Main.log("hooked native login entry password unlock: v45 ctors=" + hooked
                     + ", google=" + isGoogleLoginUnlock());
+            if (hooked == 0) {
+                throw new IllegalStateException(
+                        "login entry password constructor discovery returned no methods");
+            }
         } catch (Throwable t) {
-            Main.log("hookLoginEntryPasswordUnlock failed: " + t);
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            Main.log("hookLoginEntryPasswordUnlock failed: " + Main.safeThrowableMessage(t));
+            throw new IllegalStateException("login entry password hook installation failed", t);
         }
     }
 
@@ -773,7 +788,11 @@ final class HookAccountLoginSecurity {
             });
             Main.log("hooked candidate password login capture: j5.h");
         } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
             Main.log("hookCandidatePasswordLoginCapture failed: " + Main.safeThrowableMessage(t));
+            throw new IllegalStateException(
+                    "candidate password login capture hook installation failed", t);
         }
     }
 
@@ -837,9 +856,17 @@ final class HookAccountLoginSecurity {
             });
             hooked++;
             Main.log("hooked quick-registration captcha callbacks=" + hooked);
+            if (hooked == 0) {
+                throw new IllegalStateException(
+                        "quick-registration captcha discovery returned no callbacks");
+            }
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             Main.log("quick-registration captcha callbacks unavailable: "
                     + Main.safeThrowableMessage(error));
+            throw new IllegalStateException(
+                    "quick-registration captcha hook installation failed", error);
         }
     }
 
@@ -862,24 +889,27 @@ final class HookAccountLoginSecurity {
         String[] targets = HostCompat.isV241()
                 ? new String[]{"p79", "q79", "r79"}
                 : new String[]{"uy8", "vy8", "wy8"};
+        Throwable lastFailure = null;
         for (String name : targets) {
             try {
                 Class<?> cls = HostRemap.load(cl, name);
                 // d() -> password_login / phone format: force false (email format)
-                try {
-                    Method d = HostRemap.declaredMethod(cls, "d");
-                    Main.MODULE.hook(d).intercept(new Hooker() {
-                        @Override public Object intercept(Chain chain) throws Throwable {
-                            return Boolean.FALSE;
-                        }
-                    });
-                    Main.log("region override: " + name + ".d() -> false");
-                } catch (Throwable ignored) {}
-                Main.log("region override installed: " + name);
+                Method d = HostRemap.declaredMethod(cls, "d");
+                Main.MODULE.hook(d).intercept(new Hooker() {
+                    @Override public Object intercept(Chain chain) throws Throwable {
+                        return Boolean.FALSE;
+                    }
+                });
+                Main.log("region override installed: " + name + ".d() -> false");
                 return;
-            } catch (Throwable ignored) {}
+            } catch (Throwable error) {
+                if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+                if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+                lastFailure = error;
+            }
         }
-        Main.log("hookRegionOverride: no matching region class found");
+        throw new IllegalStateException(
+                "region override hook unavailable for all mapped host classes", lastFailure);
     }
 
     /**
