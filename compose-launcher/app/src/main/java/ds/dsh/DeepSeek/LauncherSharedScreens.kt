@@ -1,4 +1,4 @@
-package com.dsmod.probe
+package ds.dsh.DeepSeek
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -29,8 +29,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.verticalScroll
-import com.dsmod.probe.ui.pressScale
-import com.dsmod.probe.ui.staggeredEntrance
+import ds.dsh.DeepSeek.ui.pressScale
+import ds.dsh.DeepSeek.ui.staggeredEntrance
 
 /** Shared, stateless launcher presentation components. */
 @Composable

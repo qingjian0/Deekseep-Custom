@@ -1,4 +1,4 @@
-package com.dsmod.probe
+package ds.dsh.DeepSeek
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -37,7 +37,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import com.dsmod.probe.ui.pressScale
+import ds.dsh.DeepSeek.ui.pressScale
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -65,10 +65,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.dsmod.probe.ui.CategoryCard
-import com.dsmod.probe.ui.NoteCard
-import com.dsmod.probe.ui.SectionHeader
-import com.dsmod.probe.ui.staggeredEntrance
+import ds.dsh.DeepSeek.ui.CategoryCard
+import ds.dsh.DeepSeek.ui.NoteCard
+import ds.dsh.DeepSeek.ui.SectionHeader
+import ds.dsh.DeepSeek.ui.staggeredEntrance
 
 @Composable
 internal fun HomeScreen(

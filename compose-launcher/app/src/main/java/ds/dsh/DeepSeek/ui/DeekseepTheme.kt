@@ -1,4 +1,4 @@
-package com.dsmod.probe.ui
+package ds.dsh.DeepSeek.ui
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme

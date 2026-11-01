@@ -1,4 +1,4 @@
-package com.dsmod.probe
+package ds.dsh.DeepSeek
 
 import android.content.Intent
 import android.net.Uri
@@ -99,13 +99,13 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.dsmod.probe.ui.CategoryCard
-import com.dsmod.probe.ui.NoteCard
-import com.dsmod.probe.ui.SectionHeader
-import com.dsmod.probe.ui.StatusHeroCard
-import com.dsmod.probe.ui.YunSeekTheme
-import com.dsmod.probe.ui.pressScale
-import com.dsmod.probe.ui.staggeredEntrance
+import ds.dsh.DeepSeek.ui.CategoryCard
+import ds.dsh.DeepSeek.ui.NoteCard
+import ds.dsh.DeepSeek.ui.SectionHeader
+import ds.dsh.DeepSeek.ui.StatusHeroCard
+import ds.dsh.DeepSeek.ui.YunSeekTheme
+import ds.dsh.DeepSeek.ui.pressScale
+import ds.dsh.DeepSeek.ui.staggeredEntrance
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import org.json.JSONArray
 import org.json.JSONObject
