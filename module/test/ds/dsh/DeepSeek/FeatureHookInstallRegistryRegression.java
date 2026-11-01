@@ -12,6 +12,7 @@ public final class FeatureHookInstallRegistryRegression {
         testSkippedEntryIsTerminal();
         testConcurrentCallersDoNotDoubleInstall();
         testFailureIsRethrownAndRecorded();
+        testDegradedEntryCanBeRetried();
         testFatalFailureIsRethrown();
         System.out.println("FeatureHookInstallRegistry regression: PASS");
     }
@@ -119,6 +120,32 @@ public final class FeatureHookInstallRegistryRegression {
         }
         assertState(registry, "failed.feature", FeatureHookInstallRegistry.State.FAILED, 1);
         assertTrue(registry.hasFailures(), "failed registry must be unhealthy");
+    }
+
+    private static void testDegradedEntryCanBeRetried() throws Throwable {
+        FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
+        AtomicInteger calls = new AtomicInteger();
+
+        try {
+            registry.install("attachment.partial", () -> {
+                calls.incrementAndGet();
+                throw new IllegalStateException("partial hook installation");
+            });
+            throw new AssertionError("partial installation failure was not propagated");
+        } catch (IllegalStateException expected) {
+            assertEquals("partial hook installation", expected.getMessage(),
+                    "partial installation failure");
+        }
+        registry.markDegraded("attachment.partial",
+                new IllegalStateException("some attachment targets were unavailable"));
+        assertState(registry, "attachment.partial",
+                FeatureHookInstallRegistry.State.DEGRADED, 1);
+        assertTrue(registry.hasFailures(), "degraded registry must remain unhealthy");
+
+        registry.install("attachment.partial", calls::incrementAndGet);
+        assertState(registry, "attachment.partial", FeatureHookInstallRegistry.State.INSTALLED, 2);
+        assertEquals(2, calls.get(), "degraded feature should retry exactly once");
+        assertFalse(registry.hasFailures(), "successful retry should clear degraded state");
     }
 
     private static void testFatalFailureIsRethrown() throws Throwable {
