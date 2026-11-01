@@ -6,7 +6,7 @@ import java.nio.file.Files;
 
 public final class DeepSeekCacheCleanerRegressionTest {
     private static void checkRetentionPolicy() {
-        long now = 10_000_000L;
+        long now = 10_000_000_000L;
         long oneDay = 24L * 60L * 60L * 1000L;
         long cutoff = DeepSeekCacheCleanerPolicy.cutoff(now, 7);
         require(cutoff == now - 7L * oneDay, "seven-day cutoff");
