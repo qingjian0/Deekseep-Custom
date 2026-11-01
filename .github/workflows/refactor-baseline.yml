@@ -105,5 +105,7 @@ jobs:
             module-universal/ds-probe-universal.apk \
             compose-launcher/app/build/outputs/apk/debug/app-debug.apk; do
             unzip -t "$apk" >/dev/null
-            unzip -Z1 "$apk" | grep -Eq '^classes([0-9]+)?\\.dex$'
+            unzip -Z1 "$apk" | grep -Eq '^classes([0-9]+)?\.dex
+          done
+
           done
