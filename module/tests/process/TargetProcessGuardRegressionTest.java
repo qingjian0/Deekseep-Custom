@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 public final class TargetProcessGuardRegressionTest {
     private static final String PID_PROPERTY = "deekseep.module.injected.pid";
