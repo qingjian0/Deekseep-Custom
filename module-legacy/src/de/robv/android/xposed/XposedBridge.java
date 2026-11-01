@@ -11,6 +11,7 @@ public final class XposedBridge {
     public static int hookCountForTest;
     public static Error hookFailureForTest;
     public static boolean nativeHookInstalledForTest;
+    public static boolean hookFailureAfterNativeInstallForTest;
     public static OriginalMethodInvoker originalMethodInvokerForTest;
 
     public interface OriginalMethodInvoker {
@@ -34,6 +35,7 @@ public final class XposedBridge {
         if (hookFailureForTest != null) {
             Error failure = hookFailureForTest;
             hookFailureForTest = null;
+            if (hookFailureAfterNativeInstallForTest) nativeHookInstalledForTest = true;
             throw failure;
         }
         nativeHookInstalledForTest = true;
@@ -52,6 +54,7 @@ public final class XposedBridge {
         hookCountForTest = 0;
         hookFailureForTest = null;
         nativeHookInstalledForTest = false;
+        hookFailureAfterNativeInstallForTest = false;
         originalMethodInvokerForTest = null;
     }
 }
