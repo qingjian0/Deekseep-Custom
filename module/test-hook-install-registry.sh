@@ -10,6 +10,7 @@ AGENT_PIPELINE="$MODULE_DIR/src/ds/dsh/DeepSeek/HookAgentPipeline.java"
 # Catch-variable regressions in fatal-error passthrough must fail before Android compilation.
 if awk '
   /catch[[:space:]]*\([[:space:]]*Throwable[[:space:]]+t[[:space:]]*\)/ { in_t_catch = 1; remaining = 12; next }
+  /catch[[:space:]]*\([[:space:]]*Throwable[[:space:]]+[[:alnum:]_]+[[:space:]]*\)/ { in_t_catch = 0; remaining = 0; next }
   in_t_catch && /error[[:space:]]+instanceof[[:space:]]+(VirtualMachineError|ThreadDeath)/ {
     print "fatal-error passthrough references error inside catch(Throwable t) at line " NR > "/dev/stderr"
     exit 1
