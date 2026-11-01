@@ -250,7 +250,7 @@ public final class RichPanelRendererRegressionTest {
                 visible.visibleText);
         require(RichPanelRenderer.hasToolLogCarrier(visibleText)
                         && RichPanelRenderer.toolLogTraceKeys(visibleText).contains(
-                        "conversation-1234\\u001fpanel_001")
+                        "conversation-1234\u001fpanel_001")
                         && visibleText.contains("$")
                         && visibleText.contains("\\begin{array}"),
                 "the activity-row carrier and generated panel were not shown together");
