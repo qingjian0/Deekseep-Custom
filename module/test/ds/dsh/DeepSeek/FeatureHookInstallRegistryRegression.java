@@ -12,6 +12,8 @@ public final class FeatureHookInstallRegistryRegression {
         testDegradedEntryIsVisibleAsRetryable();
         testSkippedEntryIsTerminal();
         testConcurrentCallersDoNotDoubleInstall();
+        testDifferentIdsInstallConcurrently();
+        testPartialRegistrationRetryDoesNotDuplicateHooks();
         testFailureIsRethrownAndRecorded();
         testFatalFailureIsRethrown();
         System.out.println("FeatureHookInstallRegistry regression: PASS");
@@ -120,6 +122,98 @@ public final class FeatureHookInstallRegistryRegression {
         if (threadFailure.get() != null) throw threadFailure.get();
         assertEquals(1, calls.get(), "concurrent calls must execute installer once");
         assertState(registry, "concurrent.feature", FeatureHookInstallRegistry.State.INSTALLED, 1);
+    }
+
+    private static void testDifferentIdsInstallConcurrently() throws Throwable {
+        FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
+        CountDownLatch entered = new CountDownLatch(2);
+        CountDownLatch release = new CountDownLatch(1);
+        AtomicInteger firstCalls = new AtomicInteger();
+        AtomicInteger secondCalls = new AtomicInteger();
+        AtomicReference<Throwable> threadFailure = new AtomicReference<>();
+
+        Runnable firstInstall = () -> {
+            try {
+                registry.install("parallel.first", () -> {
+                    firstCalls.incrementAndGet();
+                    entered.countDown();
+                    if (!release.await(3, TimeUnit.SECONDS)) {
+                        throw new AssertionError("first installer timed out waiting for peer");
+                    }
+                });
+            } catch (Throwable failure) {
+                threadFailure.compareAndSet(null, failure);
+            }
+        };
+        Runnable secondInstall = () -> {
+            try {
+                registry.install("parallel.second", () -> {
+                    secondCalls.incrementAndGet();
+                    entered.countDown();
+                    if (!release.await(3, TimeUnit.SECONDS)) {
+                        throw new AssertionError("second installer timed out waiting for peer");
+                    }
+                });
+            } catch (Throwable failure) {
+                threadFailure.compareAndSet(null, failure);
+            }
+        };
+
+        Thread first = new Thread(firstInstall, "registry-parallel-first");
+        Thread second = new Thread(secondInstall, "registry-parallel-second");
+        first.start();
+        second.start();
+        boolean bothEntered = entered.await(3, TimeUnit.SECONDS);
+        release.countDown();
+        first.join(3000L);
+        second.join(3000L);
+        assertTrue(bothEntered, "different hook IDs must install concurrently");
+        assertFalse(first.isAlive() || second.isAlive(),
+                "parallel installer threads must finish");
+        if (threadFailure.get() != null) throw threadFailure.get();
+        assertEquals(1, firstCalls.get(), "first independent installer count");
+        assertEquals(1, secondCalls.get(), "second independent installer count");
+        assertState(registry, "parallel.first", FeatureHookInstallRegistry.State.INSTALLED, 1);
+        assertState(registry, "parallel.second", FeatureHookInstallRegistry.State.INSTALLED, 1);
+    }
+
+    private static void testPartialRegistrationRetryDoesNotDuplicateHooks()
+            throws Throwable {
+        FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
+        java.util.Set<String> registered = java.util.concurrent.ConcurrentHashMap.newKeySet();
+        AtomicInteger firstHookRegistrations = new AtomicInteger();
+        AtomicInteger secondHookRegistrations = new AtomicInteger();
+        AtomicInteger attempts = new AtomicInteger();
+
+        registry.markDegraded("partial.hooks", new IllegalStateException("partial registration"));
+        try {
+            registry.install("partial.hooks", () -> {
+                if (registered.add("first")) firstHookRegistrations.incrementAndGet();
+                if (attempts.incrementAndGet() == 1) {
+                    throw new IllegalStateException("second hook registration failed");
+                }
+                if (registered.add("second")) secondHookRegistrations.incrementAndGet();
+            });
+            throw new AssertionError("partial registration failure was not propagated");
+        } catch (IllegalStateException expected) {
+            assertEquals("second hook registration failed", expected.getMessage(),
+                    "partial registration failure");
+        }
+        assertTrue(registry.hasRetryableFailures(),
+                "partially registered hook group must remain retryable");
+
+        registry.install("partial.hooks", () -> {
+            if (registered.add("first")) firstHookRegistrations.incrementAndGet();
+            if (registered.add("second")) secondHookRegistrations.incrementAndGet();
+        });
+
+        assertEquals(1, firstHookRegistrations.get(),
+                "already registered hook must not be registered twice");
+        assertEquals(1, secondHookRegistrations.get(),
+                "missing hook must be registered on retry");
+        assertFalse(registry.hasRetryableFailures(),
+                "successful partial-registration retry must clear retryable state");
+        assertState(registry, "partial.hooks", FeatureHookInstallRegistry.State.INSTALLED, 2);
     }
 
     private static void testFailureIsRethrownAndRecorded() throws Throwable {
