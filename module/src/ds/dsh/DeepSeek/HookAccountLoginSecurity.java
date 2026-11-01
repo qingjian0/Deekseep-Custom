@@ -375,9 +375,9 @@ final class HookAccountLoginSecurity {
                 {"em8", "ux5"},       // Mainland 2.2.x
                 {"kq8", "f77"},       // Google Play 2.2.x
         };
-        int installed = 0;
         Throwable lastFailure = null;
         for (String[] generation : generations) {
+            int generationInstalled = 0;
             try {
                 // JADX displays R8's default-package classes under a synthetic
                 // "defpackage" directory, but that prefix is not part of the runtime name.
@@ -403,22 +403,31 @@ final class HookAccountLoginSecurity {
                             return chain.proceed(args);
                         }
                     });
-                    installed++;
+                    generationInstalled++;
+                }
+                if (generationInstalled == 0) {
+                    throw new NoSuchMethodException("native fake mute renderer targets for "
+                            + generation[0] + "/" + generation[1]);
                 }
                 Main.log("native fake mute renderer hooked model=" + HostRemap.className(muteType)
-                        + " owner=" + HostRemap.className(renderer));
-                break;
+                        + " owner=" + HostRemap.className(renderer)
+                        + " methods=" + generationInstalled);
+                return;
             } catch (Throwable failure) {
                 if (failure instanceof VirtualMachineError) throw (VirtualMachineError) failure;
                 if (failure instanceof ThreadDeath) throw (ThreadDeath) failure;
+                if (generationInstalled > 0) {
+                    // A generation has already been partially registered. Do not fall through
+                    // to a different host mapping: that would mix incompatible renderer targets.
+                    if (lastFailure != null) failure.addSuppressed(lastFailure);
+                    throw failure;
+                }
                 lastFailure = failure;
             }
         }
-        if (installed == 0) {
-            Main.log("native fake mute renderer unavailable for host");
-            if (lastFailure != null) throw lastFailure;
-            throw new NoSuchMethodException("native fake mute renderer targets");
-        }
+        Main.log("native fake mute renderer unavailable for host");
+        if (lastFailure != null) throw lastFailure;
+        throw new NoSuchMethodException("native fake mute renderer targets");
     }
 
     static boolean isGoogleLoginUnlock() {
