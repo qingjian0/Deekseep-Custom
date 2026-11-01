@@ -16,6 +16,8 @@ public final class FeatureHookInstallRegistryRegression {
         testMarkSkippedPreservesFailedEntry();
         testMarkSkippedPreservesDegradedEntry();
         testConcurrentCallersDoNotDoubleInstall();
+        testSnapshotIsStableAndUnmodifiable();
+        testBlankIdsAreRejected();
         testFailureIsRethrownAndRecorded();
         testDegradedEntryCanBeRetried();
         testFatalFailureIsRethrown();
@@ -217,6 +219,8 @@ public final class FeatureHookInstallRegistryRegression {
             release.countDown();
             throw new AssertionError("first installer did not start");
         }
+        assertState(registry, "concurrent.feature",
+                FeatureHookInstallRegistry.State.INSTALLING, 1);
         release.countDown();
         first.join(3000L);
         second.join(3000L);
@@ -224,6 +228,47 @@ public final class FeatureHookInstallRegistryRegression {
         if (threadFailure.get() != null) throw threadFailure.get();
         assertEquals(1, calls.get(), "concurrent calls must execute installer once");
         assertState(registry, "concurrent.feature", FeatureHookInstallRegistry.State.INSTALLED, 1);
+    }
+
+    private static void testSnapshotIsStableAndUnmodifiable() throws Throwable {
+        FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
+        registry.install("snapshot.feature", () -> { });
+        java.util.List<FeatureHookInstallRegistry.Status> snapshot = registry.snapshot();
+        assertEquals(1, snapshot.size(), "snapshot entry count");
+        assertState(registry, "snapshot.feature", FeatureHookInstallRegistry.State.INSTALLED, 1);
+        try {
+            snapshot.clear();
+            throw new AssertionError("snapshot list must be unmodifiable");
+        } catch (UnsupportedOperationException expected) {
+            // Expected: callers must not be able to mutate registry snapshots.
+        }
+        registry.markSkipped("snapshot.other", "new entry after snapshot");
+        assertEquals(1, snapshot.size(), "previous snapshot must remain stable");
+    }
+
+    private static void testBlankIdsAreRejected() throws Throwable {
+        FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
+        assertIllegalArgument(() -> registry.install("  ", () -> { }),
+                "install must reject blank IDs");
+        assertIllegalArgument(() -> registry.markSkipped("", "invalid"),
+                "markSkipped must reject blank IDs");
+        assertIllegalArgument(() -> registry.markDegraded(null,
+                new IllegalStateException("invalid")), "markDegraded must reject null IDs");
+        assertTrue(registry.snapshot().isEmpty(), "invalid IDs must not create entries");
+    }
+
+    private static void assertIllegalArgument(ThrowingAction action, String label) throws Throwable {
+        try {
+            action.run();
+            throw new AssertionError(label);
+        } catch (IllegalArgumentException expected) {
+            // Expected: invalid stable IDs are rejected at the boundary.
+        }
+    }
+
+    @FunctionalInterface
+    private interface ThrowingAction {
+        void run() throws Throwable;
     }
 
     private static void testFailureIsRethrownAndRecorded() throws Throwable {
