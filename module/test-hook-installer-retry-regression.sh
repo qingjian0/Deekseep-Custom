@@ -203,6 +203,30 @@ if grep -Fq 'Main.MODULE.hook(' <<<"$server_capture_body"; then
   exit 1
 fi
 
+# UI text-wave and host-theme installers preserve successful Member hooks across retries.
+ui_src="$SRC/HookUiSurface.java"
+grep -Fq 'UI_SURFACE_HOOKED_MEMBERS' "$ui_src"
+ui_helper="$(sed -n '/private static void hookUiSurfaceMember/,/void hookTextWaveMotion/p' "$ui_src")"
+grep -Fq 'synchronized (UI_SURFACE_HOOKED_MEMBERS)' <<<"$ui_helper"
+grep -Fq 'UI_SURFACE_HOOKED_MEMBERS.contains(member)' <<<"$ui_helper"
+grep -Fq 'UI_SURFACE_HOOKED_MEMBERS.add(member)' <<<"$ui_helper"
+text_wave_body="$(sed -n '/void hookTextWaveMotion(/,/Replaces DeepSeek/p' "$ui_src")"
+grep -Fq 'hookUiSurfaceMember(onDraw, new Hooker()' <<<"$text_wave_body"
+grep -Fq 'hookUiSurfaceMember(candidate, new Hooker()' <<<"$text_wave_body"
+grep -Fq 'hookUiSurfaceMember(textDraw, new Hooker()' <<<"$text_wave_body"
+if grep -Fq 'Main.MODULE.hook(' <<<"$text_wave_body"; then
+  echo "Text-wave installer bypasses retry-safe registration." >&2
+  exit 1
+fi
+theme_body="$(sed -n '/void hookHostThemeColor(/,/private static long remapHostDrawColor/p' "$ui_src")"
+grep -Fq 'hookUiSurfaceMember(localProvider, new Hooker()' <<<"$theme_body"
+grep -Fq 'hookUiSurfaceMember(method, new Hooker()' <<<"$theme_body"
+grep -Fq 'hookUiSurfaceMember(background, new Hooker()' <<<"$theme_body"
+if grep -Fq 'Main.MODULE.hook(' <<<"$theme_body"; then
+  echo "Host-theme installer bypasses retry-safe registration." >&2
+  exit 1
+fi
+
 # Session installers propagate installation failures to Main/Registry.
 session_src="$SRC/HookSessionManagement.java"
 for method in \
