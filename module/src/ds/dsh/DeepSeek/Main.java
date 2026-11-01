@@ -1876,7 +1876,13 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             installHookStep("ui.host-theme-color", () -> HookUiSurface.INSTANCE.hookHostThemeColor(hookLoader));
             installHookStep("session.compose-visible-thread", () -> HookSessionManagement.INSTANCE.hookComposeVisibleThreadState(hookLoader));
             installHookStep("chat.s11-render-filter", () -> HookChatPipeline.INSTANCE.hookS11RenderFilter(hookLoader));
-            installHookStep("chat.cs1-render-filter", () -> HookChatPipeline.INSTANCE.hookCs1RenderFilter(hookLoader));
+            if (HostCompat.isV230() && !HostCompat.isV234()) {
+                installHookStep("chat.cs1-render-filter",
+                        () -> HookChatPipeline.INSTANCE.hookCs1RenderFilter(hookLoader));
+            } else {
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("chat.cs1-render-filter",
+                        "cs1 attachment filter is only mapped for the pre-2.3.4 host family");
+            }
             installHookStep("agent.native-heartbeat-completion", () -> HookAgentPipeline.INSTANCE.hookNativeUiHeartbeatCompletion(hookLoader));
             installHookStep("session.native-navigator", () -> HookSessionManagement.INSTANCE.hookNativeSessionNavigator(hookLoader));
             installHookStep("session.history-load-diagnostics", () -> HookSessionManagement.INSTANCE.hookHistoryLoadDiagnostics(hookLoader));
