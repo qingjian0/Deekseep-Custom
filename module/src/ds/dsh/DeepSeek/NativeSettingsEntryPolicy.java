@@ -1,17 +1,13 @@
 package ds.dsh.DeepSeek;
 
-/** Decides whether the top-right module entry must remain available. */
+/** Java compatibility facade for the shared native-settings entry policy. */
 final class NativeSettingsEntryPolicy {
     private NativeSettingsEntryPolicy() {}
 
-    /**
-     * Installing a Compose hook does not prove that the native row was rendered. Keep the
-     * floating entry until one native row has completed successfully, so a host update can never
-     * leave the user with neither entry.
-     */
     static boolean showFloating(boolean nativeModeEnabled,
                                 boolean nativeHookInstalled,
                                 boolean nativeRowEmitted) {
-        return !nativeModeEnabled || !nativeHookInstalled || !nativeRowEmitted;
+        return ds.dsh.DeepSeek.NativeSettingsEntryPolicy.showFloating(
+                nativeModeEnabled, nativeHookInstalled, nativeRowEmitted);
     }
 }
