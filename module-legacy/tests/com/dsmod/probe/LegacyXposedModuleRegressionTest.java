@@ -127,10 +127,12 @@ public final class LegacyXposedModuleRegressionTest {
 
         runFailureIsolationTests(method, api);
         runScopedRegistrationRetryTest(method, api);
+        runScopedRegistrationMultiplicityTest(method, api);
     }
 
     private static void registerScopedRetryHook(Module module, Method method) {
-        String previous = module.beginHookRegistrationScope("test.retryable.feature");
+        LegacyXposedModule.HookRegistrationScope previous =
+                module.beginHookRegistrationScope("test.retryable.feature");
         try {
             module.hook(method).intercept(new LegacyXposedModule.Hooker() {
                 @Override public Object intercept(LegacyXposedModule.Chain chain)
@@ -170,6 +172,54 @@ public final class LegacyXposedModuleRegressionTest {
                         + param.getResult());
         check(target.joinCalls == 1,
                 "API " + api + " retry must invoke the original exactly once");
+    }
+
+    private static void registerTwoScopedSameClassHooks(Module module, Method method) {
+        LegacyXposedModule.HookRegistrationScope previous =
+                module.beginHookRegistrationScope("test.multiple.same.class");
+        try {
+            for (final String suffix : new String[] {":first", ":second"}) {
+                module.hook(method).intercept(new LegacyXposedModule.Hooker() {
+                    @Override public Object intercept(LegacyXposedModule.Chain chain)
+                            throws Throwable {
+                        return chain.proceed() + suffix;
+                    }
+                });
+            }
+        } finally {
+            module.endHookRegistrationScope(previous);
+        }
+    }
+
+    private static void runScopedRegistrationMultiplicityTest(final Method method, int api)
+            throws Throwable {
+        XposedBridge.resetTestState();
+        XposedBridge.originalMethodInvokerForTest =
+                new XposedBridge.OriginalMethodInvoker() {
+                    @Override public Object invoke(Member member, Object receiver,
+                                                   Object[] invokeArgs) throws Throwable {
+                        return ((Method) member).invoke(receiver, invokeArgs);
+                    }
+                };
+        Module module = new Module();
+        registerTwoScopedSameClassHooks(module, method);
+        registerTwoScopedSameClassHooks(module, method);
+
+        XC_MethodHook.MethodHookParam param = new XC_MethodHook.MethodHookParam();
+        param.method = method;
+        Target target = new Target();
+        param.thisObject = target;
+        param.args = new Object[] {"safe", "original"};
+        XposedBridge.callbackForTest.dispatchBeforeForTest(param);
+
+        check(!param.hasThrowable(), "API " + api + " repeated same-class hooks failed");
+        check("safe:original:second:first".equals(param.getResult()),
+                "API " + api + " same-class hook occurrences were not preserved exactly: "
+                        + param.getResult());
+        check(target.joinCalls == 1,
+                "API " + api + " same-class hooks must invoke the original exactly once");
+        check(XposedBridge.hookCountForTest == 1,
+                "API " + api + " retry must not duplicate the underlying Xposed callback");
     }
 
     private static void runFailureIsolationTests(final Method method, int api) throws Throwable {
