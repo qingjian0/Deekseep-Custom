@@ -855,6 +855,14 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                             }
                             current = current.getCause();
                         }
+                        // handleLoadPackage runs before Application exists. If the process
+                        // crashes after Application creation but before the lifecycle callback
+                        // installs the bridge, attach the provider sink here before emitting.
+                        try {
+                            Application app = (Application) Class.forName("android.app.ActivityThread")
+                                    .getMethod("currentApplication").invoke(null);
+                            if (app != null) DshRemoteFileLogSink.install(app);
+                        } catch (Throwable ignored) {}
                         DshLog.error("Crash", safeTrace.toString(), e);
                     } catch (Throwable ignored) {}
                     if (prev != null) prev.uncaughtException(t, e);
