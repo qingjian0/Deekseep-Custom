@@ -67,21 +67,16 @@ final class DshRemoteFileLogSink {
                 }
                 return;
             }
+            // The uncaught-exception handler must get the crash record across the process
+            // boundary before it delegates to the previous handler (which normally terminates
+            // this host process). The provider only enqueues the record; disk I/O remains on its
+            // module-owned writer thread.
+            if ("crash".equals(category)) {
+                writeToProvider(resolver, category, line.toString());
+                return;
+            }
             try {
-                EXECUTOR.execute(() -> {
-                    Bundle payload = new Bundle();
-                    payload.putString("category", category);
-                    payload.putString("line", line.toString());
-                    try {
-                        Bundle result = resolver.call(PROVIDER_URI,
-                                XposedActivationProvider.METHOD_WRITE_DSH_LOG, null, payload);
-                        if (result == null || !result.getBoolean("accepted", false)) {
-                            DROPPED_EVENTS.incrementAndGet();
-                        }
-                    } catch (Throwable failure) {
-                        DROPPED_EVENTS.incrementAndGet();
-                    }
-                });
+                EXECUTOR.execute(() -> writeToProvider(resolver, category, line.toString()));
             } catch (RejectedExecutionException rejected) {
                 DROPPED_EVENTS.incrementAndGet();
             } catch (Throwable failure) {
@@ -89,6 +84,21 @@ final class DshRemoteFileLogSink {
             }
         });
         installed = true;
+    }
+
+    private static void writeToProvider(ContentResolver resolver, String category, String line) {
+        Bundle payload = new Bundle();
+        payload.putString("category", category);
+        payload.putString("line", line);
+        try {
+            Bundle result = resolver.call(PROVIDER_URI,
+                    XposedActivationProvider.METHOD_WRITE_DSH_LOG, null, payload);
+            if (result == null || !result.getBoolean("accepted", false)) {
+                DROPPED_EVENTS.incrementAndGet();
+            }
+        } catch (Throwable failure) {
+            DROPPED_EVENTS.incrementAndGet();
+        }
     }
 
     private static String categoryFor(String tag) {
