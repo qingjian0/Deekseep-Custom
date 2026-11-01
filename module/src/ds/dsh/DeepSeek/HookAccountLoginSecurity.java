@@ -119,6 +119,7 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 /** Hook group extracted from Main.java: ACCTSEC category (see JavaHookGuide). */
 final class HookAccountLoginSecurity {
     private static final Set<Member> LOGIN_RISK_HOOKED_MEMBERS = new HashSet<>();
+    private static final Set<Member> LOCAL_API_ROUTING_HOOKED_MEMBERS = new HashSet<>();
 
     static final HookAccountLoginSecurity INSTANCE = new HookAccountLoginSecurity();
 
@@ -3394,6 +3395,15 @@ Main.log("[RISK] Android ID spoof installed");
      * stored on the builder itself (weakly), so a coroutine resuming on another thread keeps the
      * chosen account without a process-wide header override.
      */
+    private static void hookLocalApiRoutingMember(Member member, Hooker hooker)
+            throws Throwable {
+        synchronized (LOCAL_API_ROUTING_HOOKED_MEMBERS) {
+            if (LOCAL_API_ROUTING_HOOKED_MEMBERS.contains(member)) return;
+            Main.MODULE.hook(member).intercept(hooker);
+            LOCAL_API_ROUTING_HOOKED_MEMBERS.add(member);
+        }
+    }
+
     void hookLocalApiAccountRouting(final ClassLoader loader) throws Throwable {
         if (!BuildInfo.PROTECTED_BUILD) throw new IllegalStateException("Local API routing is not included in this build");
         if (loader == null) throw new IllegalArgumentException("Local API routing class loader is null");
@@ -3419,7 +3429,7 @@ Main.log("[RISK] Android ID spoof installed");
                     continue;
                 }
                 requestBuilderType = method.getParameterTypes()[0];
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookLocalApiRoutingMember(method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object request = chain.getArg(0);
                         Object builder = Main.readHostField(request, "c");
@@ -3490,7 +3500,7 @@ Main.log("[RISK] Android ID spoof installed");
             // above can recover the exact request account without a process-wide override.
             if (requestBuilderType != null) {
                 for (Constructor<?> constructor : requestBuilderType.getDeclaredConstructors()) {
-                    Main.MODULE.hook(constructor).intercept(new Hooker() {
+                    hookLocalApiRoutingMember(constructor, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             Object result = chain.proceed();
                             z12.Route route = tlLocalApiAccountRoute.get();
@@ -3507,7 +3517,7 @@ Main.log("[RISK] Android ID spoof installed");
                 for (Method method : requestBuilderType.getDeclaredMethods()) {
                     if (!"b".equals(HostRemap.name(method))
                             || method.getParameterTypes().length != 0) continue;
-                    Main.MODULE.hook(method).intercept(new Hooker() {
+                    hookLocalApiRoutingMember(method, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             Object request = chain.getThisObject();
                             Object builder = Main.readHostField(request, "c");
@@ -3567,7 +3577,7 @@ Main.log("[RISK] Android ID spoof installed");
                 for (Method method : completionFactory.getDeclaredMethods()) {
                     Class<?>[] p = method.getParameterTypes();
                     if (!"e".equals(HostRemap.name(method)) || p.length != 2) continue;
-                    Main.MODULE.hook(method).intercept(new Hooker() {
+                    hookLocalApiRoutingMember(method, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             z12.Route route = LOCAL_API_ROUTED_NATIVE_REQUESTS.get(
                                     chain.getArg(0));
@@ -3593,7 +3603,7 @@ Main.log("[RISK] Android ID spoof installed");
                     if (!"y".equals(HostRemap.name(method)) || !Modifier.isStatic(method.getModifiers())
                             || p.length != 3 || p[1] != String.class
                             || p[2] != String.class) continue;
-                    Main.MODULE.hook(method).intercept(new Hooker() {
+                    hookLocalApiRoutingMember(method, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             if ("X-DS-PoW-Response".equals(chain.getArg(1))) {
                                 String pow = (String) chain.getArg(2);
@@ -3664,7 +3674,7 @@ Main.log("[RISK] Android ID spoof installed");
                             || parameters[0] != String.class || parameters[1] != String.class) {
                         continue;
                     }
-                    Main.MODULE.hook(method).intercept(new Hooker() {
+                    hookLocalApiRoutingMember(method, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             Object key = chain.getArg(0);
                             z12.Route route = V241_LOCAL_API_ROUTED_HEADER_BUILDERS.get(
