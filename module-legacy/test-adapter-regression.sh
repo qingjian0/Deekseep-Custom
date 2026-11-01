@@ -8,7 +8,7 @@ mkdir -p "$OUT"
 
 # The adapter now calls optional tracing/runtime hooks. Compile no-op test seams here;
 # the Android-backed production implementations are exercised by the Android build.
-javac -source 8 -target 8 -d "$OUT" \
+javac --release 8 -d "$OUT" \
     src/de/robv/android/xposed/XC_MethodHook.java \
     src/de/robv/android/xposed/XposedBridge.java \
     tests/support/ds/dsh/DeepSeek/LegacyInstrumentationStubs.java \
