@@ -1196,11 +1196,17 @@ final class HookAttachmentPipeline {
 
     /** 2.3.4 builds the request inside a suspend lambda named x(Object). Capture the lambda's
      * native attachment list and pq/lq session model immediately before it enters transport. */
-    void hookSendPointFps234(final ClassLoader cl, final String className) {
+    boolean hookSendPointFps234(final ClassLoader cl, final String className) {
+        final Class<?> type;
+        try {
+            type = HostRemap.load(cl, className);
+        } catch (ClassNotFoundException missingCandidate) {
+            Main.log("2.3.4 send-point candidate unavailable " + className);
+            return false;
+        }
         try {
             // These R8 classes live in the default package. "defpackage" is only JADX's
             // source-directory label and must never be included in ClassLoader lookups.
-            Class<?> type = HostRemap.load(cl, className);
             Method send = null;
             for (Method candidate : type.getDeclaredMethods()) {
                 Class<?>[] params = candidate.getParameterTypes();
@@ -1210,7 +1216,10 @@ final class HookAttachmentPipeline {
                     break;
                 }
             }
-            if (send == null) throw new NoSuchMethodException(className + ".x(Object) send-point method");
+            if (send == null) {
+                Main.log("2.3.4 send-point method unavailable " + className + ".x(Object)");
+                return false;
+            }
             Main.MODULE.hook(send).intercept(new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     if (!isExpertRelayEnabled()) return chain.proceed();
@@ -1237,6 +1246,7 @@ final class HookAttachmentPipeline {
             });
             Main.log("installed 2.3.4 send-point attachment capture on "
                     + className + ".x");
+            return true;
         } catch (Throwable error) {
             if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
             if (error instanceof ThreadDeath) throw (ThreadDeath) error;
@@ -1300,10 +1310,22 @@ final class HookAttachmentPipeline {
         return null;
     }
 
-    void hookSendPointFps(final ClassLoader cl, final String cls, final boolean directList) {
+    boolean hookSendPointFps(final ClassLoader cl, final String cls, final boolean directList) {
+        final Class<?> c;
         try {
-            Class<?> c = HostCompat.load(cl, cls);
-            final Method y = HostRemap.declaredMethod(c, "y", Object.class);
+            c = HostCompat.load(cl, cls);
+        } catch (ClassNotFoundException missingCandidate) {
+            Main.log("send-point candidate unavailable " + cls);
+            return false;
+        }
+        final Method y;
+        try {
+            y = HostRemap.declaredMethod(c, "y", Object.class);
+        } catch (NoSuchMethodException missingMethod) {
+            Main.log("send-point method unavailable " + cls + ".y(Object)");
+            return false;
+        }
+        try {
             Main.MODULE.hook(y).intercept(new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     if (!isExpertRelayEnabled()) return chain.proceed();
@@ -1343,6 +1365,7 @@ final class HookAttachmentPipeline {
             });
             Main.log("installed send-point fp capture on "
                     + HostCompat.name(cls) + ".y");
+            return true;
         } catch (Throwable t) {
             if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
             if (t instanceof ThreadDeath) throw (ThreadDeath) t;
