@@ -187,6 +187,7 @@ public final class FeatureHookInstallRegistryRegression {
         FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
         AtomicInteger calls = new AtomicInteger();
         CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch secondStarted = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         AtomicReference<Throwable> threadFailure = new AtomicReference<>();
 
@@ -200,7 +201,7 @@ public final class FeatureHookInstallRegistryRegression {
                     }
                 });
             } catch (Throwable failure) {
-                threadFailure.set(failure);
+                threadFailure.compareAndSet(null, failure);
             }
         });
         Thread second = new Thread(() -> {
@@ -208,6 +209,7 @@ public final class FeatureHookInstallRegistryRegression {
                 if (!entered.await(3, TimeUnit.SECONDS)) {
                     throw new AssertionError("first installer did not start");
                 }
+                secondStarted.countDown();
                 registry.install("concurrent.feature", calls::incrementAndGet);
             } catch (Throwable failure) {
                 threadFailure.compareAndSet(null, failure);
@@ -216,9 +218,23 @@ public final class FeatureHookInstallRegistryRegression {
 
         first.start();
         second.start();
-        if (!entered.await(3, TimeUnit.SECONDS)) {
+        if (!entered.await(3, TimeUnit.SECONDS)
+                || !secondStarted.await(3, TimeUnit.SECONDS)) {
             release.countDown();
-            throw new AssertionError("first installer did not start");
+            first.join(3000L);
+            second.join(3000L);
+            throw new AssertionError("both concurrent callers did not reach the install boundary");
+        }
+        long blockedDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(3);
+        while (second.getState() != Thread.State.BLOCKED
+                && System.nanoTime() < blockedDeadline) {
+            Thread.yield();
+        }
+        if (second.getState() != Thread.State.BLOCKED) {
+            release.countDown();
+            first.join(3000L);
+            second.join(3000L);
+            throw new AssertionError("second installer did not block behind the active installer");
         }
         release.countDown();
         first.join(3000L);
