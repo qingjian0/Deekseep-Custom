@@ -1694,7 +1694,7 @@ final class HookSessionManagement {
      * tables whose ids are absent from the server response. Hide only editor-owned sidecar ids from
      * that one comparison. Incoming server rows and ordinary server-side deletions stay untouched.
      */
-    void hookLocalSessionDirectoryMerge(final ClassLoader cl) {
+    void hookLocalSessionDirectoryMerge(final ClassLoader cl) throws Throwable {
         try {
             // 2.7.1 renamed both (p68->uc1 method a->b; directory DAO aw->w2c method a->t).
             final boolean v271 = HostCompat.isV271();
@@ -1769,7 +1769,10 @@ final class HookSessionManagement {
                     + " aw=" + directoryHooks);
         } catch (Throwable t) {
             Main.log("hookLocalSessionDirectoryMerge failed: " + t);
-        }
+        }            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw t;
+
     }
 
     /**
@@ -1781,7 +1784,7 @@ final class HookSessionManagement {
      * missing objects back into the same state list after the leg completes.  Server additions,
      * metadata updates, ordering, and ordinary server-side deletions remain host-owned.
      */
-    void hookLocalNativeSessionRefresh(final ClassLoader cl) {
+    void hookLocalNativeSessionRefresh(final ClassLoader cl) throws Throwable {
         try {
             Class<?> repository = HostCompat.load(cl, "ed0");
             Class<?> continuation = HostCompat.load(cl, "uz1");
@@ -1829,7 +1832,10 @@ final class HookSessionManagement {
             Main.log("installed editor-local native-state refresh guard ed0.h x" + installed);
         } catch (Throwable t) {
             Main.log("hookLocalNativeSessionRefresh failed: " + t);
-        }
+        }            if (ignored instanceof VirtualMachineError) throw (VirtualMachineError) ignored;
+            if (ignored instanceof ThreadDeath) throw (ThreadDeath) ignored;
+            throw ignored;
+
     }
 
     /** Package-visible for the JVM regression: merge into the canonical host list, not a copy. */
@@ -2000,7 +2006,7 @@ final class HookSessionManagement {
     /** Local-only editor conversations have no detail endpoint; their za1 constructor already
      * loads the WCDB table.  Suppress the redundant fa1 remote reload that otherwise reports the
      * session as deleted and replaces the successfully loaded local state with an empty chat. */
-    void hookLocalSessionRemoteReload(final ClassLoader cl) {
+    void hookLocalSessionRemoteReload(final ClassLoader cl) throws Throwable {
         try {
             Class<?> viewModel = HostCompat.load(cl, "za1");
             Class<?> action = HostCompat.isV241()
@@ -2087,7 +2093,10 @@ final class HookSessionManagement {
                     : HostCompat.isV236() ? "D" : "E") + " x" + installed);
         } catch (Throwable t) {
             Main.log("hookLocalSessionRemoteReload failed: " + t);
-        }
+        }            if (ignored instanceof VirtualMachineError) throw (VirtualMachineError) ignored;
+            if (ignored instanceof ThreadDeath) throw (ThreadDeath) ignored;
+            throw ignored;
+
     }
 
     /**
@@ -2096,7 +2105,7 @@ final class HookSessionManagement {
      * server counterpart; short-circuiting W with an empty success result lets the flow finish
      * without the server-deleted shutdown branch.
      */
-    void hookNativeDetailRequest(final ClassLoader cl) {
+    void hookNativeDetailRequest(final ClassLoader cl) throws Throwable {
         if (!HostCompat.isV230() || HostCompat.isV234()) return;
         try {
             Class<?> repository = HostCompat.load(cl, "lj9");
@@ -2139,7 +2148,10 @@ final class HookSessionManagement {
             Main.log("installed editor-local detail request guard vm9.W x" + installed);
         } catch (Throwable t) {
             Main.log("hookNativeDetailRequest failed: " + t);
-        }
+        }            if (ignored instanceof VirtualMachineError) throw (VirtualMachineError) ignored;
+            if (ignored instanceof ThreadDeath) throw (ThreadDeath) ignored;
+            throw ignored;
+
     }
 
     /**
@@ -2149,7 +2161,7 @@ final class HookSessionManagement {
      * Suppress only that exact result for ids owned by our sidecars. All cloud conversations and
      * every other error continue through the host unchanged.
      */
-    void hookLocalSessionDeletedResponse(final ClassLoader cl) {
+    void hookLocalSessionDeletedResponse(final ClassLoader cl) throws Throwable {
         // code257 no longer routes this result through the old at0.a helper.
         // zg1.N and its final wv0.a presenter are guarded by the version-specific
         // branch in hookLocalSessionDeletedFlow instead.
@@ -2204,7 +2216,10 @@ final class HookSessionManagement {
             Main.log("installed editor-local deleted-response guard at0.a x" + installed);
         } catch (Throwable t) {
             Main.log("hookLocalSessionDeletedResponse failed: " + t);
-        }
+        }            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw t;
+
     }
 
     /**
@@ -2213,7 +2228,7 @@ final class HookSessionManagement {
      * hit it. Stop the exact code-1 event at the ViewModel boundary before it can show the toast or
      * replace the selected conversation with a new empty session.
      */
-    void hookLocalSessionDeletedFlow(final ClassLoader cl) {
+    void hookLocalSessionDeletedFlow(final ClassLoader cl) throws Throwable {
         if (HostCompat.isV234()) {
             hookV234LocalSessionDeletedFlow(cl);
             hookV234LocalSessionDeletionPresenter(cl);
@@ -2281,7 +2296,10 @@ final class HookSessionManagement {
             Main.log("installed editor-local ViewModel deletion guard za1.N x" + installed);
         } catch (Throwable t) {
             Main.log("hookLocalSessionDeletedFlow failed: " + t);
-        }
+        }            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw t;
+
     }
 
     /**
@@ -2407,7 +2425,7 @@ final class HookSessionManagement {
      * Stop only that exact error for a durable editor sidecar; normal feedback and server chats
      * keep their host behaviour.
      */
-    void hookV236FeedbackDeletedFlow(final ClassLoader cl) {
+    void hookV236FeedbackDeletedFlow(final ClassLoader cl) throws Throwable {
         if (!HostCompat.isV236()) return;
         try {
             Class<?> component = HostRemap.forName("p41", false, cl);
@@ -2453,7 +2471,10 @@ final class HookSessionManagement {
             Main.log("installed code249 feedback deletion guard p41.a x" + installed);
         } catch (Throwable error) {
             Main.log("hookV236FeedbackDeletedFlow failed: " + error);
-        }
+        }            if (ignored instanceof VirtualMachineError) throw (VirtualMachineError) ignored;
+            if (ignored instanceof ThreadDeath) throw (ThreadDeath) ignored;
+            throw ignored;
+
     }
 
     private static Integer v234CompletionErrorCode(Object result) {
@@ -2466,7 +2487,7 @@ final class HookSessionManagement {
         return code instanceof Number ? Integer.valueOf(((Number) code).intValue()) : null;
     }
 
-    void hookNativeSessionNavigator(final ClassLoader cl) {
+    void hookNativeSessionNavigator(final ClassLoader cl) throws Throwable {
         try {
             // code257 moved the directory composable from code249 sc.l to gi0.c.
             // This is deliberately local because the row renderer moved elsewhere.
@@ -2582,7 +2603,10 @@ final class HookSessionManagement {
                 installed++;
             }
             Main.log("installed native session navigator hook mc.f x" + installed);
-        } catch (Throwable t) { Main.log("hookNativeSessionNavigator failed: " + t); }
+        } catch (Throwable t) { Main.log("hookNativeSessionNavigator failed: " + t); }            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw t;
+
     }
 
     /**
@@ -2932,7 +2956,7 @@ final class HookSessionManagement {
         }
     }
 
-    void hookHistoryLoadDiagnostics(final ClassLoader cl) {
+    void hookHistoryLoadDiagnostics(final ClassLoader cl) throws Throwable {
         try {
             final boolean v241 = HostCompat.isV241();
             Class<?> rawLoader = v241
@@ -3014,7 +3038,10 @@ final class HookSessionManagement {
                     + " ie=" + mapperHooks);
         } catch (Throwable t) {
             Main.log("hook history-load diagnostics failed: " + t);
-        }
+        }            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw t;
+
     }
 
     /**
@@ -3022,7 +3049,7 @@ final class HookSessionManagement {
      * Capture za1.G() so a proactive response updates the instance actually observed by the open
      * conversation instead of waiting for process recreation to reload WCDB.
      */
-    void hookActiveChatSessionCapture(final ClassLoader cl) {
+    void hookActiveChatSessionCapture(final ClassLoader cl) throws Throwable {
         try {
             Class<?> viewModel = HostCompat.load(cl, "za1");
             Class<?> sessionType = HostCompat.load(cl, "tp");
@@ -3071,10 +3098,13 @@ final class HookSessionManagement {
             Main.log("installed active chat session capture za1.G x" + installed);
         } catch (Throwable error) {
             Main.log("hook active chat session capture failed: " + error);
-        }
+        }            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            throw error;
+
     }
 
-    void hookComposeVisibleThreadState(final ClassLoader cl) {
+    void hookComposeVisibleThreadState(final ClassLoader cl) throws Throwable {
         if (!HostCompat.isV230() || HostCompat.isV234()) return;
         try {
             Class<?> stateLambda = HostRemap.load(cl, "o5");
@@ -3108,7 +3138,10 @@ final class HookSessionManagement {
             Main.log("installed compose visible-thread state filter o5.u");
         } catch (Throwable error) {
             Main.log("hook compose visible-thread state filter failed: " + error);
-        }
+        }            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            throw error;
+
     }
 
     // 当前侧栏的 tp 目录可能比 SQLite 的 chat_session_list 更早拿到新会话。
