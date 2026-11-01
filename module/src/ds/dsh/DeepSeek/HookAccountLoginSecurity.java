@@ -307,12 +307,11 @@ final class HookAccountLoginSecurity {
     }
 
     /** Forces the host privacy switch off and replaces its enable callback with a stable no-op. */
-    void hookTrainingOptOutControl(final ClassLoader loader) {
+    void hookTrainingOptOutControl(final ClassLoader loader) throws Throwable {
         try {
             Method method = HostCompat.trainingControlMethod(loader);
             if (method == null) {
-                Main.log("native training control not found for " + HostCompat.generationName());
-                return;
+                throw new NoSuchMethodException("native training control for " + HostCompat.generationName());
             }
             final Class<?> callbackType = method.getParameterTypes()[1];
             final Object unit = kotlinUnit(loader);
@@ -346,6 +345,7 @@ final class HookAccountLoginSecurity {
             Main.log("native training opt-out control hooked: " + method);
         } catch (Throwable error) {
             Main.log("hook native training opt-out control failed: " + error);
+            throw error;
         }
     }
 
@@ -362,7 +362,7 @@ final class HookAccountLoginSecurity {
 
     /** Replaces only the native Compose renderer's mute-state argument. Network models and
      * requests remain untouched, so the host draws its own mute bar without sending fake data. */
-    void hookNativeFakeMute(ClassLoader loader) {
+    void hookNativeFakeMute(ClassLoader loader) throws Throwable {
         String[][] generations = HostCompat.isV271() ? new String[][]{
                 {"s69", "y32m"},      // Mainland 2.7.1/code287: y32.m -> u73.q (audited alias)
         } : HostCompat.isV241() ? new String[][]{
@@ -376,6 +376,7 @@ final class HookAccountLoginSecurity {
                 {"kq8", "f77"},       // Google Play 2.2.x
         };
         int installed = 0;
+        Throwable lastFailure = null;
         for (String[] generation : generations) {
             try {
                 // JADX displays R8's default-package classes under a synthetic
@@ -407,9 +408,17 @@ final class HookAccountLoginSecurity {
                 Main.log("native fake mute renderer hooked model=" + HostRemap.className(muteType)
                         + " owner=" + HostRemap.className(renderer));
                 break;
-            } catch (Throwable ignored) {}
+            } catch (Throwable failure) {
+                if (failure instanceof VirtualMachineError) throw (VirtualMachineError) failure;
+                if (failure instanceof ThreadDeath) throw (ThreadDeath) failure;
+                lastFailure = failure;
+            }
         }
-        if (installed == 0) Main.log("native fake mute renderer unavailable for host");
+        if (installed == 0) {
+            Main.log("native fake mute renderer unavailable for host");
+            if (lastFailure != null) throw lastFailure;
+            throw new NoSuchMethodException("native fake mute renderer targets");
+        }
     }
 
     static boolean isGoogleLoginUnlock() {
@@ -655,7 +664,7 @@ final class HookAccountLoginSecurity {
     }
 
     /** Converts the host's localized password-login error resources into inline candidate errors. */
-    void hookCandidateLoginErrorMessages() {
+    void hookCandidateLoginErrorMessages() throws Throwable {
         try {
             Method getString = android.content.res.Resources.class
                     .getDeclaredMethod("getString", int.class);
@@ -701,6 +710,7 @@ final class HookAccountLoginSecurity {
         } catch (Throwable error) {
             Main.log("candidate password-login error mapper unavailable: "
                     + Main.safeThrowableMessage(error));
+            throw error;
         }
     }
 
