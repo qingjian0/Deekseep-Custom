@@ -166,6 +166,9 @@ public final class XposedActivationProvider extends ContentProvider {
             result.putString("error", "invalid log category");
             return result;
         }
+        if ("crash".equals(category)) {
+            return DshLogIpcQueue.writeCrashNow(context, line);
+        }
         boolean queued = DshLogIpcQueue.enqueue(context, category, line);
         result.putBoolean("accepted", queued);
         result.putBoolean("queued", queued);
