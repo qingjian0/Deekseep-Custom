@@ -27,15 +27,19 @@ public final class ReplyReadyPolicyRegressionTest {
         require(!ReplyReadyPolicy.shouldNotify(
                         "WIP", "CONTENT_FILTER", "ASSISTANT", false),
                 "a failed or filtered generation must not masquerade as ready");
+
+        String asciiTab = " wip" + '\t';
+        String nbspWrappedWip = String.valueOf((char) 0x00A0) + "WIP"
+                + (char) 0x00A0;
         require(ReplyReadyPolicy.shouldNotify(
-                        " wip\\t", " finished ", " assistant ", false),
+                        asciiTab, " finished ", " assistant ", false),
                 "ASCII whitespace and case normalization must remain compatible");
         require(!ReplyReadyPolicy.shouldNotify(
-                        "\\u00A0WIP\\u00A0", "FINISHED", "ASSISTANT", false),
+                        nbspWrappedWip, "FINISHED", "ASSISTANT", false),
                 "normalization must preserve Java String.trim semantics for non-ASCII whitespace");
-        require(ReplyReadyPolicy.isGenerating("  streaming\\t"),
+        require(ReplyReadyPolicy.isGenerating("  streaming" + '\t'),
                 "generating-state normalization must trim ASCII whitespace");
-        require(!ReplyReadyPolicy.isGenerating("\\u00A0WIP\\u00A0"),
+        require(!ReplyReadyPolicy.isGenerating(nbspWrappedWip),
                 "generating-state normalization must not broaden Java trim semantics");
         require(ReplyReadyPolicy.isCompleted(" success "),
                 "completed-state normalization must trim ASCII whitespace");
