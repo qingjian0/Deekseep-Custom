@@ -195,22 +195,16 @@ public final class UiLanguage {
     }
 
     static String normalizeMode(String value) {
-        if (MODE_CHINESE.equalsIgnoreCase(value)) return MODE_CHINESE;
-        if (MODE_ENGLISH.equalsIgnoreCase(value)) return MODE_ENGLISH;
-        return MODE_AUTO;
+        return UiLanguagePolicy.normalizeMode(value);
     }
 
     static boolean isChineseLanguage(String language) {
-        if (language == null) return false;
-        String normalized = language.trim().toLowerCase(Locale.US).replace('_', '-');
-        return "zh".equals(normalized) || normalized.startsWith("zh-");
+        return UiLanguagePolicy.isChineseLanguage(language);
     }
 
     /** Pure policy helper kept separate so locale fallback behavior is regression-testable. */
     static boolean effectiveChinese(String requestedMode, String detected) {
-        String normalized = normalizeMode(requestedMode);
-        return MODE_CHINESE.equals(normalized)
-                || (MODE_AUTO.equals(normalized) && isChineseLanguage(detected));
+        return UiLanguagePolicy.effectiveChinese(requestedMode, detected);
     }
 
     static String detectLanguage(Configuration configuration) {
@@ -287,19 +281,7 @@ public final class UiLanguage {
     }
 
     static String languageFromTag(String tag) {
-        if (tag == null) return "en";
-        String normalized = tag.trim().replace('_', '-');
-        if (normalized.length() == 0) return "en";
-        try {
-            Locale parsed = Locale.forLanguageTag(normalized);
-            String language = parsed == null ? null : parsed.getLanguage();
-            if (language != null && language.trim().length() > 0) {
-                return language.toLowerCase(Locale.US);
-            }
-        } catch (Throwable ignored) {}
-        int separator = normalized.indexOf('-');
-        String language = separator < 0 ? normalized : normalized.substring(0, separator);
-        return language.length() == 0 ? "en" : language.toLowerCase(Locale.US);
+        return UiLanguagePolicy.languageFromTag(tag);
     }
 
     private static String translateLiteral(CharSequence value) {
