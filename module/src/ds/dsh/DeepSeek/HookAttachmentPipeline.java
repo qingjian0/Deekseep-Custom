@@ -797,7 +797,9 @@ final class HookAttachmentPipeline {
     private static volatile boolean imageComposerCaptureLogged;
 
     void installImageCredentialBridge(final ClassLoader cl) {
-        int installed = 0;
+        int apiHooks = 0;
+        int composerHooks = 0;
+        Throwable firstFailure = null;
         try {
             Class<?> apiClass = HostCompat.load(cl, "pv0");
             for (Constructor<?> ctor : apiClass.getDeclaredConstructors()) {
@@ -814,11 +816,18 @@ final class HookAttachmentPipeline {
                         return result;
                     }
                 });
-                installed++;
+                apiHooks++;
             }
-        } catch (Throwable t) { Main.log("capture pv0 failed: " + t); }
+            if (apiHooks == 0) throw new NoSuchMethodException("pv0 file API constructors");
+        } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            firstFailure = error;
+            Main.log("capture pv0 failed: " + Main.safeThrowableMessage(error));
+        }
 
-        // 兜底：即使 pv0 比模块安装钩子更早构造，也能从之后创建的 k31.c.d 取回同一实例。
+        // Fallback: even if pv0 was constructed before module injection, capture the same
+        // instance through k31.c.d when the host creates its composer.
         try {
             Class<?> composerClass = HostCompat.load(cl, "k31");
             for (Constructor<?> ctor : composerClass.getDeclaredConstructors()) {
@@ -844,10 +853,24 @@ final class HookAttachmentPipeline {
                         return result;
                     }
                 });
-                installed++;
+                composerHooks++;
             }
-        } catch (Throwable t) { Main.log("capture k31 file api failed: " + t); }
-        Main.log("installed image credential bridge constructors=" + installed);
+            if (composerHooks == 0) throw new NoSuchMethodException("k31 composer constructors");
+        } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            if (firstFailure == null) firstFailure = error;
+            else firstFailure.addSuppressed(error);
+            Main.log("capture k31 file api failed: " + Main.safeThrowableMessage(error));
+        }
+        Main.log("installed image credential bridge pv0=" + apiHooks
+                + " k31=" + composerHooks);
+        if (firstFailure != null || apiHooks == 0 || composerHooks == 0) {
+            throw new IllegalStateException(
+                    "image credential bridge was only partially installed: pv0="
+                            + apiHooks + " k31=" + composerHooks,
+                    firstFailure);
+        }
     }
 
     /** Removes the gateway's reusable server sessions before DeepSeek persists/renders its page. */
