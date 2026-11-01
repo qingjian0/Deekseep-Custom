@@ -24,12 +24,18 @@ public final class HostCompatRegressionTest {
                 "2.2.x native resume event");
         setBoolean("legacyUnitUsesTi8", false);
         equals("ui8", HostCompat.unitClass(), "2.2.0/2.2.2 Unit mapping");
-        check(HostCompat.supportsHostVersionName("2.2.0"), "2.2.0 supported");
+        check(!HostCompat.supportsHostVersionName("2.2.0")
+                        && HostCompat.isRetiredVersionName("2.2.0"),
+                "2.2.0 must remain explicitly retired");
+        check(HostCompat.supportsHostVersionName("2.2.1"), "2.2.1 supported");
         check(HostCompat.supportsHostVersionName("2.2.2"), "2.2.2 supported");
-        check(HostCompat.supportsHostVersionName("2.3.0"), "2.3.0 supported");
+        check(!HostCompat.supportsHostVersionName("2.3.0")
+                        && HostCompat.isRetiredVersionName("2.3.0"),
+                "2.3.0 must remain explicitly retired");
         check(HostCompat.supportsHostVersionName("2.3.4"), "2.3.4 supported");
         check(HostCompat.supportsHostVersionName("2.3.6"), "2.3.6 supported");
         check(!HostCompat.supportsHostVersionName("2.3.3"), "2.3.3 rejected");
+        check(HostCompat.isRetiredVersionName("2.3.1"), "2.3.1 retired");
         check(!HostCompat.supportsHostVersionName("2.4.0"), "future host rejected");
         equals("id0", HostCompat.localApiAuthInterceptorClass(),
                 "2.2.x account auth interceptor");
