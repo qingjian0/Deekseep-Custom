@@ -4,15 +4,18 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.nio.charset.StandardCharsets;
 
 public final class AndroidManifestVersionRegressionTest {
     public static void main(String[] args) throws Exception {
         readsRawVersionName();
         readsTypedStringVersionName();
+        readsUtf16StringPool();
         returnsNullWhenManifestHasNoVersionName();
         rejectsTruncatedAndMalformedChunks();
         rejectsInvalidStringPoolOffsets();
         rejectsNullAndShortInput();
+        rejectsOversizedInput();
         System.out.println("AndroidManifestVersionRegressionTest OK");
     }
 
@@ -25,6 +28,11 @@ public final class AndroidManifestVersionRegressionTest {
     private static void readsTypedStringVersionName() throws Exception {
         byte[] xml = binaryManifest("manifest", "versionName", "2.7.0", true);
         check("2.7.0".equals(AndroidManifestVersion.parse(xml)), "typed versionName");
+    }
+
+    private static void readsUtf16StringPool() throws Exception {
+        byte[] xml = binaryManifest("manifest", "versionName", "2.7.1", true, false);
+        check("2.7.1".equals(AndroidManifestVersion.parse(xml)), "UTF-16 string pool");
     }
 
     private static void returnsNullWhenManifestHasNoVersionName() throws Exception {
@@ -57,8 +65,18 @@ public final class AndroidManifestVersionRegressionTest {
         check(AndroidManifestVersion.parse(new byte[7]) == null, "short input");
     }
 
+    private static void rejectsOversizedInput() {
+        check(AndroidManifestVersion.parse(new byte[2 * 1024 * 1024 + 1]) == null,
+                "oversized input");
+    }
+
     private static byte[] binaryManifest(String element, String attribute,
                                          String value, boolean typed) throws Exception {
+        return binaryManifest(element, attribute, value, typed, true);
+    }
+
+    private static byte[] binaryManifest(String element, String attribute,
+                                         String value, boolean typed, boolean utf8) throws Exception {
         List<String> strings = new ArrayList<>();
         strings.add(element);
         strings.add(attribute);
@@ -68,11 +86,18 @@ public final class AndroidManifestVersionRegressionTest {
         int[] offsets = new int[strings.size()];
         for (int i = 0; i < strings.size(); i++) {
             offsets[i] = poolData.size();
-            byte[] bytes = strings.get(i).getBytes("UTF-8");
-            poolData.write(bytes.length);
-            poolData.write(bytes.length);
-            poolData.write(bytes);
-            poolData.write(0);
+            if (utf8) {
+                byte[] bytes = strings.get(i).getBytes(StandardCharsets.UTF_8);
+                poolData.write(bytes.length);
+                poolData.write(bytes.length);
+                poolData.write(bytes);
+                poolData.write(0);
+            } else {
+                byte[] bytes = strings.get(i).getBytes(StandardCharsets.UTF_16LE);
+                put16(poolData, strings.get(i).length());
+                poolData.write(bytes);
+                put16(poolData, 0);
+            }
         }
 
         int poolHeader = 28;
@@ -84,7 +109,7 @@ public final class AndroidManifestVersionRegressionTest {
         put32(pool, poolSize);
         put32(pool, strings.size());
         put32(pool, 0);
-        put32(pool, 0x00000100);
+        put32(pool, utf8 ? 0x00000100 : 0);
         put32(pool, stringsStart);
         put32(pool, 0);
         for (int offset : offsets) put32(pool, offset);
