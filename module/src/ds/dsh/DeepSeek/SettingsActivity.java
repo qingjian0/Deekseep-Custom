@@ -86,7 +86,8 @@ public class SettingsActivity extends Activity {
         UiLanguage.refreshSystem(this);
         boolean chinese = UiLanguage.isChinese(this);
         boolean dark = isDark();
-        if (!rendered || chinese != renderedChinese || dark != renderedDark) renderShell();
+        if (SettingsPagePolicy.shouldRecreateShell(
+                rendered, renderedChinese, chinese, renderedDark, dark)) renderShell();
         XposedActivationProvider.setStateListener(activationStateChanged);
         handler.post(activationStateChanged);
         handler.postDelayed(activationStateChanged, 500L);
@@ -136,7 +137,7 @@ public class SettingsActivity extends Activity {
     }
 
     private void showPage(int next) {
-        page = next == 1 ? 1 : 0;
+        page = SettingsPagePolicy.normalize(next);
         if (content == null) return;
         content.removeAllViews();
         if (page == 0) showHome(); else showSettings();
