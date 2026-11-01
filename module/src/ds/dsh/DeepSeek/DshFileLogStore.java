@@ -42,7 +42,7 @@ final class DshFileLogStore {
             input.seek(start);
             if (start > 0L) {
                 // Drop a partial first line; the remainder is valid UTF-8 log content.
-                while (input.getFilePointer() < input.length() && input.read() != '\\n') { }
+                while (input.getFilePointer() < input.length() && input.read() != '\n') { }
             }
             int remaining = (int) Math.min(maxBytes, input.length() - input.getFilePointer());
             byte[] bytes = new byte[remaining];
