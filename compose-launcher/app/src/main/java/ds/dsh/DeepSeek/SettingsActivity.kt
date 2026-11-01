@@ -3,11 +3,8 @@ package ds.dsh.DeepSeek
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
-import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.ResultReceiver
-import android.util.Base64
 import android.util.Log
 import android.widget.TextView
 import android.widget.Toast
@@ -17,6 +14,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -118,7 +116,6 @@ import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -138,8 +135,6 @@ class SettingsActivity : ComponentActivity() {
         private const val APP_NAME = "YunSeek"
         private const val TARGET_PACKAGE = "com.deepseek.chat"
         private const val REPOSITORY = "https://github.com/lllucccian/Deekseep"
-        private const val BRIDGE_TIMEOUT_MS = 4000L
-        private const val RESULT_TIMEOUT = -2
         private const val MAX_IMPORT_BYTES = 64 * 1024 * 1024
         private const val MAX_LAUNCHER_FILE = 4 * 1024 * 1024
         private const val ZIP_META = "yunseek-backup.json"
@@ -153,8 +148,7 @@ class SettingsActivity : ComponentActivity() {
 
     // ---- Compose-observed state owned by the activity -----------------------------------------
     private lateinit var statusViewModel: LauncherStatusViewModel
-    private var bridgeStatus by mutableStateOf(ConfigBridgeUiStatus.IDLE)
-    private var configFiles by mutableStateOf<Map<String, ByteArray>>(emptyMap())
+    private lateinit var configViewModel: LauncherConfigViewModel
     private var busyMessage by mutableStateOf<String?>(null)
 
     private var pendingExportZip = true
@@ -174,6 +168,7 @@ class SettingsActivity : ComponentActivity() {
         runCatching { enableEdgeToEdge() }.onFailure { Log.w(TAG, "edge-to-edge", it) }
         runCatching { UiLanguage.refreshSystem(this) }.onFailure { Log.w(TAG, "language", it) }
         statusViewModel = ViewModelProvider(this)[LauncherStatusViewModel::class.java]
+        configViewModel = ViewModelProvider(this)[LauncherConfigViewModel::class.java]
         try {
             setContent {
                 YunSeekTheme {
@@ -228,84 +223,27 @@ class SettingsActivity : ComponentActivity() {
 
     // ---- Config bridge --------------------------------------------------------------------------
 
-    /** Sends one bridge request with a timeout; [done] is called exactly once on the main thread. */
-    private fun bridgeRequest(mode: String, json: String?, done: (Int, Bundle?) -> Unit) {
-        val finished = AtomicBoolean(false)
-        val reply = object : ResultReceiver(main) {
-            override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
-                if (finished.compareAndSet(false, true)) done(resultCode, resultData)
-            }
-        }
-        main.postDelayed({
-            if (finished.compareAndSet(false, true)) done(RESULT_TIMEOUT, null)
-        }, BRIDGE_TIMEOUT_MS)
-        runCatching { sendBroadcast(ModuleConfigBridge.request(mode, json, reply)) }
-            .onFailure {
-                if (finished.compareAndSet(false, true)) done(ModuleConfigBridge.RESULT_ERROR, null)
-            }
-    }
+    // ---- Config bridge --------------------------------------------------------------------------
 
-    private fun bridgeFailureText(code: Int, data: Bundle?): String = when {
-        code == RESULT_TIMEOUT -> "DeepSeek 未响应：请先打开一次 DeepSeek（确认模块已在 LSPosed 中启用），再回来重试"
-        data?.getString("error") != null -> "DeepSeek 返回错误：${data.getString("error")}"
-        else -> "请先打开一次 DeepSeek，再重试"
-    }
-
-    private fun parseConfigFiles(json: String): Map<String, ByteArray> {
-        val root = JSONObject(json)
-        val files = root.optJSONArray("files") ?: return emptyMap()
-        val out = LinkedHashMap<String, ByteArray>()
-        for (i in 0 until files.length()) {
-            val entry = files.optJSONObject(i) ?: continue
-            val path = entry.optString("path", "")
-            if (path.isEmpty()) continue
-            out[path] = runCatching { Base64.decode(entry.optString("data", ""), Base64.DEFAULT) }
-                .getOrDefault(ByteArray(0))
-        }
-        return out
-    }
-
-    private fun loadConfig(onDone: ((String?) -> Unit)? = null) {
-        bridgeStatus = ConfigBridgeUiStatus.LOADING
-        bridgeRequest(ModuleConfigBridge.MODE_EXPORT, null) { code, data ->
-            val json = data?.getString(ModuleConfigBridge.EXTRA_JSON)
-            if (code == ModuleConfigBridge.RESULT_OK && !json.isNullOrEmpty()) {
-                configFiles = runCatching { parseConfigFiles(json) }.getOrDefault(emptyMap())
-                bridgeStatus = ConfigBridgeUiStatus.READY
-                onDone?.invoke(json)
-            } else {
-                bridgeStatus = ConfigBridgeUiStatus.UNAVAILABLE
-                onDone?.invoke(null)
-            }
+    private fun loadConfig() {
+        lifecycleScope.launch {
+            runCatching { configViewModel.loadConfig() }
+                .onFailure { Log.w(TAG, "config refresh failed", it) }
         }
     }
 
-    private fun buildConfigJson(files: Map<String, ByteArray>): String {
-        val root = JSONObject()
-        root.put("format", "deekseep-config")
-        root.put("version", 1)
-        root.put("module", BuildConfig.VERSION_NAME)
-        root.put("exported_at", System.currentTimeMillis())
-        val array = JSONArray()
-        files.forEach { (path, bytes) ->
-            array.put(JSONObject().put("path", path).put("data", Base64.encodeToString(bytes, Base64.NO_WRAP)))
-        }
-        root.put("files", array)
-        return root.toString(2)
-    }
-
-    /** Writes a single settings file back into DeepSeek through the existing import path. */
+    /** Writes one setting through the ViewModel-owned authenticated IPC repository. */
     private fun writeConfigValue(path: String, value: String, onDone: (Boolean) -> Unit) {
-        val bytes = value.toByteArray(StandardCharsets.UTF_8)
-        bridgeRequest(ModuleConfigBridge.MODE_IMPORT, buildConfigJson(mapOf(path to bytes))) { code, data ->
-            if (code == ModuleConfigBridge.RESULT_OK) {
-                configFiles = configFiles + (path to bytes)
+        lifecycleScope.launch {
+            val success = runCatching {
+                configViewModel.writeConfigValue(path, value)
+            }.getOrDefault(false)
+            if (success) {
                 toast("已写入。请强制停止并重新打开 DeepSeek 后生效")
-                onDone(true)
             } else {
-                toast(bridgeFailureText(code, data))
-                onDone(false)
+                toast(configViewModel.state.value.errorMessage ?: "DeepSeek 未响应，请重试")
             }
+            onDone(success)
         }
     }
 
@@ -334,15 +272,16 @@ class SettingsActivity : ComponentActivity() {
 
     private fun exportData(uri: Uri, zip: Boolean) {
         busyMessage = "正在读取模块设置…"
-        loadConfig { json ->
+        lifecycleScope.launch {
+            val json = runCatching { configViewModel.loadConfig() }.getOrNull()
             if (!zip) {
                 if (json == null) {
                     busyMessage = null
-                    toast(bridgeFailureText(RESULT_TIMEOUT, null))
-                    return@loadConfig
+                    toast(configViewModel.state.value.errorMessage ?: "DeepSeek 未响应，请重试")
+                    return@launch
                 }
                 writeInBackground(uri, json.toByteArray(StandardCharsets.UTF_8), "设置已导出（JSON）")
-                return@loadConfig
+                return@launch
             }
             busyMessage = "正在打包 ZIP…"
             Thread {
@@ -503,13 +442,15 @@ class SettingsActivity : ComponentActivity() {
             return
         }
         busyMessage = "正在写入 DeepSeek…"
-        bridgeRequest(ModuleConfigBridge.MODE_IMPORT, settings) { code, data ->
+        lifecycleScope.launch {
+            val success = runCatching {
+                configViewModel.importConfig(settings)
+            }.getOrDefault(false)
             busyMessage = null
-            if (code == ModuleConfigBridge.RESULT_OK) {
-                runCatching { configFiles = parseConfigFiles(settings); bridgeStatus = ConfigBridgeUiStatus.READY }
+            if (success) {
                 toast("导入完成。请强制停止并重新打开 DeepSeek 后生效")
             } else {
-                toast(bridgeFailureText(code, data))
+                toast(configViewModel.state.value.errorMessage ?: "DeepSeek 未响应，请重试")
             }
         }
     }
@@ -546,6 +487,7 @@ class SettingsActivity : ComponentActivity() {
         var route by rememberSaveable { mutableStateOf<String?>(null) }
         var licenseOpen by remember { mutableStateOf(false) }
         val statusState by statusViewModel.state.collectAsStateWithLifecycle()
+        val configState by configViewModel.state.collectAsStateWithLifecycle()
 
         BackHandler(enabled = route != null || tab != 0) {
             if (route != null) route = null else tab = 0
@@ -637,8 +579,8 @@ class SettingsActivity : ComponentActivity() {
                         else -> LauncherCatalog.find(s)?.let { category ->
                             CategoryScreen(
                                 category = category,
-                                bridgeStatus = bridgeStatus,
-                                configFiles = configFiles,
+                                bridgeStatus = configState.bridgeStatus,
+                                configFiles = configState.files,
                                 onRefresh = { loadConfig() },
                                 onWrite = { path, value, done ->
                                     writeConfigValue(path, value, done)
