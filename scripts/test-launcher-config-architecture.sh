@@ -23,5 +23,12 @@ grep -Fq 'private val operationMutex = Mutex()' "$VIEW_MODEL"
 grep -Fq 'catch (cancelled: CancellationException)' "$VIEW_MODEL"
 grep -Fq 'suspendCancellableCoroutine' "$REPOSITORY"
 grep -Fq 'ModuleConfigBridge.request(mode, json, reply)' "$REPOSITORY"
+grep -Fq 'root.optString("format") == CONFIG_FORMAT' "$REPOSITORY"
+grep -Fq 'MAX_CONFIG_FILE_BYTES = 96 * 1024' "$REPOSITORY"
+grep -Fq 'repository.parseConfigFiles(json)' "$VIEW_MODEL"
+if grep -Fq 'runCatching { repository.parseConfigFiles(json) }' "$VIEW_MODEL"; then
+  echo "Malformed config payloads must not be silently converted into an empty file map." >&2
+  exit 1
+fi
 
 echo "Launcher config repository/ViewModel boundary regression passed."
