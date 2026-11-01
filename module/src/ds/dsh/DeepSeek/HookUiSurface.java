@@ -3862,8 +3862,9 @@ final class HookUiSurface {
         if (installFailure != null) throw installFailure;
     }
 
-    private int hookNavStateMethod(Class<?> nav, String name) {
+    private int hookNavStateMethod(Class<?> nav, String name) throws Throwable {
         int count = 0;
+        Throwable installFailure = null;
         for (Method m : nav.getDeclaredMethods()) {
             if (!HostRemap.name(m).equals(name)) continue;
             try {
@@ -3878,9 +3879,12 @@ final class HookUiSurface {
                 count++;
             } catch (Throwable error) {
                 Main.log("hook nav state " + name + " failed for " + m + ": " + error);
+                if (installFailure == null) installFailure = error;
+                else installFailure.addSuppressed(error);
             }
         }
         Main.log("hooked nav state rm5." + name + " x" + count);
+        if (count == 0 && installFailure != null) throw installFailure;
         return count;
     }
 
