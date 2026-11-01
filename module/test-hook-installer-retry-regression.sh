@@ -343,6 +343,10 @@ for method in \
   hookNativeDualChatRoot; do
   body="$(sed -n "/void $method(/,/^    }/p" "$UI")"
   grep -Fq "hookUiFeatureMember(\"$method\"," <<<"$body"
+  if [ "$method" = "hookChatBubbleCustomization" ]; then
+    grep -Fq 'hookUiFeatureMember("hookChatBubbleCustomization", runtime.clipMethod' <<<"$body"
+    grep -Fq 'hookUiFeatureMember("hookChatBubbleCustomization", runtime.backgroundMethod' <<<"$body"
+  fi
   if grep -Fq 'Main.MODULE.hook(' <<<"$body"; then
     echo "$method bypasses UI retry-safe registration." >&2
     exit 1
