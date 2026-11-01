@@ -413,8 +413,13 @@ final class HookAgentPipeline {
             Main.log("agent tool-log direct Canvas renderer installed constructors="
                     + constructorHooks + " frameConstructors=" + frameConstructorHooks);
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             AGENT_TOOL_CANVAS_HOOK_INSTALLED.set(false);
-            Main.log("agent tool-log direct Canvas renderer unavailable: " + error);
+            Main.log("agent tool-log direct Canvas renderer unavailable: "
+                    + Main.safeThrowableMessage(error));
+            throw new IllegalStateException(
+                    "agent tool-log Canvas hook installation failed", error);
         }
     }
 
@@ -495,9 +500,13 @@ final class HookAgentPipeline {
             Main.log("code257 agent tool-log Canvas renderer installed constructors="
                     + constructorHooks + " frameConstructors=" + frameConstructorHooks);
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             AGENT_TOOL_CANVAS_HOOK_INSTALLED.set(false);
             Main.log("code257 agent tool-log Canvas renderer unavailable: "
                     + Main.safeThrowableMessage(error));
+            throw new IllegalStateException(
+                    "code257 agent tool-log Canvas hook installation failed", error);
         }
     }
 
@@ -523,7 +532,15 @@ final class HookAgentPipeline {
                 }
             });
             Main.log("agent tool Activity touch hook=" + HostRemap.className(touchActivity));
-        } catch (Throwable error) { Main.log("agent tool-log touch hook unavailable: " + Main.safeThrowableMessage(error)); }
+        } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            AGENT_TOOL_TOUCH_HOOK_INSTALLED.set(false);
+            Main.log("agent tool-log touch hook unavailable: "
+                    + Main.safeThrowableMessage(error));
+            throw new IllegalStateException(
+                    "agent tool-log Activity touch hook installation failed", error);
+        }
     }
 
     private static View findAgentToolComposeView(View root) {
@@ -572,9 +589,18 @@ final class HookAgentPipeline {
                 count++;
             }
             Main.log("agent tool Compose touch hooks=" + count);
+            if (count == 0) {
+                throw new IllegalStateException(
+                        "agent tool Compose touch hook discovery returned no methods");
+            }
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             AGENT_TOOL_COMPOSE_TOUCH_HOOK_INSTALLED.set(false);
-            Main.log("agent tool Compose touch hook unavailable: " + Main.safeThrowableMessage(error));
+            Main.log("agent tool Compose touch hook unavailable: "
+                    + Main.safeThrowableMessage(error));
+            throw new IllegalStateException(
+                    "agent tool Compose touch hook installation failed", error);
         }
     }
 
