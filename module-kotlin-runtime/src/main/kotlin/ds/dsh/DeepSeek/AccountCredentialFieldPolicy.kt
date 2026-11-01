@@ -36,7 +36,7 @@ object AccountCredentialFieldPolicy {
     @JvmStatic
     fun safeFileName(raw: String?): String {
         if (raw == null) return ""
-        var clean = javaTrim(raw).replace(Regex("""[\\/:*?"<>|\\p{Cntrl}]"""), "_")
+        var clean = javaTrim(raw).replace(Regex("""[\\/:*?"<>|\p{Cntrl}]"""), "_")
         clean = clean.replace(Regex("""[. ]+$"""), "")
         if (clean.length > 40) clean = clean.substring(0, 40)
         return clean
