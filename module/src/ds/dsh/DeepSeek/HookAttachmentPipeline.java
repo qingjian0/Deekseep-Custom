@@ -1803,7 +1803,7 @@ Main.log("f9 failed: " + t);
 
     // hook b41.b(q03,uz1)=Flow.collect。返回类型是 Object，返回真实 Flow 不会触发返回值强转。
     // 仅当 this 是已登记的 expert 带图冷 Flow 时介入；否则原样放行(热路径，identity 命中开销 O(1))。
-    void installExpertFlowCollectHook(ClassLoader cl) {
+    void installExpertFlowCollectHook(ClassLoader cl) throws Throwable {
         try {
             Class<?> b41 = HostCompat.isV241()
                     ? HostRemap.load(cl, "d81") : HostCompat.load(cl, "b41");
@@ -1814,7 +1814,7 @@ Main.log("f9 failed: " + t);
                 Class<?>[] p = m.getParameterTypes();
                 if (HostRemap.name(m).equals("b") && p.length == 2 && p[0] == q03) { bColl = m; break; }
             }
-            if (bColl == null) { Main.log("expert flow collect hook: b41.b(q03,uz1) not found"); return; }
+            if (bColl == null) throw new NoSuchMethodException("b41.b(q03,uz1) expert flow collect target");
             Main.MODULE.hook(bColl).intercept(new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Object self = chain.getThisObject();
@@ -1856,7 +1856,10 @@ Main.log("f9 failed: " + t);
                 }
             });
             Main.log("installed expert flow collect hook on b41.b x1");
-        } catch (Throwable t) { Main.log("installExpertFlowCollectHook failed: " + t); }
+        } catch (Throwable t) {
+            Main.log("installExpertFlowCollectHook failed: " + t);
+            throw t;
+        }
     }
 
     private Object bCollInvoke(Chain chain, Object flow, Object collector, Object cont) throws Throwable {
