@@ -151,6 +151,20 @@ if grep -Fq 'Main.MODULE.hook(' <<<"$routing_body"; then
   exit 1
 fi
 
+# Heartbeat live/static response constructors and methods are retry-idempotent.
+grep -Fq 'HEARTBEAT_RESPONSE_HOOKED_MEMBERS' "$AGENT"
+heartbeat_helper="$(sed -n '/private static void hookHeartbeatResponseMember/,/void hookHeartbeatToolResponses/p' "$AGENT")"
+grep -Fq 'synchronized (HEARTBEAT_RESPONSE_HOOKED_MEMBERS)' <<<"$heartbeat_helper"
+grep -Fq 'HEARTBEAT_RESPONSE_HOOKED_MEMBERS.contains(member)' <<<"$heartbeat_helper"
+grep -Fq 'HEARTBEAT_RESPONSE_HOOKED_MEMBERS.add(member)' <<<"$heartbeat_helper"
+heartbeat_body="$(sed -n '/void hookHeartbeatToolResponses(/,/void hookHeartbeatPatchDispatcher/p' "$AGENT")"
+grep -Fq 'hookHeartbeatResponseMember(ctor, new Hooker()' <<<"$heartbeat_body"
+grep -Fq 'hookHeartbeatResponseMember(method, new Hooker()' <<<"$heartbeat_body"
+if grep -Fq 'Main.MODULE.hook(' <<<"$heartbeat_body"; then
+  echo "Heartbeat response installer bypasses retry-safe registration." >&2
+  exit 1
+fi
+
 # Session installers propagate installation failures to Main/Registry.
 session_src="$SRC/HookSessionManagement.java"
 for method in \
