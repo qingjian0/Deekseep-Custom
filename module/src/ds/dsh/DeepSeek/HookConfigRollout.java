@@ -119,6 +119,20 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 final class HookConfigRollout {
     static final HookConfigRollout INSTANCE = new HookConfigRollout();
 
+    // Successful per-method registrations survive a later partial installer failure. This keeps
+    // registry retries from stacking duplicate interceptors on methods already installed.
+    private static final Set<Method> INSTALLED_ROLLOUT_HOOKS =
+            Collections.newSetFromMap(new ConcurrentHashMap<Method, Boolean>());
+
+    private static boolean hookRolloutMethodOnce(Method method, Hooker hooker) throws Throwable {
+        synchronized (INSTALLED_ROLLOUT_HOOKS) {
+            if (INSTALLED_ROLLOUT_HOOKS.contains(method)) return false;
+            Main.MODULE.hook(method).intercept(hooker);
+            INSTALLED_ROLLOUT_HOOKS.add(method);
+            return true;
+        }
+    }
+
     static final String HOT_UPDATE_DISABLED_FILE =
             "/data/data/com.deepseek.chat/files/deekseep_hot_update_disabled";
 
@@ -152,13 +166,14 @@ final class HookConfigRollout {
             throw new UnsupportedOperationException("remote config hot-update hooks are not mapped for "
                     + HostCompat.generationName());
         }
-        int count = 0;
+        int matched = 0;
+        int newlyInstalled = 0;
         Throwable installFailure = null;
         String[] owners = HostCompat.isV241()
                 ? new String[]{"fv5", "ys1"}
                 : new String[]{"lp5", "pp1"};
         for (String ownerName : owners) {
-            int ownerCount = 0;
+            int ownerMatches = 0;
             try {
                 Class<?> owner = HostRemap.forName(ownerName, false, loader);
                 for (final Method method : owner.getDeclaredMethods()) {
@@ -166,7 +181,9 @@ final class HookConfigRollout {
                     if (method.getReturnType() != void.class || p.length != 4
                             || p[1] != int.class || p[2] != String.class
                             || p[3] != String.class) continue;
-                    Main.MODULE.hook(method).intercept(new Hooker() {
+                    ownerMatches++;
+                    matched++;
+                    if (hookRolloutMethodOnce(method, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             if (isHotUpdateDisabled()) {
                                 Main.log("remote settings update blocked owner="
@@ -175,11 +192,9 @@ final class HookConfigRollout {
                             }
                             return chain.proceed();
                         }
-                    });
-                    count++;
-                    ownerCount++;
+                    })) newlyInstalled++;
                 }
-                if (ownerCount == 0) {
+                if (ownerMatches == 0) {
                     throw new NoSuchMethodException(ownerName + " remote settings hot-update targets");
                 }
             } catch (Throwable error) {
@@ -190,8 +205,9 @@ final class HookConfigRollout {
             }
         }
         if (installFailure != null) throw installFailure;
-        if (count == 0) throw new NoSuchMethodException("remote settings hot-update blocker targets");
-        Main.log("remote settings hot-update blocker hooks=" + count);
+        if (matched == 0) throw new NoSuchMethodException("remote settings hot-update blocker targets");
+        Main.log("remote settings hot-update blocker matched=" + matched
+                + " newly-installed=" + newlyInstalled);
     }
 
     /**
@@ -215,7 +231,8 @@ final class HookConfigRollout {
             Class<?> modelConfig = HostCompat.isV241()
                     ? HostRemap.load(cl, "ou5") : HostCompat.load(cl, "ni5");
             int count = 0;
-            for (Method method : owner.getDeclaredMethods()) {
+            int newlyInstalled = 0;
+            for (final Method method : owner.getDeclaredMethods()) {
                 Class<?>[] types = method.getParameterTypes();
                 if (!methodName.equals(HostRemap.name(method))
                         || !Modifier.isStatic(method.getModifiers())
@@ -223,7 +240,8 @@ final class HookConfigRollout {
                         || types.length != 9
                         || types[2] != modelConfig
                         || types[3] != String.class) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                count++;
+                if (hookRolloutMethodOnce(method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         if (RemoteFeatureFlags.mode(Main.hostClassLoader,
                                 RemoteFeatureFlags.ATTACHMENT_GUIDE_PROMPTS)
@@ -232,12 +250,11 @@ final class HookConfigRollout {
                         }
                         return chain.proceed();
                     }
-                });
-                count++;
+                })) newlyInstalled++;
             }
             if (count == 0) throw new NoSuchMethodException(ownerName + "." + methodName);
             Main.log("attachment guide-prompt rollout hook=" + ownerName + "."
-                    + methodName + " count=" + count);
+                    + methodName + " matched=" + count + " newly-installed=" + newlyInstalled);
         } catch (Throwable error) {
             Main.log("attachment guide-prompt rollout hook unavailable: " + error);
             throw error;
