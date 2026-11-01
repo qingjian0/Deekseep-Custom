@@ -96,7 +96,7 @@ object DshLog {
         "(?i)(\\bbearer\\s+)[^\\s,;]+"
     )
     private val SECRET_PATTERN = Regex(
-        "(?i)(\\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password)\\b\\s*[\\\"']?\\s*[:=]\\s*[\\\"']?)[^\\s\\\"',;}]+"
+        "(?i)(\\b(?:x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password)\\b\\s*[\\\"']?\\s*[:=]\\s*[\\\"']?)[^\\s\\\"',;}]+"
     )
     private val PRIVATE_PATH_PATTERN = Regex(
         "/(?:data|storage)/[^\\s,;]+",
