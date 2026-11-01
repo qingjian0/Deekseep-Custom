@@ -90,3 +90,12 @@ This remains a staged migration. Do not rewrite `HookChatPipeline` or move host 
 - Added accumulator tests for interleaved chunks, empty/unknown values, whitespace preservation, and response-instance isolation.
 - Hardened `z17.fetchModels` and `z17.relay` connection cleanup with `finally`-based `HttpURLConnection.disconnect()`. This covers setup, response-code, body-read, and parser failures while preserving existing HTTP status/error text and parser ownership. Duplicate disconnect after parser completion is intentional and safe for `HttpURLConnection`.
 - Local validation: Kotlin policy/accumulator/SSE sources compiled with the installed Kotlin compiler; smoke assertions passed; a Java caller compiled and ran against the Kotlin accumulator (`@JvmStatic` policy + enum + accumulator interop). Full Gradle/JUnit, Android build, and device/provider integration remain unverified.
+
+## P2c-1 HTTP response policy extraction (2026-11-02)
+
+- Added `ConversationRelayHttpPolicy.kt` to the standalone Kotlin runtime. It owns only deterministic response rules: exact HTTP 200 success classification, 200-character error-body truncation, and the legacy `HTTP <code>[: body]` message format.
+- Added `ConversationRelayHttpPolicyTest.kt` covering status values below/above 200, redirects, 2xx other than 200, 4xx/5xx, null/empty bodies, and 199/200/201-character truncation boundaries.
+- The Java `z17.fetchModels` and `z17.relay` adapters now call the Kotlin policy. Request construction, Android `org.json` serialization/parsing, `HttpURLConnection`, streams, and SSE readers remain in Java.
+- No request method, endpoint, header, timeout, payload key, provider routing, or host Hook behavior was changed.
+- Local validation: standalone Kotlin 1.9 compilation and policy smoke assertions passed; a Java caller compiled and ran against the Kotlin static facade. This is a focused source-copy harness, not the repository Gradle/JUnit suite or Android build.
+- GitHub Actions workflow-runs and combined-status queries for adapter commit `60b6cd0da6945dcd7dc6ff26d8a59e9629fa45a1` returned empty collections. CI is therefore unverified, not green. Android build, device injection, and live provider integration remain pending.
