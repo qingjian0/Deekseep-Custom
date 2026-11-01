@@ -46,6 +46,16 @@ for apk in "${APKS[@]}"; do
             exit 1
         }
     done < "$source_list"
+    grep -Fq -- 'Lds/dsh/DeepSeek/Main;' "$dex_strings" || {
+        echo "FAIL: $(basename "$apk") is missing the traditional Xposed entry class" >&2
+        rm -f "$dex_strings"
+        exit 1
+    }
+    grep -Fq -- 'Lds/dsh/DeepSeek/relay/ExpertRelayGate;' "$dex_strings" || {
+        echo "FAIL: $(basename "$apk") is missing the canonical relay gate" >&2
+        rm -f "$dex_strings"
+        exit 1
+    }
     grep -Fq -- 'Lds/dsh/DeepSeek/BuildInfo;' "$dex_strings" || {
         echo "FAIL: $(basename "$apk") is missing generated BuildInfo" >&2
         rm -f "$dex_strings"
