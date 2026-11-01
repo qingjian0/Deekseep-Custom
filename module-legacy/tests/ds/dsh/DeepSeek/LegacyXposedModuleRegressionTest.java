@@ -128,6 +128,7 @@ public final class LegacyXposedModuleRegressionTest {
         runFailureIsolationTests(method, api);
         runScopedRegistrationRetryTest(method, api);
         runScopedRegistrationErrorRetryTest(method, api);
+        runScopedRegistrationErrorAfterNativeInstallTest(method, api);
         runScopedRegistrationMultiplicityTest(method, api);
         runNestedRegistrationScopeRestoreTest(method, api);
     }
@@ -210,6 +211,55 @@ public final class LegacyXposedModuleRegressionTest {
                 "API " + api + " test must model callback publication before native failure");
         check(!XposedBridge.nativeHookInstalledForTest,
                 "API " + api + " injected native failure must remain uninstalled");
+    }
+
+    private static void runScopedRegistrationErrorAfterNativeInstallTest(
+            final Method method, int api) throws Throwable {
+        XposedBridge.resetTestState();
+        XposedBridge.originalMethodInvokerForTest =
+                new XposedBridge.OriginalMethodInvoker() {
+                    @Override public Object invoke(Member member, Object receiver,
+                                                   Object[] invokeArgs) throws Throwable {
+                        return ((Method) member).invoke(receiver, invokeArgs);
+                    }
+                };
+        Module module = new Module();
+        XposedBridge.hookFailureForTest =
+                new LinkageError("failure after native callback installation");
+        XposedBridge.hookFailureAfterNativeInstallForTest = true;
+        boolean failed = false;
+        try {
+            registerScopedRetryHook(module, method);
+        } catch (LinkageError expected) {
+            failed = true;
+        }
+        check(failed, "API " + api + " post-install failure was not propagated");
+        check(XposedBridge.nativeHookInstalledForTest,
+                "API " + api + " test did not simulate a live native callback");
+
+        XC_MethodHook.MethodHookParam param = new XC_MethodHook.MethodHookParam();
+        param.method = method;
+        Target target = new Target();
+        param.thisObject = target;
+        param.args = new Object[] {"safe", "original"};
+        XposedBridge.callbackForTest.dispatchBeforeForTest(param);
+        check(!param.hasThrowable(),
+                "API " + api + " live callback lost its staged interceptor after failure");
+        check("safe:original:scoped".equals(param.getResult()),
+                "API " + api + " live callback did not retain the staged interceptor");
+        check(target.joinCalls == 1,
+                "API " + api + " live callback must invoke the original exactly once");
+
+        boolean retryRefused = false;
+        try {
+            registerScopedRetryHook(module, method);
+        } catch (IllegalStateException expected) {
+            retryRefused = expected.getCause() instanceof LinkageError;
+        }
+        check(retryRefused,
+                "API " + api + " must refuse retry after an ambiguous post-install failure");
+        check(XposedBridge.hookCountForTest == 1,
+                "API " + api + " post-install retry duplicated the native callback");
     }
 
     private static void registerTwoScopedSameClassHooks(Module module, Method method) {
