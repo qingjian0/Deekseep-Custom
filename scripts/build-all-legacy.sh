@@ -42,36 +42,52 @@ if grep -q '^import io\.github\.libxposed' \
     echo "Generated universal entry still imports modern libxposed APIs" >&2
     exit 1
 fi
-"$APKSIGNER" verify "$ROOT/module-universal/ds-probe-universal.apk"
-cp "$ROOT/module-universal/ds-probe-universal.apk" \
-    "$DIST/deekseep-universal-v1.7.5.apk"
-cp "$ROOT/module-universal/ds-probe-universal-google-play.apk" \
-    "$DIST/deekseep-google-play-universal-v1.7.5.apk"
-
-if find "$DIST" -maxdepth 1 -type f \( -name '*test*' -o -name '*probe*' \) | grep -q .; then
-    echo "Refusing to publish retired test/diagnostic APKs in the 1.7.5 release" >&2
-    exit 1
-fi
-
 MANIFEST="$ROOT/module-universal/AndroidManifest.xml"
-if ! grep -q 'android:versionName="1.7.5"' "$MANIFEST"; then
-    echo "Release manifest is not version 1.7.5: $MANIFEST" >&2
+VERSION_NAME="$(sed -n 's/.*android:versionName="\\([^"]*\\)".*/\\1/p' "$MANIFEST" | head -n 1)"
+if [[ -z "$VERSION_NAME" ]]; then
+    echo "Unable to read Universal module version from $MANIFEST" >&2
     exit 1
 fi
 
-UNIVERSAL_APK="$DIST/deekseep-universal-v1.7.5.apk"
-GOOGLE_PLAY_APK="$DIST/deekseep-google-play-universal-v1.7.5.apk"
+UNIVERSAL_APK="$DIST/deekseep-universal-$VERSION_NAME.apk"
+GOOGLE_PLAY_APK="$DIST/deekseep-google-play-universal-$VERSION_NAME.apk"
+cp "$ROOT/module-universal/ds-probe-universal.apk" "$UNIVERSAL_APK"
+cp "$ROOT/module-universal/ds-probe-universal-google-play.apk" "$GOOGLE_PLAY_APK"
+
+if find "$DIST" -maxdepth 1 -type f \\( -name '*test*' -o -name '*probe*' \\) | grep -q .; then
+    echo "Refusing to package retired test/diagnostic APKs" >&2
+    exit 1
+fi
+
+AAPT="$(resolve_android_tool aapt)"
+grep -q 'android:name="xposedminversion" android:value="82"' "$MANIFEST"
+
+certificate_sha256() {
+    "$APKSIGNER" verify --print-certs "$1" \\
+        | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' \\
+        | head -n 1
+}
+domestic_cert="$(certificate_sha256 "$UNIVERSAL_APK")"
+google_play_cert="$(certificate_sha256 "$GOOGLE_PLAY_APK")"
+test -n "$domestic_cert"
+test "$domestic_cert" = "$google_play_cert"
 
 for apk in "$UNIVERSAL_APK" "$GOOGLE_PLAY_APK"; do
-    unzip -l "$apk" | grep -q 'assets/xposed_init'
-    if unzip -l "$apk" | grep -q 'META-INF/xposed/java_init.list'; then
+    unzip -t "$apk" >/dev/null
+    "$ZIPALIGN" -c -p 4 "$apk"
+    "$APKSIGNER" verify --verbose "$apk"
+    package_metadata="$("$AAPT" dump badging "$apk")"
+    grep -Fq "package: name='ds.dsh.DeepSeek'" <<< "$package_metadata"
+    unzip -p "$apk" assets/xposed_init | grep -qx 'ds[.]dsh[.]DeepSeek[.]Main'
+    if unzip -Z1 "$apk" | grep -Fq 'META-INF/xposed/java_init.list'; then
         echo "Universal APK unexpectedly contains a modern libxposed entry: $apk" >&2
         exit 1
     fi
+    dex_count="$(unzip -Z1 "$apk" | grep -Ec '^classes([0-9]+)?[.]dex
+ || true)"
+    test "$dex_count" -ge 1
 done
-grep -q 'android:name="xposedminversion" android:value="82"' \
-    "$ROOT/module-universal/AndroidManifest.xml"
 
 (cd "$DIST" && sha256sum *.apk > SHA256SUMS.txt)
 echo
-echo "Domestic and Google Play universal APKs are in $DIST"
+echo "Domestic and Google Play Universal validation APKs ($VERSION_NAME) are in $DIST"
