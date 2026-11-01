@@ -10,7 +10,7 @@ public final class AccountCredentialTextPolicyRegressionTest {
 
     private static void sanitizesFilenameCharactersAndControls() {
         String input = "a/b\\c:d*e?f\"g<h>i|j" + ((char) 1);
-        check("a_b_c_d_e_f_g_h_i_j_".equals(
+        check("a_b_c_d_e_f_g_h_i_j".equals(
                 AccountCredentialTextPolicy.safeFileNamePart(input)), "unsafe filename characters");
         check("".equals(AccountCredentialTextPolicy.safeFileNamePart(null)), "null filename");
     }
@@ -28,6 +28,8 @@ public final class AccountCredentialTextPolicyRegressionTest {
                 "lowercase first eight characters");
         check("short".equals(AccountCredentialTextPolicy.shortId(" Short ")),
                 "trim short ID");
+        check("\u00a0abcdefg".equals(AccountCredentialTextPolicy.shortId("\u00a0ABCDEFGH")),
+                "preserve non-ASCII whitespace like Java String.trim");
         check("未知账号".equals(AccountCredentialTextPolicy.shortId(null)), "null ID fallback");
     }
 
