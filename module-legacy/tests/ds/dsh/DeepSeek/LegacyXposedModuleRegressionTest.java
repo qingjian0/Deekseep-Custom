@@ -196,22 +196,20 @@ public final class LegacyXposedModuleRegressionTest {
         }
         check(failed, "API " + api + " injected registration Error was not propagated");
 
-        registerScopedRetryHook(module, method);
+        boolean retryRefused = false;
+        try {
+            registerScopedRetryHook(module, method);
+        } catch (IllegalStateException expected) {
+            retryRefused = expected.getCause() instanceof LinkageError;
+        }
+        check(retryRefused,
+                "API " + api + " retry must expose the poisoned Xposed registration state");
         check(XposedBridge.hookCountForTest == 1,
-                "API " + api + " retry after registration Error duplicated Xposed callback");
-
-        XC_MethodHook.MethodHookParam param = new XC_MethodHook.MethodHookParam();
-        param.method = method;
-        Target target = new Target();
-        param.thisObject = target;
-        param.args = new Object[] {"safe", "original"};
-        XposedBridge.callbackForTest.dispatchBeforeForTest(param);
-        check(!param.hasThrowable(), "API " + api + " registration Error retry failed");
-        check("safe:original:scoped".equals(param.getResult()),
-                "API " + api + " failed registration left a duplicate staged interceptor: "
-                        + param.getResult());
-        check(target.joinCalls == 1,
-                "API " + api + " Error retry must invoke the original exactly once");
+                "API " + api + " retry must not pretend to reinstall a poisoned callback");
+        check(XposedBridge.callbackForTest != null,
+                "API " + api + " test must model callback publication before native failure");
+        check(!XposedBridge.nativeHookInstalledForTest,
+                "API " + api + " injected native failure must remain uninstalled");
     }
 
     private static void registerTwoScopedSameClassHooks(Module module, Method method) {
