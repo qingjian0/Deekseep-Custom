@@ -184,9 +184,11 @@ final class PrivacyGuard {
             }
             applyAmoled(a);
             if (!authInProgress && appLockEnabled()) {
-                long since = SystemClock.elapsedRealtime() - lastPauseAt;
-                long need = Math.max(lockMinutes() * 60_000L, 2_000L);
-                if (lastPauseAt > 0 && since >= need && !locked) { locked = true; autoPrompted = false; }
+                if (PrivacyLockPolicy.shouldTransitionToLocked(lastPauseAt,
+                        SystemClock.elapsedRealtime(), lockMinutes(), locked, authInProgress)) {
+                    locked = true;
+                    autoPrompted = false;
+                }
                 if (locked) showLock(a); else removeTagged(a, LOCK_TAG);
             } else if (!appLockEnabled()) {
                 locked = false;
