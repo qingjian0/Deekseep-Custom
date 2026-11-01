@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import android.content.ContentProvider;
 import android.content.ContentValues;
@@ -23,7 +23,7 @@ import android.util.Log;
  * heartbeat from the DeepSeek target process.</p>
  */
 public final class XposedActivationProvider extends ContentProvider {
-    static final String AUTHORITY = "com.dsmod.probe.XposedService";
+    static final String AUTHORITY = "ds.dsh.DeepSeek.XposedService";
     static final String METHOD_REPORT_TARGET_ACTIVE = "ReportDeepSeekActive";
     static final String M0 = "s0";
     static final String M1 = "g0";

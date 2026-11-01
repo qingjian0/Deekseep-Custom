@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -11,7 +11,7 @@ import android.util.Log;
  * original manifest has no package-visibility query for an add-on installed later.
  */
 public final class XposedActivationReceiver extends BroadcastReceiver {
-    static final String ACTION = "com.dsmod.probe.action.REPORT_DEEPSEEK_ACTIVE";
+    static final String ACTION = "ds.dsh.DeepSeek.action.REPORT_DEEPSEEK_ACTIVE";
     static final String EXTRA_TOKEN = "deekseep_activation_token";
     static final String REPORT_TOKEN =
             "deekseep-target-heartbeat-1f73-7c94d286b51a";

@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import org.json.JSONObject;
 
@@ -27,7 +27,7 @@ public final class z12 {
             + "/dq0_account_routing";
     private static final String SELECTED_FILE = AccountManager.FILES_DIR
             + "/dq0_account_routing_selected";
-    private static final String CORE = "com.dsmod.probe.z12core";
+    private static final String CORE = "ds.dsh.DeepSeek.z12core";
     private static final Map<String, Method> METHODS = new HashMap<String, Method>();
 
     public static final class Route {

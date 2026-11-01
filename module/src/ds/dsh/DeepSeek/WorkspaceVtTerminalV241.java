@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 /** Small code257-only VT screen used by full-screen workspace programs such as nano. */
 final class WorkspaceVtTerminalV241 {
