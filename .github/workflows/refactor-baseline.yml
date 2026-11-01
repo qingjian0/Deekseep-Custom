@@ -1,0 +1,95 @@
+name: Refactor baseline validation
+
+on:
+  pull_request:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: refactor-baseline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-regressions:
+    name: JVM regression checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Set up Java 21
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Run legacy Xposed adapter regression
+        run: bash module-legacy/test-adapter-regression.sh
+      - name: Run expert relay regression
+        run: bash module/test-expert-relay-regression.sh
+      - name: Run chat thinking regression
+        run: bash module/test-thinking-regression.sh
+
+  android-build-matrix:
+    name: Android artifact compilation
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Set up Java 21
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Set up Gradle 9.8.2
+        uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
+        with:
+          gradle-version: "9.8.2"
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install Android SDK platforms and build tools
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install \
+            "platforms;android-35" \
+            "platforms;android-37" \
+            "build-tools;35.0.0" \
+            "build-tools;36.0.0"
+      - name: Prepare isolated debug signing key
+        run: |
+          set -euo pipefail
+          keytool -genkeypair -v \
+            -keystore module/debug.keystore \
+            -storepass android -keypass android \
+            -alias androiddebugkey \
+            -dname "CN=Android Debug,O=Android,C=US" \
+            -keyalg RSA -keysize 2048 -validity 10000
+      - name: Build legacy artifact
+        run: bash module-legacy/build.sh
+      - name: Build universal artifact
+        run: bash module-universal/build.sh
+      - name: Build Compose launcher Open variant
+        working-directory: compose-launcher
+        run: |
+          set -euo pipefail
+          gradle --no-daemon --stacktrace \
+            -PprotectedBuild=false \
+            -PlocalApiIncluded=false \
+            :app:assembleDebug
+      - name: Verify produced APK structures
+        run: |
+          set -euo pipefail
+          test -s module-legacy/ds-probe-legacy.apk
+          test -s module-universal/ds-probe-universal.apk
+          test -s compose-launcher/app/build/outputs/apk/debug/app-debug.apk
+          for apk in \
+            module-legacy/ds-probe-legacy.apk \
+            module-universal/ds-probe-universal.apk \
+            compose-launcher/app/build/outputs/apk/debug/app-debug.apk; do
+            unzip -t "$apk" >/dev/null
+            unzip -Z1 "$apk" | grep -Eq '^classes([0-9]+)?\.dex$'
+          done
