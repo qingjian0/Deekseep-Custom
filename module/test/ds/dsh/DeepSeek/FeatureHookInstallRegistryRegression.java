@@ -9,6 +9,7 @@ public final class FeatureHookInstallRegistryRegression {
     public static void main(String[] args) throws Throwable {
         testSuccessfulInstallIsIdempotent();
         testFailureCanBeRetriedWithoutRerunningCompletedEntries();
+        testDegradedEntryIsVisibleAsRetryable();
         testSkippedEntryIsTerminal();
         testConcurrentCallersDoNotDoubleInstall();
         testFailureIsRethrownAndRecorded();
@@ -51,6 +52,19 @@ public final class FeatureHookInstallRegistryRegression {
         assertState(registry, "core.navigation", FeatureHookInstallRegistry.State.INSTALLED, 1);
         assertState(registry, "core.chat", FeatureHookInstallRegistry.State.INSTALLED, 2);
         assertFalse(registry.hasFailures(), "registry should be healthy after retry");
+    }
+
+    private static void testDegradedEntryIsVisibleAsRetryable() throws Throwable {
+        FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
+        AtomicInteger calls = new AtomicInteger();
+
+        registry.markDegraded("optional.feature", new IllegalStateException("partial install"));
+        assertTrue(registry.hasRetryableFailures(), "degraded entry must be retryable");
+
+        registry.install("optional.feature", calls::incrementAndGet);
+        assertEquals(1, calls.get(), "degraded installer retry count");
+        assertFalse(registry.hasRetryableFailures(), "successful retry must clear retryable state");
+        assertState(registry, "optional.feature", FeatureHookInstallRegistry.State.INSTALLED, 1);
     }
 
     private static void testSkippedEntryIsTerminal() throws Throwable {
