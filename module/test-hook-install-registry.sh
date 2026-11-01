@@ -50,6 +50,21 @@ grep -Fq 'native settings entry hook installation failed' "$UI_PIPELINE"
 grep -Fq 'home greeting hook installation failed' "$UI_PIPELINE"
 test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$UI_PIPELINE")" -ge 4
 test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$UI_PIPELINE")" -ge 2
+SESSION_PIPELINE="$MODULE_DIR/src/ds/dsh/DeepSeek/HookSessionManagement.java"
+grep -Fq 'local session directory merge hook installation failed' "$SESSION_PIPELINE"
+grep -Fq 'local native session refresh hook installation failed' "$SESSION_PIPELINE"
+grep -Fq 'local session remote reload hook installation failed' "$SESSION_PIPELINE"
+grep -Fq 'native detail request hook installation failed' "$SESSION_PIPELINE"
+grep -Fq 'local session deleted-response hook installation failed' "$SESSION_PIPELINE"
+grep -Fq 'local session deleted-flow hook installation failed' "$SESSION_PIPELINE"
+grep -Fq 'code249 feedback deletion hook installation failed' "$SESSION_PIPELINE"
+grep -Fq 'native session navigator hook installation failed' "$SESSION_PIPELINE"
+grep -Fq 'history-load diagnostics hook installation failed' "$SESSION_PIPELINE"
+grep -Fq 'active chat session capture hook installation failed' "$SESSION_PIPELINE"
+grep -Fq 'compose visible-thread state hook installation failed' "$SESSION_PIPELINE"
+test "$(grep -Fc 'if (t instanceof VirtualMachineError)' "$SESSION_PIPELINE")" -ge 11
+test "$(grep -Fc 'if (t instanceof ThreadDeath)' "$SESSION_PIPELINE")" -ge 11
+
 ATTACHMENT_PIPELINE="$MODULE_DIR/src/ds/dsh/DeepSeek/HookAttachmentPipeline.java"
 grep -Fq 'model-file link hooks were only partially installed' "$ATTACHMENT_PIPELINE"
 grep -Fq 'native model-file message card hooks were only partially installed' "$ATTACHMENT_PIPELINE"
