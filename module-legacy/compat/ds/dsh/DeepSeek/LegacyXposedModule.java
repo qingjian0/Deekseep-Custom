@@ -244,23 +244,34 @@ abstract class LegacyXposedModule {
                 new CopyOnWriteArrayList<Hooker>();
         private final Set<String> scopedRegistrations = new HashSet<String>();
         private boolean registered;
+        // XposedBridge implementations may publish a callback in their per-Member callback
+        // registry before native hook installation completes. If hookMethod then throws, a
+        // second call can observe that stale registry entry and return without retrying the
+        // native hook. The public API exposes no portable way to distinguish or repair that
+        // partially completed state, so this target must fail closed rather than report success.
+        private Throwable registrationFailure;
 
         HookTarget(Member member) { this.member = member; }
 
         synchronized void intercept(final Hooker hooker) {
             if (hooker == null) throw new NullPointerException("hooker");
+            if (registrationFailure != null) {
+                throw new IllegalStateException(
+                        "Xposed registration previously failed; unsafe retry refused for "
+                                + member, registrationFailure);
+            }
             HookRegistrationScope scope = hookRegistrationScope.get();
             String registrationKey = scope == null ? null : scope.nextKey(member, hooker);
             if (registrationKey != null && scopedRegistrations.contains(registrationKey)) return;
             hookers.add(hooker);
+            if (registered) {
+                if (registrationKey != null) scopedRegistrations.add(registrationKey);
+                return;
+            }
+            // Run after ordinary before callbacks, then publish our result so their matching
+            // after callbacks still execute. A highest-priority replacement would silently
+            // suppress every other module hooked to the same host member.
             try {
-                if (registered) {
-                    if (registrationKey != null) scopedRegistrations.add(registrationKey);
-                    return;
-                }
-                // Run after ordinary before callbacks, then publish our result so their matching
-                // after callbacks still execute. A highest-priority replacement would silently
-                // suppress every other module hooked to the same host member.
                 XposedBridge.hookMethod(member, new XC_MethodHook(Integer.MIN_VALUE) {
                     @Override protected void beforeHookedMethod(MethodHookParam param) {
                         long started = System.nanoTime();
@@ -288,16 +299,18 @@ abstract class LegacyXposedModule {
                         }
                     }
                 });
-                registered = true;
-                RawHookTrace.registered(member);
-                JavaPluginRuntimeBridge.registered(member);
-                if (registrationKey != null) scopedRegistrations.add(registrationKey);
             } catch (RuntimeException | Error error) {
-                // Registry retries may follow linkage/framework Errors as well as runtime
-                // exceptions. Never leave a failed registration staged in the interceptor list.
-                hookers.remove(hooker);
+                // Keep the staged Hooker: hookMethod may already have published its callback
+                // before a native/linkage failure. Removing it could orphan a live callback.
+                // Do not retry this Member: standard Xposed callback registries retain the
+                // partially published entry and may falsely accept a later registration.
+                registrationFailure = error;
                 throw error;
             }
+            registered = true;
+            if (registrationKey != null) scopedRegistrations.add(registrationKey);
+            RawHookTrace.registered(member);
+            JavaPluginRuntimeBridge.registered(member);
         }
     }
 
