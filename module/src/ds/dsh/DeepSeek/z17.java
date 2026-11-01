@@ -130,8 +130,8 @@ final class z17 {
         String endpoint = ConversationRelayEndpointPolicy.modelsEndpoint(baseUrl);
         HttpURLConnection conn = (HttpURLConnection) new URL(endpoint).openConnection();
         conn.setRequestMethod("GET");
-        conn.setConnectTimeout(8000);
-        conn.setReadTimeout(12000);
+        conn.setConnectTimeout(ConversationRelayEndpointPolicy.MODEL_CONNECT_TIMEOUT_MILLIS);
+        conn.setReadTimeout(ConversationRelayEndpointPolicy.MODEL_READ_TIMEOUT_MILLIS);
         for (java.util.Map.Entry<String, String> header :
                 ConversationRelayEndpointPolicy.modelDiscoveryHeaders(format, apiKey).entrySet()) {
             conn.setRequestProperty(header.getKey(), header.getValue());
@@ -186,8 +186,8 @@ final class z17 {
 
             HttpURLConnection conn = (HttpURLConnection) new URL(endpoint).openConnection();
             conn.setRequestMethod("POST");
-            conn.setConnectTimeout(10000);
-            conn.setReadTimeout(180000);
+            conn.setConnectTimeout(ConversationRelayEndpointPolicy.CONNECT_TIMEOUT_MILLIS);
+            conn.setReadTimeout(ConversationRelayEndpointPolicy.STREAM_READ_TIMEOUT_MILLIS);
             conn.setDoOutput(true);
             for (java.util.Map.Entry<String, String> header :
                     ConversationRelayEndpointPolicy.requestHeaders(
