@@ -33,7 +33,7 @@ javac -source 8 -target 8 -nowarn -d "$CLASSES" \
     "$MODULE/tests/hostmap/support/ds/dsh/DeepSeek/Main.java" \
     "$MODULE/tests/hostmap/support/ds/dsh/DeepSeek/HostCompat.java" \
     "$MODULE/src/ds/dsh/DeepSeek/HostRemap.java" \
-    "$MODULE/tests/hostmap/HostRemapRegressionTest.java"
+    "$MODULE/tests/hostmap/ds/dsh/DeepSeek/HostRemapRegressionTest.java"
 
 for code in 287 289 290; do
     java -cp "$CLASSES:$RESOURCES" ds.dsh.DeepSeek.HostRemapRegressionTest "$code"

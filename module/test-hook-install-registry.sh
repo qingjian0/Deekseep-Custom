@@ -19,6 +19,6 @@ test -s "$KOTLIN_STDLIB_JAR"
 javac --release 8 \
   -cp "$RUNTIME_JAR:$KOTLIN_STDLIB_JAR" \
   -d "$TMP_DIR/classes" \
-  "$MODULE_DIR/test/FeatureHookInstallRegistryRegression.java"
+  "$MODULE_DIR/test/ds/dsh/DeepSeek/FeatureHookInstallRegistryRegression.java"
 java -cp "$TMP_DIR/classes:$RUNTIME_JAR:$KOTLIN_STDLIB_JAR" \
   ds.dsh.DeepSeek.FeatureHookInstallRegistryRegression
