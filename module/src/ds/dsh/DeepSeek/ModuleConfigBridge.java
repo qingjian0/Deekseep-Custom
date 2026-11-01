@@ -1,5 +1,6 @@
 package ds.dsh.DeepSeek;
 
+import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -68,6 +69,8 @@ final class ModuleConfigBridge {
 
     private ModuleConfigBridge() {}
 
+    // The legacy overload is used only below API 33, where receiver flags are unavailable.
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
     static void installTarget(Context context) {
         if (context == null || installed || !TARGET.equals(context.getPackageName())) return;
         synchronized (ModuleConfigBridge.class) {
