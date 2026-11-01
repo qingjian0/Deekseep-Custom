@@ -137,16 +137,11 @@ class SettingsActivity : ComponentActivity() {
         private const val APP_NAME = "YunSeek"
         private const val TARGET_PACKAGE = "com.deepseek.chat"
         private const val REPOSITORY = "https://github.com/lllucccian/Deekseep"
-        private const val MAX_IMPORT_BYTES = 64 * 1024 * 1024
-        private const val MAX_LAUNCHER_FILE = 4 * 1024 * 1024
-        private const val ZIP_META = "yunseek-backup.json"
-        private const val ZIP_SETTINGS = "settings/deekseep-config.json"
-        private const val ZIP_LAUNCHER_FILES = "launcher/files/"
-        private const val ZIP_LAUNCHER_PREFS = "launcher/shared_prefs/"
         private const val ROUTE_ABOUT = "about"
     }
 
     private val main = Handler(Looper.getMainLooper())
+    private val backupRepository = LauncherBackupRepository()
 
     // ---- Compose-observed state owned by the activity -----------------------------------------
     private lateinit var statusViewModel: LauncherStatusViewModel
@@ -304,7 +299,18 @@ class SettingsActivity : ComponentActivity() {
             Thread {
                 val result = runCatching {
                     contentResolver.openOutputStream(uri, "wt")!!.use { out ->
-                        ZipOutputStream(out.buffered()).use { zos -> writeZip(zos, json) }
+                        ZipOutputStream(out.buffered()).use { zos ->
+                            backupRepository.writeZip(
+                                output = zos,
+                                settingsJson = json,
+                                filesDirectory = filesDir,
+                                sharedPreferencesDirectory = File(applicationInfo.dataDir, "shared_prefs"),
+                                appName = APP_NAME,
+                                appVersion = BuildConfig.VERSION_NAME,
+                                appVersionCode = BuildConfig.VERSION_CODE,
+                                hostLabel = statusViewModel.state.value.host.label,
+                            )
+                        }
                     }
                 }
                 main.post {
@@ -332,81 +338,11 @@ class SettingsActivity : ComponentActivity() {
         }.start()
     }
 
-    /** Returns the number of payload entries written. Runs off the main thread. */
-    private fun writeZip(zos: ZipOutputStream, settingsJson: String?): Int {
-        var count = 0
-        val contents = JSONArray()
-        fun put(name: String, bytes: ByteArray) {
-            zos.putNextEntry(ZipEntry(name))
-            zos.write(bytes)
-            zos.closeEntry()
-            contents.put(name)
-            count++
-        }
-        if (settingsJson != null) put(ZIP_SETTINGS, settingsJson.toByteArray(StandardCharsets.UTF_8))
-        listOf(
-            File(filesDir.path) to ZIP_LAUNCHER_FILES,
-            File(applicationInfo.dataDir, "shared_prefs") to ZIP_LAUNCHER_PREFS,
-        ).forEach { (root, prefix) ->
-            root.walkTopDown().filter { it.isFile && it.length() <= MAX_LAUNCHER_FILE }.forEach { file ->
-                val relative = file.relativeTo(root).invariantSeparatorsPath
-                runCatching { put(prefix + relative, file.readBytes()) }
-            }
-        }
-        val meta = JSONObject()
-            .put("format", "yunseek-backup")
-            .put("version", 1)
-            .put("app", APP_NAME)
-            .put("app_version", BuildConfig.VERSION_NAME)
-            .put("app_version_code", BuildConfig.VERSION_CODE)
-            .put("deepseek", statusViewModel.state.value.host.label)
-            .put("created_at", System.currentTimeMillis())
-            .put("contains_module_settings", settingsJson != null)
-            .put("contents", contents)
-        zos.putNextEntry(ZipEntry(ZIP_META))
-        zos.write(meta.toString(2).toByteArray(StandardCharsets.UTF_8))
-        zos.closeEntry()
-        zos.putNextEntry(ZipEntry("README.txt"))
-        zos.write(
-            ("YunSeek 模块数据备份\n\n" +
-                "settings/deekseep-config.json：通过配置桥导出的模块设置（与旧版\u201c导出配置\u201d格式相同）。\n" +
-                "launcher/：YunSeek 启动器自身的数据文件。\n\n" +
-                "在新安装的 YunSeek 中选择\u201c导入恢复\u201d并选择此 ZIP 即可恢复。\n" +
-                "提示词库、置顶与会话记录保存在 DeepSeek 私有目录，不在此备份中。\n")
-                .toByteArray(StandardCharsets.UTF_8),
-        )
-        zos.closeEntry()
-        return count
-    }
-
-    private fun readLimited(input: InputStream): ByteArray {
-        val out = ByteArrayOutputStream()
-        val buffer = ByteArray(8192)
-        var total = 0
-        while (true) {
-            val n = input.read(buffer)
-            if (n < 0) break
-            total += n
-            if (total > MAX_IMPORT_BYTES) throw IllegalArgumentException("文件过大")
-            out.write(buffer, 0, n)
-        }
-        return out.toByteArray()
-    }
-
-    private class ImportPlan(val settingsJson: String?, val launcherFiles: Map<String, ByteArray>)
-
     private fun importData(uri: Uri) {
         busyMessage = "正在读取备份…"
         Thread {
             val plan = runCatching {
-                val bytes = contentResolver.openInputStream(uri)!!.use { readLimited(it) }
-                val isZip = bytes.size >= 2 && bytes[0] == 'P'.code.toByte() && bytes[1] == 'K'.code.toByte()
-                if (isZip) parseZip(bytes) else {
-                    val text = String(bytes, StandardCharsets.UTF_8).trim().removePrefix("\uFEFF")
-                    val root = JSONObject(JSONTokener(text))
-                    require(root.optString("format") == "deekseep-config") { "不是有效的 YunSeek / Deekseep 配置文件" }
-                    ImportPlan(text, emptyMap())
-                }
+                contentResolver.openInputStream(uri)!!.use { backupRepository.parse(it) }
             }
             main.post {
                 plan.onSuccess { applyImport(it) }.onFailure {
@@ -417,64 +353,47 @@ class SettingsActivity : ComponentActivity() {
         }.start()
     }
 
-    private fun parseZip(bytes: ByteArray): ImportPlan {
-        var settings: String? = null
-        val launcher = LinkedHashMap<String, ByteArray>()
-        ZipInputStream(ByteArrayInputStream(bytes)).use { zis ->
-            while (true) {
-                val entry = zis.nextEntry ?: break
-                if (entry.isDirectory) continue
-                val name = entry.name
-                when {
-                    name == ZIP_SETTINGS -> settings = String(readLimited(zis), StandardCharsets.UTF_8)
-                    name.startsWith(ZIP_LAUNCHER_FILES) -> {
-                        val data = readLimited(zis)
-                        if (data.size <= MAX_LAUNCHER_FILE) launcher[name.removePrefix(ZIP_LAUNCHER_FILES)] = data
+    private fun applyImport(plan: LauncherBackupPlan) {
+        Thread {
+            val restored = runCatching {
+                backupRepository.restore(
+                    plan = plan,
+                    filesDirectory = filesDir,
+                    sharedPreferencesDirectory = File(applicationInfo.dataDir, "shared_prefs"),
+                )
+            }
+            main.post {
+                restored.onFailure {
+                    busyMessage = null
+                    toast("恢复启动器数据失败：${it.message}")
+                    return@post
+                }
+                val launcherRestored = restored.getOrDefault(0)
+                val settings = plan.settingsJson
+                if (settings == null) {
+                    busyMessage = null
+                    toast("已恢复启动器数据 $launcherRestored 项（备份中不含模块设置）")
+                    return@post
+                }
+                busyMessage = "正在写入 DeepSeek…"
+                lifecycleScope.launch {
+                    val success = try {
+                        configViewModel.importConfig(settings)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        Log.w(TAG, "config import failed", error)
+                        false
+                    }
+                    busyMessage = null
+                    if (success) {
+                        toast("导入完成。请强制停止并重新打开 DeepSeek 后生效")
+                    } else {
+                        toast(configViewModel.state.value.errorMessage ?: "DeepSeek 未响应，请重试")
                     }
                 }
             }
-        }
-        require(settings != null || launcher.isNotEmpty()) { "ZIP 中没有可恢复的 YunSeek 数据" }
-        return ImportPlan(settings, launcher)
-    }
-
-    private fun applyImport(plan: ImportPlan) {
-        var launcherRestored = 0
-        val root = runCatching { filesDir.canonicalFile }.getOrNull()
-        if (root != null) {
-            plan.launcherFiles.forEach { (relative, data) ->
-                runCatching {
-                    val target = File(root, relative).canonicalFile
-                    require(target.path.startsWith(root.path + File.separator))
-                    target.parentFile?.mkdirs()
-                    target.writeBytes(data)
-                    launcherRestored++
-                }
-            }
-        }
-        val settings = plan.settingsJson
-        if (settings == null) {
-            busyMessage = null
-            toast("已恢复启动器数据 $launcherRestored 项（备份中不含模块设置）")
-            return
-        }
-        busyMessage = "正在写入 DeepSeek…"
-        lifecycleScope.launch {
-            val success = try {
-                configViewModel.importConfig(settings)
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (error: Exception) {
-                Log.w(TAG, "config import failed", error)
-                false
-            }
-            busyMessage = null
-            if (success) {
-                toast("导入完成。请强制停止并重新打开 DeepSeek 后生效")
-            } else {
-                toast(configViewModel.state.value.errorMessage ?: "DeepSeek 未响应，请重试")
-            }
-        }
+        }.start()
     }
 
     @Deprecated("Deprecated in Java")
