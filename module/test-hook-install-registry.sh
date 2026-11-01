@@ -4,6 +4,13 @@ set -euo pipefail
 MODULE_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$MODULE_DIR/.." && pwd)"
 RUNTIME_DIR="$ROOT_DIR/module-kotlin-runtime"
+# Optional Agent response hooks must report partial discovery/registration failures
+# to the install registry instead of logging them and returning success.
+AGENT_PIPELINE="$MODULE_DIR/src/ds/dsh/DeepSeek/HookAgentPipeline.java"
+grep -Fq 'Throwable firstFailure = null;' "$AGENT_PIPELINE"
+grep -Fq 'heartbeat response hooks were only partially installed' "$AGENT_PIPELINE"
+grep -Fq 'if (liveHooks == 0 || staticHooks == 0)' "$AGENT_PIPELINE"
+
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
