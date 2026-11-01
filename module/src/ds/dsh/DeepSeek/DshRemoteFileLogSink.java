@@ -52,6 +52,21 @@ final class DshRemoteFileLogSink {
             }
             long dropped = DROPPED_EVENTS.getAndSet(0L);
             if (dropped > 0L) line.append(" droppedBefore=").append(dropped);
+            if ("crash".equals(category)) {
+                Bundle payload = new Bundle();
+                payload.putString("category", category);
+                payload.putString("line", line.toString());
+                try {
+                    Bundle result = resolver.call(PROVIDER_URI,
+                            XposedActivationProvider.METHOD_WRITE_DSH_LOG, null, payload);
+                    if (result == null || !result.getBoolean("accepted", false)) {
+                        DROPPED_EVENTS.incrementAndGet();
+                    }
+                } catch (Throwable failure) {
+                    DROPPED_EVENTS.incrementAndGet();
+                }
+                return;
+            }
             try {
                 EXECUTOR.execute(() -> {
                     Bundle payload = new Bundle();
