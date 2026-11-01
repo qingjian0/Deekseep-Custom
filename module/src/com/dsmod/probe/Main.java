@@ -1638,38 +1638,47 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             installHookStep("config.remote-hot-updates", () -> HookConfigRollout.INSTANCE.hookRemoteConfigHotUpdates(hookLoader));
             if (!HostCompat.isV271()) installHookStep("account.candidate-login-errors", () -> HookAccountLoginSecurity.INSTANCE.hookCandidateLoginErrorMessages());
             installHookStep("account.fa-compat-hook", () -> HookAccountLoginSecurity.INSTANCE.fa(hookLoader));
-            restoreLocalEditorImages();
+            installHookStep("bootstrap.restore-local-editor-images",
+                    () -> restoreLocalEditorImages());
 
-            File obsoleteTriggerCleanup = new File(
-                    "/data/data/com.deepseek.chat/files/deekseep_trigger_cleanup_v1");
-            if (!obsoleteTriggerCleanup.exists()) {
-                int obsoleteTriggers = ChatEditorUi.removeObsoleteLocalSessionProtection();
-                if (obsoleteTriggers > 0) {
-                    log("removed obsolete local-session triggers=" + obsoleteTriggers);
+            installHookStep("bootstrap.obsolete-trigger-cleanup", () -> {
+                File obsoleteTriggerCleanup = new File(
+                        "/data/data/com.deepseek.chat/files/deekseep_trigger_cleanup_v1");
+                if (!obsoleteTriggerCleanup.exists()) {
+                    int obsoleteTriggers = ChatEditorUi.removeObsoleteLocalSessionProtection();
+                    if (obsoleteTriggers > 0) {
+                        log("removed obsolete local-session triggers=" + obsoleteTriggers);
+                    }
+                    try { overwriteTextFile(obsoleteTriggerCleanup.getPath(), "1"); }
+                    catch (Throwable ignored) {}
                 }
-                try { overwriteTextFile(obsoleteTriggerCleanup.getPath(), "1"); }
-                catch (Throwable ignored) {}
-            }
-            boolean hasLocalSessionBackups = ChatEditorUi.hasLocalSessionBackups();
-            int restoredLocal = hasLocalSessionBackups
-                    ? ChatEditorUi.restoreLocalConversations() : 0;
-            if (restoredLocal > 0) {
-                log("restored local conversations before WCDB startup=" + restoredLocal);
-            }
-            int repairedHeads = hasLocalSessionBackups
-                    ? ChatEditorUi.repairFrozenCurrentMessageIds() : 0;
-            if (repairedHeads > 0) {
-                log("repaired frozen conversation heads before WCDB startup=" + repairedHeads);
-            }
-            FROZEN_SESSION_HEADS.clear();
-            if (hasLocalSessionBackups) {
-                FROZEN_SESSION_HEADS.putAll(ChatEditorUi.frozenCurrentMessageIds());
-            }
-            if (isAutoBackup()) {
-                new Thread(new Runnable() { public void run() {
-                    try { DeekseepTools.maybeAutoBackup(); } catch (Throwable ignored) {}
-                }}, "Deekseep-Auto-Backup").start();
-            }
+            });
+
+            installHookStep("bootstrap.restore-local-sessions", () -> {
+                boolean hasLocalSessionBackups = ChatEditorUi.hasLocalSessionBackups();
+                int restoredLocal = hasLocalSessionBackups
+                        ? ChatEditorUi.restoreLocalConversations() : 0;
+                if (restoredLocal > 0) {
+                    log("restored local conversations before WCDB startup=" + restoredLocal);
+                }
+                int repairedHeads = hasLocalSessionBackups
+                        ? ChatEditorUi.repairFrozenCurrentMessageIds() : 0;
+                if (repairedHeads > 0) {
+                    log("repaired frozen conversation heads before WCDB startup=" + repairedHeads);
+                }
+                FROZEN_SESSION_HEADS.clear();
+                if (hasLocalSessionBackups) {
+                    FROZEN_SESSION_HEADS.putAll(ChatEditorUi.frozenCurrentMessageIds());
+                }
+            });
+
+            installHookStep("bootstrap.auto-backup-schedule", () -> {
+                if (isAutoBackup()) {
+                    new Thread(new Runnable() { public void run() {
+                        try { DeekseepTools.maybeAutoBackup(); } catch (Throwable ignored) {}
+                    }}, "Deekseep-Auto-Backup").start();
+                }
+            });
 
             installHookStep("ui.home-greeting", () -> HookUiSurface.INSTANCE.hookHomeGreeting(hookLoader));
             installHookStep("chat.request-construction", () -> {
@@ -1682,19 +1691,38 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     () -> HookAttachmentPipeline.INSTANCE.installExpertHistoryImagePreserver(hookLoader),
                     "install history bridge wiring failed: ");
 
-            File historyMigration = new File("/data/data/com.deepseek.chat/files/deekseep_history_migration_v3");
-            if (!historyMigration.exists()) {
-                boolean migrationOk = true;
-                try { int n = ChatEditorUi.repairMalformedThinkFragmentsAllSessions();
-                    if (n < 0) migrationOk = false;
-                    log("repairMalformedThinkFragments fixed=" + n); }
-                catch (Throwable t) { migrationOk = false; log("repairMalformedThinkFragments err: " + t); }
-                try { int n = ChatEditorUi.stripAllSessions(); if (n < 0) migrationOk = false;
-                    log("stripAllSessions cleaned=" + n); }
-                catch (Throwable t) { migrationOk = false; log("stripAllSessions err: " + t); }
-                if (migrationOk) try { overwriteTextFile(historyMigration.getPath(), "3"); }
-                catch (Throwable t) { log("history migration marker err: " + t); }
-            }
+            installHookStep("bootstrap.history-migration-v3", () -> {
+                File historyMigration = new File(
+                        "/data/data/com.deepseek.chat/files/deekseep_history_migration_v3");
+                if (!historyMigration.exists()) {
+                    boolean migrationOk = true;
+                    try {
+                        int n = ChatEditorUi.repairMalformedThinkFragmentsAllSessions();
+                        if (n < 0) migrationOk = false;
+                        log("repairMalformedThinkFragments fixed=" + n);
+                    } catch (Throwable t) {
+                        migrationOk = false;
+                        log("repairMalformedThinkFragments err: " + t);
+                    }
+                    try {
+                        int n = ChatEditorUi.stripAllSessions();
+                        if (n < 0) migrationOk = false;
+                        log("stripAllSessions cleaned=" + n);
+                    } catch (Throwable t) {
+                        migrationOk = false;
+                        log("stripAllSessions err: " + t);
+                    }
+                    if (!migrationOk) {
+                        throw new IllegalStateException("history migration v3 did not complete");
+                    }
+                    try {
+                        overwriteTextFile(historyMigration.getPath(), "3");
+                    } catch (Throwable t) {
+                        log("history migration marker err: " + t);
+                        throw new IllegalStateException("history migration marker could not be written", t);
+                    }
+                }
+            });
 
             // Installed everywhere; on 2.7.1 it stays inert until the user gives explicit consent.
             installHookStep("chat.safety-retraction", () -> HookChatPipeline.INSTANCE.hookSafetyRetraction(hookLoader));
