@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 /** Pure state policy for DeepSeek's native automatic continue-generation action. */
 final class AutoContinuePolicy {
