@@ -100,3 +100,10 @@ This remains a staged migration. Do not rewrite `HookChatPipeline` or move host 
 - No request method, endpoint, header, timeout, payload key, provider routing, or host Hook behavior was changed.
 - Local validation: standalone Kotlin 1.9 compilation and policy smoke assertions passed; a Java caller compiled and ran against the Kotlin static facade. This is a focused source-copy harness, not the repository Gradle/JUnit suite or Android build.
 - GitHub Actions workflow-runs and combined-status queries for adapter commit `60b6cd0da6945dcd7dc6ff26d8a59e9629fa45a1` returned empty collections. CI is therefore unverified, not green. Android build, device injection, and live provider integration remain pending.
+
+## P2c-2 model-list normalization extraction (2026-11-02)
+
+- Added `ConversationRelayModelListPolicy.kt` and JVM tests. Kotlin now owns trimming, empty-ID filtering, first-seen deduplication, and stable result ordering after the Android JSON adapter extracts raw model IDs.
+- Trimming explicitly matches Java `String.trim()` (characters <= U+0020), not Kotlin's broader default whitespace behavior. Deduplication remains case-sensitive.
+- `z17.fetchModels` still owns `org.json` parsing and preserves the existing malformed-array-element behavior; the policy does not add lenient JSON handling.
+- Local validation: Kotlin 1.9 source-copy smoke assertions and Java-to-Kotlin static-call interoperability both passed. Full Gradle/JUnit, Android build, and live model-discovery checks remain unverified.
