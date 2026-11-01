@@ -326,6 +326,8 @@ final class HookAttachmentPipeline {
     void hookNativeImagePreviewBoundary(final ClassLoader cl) {
         if (!HostCompat.isV234()) return;
         int resourceHooks = 0;
+        int ownerHooks = 0;
+        Throwable firstFailure = null;
         try {
             Method getText = HostRemap.declaredMethod(android.content.res.Resources.class, 
                     "getText", int.class);
@@ -356,6 +358,9 @@ final class HookAttachmentPipeline {
                 resourceHooks++;
             }
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            firstFailure = error;
             Main.log("native image preview resource boundary unavailable: " + error);
         }
         // Mainland 2.3.4/2.3.6 keep the full-screen image preview composable in no0.
@@ -365,7 +370,6 @@ final class HookAttachmentPipeline {
                 : HostCompat.isGooglePlay() ? "fw1" : "no0";
         try {
             Class<?> type = HostRemap.load(cl, owner);
-            int installed = 0;
             for (Method method : type.getDeclaredMethods()) {
                 Class<?>[] p = method.getParameterTypes();
                 int uriCount = 0;
@@ -388,13 +392,23 @@ final class HookAttachmentPipeline {
                         return chain.proceed();
                     }
                 });
-                installed++;
+                ownerHooks++;
             }
-            Main.log("native image preview appearance boundary=" + owner + " x" + installed
+            Main.log("native image preview appearance boundary=" + owner + " x" + ownerHooks
                     + " resources=" + resourceHooks);
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            if (firstFailure == null) firstFailure = error;
+            else firstFailure.addSuppressed(error);
             Main.log("native image preview owner boundary unavailable: " + error
                     + " resources=" + resourceHooks);
+        }
+        if (resourceHooks != 3 || ownerHooks == 0 || firstFailure != null) {
+            throw new IllegalStateException(
+                    "native image preview hooks were only partially installed: resources="
+                            + resourceHooks + "/3 owner=" + ownerHooks,
+                    firstFailure);
         }
     }
 
