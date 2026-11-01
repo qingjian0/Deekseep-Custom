@@ -335,6 +335,8 @@ final class HookAgentPipeline {
             Collections.newSetFromMap(new ConcurrentHashMap<Member, Boolean>());
     private static final Set<Member> HEARTBEAT_RESPONSE_HOOKED_MEMBERS =
             Collections.newSetFromMap(new ConcurrentHashMap<Member, Boolean>());
+    private static final Set<Member> HEARTBEAT_PIPELINE_HOOKED_MEMBERS =
+            Collections.newSetFromMap(new ConcurrentHashMap<Member, Boolean>());
 
     private static boolean hookAgentToolOnce(Member member, Hooker hooker) throws Throwable {
         synchronized (AGENT_TOOL_INSTALLED_HOOKS) {
@@ -1926,6 +1928,15 @@ final class HookAgentPipeline {
      * concrete us2.e/i methods, but every nested fragment patch still reaches cj0.g before the
      * RESPONSE State and its Markdown cache are updated.
      */
+    private static void hookHeartbeatPipelineMember(Member member, Hooker hooker)
+            throws Throwable {
+        synchronized (HEARTBEAT_PIPELINE_HOOKED_MEMBERS) {
+            if (HEARTBEAT_PIPELINE_HOOKED_MEMBERS.contains(member)) return;
+            Main.MODULE.hook(member).intercept(hooker);
+            HEARTBEAT_PIPELINE_HOOKED_MEMBERS.add(member);
+        }
+    }
+
     void hookHeartbeatPatchDispatcher(ClassLoader cl) throws Throwable {
         if (!HostCompat.isV234()) return;
         final String dispatcherName = HostCompat.isV241() ? "jo0"
@@ -1944,7 +1955,7 @@ final class HookAgentPipeline {
                         || method.getReturnType() != void.class
                         || types.length != 5
                         || !List.class.isAssignableFrom(types[2])) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookHeartbeatPipelineMember(method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object fragment = chain.getArg(0);
                         Object patch = chain.getArg(1);
@@ -2060,7 +2071,7 @@ final class HookAgentPipeline {
                 } else {
                     continue;
                 }
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookHeartbeatPipelineMember(method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         if (Boolean.TRUE.equals(tlHeartbeatInternalStateWrite.get())) {
                             return chain.proceed();
