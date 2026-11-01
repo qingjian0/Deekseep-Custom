@@ -64,6 +64,7 @@ javac -source 8 -target 8 -cp "$JSON_JAR:$ANDROID_JAR:$UNIVERSAL_CLASSES:build/c
     tests/ds/dsh/DeepSeek/AccountCredentialTextPolicyRegressionTest.java \
     tests/ds/dsh/DeepSeek/AccountCredentialCodecRegressionTest.java \
     tests/ds/dsh/DeepSeek/AccountImportArchiveRegressionTest.java \
+    tests/ds/dsh/DeepSeek/FeatureHookInstallRegistryRegressionTest.java \
     tests/ds/dsh/DeepSeek/AndroidManifestVersionRegressionTest.java \
     tests/ds/dsh/DeepSeek/AccountServerValidationRegressionTest.java \
     tests/ds/dsh/DeepSeek/GoogleLoginUnlockRegressionTest.java \
@@ -167,6 +168,9 @@ java -cp "$TEST_CP" \
 
 java -cp "$TEST_CP" \
     ds.dsh.DeepSeek.AccountImportArchiveRegressionTest
+
+java -cp "$TEST_CP" \
+    ds.dsh.DeepSeek.FeatureHookInstallRegistryRegressionTest
 
 java -cp "$TEST_CP" \
     ds.dsh.DeepSeek.AndroidManifestVersionRegressionTest
