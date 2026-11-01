@@ -292,9 +292,15 @@ abstract class LegacyXposedModule {
                 RawHookTrace.registered(member);
                 JavaPluginRuntimeBridge.registered(member);
                 if (registrationKey != null) scopedRegistrations.add(registrationKey);
-            } catch (RuntimeException error) {
+            } catch (Throwable error) {
+                // A non-fatal LinkageError/other Error during framework registration must not
+                // leave an interceptor queued for the next retry. Fatal VM errors are also
+                // cleaned up before their original identity is propagated.
                 hookers.remove(hooker);
-                throw error;
+                if (error instanceof RuntimeException) throw (RuntimeException) error;
+                if (error instanceof Error) throw (Error) error;
+                throw new IllegalStateException(
+                        "Xposed hook registration failed for " + member, error);
             }
         }
     }

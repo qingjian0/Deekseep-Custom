@@ -128,6 +128,7 @@ public final class LegacyXposedModuleRegressionTest {
         runFailureIsolationTests(method, api);
         runScopedRegistrationRetryTest(method, api);
         runScopedRegistrationMultiplicityTest(method, api);
+        runRegistrationFailureRetryTest(method, api);
     }
 
     private static void registerScopedRetryHook(Module module, Method method) {
@@ -348,6 +349,48 @@ public final class LegacyXposedModuleRegressionTest {
         XposedBridge.callbackForTest.dispatchBeforeForTest(fatalParam);
         check(fatalParam.getThrowable() instanceof ThreadDeath,
                 "API " + api + " fatal VM control error must not be swallowed");
+    }
+
+
+    private static void runRegistrationFailureRetryTest(final Method method, int api)
+            throws Throwable {
+        XposedBridge.resetTestState();
+        XposedBridge.originalMethodInvokerForTest =
+                new XposedBridge.OriginalMethodInvoker() {
+                    @Override public Object invoke(Member member, Object receiver,
+                                                   Object[] invokeArgs) throws Throwable {
+                        return ((Method) member).invoke(receiver, invokeArgs);
+                    }
+                };
+        Module module = new Module();
+        XposedBridge.hookFailureForTest =
+                new LinkageError("simulated non-fatal framework registration failure");
+        try {
+            registerScopedRetryHook(module, method);
+            throw new AssertionError("API " + api + " registration failure was not propagated");
+        } catch (LinkageError expected) {
+            check("simulated non-fatal framework registration failure".equals(
+                    expected.getMessage()), "API " + api + " changed registration failure");
+        }
+        check(XposedBridge.hookCountForTest == 0,
+                "API " + api + " failed registration must not publish a callback");
+
+        registerScopedRetryHook(module, method);
+        check(XposedBridge.hookCountForTest == 1,
+                "API " + api + " retry should register exactly one callback");
+
+        XC_MethodHook.MethodHookParam param = new XC_MethodHook.MethodHookParam();
+        param.method = method;
+        Target target = new Target();
+        param.thisObject = target;
+        param.args = new Object[] {"safe", "original"};
+        XposedBridge.callbackForTest.dispatchBeforeForTest(param);
+        check(!param.hasThrowable(), "API " + api + " retry failed after registration error");
+        check("safe:original:scoped".equals(param.getResult()),
+                "API " + api + " failed interceptor remained queued after retry: "
+                        + param.getResult());
+        check(target.joinCalls == 1,
+                "API " + api + " retry must invoke the original exactly once");
     }
 
     private static void check(boolean condition, String message) {
