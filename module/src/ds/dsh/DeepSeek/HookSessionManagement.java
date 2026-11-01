@@ -2680,7 +2680,10 @@ final class HookSessionManagement {
         if (callback == null) return;
         Class<?> callbackClass = callback.getClass();
         synchronized (NATIVE_CLICK_HOOKED_CLASSES) {
-            if (!NATIVE_CLICK_HOOKED_CLASSES.add(callbackClass)) return;
+            if (NATIVE_CLICK_HOOKED_CLASSES.contains(callbackClass)) return;
+            // Reserve during registration to prevent concurrent duplicate hooks. Release the
+            // reservation below when no compatible method was registered so later discovery can retry.
+            NATIVE_CLICK_HOOKED_CLASSES.add(callbackClass);
         }
         int installed = 0;
         try {
@@ -2747,9 +2750,22 @@ final class HookSessionManagement {
                     installed++;
                 }
             }
+            if (installed == 0) {
+                synchronized (NATIVE_CLICK_HOOKED_CLASSES) {
+                    NATIVE_CLICK_HOOKED_CLASSES.remove(callbackClass);
+                }
+                Main.log("native session click callback has no compatible hook methods; retry remains enabled class="
+                        + HostRemap.className(callbackClass));
+                return;
+            }
             Main.log("installed native session click callback hooks=" + installed
                     + " class=" + HostRemap.className(callbackClass));
         } catch (Throwable t) {
+            if (installed == 0) {
+                synchronized (NATIVE_CLICK_HOOKED_CLASSES) {
+                    NATIVE_CLICK_HOOKED_CLASSES.remove(callbackClass);
+                }
+            }
             Main.log("hook native session click callback failed: " + t);
         }
     }
