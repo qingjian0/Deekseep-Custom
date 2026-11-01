@@ -328,7 +328,7 @@ final class HookAgentPipeline {
         }
     }
 
-    void hookAgentToolLogRoundedRect(ClassLoader cl) {
+    void hookAgentToolLogRoundedRect(ClassLoader cl) throws Throwable {
         if (HostCompat.isV241()) {
             hookV241AgentToolLogRoundedRect(cl);
             return;
@@ -362,6 +362,9 @@ final class HookAgentPipeline {
                 });
                 constructorHooks++;
             }
+            if (constructorHooks == 0) {
+                throw new NoSuchMethodException("agent tool-log rounded-box constructors");
+            }
             Main.MODULE.hook(draw).intercept(new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     return interceptAgentToolBoxDraw(chain);
@@ -391,6 +394,9 @@ final class HookAgentPipeline {
                 });
                 frameConstructorHooks++;
             }
+            if (frameConstructorHooks == 0) {
+                throw new NoSuchMethodException("agent tool-log frame-box constructors");
+            }
             Method frameDraw = null;
             for (Method candidate : frameBox.getDeclaredMethods()) {
                 Class<?>[] p = candidate.getParameterTypes();
@@ -415,11 +421,12 @@ final class HookAgentPipeline {
         } catch (Throwable error) {
             AGENT_TOOL_CANVAS_HOOK_INSTALLED.set(false);
             Main.log("agent tool-log direct Canvas renderer unavailable: " + error);
+            throw error;
         }
     }
 
     /** Exact code257 counterpart; code249's l96/ve3 hook above remains untouched. */
-    private void hookV241AgentToolLogRoundedRect(ClassLoader cl) {
+    private void hookV241AgentToolLogRoundedRect(ClassLoader cl) throws Throwable {
         if (!HostCompat.isV241()) return;
         if (!AGENT_TOOL_CANVAS_HOOK_INSTALLED.compareAndSet(false, true)) return;
         try {
@@ -450,6 +457,9 @@ final class HookAgentPipeline {
                 });
                 constructorHooks++;
             }
+            if (constructorHooks == 0) {
+                throw new NoSuchMethodException("agent tool-log rounded-box constructors");
+            }
             Main.MODULE.hook(draw).intercept(new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     return interceptAgentToolBoxDraw(chain);
@@ -473,6 +483,9 @@ final class HookAgentPipeline {
                     }
                 });
                 frameConstructorHooks++;
+            }
+            if (frameConstructorHooks == 0) {
+                throw new NoSuchMethodException("agent tool-log frame-box constructors");
             }
             Method frameDraw = null;
             for (Method candidate : frameBox.getDeclaredMethods()) {
@@ -498,10 +511,11 @@ final class HookAgentPipeline {
             AGENT_TOOL_CANVAS_HOOK_INSTALLED.set(false);
             Main.log("code257 agent tool-log Canvas renderer unavailable: "
                     + Main.safeThrowableMessage(error));
+            throw error;
         }
     }
 
-    private void hookAgentToolLogTouchSurface(ClassLoader cl) {
+    private void hookAgentToolLogTouchSurface(ClassLoader cl) throws Throwable {
         if (!AGENT_TOOL_TOUCH_HOOK_INSTALLED.compareAndSet(false, true)) return;
         try {
             // Exact current code249 Activity inheritance adapter. MainActivity -> uq -> xc3 ->
@@ -523,7 +537,11 @@ final class HookAgentPipeline {
                 }
             });
             Main.log("agent tool Activity touch hook=" + HostRemap.className(touchActivity));
-        } catch (Throwable error) { Main.log("agent tool-log touch hook unavailable: " + Main.safeThrowableMessage(error)); }
+        } catch (Throwable error) {
+            AGENT_TOOL_TOUCH_HOOK_INSTALLED.set(false);
+            Main.log("agent tool-log touch hook unavailable: " + Main.safeThrowableMessage(error));
+            throw error;
+        }
     }
 
     private static View findAgentToolComposeView(View root) {
@@ -548,7 +566,7 @@ final class HookAgentPipeline {
     }
 
     /** MainActivity overrides dispatchTouchEvent on some channels; Compose is the stable leaf. */
-    private void hookAgentToolLogComposeTouchSurface(ClassLoader cl) {
+    private void hookAgentToolLogComposeTouchSurface(ClassLoader cl) throws Throwable {
         if (!AGENT_TOOL_COMPOSE_TOUCH_HOOK_INSTALLED.compareAndSet(false, true)) return;
         try {
             Class<?> composeView = HostRemap.load(cl, "androidx.compose.ui.platform.AndroidComposeView");
@@ -571,10 +589,14 @@ final class HookAgentPipeline {
                 });
                 count++;
             }
+            if (count == 0) {
+                throw new NoSuchMethodException("AndroidComposeView.dispatchTouchEvent(MotionEvent)");
+            }
             Main.log("agent tool Compose touch hooks=" + count);
         } catch (Throwable error) {
             AGENT_TOOL_COMPOSE_TOUCH_HOOK_INSTALLED.set(false);
             Main.log("agent tool Compose touch hook unavailable: " + Main.safeThrowableMessage(error));
+            throw error;
         }
     }
 
@@ -3386,7 +3408,7 @@ final class HookAgentPipeline {
     }
 
     /** Keeps the anonymous transport request out of Compose while retaining its assistant child. */
-    void hookProactiveVisibleThreadFilter(final ClassLoader cl) {
+    void hookProactiveVisibleThreadFilter(final ClassLoader cl) throws Throwable {
         try {
             Class<?> sessionType = HostCompat.load(cl, "tp");
             String visibleThreadMethod = HostCompat.isV241() ? "w"
@@ -3445,10 +3467,15 @@ final class HookAgentPipeline {
                 });
                 installed++;
             }
+            if (installed == 0) {
+                throw new NoSuchMethodException(HostRemap.className(sessionType)
+                        + "." + visibleThreadMethod + "() -> List");
+            }
             Main.log("installed native proactive visible-thread filter "
                     + HostRemap.className(sessionType) + "." + visibleThreadMethod + " x" + installed);
         } catch (Throwable error) {
             Main.log("hook proactive visible-thread filter failed: " + error);
+            throw error;
         }
     }
 
@@ -3456,7 +3483,7 @@ final class HookAgentPipeline {
      * DeepSeek's native pipeline performs the actual SSE reduction. Observe its final apply only
      * to post the notification and replace the local database with the folded visible chain.
      */
-    void hookNativeUiHeartbeatCompletion(final ClassLoader cl) {
+    void hookNativeUiHeartbeatCompletion(final ClassLoader cl) throws Throwable {
         try {
             Class<?> sessionType = HostCompat.load(cl, "tp");
             Class<?> messageType = HostCompat.load(cl, "uo");
@@ -3541,9 +3568,13 @@ final class HookAgentPipeline {
                 });
                 installed++;
             }
+            if (installed == 0) {
+                throw new NoSuchMethodException("native proactive stream completion targets");
+            }
             Main.log("installed native proactive stream completion hooks x" + installed);
         } catch (Throwable error) {
             Main.log("hook native proactive stream completion failed: " + error);
+            throw error;
         }
     }
 
