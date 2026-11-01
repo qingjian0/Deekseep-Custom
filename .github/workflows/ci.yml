@@ -83,3 +83,6 @@ jobs:
           test -s "$APK"
           unzip -t "$APK" >/dev/null
           echo "Open debug APK compiled and archive integrity verified."
+      - name: Run Kotlin runtime unit tests
+        working-directory: module-kotlin-runtime
+        run: gradle --no-daemon test
