@@ -1738,12 +1738,24 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             installHookStep("chat.final-message-merge", () -> HookChatPipeline.INSTANCE.hookFinalMessageMerge(hookLoader));
             installHookStep("chat.final-message-apply", () -> HookChatPipeline.INSTANCE.hookFinalMessageApply(hookLoader));
             if (!HostCompat.isV271()) installHookStep("attachment.expert-unlock", () -> HookAttachmentPipeline.INSTANCE.hookExpertUnlock(hookLoader));
-            if (!HostCompat.isV271()) installHookStep("host.v236.local-chat-quota", () -> hookV236LocalChatQuotaUnlock(hookLoader));
-            if (!HostCompat.isV271()) installHookStep("host.v241.local-chat-quota", () -> hookV241LocalChatQuotaUnlock(hookLoader));
-            installHookStep("host.v236.thinking-code-copy", () -> hookV236ThinkingCodeCopy(hookLoader));
-            installHookStep("host.v241.thinking-code-copy", () -> hookV241ThinkingCodeCopy(hookLoader));
-            installHookStep("host.v236.all-file-types", () -> hookV236AllFileTypes(hookLoader));
-            installHookStep("host.v241.all-file-types", () -> hookV241AllFileTypes(hookLoader));
+            if (!HostCompat.isV271()) installBestEffortHook("host.v236.local-chat-quota",
+                    () -> hookV236LocalChatQuotaUnlock(hookLoader),
+                    "code249 local chat quota unlock unavailable: ");
+            if (!HostCompat.isV271()) installBestEffortHook("host.v241.local-chat-quota",
+                    () -> hookV241LocalChatQuotaUnlock(hookLoader),
+                    "code257 local chat quota unlock unavailable: ");
+            installBestEffortHook("host.v236.thinking-code-copy",
+                    () -> hookV236ThinkingCodeCopy(hookLoader),
+                    "code249 thinking code-copy hooks unavailable: ");
+            installBestEffortHook("host.v241.thinking-code-copy",
+                    () -> hookV241ThinkingCodeCopy(hookLoader),
+                    "code257 thinking code-copy hooks unavailable: ");
+            installBestEffortHook("host.v236.all-file-types",
+                    () -> hookV236AllFileTypes(hookLoader),
+                    "code249 all-file-types hooks unavailable: ");
+            installBestEffortHook("host.v241.all-file-types",
+                    () -> hookV241AllFileTypes(hookLoader),
+                    "code257 all-file-types hooks unavailable: ");
             if (!HostCompat.isV271()) installHookStep("account.regional-login-unlock", () -> HookAccountLoginSecurity.INSTANCE.hookRegionalLoginUnlock(hookLoader));
             if (!HostCompat.isV271()) installHookStep("account.login-entry-password-unlock", () -> HookAccountLoginSecurity.INSTANCE.hookLoginEntryPasswordUnlock(hookLoader));
             if (!HostCompat.isV271()) installHookStep("account.region-override", () -> HookAccountLoginSecurity.INSTANCE.hookRegionOverride(hookLoader));
@@ -2393,7 +2405,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     }
 
     /** Exact code249 adapter: pp1.i supplies the Set consumed by n51.x. */
-    private void hookV236AllFileTypes(final ClassLoader cl) {
+    private void hookV236AllFileTypes(final ClassLoader cl) throws Throwable {
         if (!HostCompat.isV236()
                 || !V236_ALL_FILE_TYPES_HOOK_INSTALLED.compareAndSet(false, true)) return;
         try {
@@ -2431,11 +2443,12 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         } catch (Throwable error) {
             V236_ALL_FILE_TYPES_HOOK_INSTALLED.set(false);
             log("code249 all-file-types adapter unavailable: " + safeThrowableMessage(error));
+            throw error;
         }
     }
 
     /** Exact code257 adapter: ys1.i supplies the Set consumed by g71.y. */
-    private void hookV241AllFileTypes(final ClassLoader cl) {
+    private void hookV241AllFileTypes(final ClassLoader cl) throws Throwable {
         if (!HostCompat.isV241()
                 || !V241_ALL_FILE_TYPES_HOOK_INSTALLED.compareAndSet(false, true)) return;
         try {
@@ -2473,11 +2486,12 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         } catch (Throwable error) {
             V241_ALL_FILE_TYPES_HOOK_INSTALLED.set(false);
             log("code257 all-file-types adapter unavailable: " + safeThrowableMessage(error));
+            throw error;
         }
     }
 
     /** Exact 2.3.6/code249 adapter. uo5.p/q are consumed by l10. */
-    private void hookV236LocalChatQuotaUnlock(final ClassLoader cl) {
+    private void hookV236LocalChatQuotaUnlock(final ClassLoader cl) throws Throwable {
         if (!HostCompat.isV236()
                 || !V236_LOCAL_CHAT_QUOTA_HOOKS_INSTALLED.compareAndSet(false, true)) return;
         try {
@@ -2526,6 +2540,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             V236_LOCAL_CHAT_QUOTA_HOOKS_INSTALLED.set(false);
             log("code249 local chat quota unlock unavailable: "
                     + safeThrowableMessage(error));
+            throw error;
         }
     }
 
@@ -7293,7 +7308,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
      * producer and consumers so an already-created config is fixed on its next frame. The
      * original nullable values are weakly retained and restored when the setting is switched off.
      */
-    private void hookV241LocalChatQuotaUnlock(final ClassLoader cl) {
+    private void hookV241LocalChatQuotaUnlock(final ClassLoader cl) throws Throwable {
         if (!HostCompat.isV241()
                 || !V241_LOCAL_CHAT_QUOTA_HOOKS_INSTALLED.compareAndSet(false, true)) return;
         try {
@@ -7342,6 +7357,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             V241_LOCAL_CHAT_QUOTA_HOOKS_INSTALLED.set(false);
             log("code257 local chat quota unlock unavailable: "
                     + safeThrowableMessage(error));
+            throw error;
         }
     }
 
@@ -7349,10 +7365,11 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
      * Exact 2.3.6/code249 adapter. fp9.e creates m95 code actions; aa5.a is the reasoning action
      * provider surviving R8 inlining.
      */
-    private void hookV236ThinkingCodeCopy(final ClassLoader cl) {
+    private void hookV236ThinkingCodeCopy(final ClassLoader cl) throws Throwable {
         if (!HostCompat.isV236()
                 || !V236_THINKING_CODE_COPY_HOOK_INSTALLED.compareAndSet(false, true)) return;
         int installed = 0;
+        Throwable firstFailure = null;
         try {
             Class<?> renderer = HostRemap.load(cl, "fp9");
             Method target = null;
@@ -7379,6 +7396,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             try { deoptimize(target); } catch (Throwable ignored) {}
             installed++;
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            if (firstFailure == null) firstFailure = error;
             log("code249 reasoning code-copy factory unavailable: "
                     + safeThrowableMessage(error));
         }
@@ -7406,11 +7426,15 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 installed++;
             }
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            if (firstFailure == null) firstFailure = error;
             log("code249 reasoning code-copy result adapter unavailable: "
                     + safeThrowableMessage(error));
         }
         if (installed == 0) V236_THINKING_CODE_COPY_HOOK_INSTALLED.set(false);
         log("installed code249 reasoning code-copy adapters=" + installed);
+        if (firstFailure != null) throw firstFailure;
     }
 
     /**
@@ -7419,10 +7443,11 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
      * Only force that argument on; the host still owns the label, icon, clipboard callback and
      * feedback UI, keeping this visually and behaviorally identical to response code blocks.
      */
-    private void hookV241ThinkingCodeCopy(final ClassLoader cl) {
+    private void hookV241ThinkingCodeCopy(final ClassLoader cl) throws Throwable {
         if (!HostCompat.isV241()
                 || !V241_THINKING_CODE_COPY_HOOK_INSTALLED.compareAndSet(false, true)) return;
         int installed = 0;
+        Throwable firstFailure = null;
         try {
             Class<?> renderer = HostRemap.load(cl, "cy9");
             Method target = null;
@@ -7451,6 +7476,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             try { deoptimize(target); } catch (Throwable ignored) {}
             installed++;
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            if (firstFailure == null) firstFailure = error;
             log("code257 reasoning code-copy factory unavailable: "
                     + safeThrowableMessage(error));
         }
@@ -7483,6 +7511,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 installed++;
             }
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            if (firstFailure == null) firstFailure = error;
             log("code257 reasoning code-copy result adapter unavailable: "
                     + safeThrowableMessage(error));
         }
@@ -7490,6 +7521,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             V241_THINKING_CODE_COPY_HOOK_INSTALLED.set(false);
         }
         log("installed code257 reasoning code-copy adapters=" + installed);
+        if (firstFailure != null) throw firstFailure;
     }
 
     private static int findExactParameter(Class<?>[] parameters, Class<?> expected) {
