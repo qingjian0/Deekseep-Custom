@@ -116,9 +116,9 @@ public final class XposedActivationProvider extends ContentProvider {
         Bundle result = new Bundle();
         Context context = getContext();
         int callingUid = Binder.getCallingUid();
-        if (context == null || !uidOwnsPackage(context, callingUid, TARGET_PACKAGE)) {
+        if (context == null || !uidOwnsExclusivePackage(context, callingUid, TARGET_PACKAGE)) {
             result.putBoolean("accepted", false);
-            result.putString("error", "caller is not DeepSeek");
+            result.putString("error", "caller is not the exclusive DeepSeek UID");
             return result;
         }
         result.putBoolean("accepted", true);
@@ -130,9 +130,9 @@ public final class XposedActivationProvider extends ContentProvider {
         Bundle result = new Bundle();
         Context context = getContext();
         int callingUid = Binder.getCallingUid();
-        if (context == null || !uidOwnsPackage(context, callingUid, TARGET_PACKAGE)) {
+        if (context == null || !uidOwnsExclusivePackage(context, callingUid, TARGET_PACKAGE)) {
             result.putBoolean("accepted", false);
-            result.putString("error", "caller is not DeepSeek");
+            result.putString("error", "caller is not the exclusive DeepSeek UID");
             return result;
         }
         String category = extras == null ? "" : extras.getString("category", "");
@@ -409,6 +409,22 @@ public final class XposedActivationProvider extends ContentProvider {
             }
         } catch (Throwable ignored) {}
         return false;
+    }
+
+    /**
+     * Log IPC is intentionally stricter than the legacy activation endpoints: a shared UID
+     * would let every package installed under that UID impersonate the DeepSeek caller.
+     */
+    private static boolean uidOwnsExclusivePackage(Context context, int uid, String wanted) {
+        try {
+            String[] packages = context.getPackageManager().getPackagesForUid(uid);
+            return packages != null
+                    && packages.length == 1
+                    && wanted.equals(packages[0])
+                    && context.getPackageManager().getPackageUid(wanted, 0) == uid;
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     static boolean isFrameworkConnected() {
