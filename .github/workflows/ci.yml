@@ -51,6 +51,7 @@ jobs:
             bash -n "$script"
           done
           bash module-legacy/test-adapter-regression.sh
+          bash scripts/test-package-identity.sh
           bash module/test-expert-relay-regression.sh
           bash module/test-language-catalog.sh
           bash module/test-target-process-guard.sh
