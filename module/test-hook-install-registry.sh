@@ -56,6 +56,19 @@ grep -Fq 'native model-file message card hooks were only partially installed' "$
 test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$ATTACHMENT_PIPELINE")" -ge 3
 test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$ATTACHMENT_PIPELINE")" -ge 3
 
+CHAT_PIPELINE="$MODULE_DIR/src/ds/dsh/DeepSeek/HookChatPipeline.java"
+grep -Fq 'hookSafetyRetraction installation failed' "$CHAT_PIPELINE"
+grep -Fq 'server capture hook installation failed' "$CHAT_PIPELINE"
+grep -Fq 'content-filter apply hook installation failed' "$CHAT_PIPELINE"
+grep -Fq 'message rebuild capture hook installation failed' "$CHAT_PIPELINE"
+grep -Fq 'status-write hook installation failed' "$CHAT_PIPELINE"
+grep -Fq 'template probe hook installation failed' "$CHAT_PIPELINE"
+grep -Fq 'final-message merge hook installation failed' "$CHAT_PIPELINE"
+test "$(grep -Fc 'if (n == 0) throw new NoSuchMethodException' "$CHAT_PIPELINE")" -ge 7
+test "$(grep -Fc 'if (t instanceof VirtualMachineError)' "$CHAT_PIPELINE")" -ge 7
+test "$(grep -Fc 'if (t instanceof ThreadDeath)' "$CHAT_PIPELINE")" -ge 7
+grep -Fq 'local editor image URI hook installation failed' "$ATTACHMENT_PIPELINE"
+
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
