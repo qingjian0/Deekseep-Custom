@@ -109,6 +109,13 @@ class FeatureHookInstallRegistry {
         }
     }
 
+    /** True when a failed or degraded boundary is eligible for another install attempt. */
+    fun hasRetryableFailures(): Boolean = entries.values.any { entry ->
+        synchronized(entry) {
+            entry.state == State.FAILED || entry.state == State.DEGRADED
+        }
+    }
+
     /** Includes required failures and best-effort degradation for diagnostics. */
     fun hasFailures(): Boolean = entries.values.any { entry ->
         synchronized(entry) {
