@@ -8,12 +8,15 @@ source ../scripts/androidx-path-parser.sh
 ROOT_DIR="$(cd .. && pwd)"
 RUNTIME_DIR="$ROOT_DIR/module-kotlin-runtime"
 GRADLE_BIN="$(bash "$ROOT_DIR/scripts/gradle-bootstrap.sh")"
-"$GRADLE_BIN" --no-daemon --stacktrace -p "$RUNTIME_DIR" jar stageRuntimeClasspath
+"$GRADLE_BIN" --no-daemon --stacktrace -p "$RUNTIME_DIR" \
+  jar stageRuntimeClasspath stageR8Tool
 KOTLIN_RUNTIME_JAR="$RUNTIME_DIR/build/libs/dsh-kotlin-runtime-0.1.0.jar"
+R8_JAR="$RUNTIME_DIR/build/r8-tool/r8-9.1.29.jar"
 KOTLIN_STDLIB_JAR="$(find "$RUNTIME_DIR/build/runtime-classpath" -maxdepth 1 \
   -type f -name 'kotlin-stdlib-*.jar' -print | sort -V | tail -n 1)"
 test -s "$KOTLIN_RUNTIME_JAR"
 test -s "$KOTLIN_STDLIB_JAR"
+test -s "$R8_JAR"
 OUT=build
 rm -rf "$OUT"
 mkdir -p "$OUT/classes" "$OUT/dex" "$OUT/generated-src/com/dsmod/probe"
@@ -69,7 +72,8 @@ if ! javac -source 8 -target 8 \
   exit 1
 fi
 MODCLASSES=$(find "$OUT/classes/com/dsmod" -name '*.class')
-$D8 --min-api 24 --output "$OUT/dex" $MODCLASSES \
+java -cp "$R8_JAR" com.android.tools.r8.D8 \
+  --min-api 24 --output "$OUT/dex" $MODCLASSES \
   "$KOTLIN_RUNTIME_JAR" "$KOTLIN_STDLIB_JAR" \
   "$ANDROIDX_PATH_PARSER_JAR" --lib "$ANDROID_JAR"
 $AAPT2 compile --dir res -o "$OUT/res.zip"
