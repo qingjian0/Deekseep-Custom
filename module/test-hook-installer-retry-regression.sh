@@ -104,6 +104,22 @@ if grep -Fq 'catch (Throwable ignored) {}' <<<"$history_body"; then
   exit 1
 fi
 
+# Attachment file-link and image-preview boundary retries reuse successful Member hooks.
+grep -Fq 'ATTACHMENT_PIPELINE_HOOKED_MEMBERS' "$attachment_src"
+attachment_helper="$(sed -n '/private static void hookAttachmentMember/,/private static boolean hookImageCredentialBridgeConstructor/p' "$attachment_src")"
+grep -Fq 'synchronized (ATTACHMENT_PIPELINE_HOOKED_MEMBERS)' <<<"$attachment_helper"
+grep -Fq 'ATTACHMENT_PIPELINE_HOOKED_MEMBERS.contains(member)' <<<"$attachment_helper"
+grep -Fq 'ATTACHMENT_PIPELINE_HOOKED_MEMBERS.add(member)' <<<"$attachment_helper"
+file_link_body="$(sed -n '/void hookModelFileLinks()/,/private static Activity activityFromContext/p' "$attachment_src")"
+grep -Fq 'hookAttachmentMember(startActivity, new Hooker()' <<<"$file_link_body"
+if grep -Fq 'Main.MODULE.hook(startActivity)' <<<"$file_link_body"; then
+  echo "File-link installer bypasses attachment Member de-duplication." >&2
+  exit 1
+fi
+preview_body="$(sed -n '/void hookNativeImagePreviewBoundary/,/void hookNativeModelFileCards/p' "$attachment_src")"
+grep -Fq 'hookAttachmentMember(boundary, new Hooker()' <<<"$preview_body"
+grep -Fq 'hookAttachmentMember(method, new Hooker()' <<<"$preview_body"
+
 # Session installers propagate installation failures to Main/Registry.
 session_src="$SRC/HookSessionManagement.java"
 for method in \
