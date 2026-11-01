@@ -7338,10 +7338,13 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
      * Exact 2.3.6/code249 adapter. fp9.e creates m95 code actions; aa5.a is the reasoning action
      * provider surviving R8 inlining.
      */
-    private void hookV236ThinkingCodeCopy(final ClassLoader cl) {
+    private void hookV236ThinkingCodeCopy(final ClassLoader cl) throws Throwable {
         if (!HostCompat.isV236()
                 || !V236_THINKING_CODE_COPY_HOOK_INSTALLED.compareAndSet(false, true)) return;
-        int installed = 0;
+        boolean factoryInstalled = false;
+        int providerInstalled = 0;
+        Throwable factoryFailure = null;
+        Throwable providerFailure = null;
         try {
             Class<?> renderer = HostRemap.load(cl, "fp9");
             Method target = null;
@@ -7366,8 +7369,11 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 }
             });
             try { deoptimize(target); } catch (Throwable ignored) {}
-            installed++;
+            factoryInstalled = true;
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            factoryFailure = error;
             log("code249 reasoning code-copy factory unavailable: "
                     + safeThrowableMessage(error));
         }
@@ -7392,26 +7398,43 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     }
                 });
                 try { deoptimize(method); } catch (Throwable ignored) {}
-                installed++;
+                providerInstalled++;
             }
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            providerFailure = error;
             log("code249 reasoning code-copy result adapter unavailable: "
                     + safeThrowableMessage(error));
         }
-        if (installed == 0) V236_THINKING_CODE_COPY_HOOK_INSTALLED.set(false);
-        log("installed code249 reasoning code-copy adapters=" + installed);
+        Throwable incomplete = null;
+        if (!factoryInstalled) {
+            incomplete = new IllegalStateException(
+                    "code249 thinking code-copy factory adapter was not installed",
+                    factoryFailure);
+        }
+        if (providerInstalled == 0) {
+            IllegalStateException missingProvider = new IllegalStateException(
+                    "code249 thinking code-copy result adapter was not installed",
+                    providerFailure);
+            if (incomplete == null) incomplete = missingProvider;
+            else incomplete.addSuppressed(missingProvider);
+        }
+        if (incomplete != null) {
+            V236_THINKING_CODE_COPY_HOOK_INSTALLED.set(false);
+            throw incomplete;
+        }
+        log("installed code249 reasoning code-copy adapters="
+                + (providerInstalled + 1));
     }
 
-    /**
-     * Exact 2.4.1/code257 adapter. cy9.i creates the host Markdown code-copy action used by both
-     * response and reasoning renderers. Its fifth argument is copied to sf5.d (action visible).
-     * Only force that argument on; the host still owns the label, icon, clipboard callback and
-     * feedback UI, keeping this visually and behaviorally identical to response code blocks.
-     */
-    private void hookV241ThinkingCodeCopy(final ClassLoader cl) {
+    private void hookV241ThinkingCodeCopy(final ClassLoader cl) throws Throwable {
         if (!HostCompat.isV241()
                 || !V241_THINKING_CODE_COPY_HOOK_INSTALLED.compareAndSet(false, true)) return;
-        int installed = 0;
+        boolean factoryInstalled = false;
+        int providerInstalled = 0;
+        Throwable factoryFailure = null;
+        Throwable providerFailure = null;
         try {
             Class<?> renderer = HostRemap.load(cl, "cy9");
             Method target = null;
@@ -7438,13 +7461,16 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 }
             });
             try { deoptimize(target); } catch (Throwable ignored) {}
-            installed++;
+            factoryInstalled = true;
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            factoryFailure = error;
             log("code257 reasoning code-copy factory unavailable: "
                     + safeThrowableMessage(error));
         }
         try {
-            // code257/R8 inlines cy9.i at some Compose call sites.  xf5.a is the surviving
+            // code257/R8 inlines cy9.i at some Compose call sites. xf5.a is the surviving
             // action-list boundary: force only sf5.d on the actions it actually returns, while
             // retaining the host's own icon, text, clipboard callback and success feedback.
             final Class<?> actionType = HostRemap.load(cl, "sf5");
@@ -7469,16 +7495,34 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     }
                 });
                 try { deoptimize(method); } catch (Throwable ignored) {}
-                installed++;
+                providerInstalled++;
             }
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            providerFailure = error;
             log("code257 reasoning code-copy result adapter unavailable: "
                     + safeThrowableMessage(error));
         }
-        if (installed == 0) {
-            V241_THINKING_CODE_COPY_HOOK_INSTALLED.set(false);
+        Throwable incomplete = null;
+        if (!factoryInstalled) {
+            incomplete = new IllegalStateException(
+                    "code257 thinking code-copy factory adapter was not installed",
+                    factoryFailure);
         }
-        log("installed code257 reasoning code-copy adapters=" + installed);
+        if (providerInstalled == 0) {
+            IllegalStateException missingProvider = new IllegalStateException(
+                    "code257 thinking code-copy result adapter was not installed",
+                    providerFailure);
+            if (incomplete == null) incomplete = missingProvider;
+            else incomplete.addSuppressed(missingProvider);
+        }
+        if (incomplete != null) {
+            V241_THINKING_CODE_COPY_HOOK_INSTALLED.set(false);
+            throw incomplete;
+        }
+        log("installed code257 reasoning code-copy adapters="
+                + (providerInstalled + 1));
     }
 
     private static int findExactParameter(Class<?>[] parameters, Class<?> expected) {
