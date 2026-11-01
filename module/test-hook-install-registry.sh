@@ -7,6 +7,10 @@ RUNTIME_DIR="$ROOT_DIR/module-kotlin-runtime"
 # Optional Agent response hooks must report partial discovery/registration failures
 # to the install registry instead of logging them and returning success.
 AGENT_PIPELINE="$MODULE_DIR/src/ds/dsh/DeepSeek/HookAgentPipeline.java"
+grep -Fq 'native proactive visible-thread filter method not found' "$AGENT_PIPELINE"
+grep -Fq 'native proactive visible-thread filter hook installation failed' "$AGENT_PIPELINE"
+grep -Fq 'native proactive stream completion hooks were only partially discovered' "$AGENT_PIPELINE"
+grep -Fq 'native proactive stream completion hook installation failed' "$AGENT_PIPELINE"
 grep -Fq 'Throwable firstFailure = null;' "$AGENT_PIPELINE"
 grep -Fq 'heartbeat response hooks were only partially installed' "$AGENT_PIPELINE"
 grep -Fq 'if (liveHooks == 0 || staticHooks == 0)' "$AGENT_PIPELINE"
