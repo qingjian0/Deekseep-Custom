@@ -9444,21 +9444,39 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     // 3) 发送点捕获完整 List<fp> 及 tp.f() 当前会话模型。
     // 普通文件必须保留为 DeepSeek 原生附件；只有 is_image=true 的 fp 才进入视觉中继。
-    private void installExpertImageFpCapture(final ClassLoader cl) {
+    private void installExpertImageFpCapture(final ClassLoader cl) throws Throwable {
+        Throwable installFailure = null;
         if (HostCompat.isV234()) {
             if (HostCompat.isGooglePlay()) {
-                HookAttachmentPipeline.INSTANCE.hookSendPointFps234(cl, "xx0");
-                HookAttachmentPipeline.INSTANCE.hookSendPointFps234(cl, "ix0");
-                HookAttachmentPipeline.INSTANCE.hookSendPointFps234(cl, "ox0");
+                String[] sendPointOwners = {"xx0", "ix0", "ox0"};
+                for (String owner : sendPointOwners) {
+                    try { HookAttachmentPipeline.INSTANCE.hookSendPointFps234(cl, owner); }
+                    catch (Throwable error) {
+                        if (installFailure == null) installFailure = error;
+                        else installFailure.addSuppressed(error);
+                    }
+                }
             } else {
-                HookAttachmentPipeline.INSTANCE.hookSendPointFps234(cl, "ew0");
-                HookAttachmentPipeline.INSTANCE.hookSendPointFps234(cl, "pv0");
-                HookAttachmentPipeline.INSTANCE.hookSendPointFps234(cl, "vv0");
+                String[] sendPointOwners = {"ew0", "pv0", "vv0"};
+                for (String owner : sendPointOwners) {
+                    try { HookAttachmentPipeline.INSTANCE.hookSendPointFps234(cl, owner); }
+                    catch (Throwable error) {
+                        if (installFailure == null) installFailure = error;
+                        else installFailure.addSuppressed(error);
+                    }
+                }
             }
+            if (installFailure != null) throw installFailure;
             return;
         }
-        HookAttachmentPipeline.INSTANCE.hookSendPointFps(cl, "fu0", true);
-        HookAttachmentPipeline.INSTANCE.hookSendPointFps(cl, "uu0", false);
+        try { HookAttachmentPipeline.INSTANCE.hookSendPointFps(cl, "fu0", true); }
+        catch (Throwable error) { installFailure = error; }
+        try { HookAttachmentPipeline.INSTANCE.hookSendPointFps(cl, "uu0", false); }
+        catch (Throwable error) {
+            if (installFailure == null) installFailure = error;
+            else installFailure.addSuppressed(error);
+        }
+        if (installFailure != null) throw installFailure;
     }
 
     public static Object invokeNoArg(Object target, String name) {
