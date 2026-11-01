@@ -17,6 +17,16 @@ public final class ChatBackupFormatRegressionTest {
                 "sessions/../manifest.json"), "relative traversal rejected");
         check(!DeekseepTools.portableSessionEntry(
                 "sessions\\account__session.json"), "backslash traversal rejected");
+        check(!DeekseepTools.portableSessionEntry("sessions/.json"),
+                "empty session key rejected");
+        check(!DeekseepTools.portableSessionEntry("sessions/nested/session.json"),
+                "nested session key rejected");
+        check(!DeekseepTools.portableSessionEntry("sessions/session.json/"),
+                "trailing slash rejected");
+        check(!DeekseepTools.validBackupManifest(null), "null manifest rejected");
+        check(!DeekseepTools.validBackupManifest(new JSONObject()
+                .put("format", "deekseep-chat-backup").put("version", 1.5)),
+                "non-integral version rejected");
         System.out.println("Chat backup format regression tests passed");
     }
 

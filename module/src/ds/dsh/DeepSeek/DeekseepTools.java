@@ -398,15 +398,12 @@ public final class DeekseepTools {
     }
 
     static boolean validBackupManifest(JSONObject manifest) {
-        return manifest != null && "deekseep-chat-backup".equals(
-                manifest.optString("format")) && manifest.optInt("version") == 1;
+        return manifest != null && ChatBackupPolicy.validManifest(
+                manifest.optString("format"), manifest.optInt("version"));
     }
 
     static boolean portableSessionEntry(String name) {
-        if (name == null || !name.startsWith("sessions/") || !name.endsWith(".json")
-                || name.contains("..") || name.indexOf('\\') >= 0) return false;
-        String leaf = name.substring("sessions/".length(), name.length() - 5);
-        return leaf.length() > 4 && leaf.indexOf('/') < 0;
+        return ChatBackupPolicy.portableSessionEntry(name);
     }
 
     private static byte[] readZipEntry(ZipInputStream zip, int limit) throws Throwable {
