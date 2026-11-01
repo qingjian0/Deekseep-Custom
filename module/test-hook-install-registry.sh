@@ -35,6 +35,13 @@ grep -Fq 'RECORDER.record(raw);' "$MODULE_DIR/src/ds/dsh/DeepSeek/DeveloperDiagn
 ! grep -Fq 'private static final Pattern BEARER' "$MODULE_DIR/src/ds/dsh/DeepSeek/DeveloperDiagnostics.java"
 ! grep -Fq 'private static final ArrayDeque<String> EVENTS' "$MODULE_DIR/src/ds/dsh/DeepSeek/DeveloperDiagnostics.java"
 grep -Fq 'DshDiagnosticsRecorder' "$RUNTIME_DIR/src/main/kotlin/ds/dsh/DeepSeek/DshDiagnosticsRecorder.kt"
+# Pure lifecycle and relay policies are Kotlin-owned; do not restore parallel Java implementations.
+grep -Fq 'object AutoContinuePolicy' "$RUNTIME_DIR/src/main/kotlin/ds/dsh/DeepSeek/LifecyclePolicies.kt"
+grep -Fq 'object ReplyReadyPolicy' "$RUNTIME_DIR/src/main/kotlin/ds/dsh/DeepSeek/LifecyclePolicies.kt"
+grep -Fq 'object ExpertRelayGate' "$RUNTIME_DIR/src/main/kotlin/ds/dsh/DeepSeek/relay/ExpertRelayGate.kt"
+! test -e "$MODULE_DIR/src/ds/dsh/DeepSeek/AutoContinuePolicy.java"
+! test -e "$MODULE_DIR/src/ds/dsh/DeepSeek/ReplyReadyPolicy.java"
+! test -e "$MODULE_DIR/src/ds/dsh/DeepSeek/relay/ExpertRelayGate.java"
 # The exported provider is required for cross-process IPC; both package variants must declare it.
 grep -A4 -Fq 'android:name="ds.dsh.DeepSeek.XposedActivationProvider"' "$LEGACY_MANIFEST"
 grep -A4 -Fq 'android:name="ds.dsh.DeepSeek.XposedActivationProvider"' "$UNIVERSAL_MANIFEST"
