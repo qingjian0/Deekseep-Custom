@@ -7,9 +7,10 @@ SRC="$ROOT_DIR/module/src/ds/dsh/DeepSeek"
 AGENT="$SRC/HookAgentPipeline.java"
 CHAT="$SRC/HookChatPipeline.java"
 UI="$SRC/HookUiSurface.java"
+CONFIG="$SRC/HookConfigRollout.java"
 MAIN="$SRC/Main.java"
 
-for file in "$AGENT" "$CHAT" "$UI" "$MAIN"; do
+for file in "$AGENT" "$CHAT" "$UI" "$CONFIG" "$MAIN"; do
   test -s "$file"
 done
 
@@ -56,6 +57,17 @@ nav_body="$(sed -n '/void hookSettingsNavigation(ClassLoader cl)/,/private void 
 grep -Fq 'hookSettingsNavigationOnce(m, new Hooker()' <<<"$nav_body"
 grep -Fq 'if (installFailure != null) throw installFailure;' <<<"$nav_body"
 grep -Fq 'private int hookNavStateMethod(Class<?> nav, String name) throws Throwable' "$UI"
+
+# Config rollout hooks must use per-Method registration memory so a later installer
+# retry cannot stack duplicate interceptors after a partial registration.
+hot_update="$(sed -n '/void hookHotUpdateDialog(/,/void hookRemoteConfigHotUpdates/p' "$CONFIG")"
+home_welcome="$(sed -n '/void hookHomeWelcomeRollout(/,/^    }/p' "$CONFIG")"
+grep -Fq 'hookRolloutMethodOnce(method, new Hooker()' <<<"$hot_update"
+grep -Fq 'hookRolloutMethodOnce(getter, new Hooker()' <<<"$home_welcome"
+if grep -Fq 'Main.MODULE.hook(' <<<"$hot_update$home_welcome"; then
+  echo "Config rollout installer bypasses retry-safe registration memory." >&2
+  exit 1
+fi
 
 # Fake Mute must distinguish an unsupported mapping from a partial installation.
 fake_mute="$(sed -n '/void hookNativeFakeMute(ClassLoader loader)/,/static boolean isGoogleLoginUnlock/p' "$SRC/HookAccountLoginSecurity.java")"
