@@ -69,8 +69,17 @@ object DshLog {
 
     private fun sanitize(value: String): String {
         var result = value.replace('\n', ' ').replace('\r', ' ')
+        // Redact the complete Authorization credential, including the common
+        // "Bearer <token>" form. A generic key/value pass alone would mask only
+        // the word "Bearer" and leave the credential exposed.
+        result = AUTHORIZATION_PATTERN.replace(result) { match ->
+            match.groupValues[1] + "[redacted]"
+        }
+        result = BEARER_PATTERN.replace(result) { match ->
+            match.groupValues[1] + "[redacted]"
+        }
         result = SECRET_PATTERN.replace(result) { match ->
-            match.groupValues[1] + match.groupValues[2] + "[redacted]"
+            match.groupValues[1] + "[redacted]"
         }
         result = PRIVATE_PATH_PATTERN.replace(result, "[private-path]")
         return result.take(MAX_MESSAGE_CHARS)
@@ -80,8 +89,14 @@ object DshLog {
     private const val MAX_THREAD_CHARS = 48
     private const val MAX_ERROR_TYPE_CHARS = 120
     private const val MAX_MESSAGE_CHARS = 512
+    private val AUTHORIZATION_PATTERN = Regex(
+        "(?i)(\\bauthorization\\b\\s*[:=]\\s*)(?:[A-Za-z][A-Za-z0-9_-]*\\s+)?[^\\s,;]+"
+    )
+    private val BEARER_PATTERN = Regex(
+        "(?i)(\\bbearer\\s+)[^\\s,;]+"
+    )
     private val SECRET_PATTERN = Regex(
-        "(?i)(authorization|bearer|api[_-]?key|token)(\\s*[:=]\\s*|\\s+)[^\\s,;]{6,}"
+        "(?i)(\\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password)\\b\\s*[\\\"']?\\s*[:=]\\s*[\\\"']?)[^\\s\\\"',;}]+"
     )
     private val PRIVATE_PATH_PATTERN = Regex(
         "/(?:data|storage)/[^\\s,;]+",
