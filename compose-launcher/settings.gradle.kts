@@ -1,18 +1,4 @@
 pluginManagement {
-    // Kotlin 2.4 emits metadata 2.4.0; use an R8 release that can parse it.
-    // AGP's bundled R8 can be older than the standalone D8 used by Legacy/Universal builds.
-    buildscript {
-        repositories {
-            google()
-            mavenCentral()
-            // Official standalone R8 release repository documented by the R8 project.
-            maven { url = uri("https://storage.googleapis.com/r8-releases/raw") }
-        }
-        dependencies {
-            classpath("com.android.tools:r8:9.1.29")
-        }
-    }
-
     repositories {
         google()
         mavenCentral()
