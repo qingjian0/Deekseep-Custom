@@ -19,6 +19,8 @@ grep -Fq 'val configState by configViewModel.state.collectAsStateWithLifecycle()
 grep -Fq 'repository.request(ModuleConfigBridge.MODE_EXPORT)' "$VIEW_MODEL"
 grep -Fq 'repository.request(ModuleConfigBridge.MODE_IMPORT' "$VIEW_MODEL"
 grep -Fq 'StateFlow<LauncherConfigUiState>' "$VIEW_MODEL"
+grep -Fq 'private val operationMutex = Mutex()' "$VIEW_MODEL"
+grep -Fq 'catch (cancelled: CancellationException)' "$VIEW_MODEL"
 grep -Fq 'suspendCancellableCoroutine' "$REPOSITORY"
 grep -Fq 'ModuleConfigBridge.request(mode, json, reply)' "$REPOSITORY"
 
