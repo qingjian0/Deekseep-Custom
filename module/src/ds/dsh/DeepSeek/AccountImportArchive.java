@@ -18,6 +18,7 @@ import java.util.zip.ZipInputStream;
 final class AccountImportArchive {
     static final int MAX_ENTRIES = 64;
     static final int MAX_AGGREGATE_BYTES = 8 * 1024 * 1024;
+    static final int MAX_ARCHIVE_UNCOMPRESSED_BYTES = 8 * 1024 * 1024;
 
     private AccountImportArchive() {}
 
@@ -25,6 +26,7 @@ final class AccountImportArchive {
             throws Exception {
         int entryCount = 0;
         int aggregate = 0;
+        int expanded = 0;
         List<AccountCredentialCodec.Entry> out = new ArrayList<AccountCredentialCodec.Entry>();
         Set<String> ids = new LinkedHashSet<String>();
         ZipInputStream zip = new ZipInputStream(raw);
@@ -34,17 +36,30 @@ final class AccountImportArchive {
                 throw new AccountCredentialCodec.FormatException("ZIP 文件项超过 64 个上限");
             }
             String path = safePath(entry.getName());
-            if (entry.isDirectory()) { zip.closeEntry(); continue; }
+            if (entry.isDirectory()) {
+                expanded += drainBounded(zip, MAX_ARCHIVE_UNCOMPRESSED_BYTES - expanded);
+                zip.closeEntry();
+                continue;
+            }
             String lower = path.toLowerCase(Locale.US);
             boolean supported = lower.endsWith(".json") || lower.endsWith(".txt")
                     || lower.endsWith(".ds-account");
-            if (!supported) { zip.closeEntry(); continue; }
+            if (!supported) {
+                expanded += drainBounded(zip, MAX_ARCHIVE_UNCOMPRESSED_BYTES - expanded);
+                zip.closeEntry();
+                continue;
+            }
             long declared = entry.getSize();
             if (declared > AccountCredentialCodec.MAX_IMPORT_BYTES) {
                 throw new AccountCredentialCodec.FormatException(
                         "ZIP 内单个账号文件超过 1 MiB：" + path);
             }
             byte[] bytes = readBounded(zip, AccountCredentialCodec.MAX_IMPORT_BYTES);
+            expanded += bytes.length;
+            if (expanded > MAX_ARCHIVE_UNCOMPRESSED_BYTES) {
+                throw new AccountCredentialCodec.FormatException(
+                        "ZIP 解压后总内容超过 8 MiB");
+            }
             aggregate += bytes.length;
             if (aggregate > MAX_AGGREGATE_BYTES) {
                 throw new AccountCredentialCodec.FormatException("ZIP 解压后账号文件超过 8 MiB");
@@ -100,6 +115,21 @@ final class AccountImportArchive {
             output.write(buffer, 0, read);
         }
         return output.toByteArray();
+    }
+
+    /** Drain ignored entries without allowing them to bypass the archive expansion budget. */
+    private static int drainBounded(InputStream input, int remaining) throws Exception {
+        byte[] buffer = new byte[8192];
+        int total = 0;
+        int read;
+        while ((read = input.read(buffer)) != -1) {
+            if (total + read > remaining) {
+                throw new AccountCredentialCodec.FormatException(
+                        "ZIP 解压后总内容超过 8 MiB");
+            }
+            total += read;
+        }
+        return total;
     }
 
     private static String decodeStrictUtf8(byte[] bytes) throws CharacterCodingException {
