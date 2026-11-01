@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 /** Open-edition stub; native shi core is Closed-only. */
 final class z15 {

@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;

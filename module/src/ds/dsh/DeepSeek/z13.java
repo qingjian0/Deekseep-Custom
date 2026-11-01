@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import android.content.Context;
 
@@ -19,7 +19,7 @@ public final class z13 {
     static final String STATUS_FILE = "/data/data/com.deepseek.chat/files/deekseep_api_status.json";
     static final String PUBLIC_INFO_FILE = "/storage/emulated/0/Deekseep_API.txt";
 
-    private static final String GATEWAY = "com.dsmod.probe.z1";
+    private static final String GATEWAY = "ds.dsh.DeepSeek.z1";
     private static volatile Context appContext;
     private static final Map<String, Method> METHODS = new HashMap<String, Method>();
 

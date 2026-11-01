@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 /** Pure decision policy kept separate so protection failures can be regression-tested. */
 final class z16Decision {
