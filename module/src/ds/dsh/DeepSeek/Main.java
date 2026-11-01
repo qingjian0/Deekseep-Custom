@@ -1814,8 +1814,16 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("host.v236.thinking-code-copy", reason);
                 FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("host.v236.all-file-types", reason);
             }
-            if (HostCompat.isV241() && !HostCompat.isV271()) {
-                installHookStep("host.v241.local-chat-quota", () -> hookV241LocalChatQuotaUnlock(hookLoader));
+            if (HostCompat.isV241()) {
+                if (!HostCompat.isV271()) {
+                    installHookStep("host.v241.local-chat-quota",
+                            () -> hookV241LocalChatQuotaUnlock(hookLoader));
+                } else {
+                    FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("host.v241.local-chat-quota",
+                            "code257 local quota hook is excluded from 2.7.x");
+                }
+                // 2.7.x Full mode activates the reviewed 2.4.1 symbol table; these two
+                // adapters were verified through that table and remain part of the full path.
                 installHookStep("host.v241.thinking-code-copy", () -> hookV241ThinkingCodeCopy(hookLoader));
                 installHookStep("host.v241.all-file-types", () -> hookV241AllFileTypes(hookLoader));
             } else {
