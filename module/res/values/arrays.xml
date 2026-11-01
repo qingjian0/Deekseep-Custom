@@ -2,6 +2,6 @@
 <resources>
     <string-array name="xposedscope">
         <item>com.deepseek.chat</item>
-        <item>com.dsmod.probe</item>
+        <item>ds.dsh.DeepSeek</item>
     </string-array>
 </resources>
