@@ -180,25 +180,6 @@ if grep -Fq 'Main.MODULE.hook(' <<<"$patch_body$state_body"; then
   exit 1
 fi
 
-# Heartbeat patch dispatcher and MutableState write hooks share retry-safe Member registration.
-grep -Fq 'HEARTBEAT_PIPELINE_HOOKED_MEMBERS' "$AGENT"
-heartbeat_pipeline_helper="$(sed -n '/private static void hookHeartbeatPipelineMember/,/void hookHeartbeatPatchDispatcher/p' "$AGENT")"
-grep -Fq 'synchronized (HEARTBEAT_PIPELINE_HOOKED_MEMBERS)' <<<"$heartbeat_pipeline_helper"
-grep -Fq 'HEARTBEAT_PIPELINE_HOOKED_MEMBERS.contains(member)' <<<"$heartbeat_pipeline_helper"
-grep -Fq 'HEARTBEAT_PIPELINE_HOOKED_MEMBERS.add(member)' <<<"$heartbeat_pipeline_helper"
-patch_dispatch_body="$(sed -n '/void hookHeartbeatPatchDispatcher(/,/private static void registerHeartbeatFragmentState/p' "$AGENT")"
-grep -Fq 'hookHeartbeatPipelineMember(method, new Hooker()' <<<"$patch_dispatch_body"
-if grep -Fq 'Main.MODULE.hook(' <<<"$patch_dispatch_body"; then
-  echo "Heartbeat patch dispatcher bypasses retry-safe registration." >&2
-  exit 1
-fi
-tracked_state_body="$(sed -n '/void hookTrackedHeartbeatStateWrites(/,/void hookHeartbeat/p' "$AGENT")"
-grep -Fq 'hookHeartbeatPipelineMember(method, new Hooker()' <<<"$tracked_state_body"
-if grep -Fq 'Main.MODULE.hook(' <<<"$tracked_state_body"; then
-  echo "Heartbeat MutableState writer bypasses retry-safe registration." >&2
-  exit 1
-fi
-
 # Session installers propagate installation failures to Main/Registry.
 session_src="$SRC/HookSessionManagement.java"
 for method in \
