@@ -3305,8 +3305,9 @@ Main.log("[RISK] Android ID spoof installed");
      * stored on the builder itself (weakly), so a coroutine resuming on another thread keeps the
      * chosen account without a process-wide header override.
      */
-    void hookLocalApiAccountRouting(final ClassLoader loader) {
-        if (!BuildInfo.PROTECTED_BUILD || loader == null) return;
+    void hookLocalApiAccountRouting(final ClassLoader loader) throws Throwable {
+        if (!BuildInfo.PROTECTED_BUILD) throw new IllegalStateException("Local API routing is not included in this build");
+        if (loader == null) throw new IllegalArgumentException("Local API routing class loader is null");
         if (!HostCompat.isV241()) {
             Main.MODULE.hookLegacyLocalApiAccountRouting(loader);
             return;
@@ -3316,6 +3317,7 @@ Main.log("[RISK] Android ID spoof installed");
         String setterName = HostCompat.localApiHeaderSetterMethod();
         int marked = 0;
         int replaced = 0;
+        Throwable installFailure = null;
         try {
             Class<?> owner = HostRemap.forName(authOwner, false, loader);
             Class<?> requestBuilderType = null;
@@ -3457,6 +3459,8 @@ Main.log("[RISK] Android ID spoof installed");
                 } catch (Throwable uploadRouteError) {
                     Main.log("code257 context upload route hook unavailable: "
                             + Main.safeThrowableMessage(uploadRouteError));
+                    if (installFailure == null) installFailure = uploadRouteError;
+                    else installFailure.addSuppressed(uploadRouteError);
                 }
                 Class<?> completionFactory = HostRemap.forName("fu0", false, loader);
                 for (Method method : completionFactory.getDeclaredMethods()) {
@@ -3535,6 +3539,7 @@ Main.log("[RISK] Android ID spoof installed");
         } catch (Throwable error) {
             Main.log("local API account auth marker unavailable " + authOwner + ": "
                     + Main.safeThrowableMessage(error));
+            installFailure = error;
         }
         try {
             Class<?> builder = HostRemap.forName(headerOwner, false, loader);
@@ -3598,7 +3603,16 @@ Main.log("[RISK] Android ID spoof installed");
         } catch (Throwable error) {
             Main.log("local API account header hook unavailable " + headerOwner + ": "
                     + Main.safeThrowableMessage(error));
+            if (installFailure == null) installFailure = error;
+            else installFailure.addSuppressed(error);
         }
+        if (marked == 0) {
+            throw new NoSuchMethodException(authOwner + " local API account auth marker");
+        }
+        if (replaced == 0) {
+            throw new NoSuchMethodException(headerOwner + "." + setterName + " Authorization setter");
+        }
+        if (installFailure != null) throw installFailure;
         String ready = "ROUTING_HOOK_READY auth=" + marked + " header=" + replaced
                 + " generation=" + HostCompat.generationName();
         Main.log(ready);
