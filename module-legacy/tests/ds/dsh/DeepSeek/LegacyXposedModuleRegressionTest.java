@@ -128,6 +128,7 @@ public final class LegacyXposedModuleRegressionTest {
         runFailureIsolationTests(method, api);
         runScopedRegistrationRetryTest(method, api);
         runScopedRegistrationNullRetryTest(method, api);
+        runPartialSameClassScopeRetryTest(method, api);
         runScopedRegistrationErrorRetryTest(method, api);
         runScopedRegistrationErrorAfterNativeInstallTest(method, api);
         runScopedRegistrationMultiplicityTest(method, api);
@@ -218,6 +219,65 @@ public final class LegacyXposedModuleRegressionTest {
                         + param.getResult());
         check(target.joinCalls == 1,
                 "API " + api + " explicit null retry must invoke the original exactly once");
+    }
+
+    private static void registerScopedSuffix(
+            Module module, Method method, final String suffix) {
+        module.hook(method).intercept(new LegacyXposedModule.Hooker() {
+            @Override public Object intercept(LegacyXposedModule.Chain chain) throws Throwable {
+                return chain.proceed() + suffix;
+            }
+        });
+    }
+
+    private static void registerPartialScopedSameClassHooks(
+            Module module, Method method, boolean failAfterFirst) {
+        LegacyXposedModule.HookRegistrationScope previous =
+                module.beginHookRegistrationScope("test.partial.same.class");
+        try {
+            registerScopedSuffix(module, method, ":first");
+            if (failAfterFirst) throw new IllegalStateException("simulated partial installer failure");
+            registerScopedSuffix(module, method, ":second");
+        } finally {
+            module.endHookRegistrationScope(previous);
+        }
+    }
+
+    private static void runPartialSameClassScopeRetryTest(final Method method, int api)
+            throws Throwable {
+        XposedBridge.resetTestState();
+        XposedBridge.originalMethodInvokerForTest =
+                new XposedBridge.OriginalMethodInvoker() {
+                    @Override public Object invoke(Member member, Object receiver,
+                                                   Object[] invokeArgs) throws Throwable {
+                        return ((Method) member).invoke(receiver, invokeArgs);
+                    }
+                };
+        Module module = new Module();
+        boolean failed = false;
+        try {
+            registerPartialScopedSameClassHooks(module, method, true);
+        } catch (IllegalStateException expected) {
+            failed = "simulated partial installer failure".equals(expected.getMessage());
+        }
+        check(failed, "API " + api + " partial same-class installer failure was not injected");
+
+        registerPartialScopedSameClassHooks(module, method, false);
+        registerPartialScopedSameClassHooks(module, method, false);
+
+        XC_MethodHook.MethodHookParam param = new XC_MethodHook.MethodHookParam();
+        param.method = method;
+        Target target = new Target();
+        param.thisObject = target;
+        param.args = new Object[] {"safe", "original"};
+        XposedBridge.callbackForTest.dispatchBeforeForTest(param);
+        check("safe:original:second:first".equals(param.getResult()),
+                "API " + api + " retry lost or duplicated same-class occurrence: "
+                        + param.getResult());
+        check(target.joinCalls == 1,
+                "API " + api + " partial same-class retry must invoke original exactly once");
+        check(XposedBridge.hookCountForTest == 1,
+                "API " + api + " partial same-class retry duplicated native callback");
     }
 
     private static void runScopedRegistrationErrorRetryTest(final Method method, int api)
