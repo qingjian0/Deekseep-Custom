@@ -50,7 +50,7 @@ internal class LauncherConfigRepository(context: Context) {
             mainHandler.postDelayed(timeout, BRIDGE_TIMEOUT_MS)
             try {
                 appContext.sendBroadcast(ModuleConfigBridge.request(mode, json, reply))
-            } catch (_: Throwable) {
+            } catch (_: Exception) {
                 finish(
                     ConfigBridgeReply(ModuleConfigBridge.RESULT_ERROR, null),
                     finished,
