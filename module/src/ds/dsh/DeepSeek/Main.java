@@ -1558,27 +1558,39 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     private final FeatureHookInstallRegistry FEATURE_HOOK_INSTALL_REGISTRY =
             new FeatureHookInstallRegistry();
 
-    void installHookStep(String id, FeatureHookInstallRegistry.Installer installer)
-            throws Throwable {
-        FEATURE_HOOK_INSTALL_REGISTRY.install(id, () -> {
-            HookRegistrationScope previous = beginHookRegistrationScope(id);
-            try {
-                installer.install();
-            } finally {
-                endHookRegistrationScope(previous);
-            }
-        });
+    private Throwable runHookInstallStep(String id,
+            FeatureHookInstallRegistry.Installer installer) {
+        try {
+            FEATURE_HOOK_INSTALL_REGISTRY.install(id, () -> {
+                HookRegistrationScope previous = beginHookRegistrationScope(id);
+                try {
+                    installer.install();
+                } finally {
+                    endHookRegistrationScope(previous);
+                }
+            });
+            return null;
+        } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            return error;
+        }
+    }
+
+    void installHookStep(String id, FeatureHookInstallRegistry.Installer installer) {
+        Throwable failure = runHookInstallStep(id, installer);
+        if (failure != null) {
+            log("hook installation step failed [" + id + "]: "
+                    + safeThrowableMessage(failure));
+        }
     }
 
     void installBestEffortHook(String id, FeatureHookInstallRegistry.Installer installer,
             String logPrefix) {
-        try {
-            installHookStep(id, installer);
-        } catch (Throwable error) {
-            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
-            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
-            FEATURE_HOOK_INSTALL_REGISTRY.markDegraded(id, error);
-            log(logPrefix + safeThrowableMessage(error));
+        Throwable failure = runHookInstallStep(id, installer);
+        if (failure != null) {
+            FEATURE_HOOK_INSTALL_REGISTRY.markDegraded(id, failure);
+            log(logPrefix + safeThrowableMessage(failure));
         }
     }
 
@@ -1921,10 +1933,13 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     private final AtomicBoolean MODULE_INJECTED = new AtomicBoolean(false);
 
     public void performModuleInjection(Activity act, ClassLoader cl) {
+        ClassLoader hookLoader = cl != null ? cl : hostClassLoader;
+        // Retry only incomplete Hook groups on every eligible Activity resume. The registry makes
+        // completed groups no-ops, while the one-time gate below still protects non-Hook startup.
+        installAllFeatureHooks(hookLoader);
+        ensureOptionalHooksForEnabledFeatures(hookLoader);
         if (!MODULE_INJECTED.compareAndSet(false, true)) return;
         try {
-            installAllFeatureHooks(cl);
-            ensureOptionalHooksForEnabledFeatures(cl);
             // Remote-flag MMKV keys were not re-verified on 2.7.1; leave host flags untouched.
             if (!HostCompat.isV271()) RemoteFeatureFlags.enforce(cl);
             DeepSeekCacheCleaner.schedule(act);
