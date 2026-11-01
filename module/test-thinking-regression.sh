@@ -15,6 +15,13 @@ mkdir -p "$OUT/classes" "$OUT/lib" "$DEPS_DIR"
 # Tests use the already-built universal Main/adapter classes; this keeps
 # the regression suite aligned with the APK that is actually distributed.
 UNIVERSAL_CLASSES="../module-universal/build/classes"
+KOTLIN_RUNTIME_JAR="../module-kotlin-runtime/build/libs/dsh-kotlin-runtime-0.1.0.jar"
+KOTLIN_STDLIB_JAR="$(find ../module-kotlin-runtime/build/runtime-classpath -maxdepth 1 \
+    -type f -name 'kotlin-stdlib-*.jar' -print | sort -V | tail -n 1)"
+if [[ ! -f "$KOTLIN_RUNTIME_JAR" || ! -f "$KOTLIN_STDLIB_JAR" ]]; then
+    echo "Shared Kotlin runtime artifact is missing; build module-universal before running tests" >&2
+    exit 1
+fi
 if [[ ! -f "$UNIVERSAL_CLASSES/com/dsmod/probe/Main.class" ]]; then
     echo "Universal classes are missing; build module-universal before running tests" >&2
     exit 1
@@ -46,7 +53,7 @@ if [[ ! -f "$JSON_CACHE" ]] || ! printf '%s  %s\n' "$JSON_SHA256" "$JSON_CACHE" 
 fi
 cp "$JSON_CACHE" "$JSON_JAR"
 
-javac -source 8 -target 8 -cp "$JSON_JAR:$ANDROID_JAR:$UNIVERSAL_CLASSES:build/classes" \
+javac -source 8 -target 8 -cp "$JSON_JAR:$ANDROID_JAR:$UNIVERSAL_CLASSES:build/classes:$KOTLIN_RUNTIME_JAR:$KOTLIN_STDLIB_JAR" \
     -d "$OUT/classes" \
     tests/com/dsmod/probe/ChatEditorThinkingRegressionTest.java \
     tests/com/dsmod/probe/ChatEditorHistoryImageRegressionTest.java \
@@ -118,7 +125,7 @@ javac -source 8 -target 8 -cp "$JSON_JAR:$ANDROID_JAR:$UNIVERSAL_CLASSES:build/c
 # Current sources compiled by this run must precede the previous universal APK classes.
 # Otherwise Java loads a stale HostCompat/Main from module-universal/build/classes and the
 # compatibility regression tests validate yesterday's APK instead of the pending build.
-TEST_CP="$JSON_JAR:$ANDROID_JAR:$OUT/classes:$UNIVERSAL_CLASSES:build/classes"
+TEST_CP="$JSON_JAR:$ANDROID_JAR:$OUT/classes:$UNIVERSAL_CLASSES:build/classes:$KOTLIN_RUNTIME_JAR:$KOTLIN_STDLIB_JAR"
 
 java -cp "$TEST_CP" \
     com.dsmod.probe.ChatEditorThinkingRegressionTest
