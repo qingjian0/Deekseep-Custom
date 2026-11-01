@@ -63,9 +63,11 @@ final class HostV271 {
         // the remaining verified hooks for this host generation.
         module.installBestEffortHook("host.v271.settings-entry",
                 () -> installSettingsEntry(cl), "v271 settings entry wiring failed: ");
-        module.installBestEffortHook("host.v271.chat-request",
-                () -> HookChatPipeline.INSTANCE.hookChatRequest(cl),
-                "v271 chat request wiring failed: ");
+        module.installBestEffortHook("host.v271.chat-request", () -> {
+            if (!HookChatPipeline.INSTANCE.hookChatRequest(cl)) {
+                throw new IllegalStateException("v271 chat request constructors were not hooked");
+            }
+        }, "v271 chat request wiring failed: ");
         module.installBestEffortHook("host.v271.history-sanitizer",
                 () -> installHistorySanitizer(cl), "v271 history sanitizer wiring failed: ");
         Main.log("v271 whitelist installed: entryFallback=" + entryFallback);
