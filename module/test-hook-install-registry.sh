@@ -7,6 +7,15 @@ RUNTIME_DIR="$ROOT_DIR/module-kotlin-runtime"
 # Optional Agent response hooks must report partial discovery/registration failures
 # to the install registry instead of logging them and returning success.
 AGENT_PIPELINE="$MODULE_DIR/src/ds/dsh/DeepSeek/HookAgentPipeline.java"
+# Catch-variable regressions in fatal-error passthrough must fail before Android compilation.
+if awk '
+  /catch[[:space:]]*\([[:space:]]*Throwable[[:space:]]+t[[:space:]]*\)/ { in_t_catch = 1; remaining = 12; next }
+  in_t_catch && /error[[:space:]]+instanceof[[:space:]]+(VirtualMachineError|ThreadDeath)/ {
+    print "fatal-error passthrough references error inside catch(Throwable t) at line " NR > "/dev/stderr"
+    exit 1
+  }
+  in_t_catch { remaining--; if (remaining <= 0) in_t_catch = 0 }
+' "$AGENT_PIPELINE"; then :; else exit 1; fi
 grep -Fq 'native proactive visible-thread filter method not found' "$AGENT_PIPELINE"
 grep -Fq 'native proactive visible-thread filter hook installation failed' "$AGENT_PIPELINE"
 grep -Fq 'native proactive stream completion hooks were only partially discovered' "$AGENT_PIPELINE"
