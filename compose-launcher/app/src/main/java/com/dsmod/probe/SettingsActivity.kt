@@ -622,7 +622,19 @@ class SettingsActivity : ComponentActivity() {
                         s == "tab:1" -> FeaturesScreen(onOpen = { route = it }, onOpenDeepSeekSettings = { openDeepSeekSettings() })
                         s == "tab:2" -> SettingsScreen(onOpen = { route = it }, onOpenAbout = { route = ROUTE_ABOUT }, onOpenDeepSeekSettings = { openDeepSeekSettings() }, onRefreshStatus = { statusViewModel.refresh(); toast("已刷新") }, appVersionLine = appVersionLine, repositoryUrl = REPOSITORY, onOpenUrl = { openUrl(it) })
                         s == ROUTE_ABOUT -> AboutScreen(onLicense = { licenseOpen = true }, appName = APP_NAME, appVersionLine = appVersionLine, repositoryUrl = REPOSITORY, onOpenUrl = { openUrl(it) })
-                        s == LauncherCatalog.DATA_ID -> DataScreen()
+                        s == LauncherCatalog.DATA_ID -> DataScreen(
+                            showFullBackup = BuildInfo.PROTECTED_BUILD && isFullBackupHostSupported(),
+                            onExport = { launchExport(it) },
+                            onImport = { launchImport() },
+                            onFullBackup = {
+                                runCatching { ClosedFullDataBackupBridge.beginBackup(this@SettingsActivity) }
+                                    .onFailure { toast("备份失败：${it.message}") }
+                            },
+                            onFullRestore = {
+                                runCatching { ClosedFullDataBackupBridge.beginRestore(this@SettingsActivity) }
+                                    .onFailure { toast("恢复失败：${it.message}") }
+                            },
+                        )
                         s == LauncherCatalog.HELP_ID -> HelpScreen(onAbout = { route = ROUTE_ABOUT }, onOpenDeepSeekSettings = { openDeepSeekSettings() })
                         else -> LauncherCatalog.find(s)?.let { CategoryScreen(it) }
                             ?: HomeScreen(onOpen = { route = it })
@@ -761,88 +773,7 @@ class SettingsActivity : ComponentActivity() {
         else -> null
     }
 
-    @Composable
-    private fun DataScreen() {
-        var zip by rememberSaveable { mutableStateOf(true) }
-        PageColumn {
-            NoteCard(
-                "用于跨大版本重装 YunSeek 或 DeepSeek：卸载前先导出，安装新版本并激活模块后再导入恢复。" +
-                    "导出与导入都需要 DeepSeek 已打开过一次（模块已注入）。",
-                Modifier.staggeredEntrance(0),
-                icon = Icons.Filled.Info,
-            )
-            SectionHeader("导出模块数据", Modifier.staggeredEntrance(1))
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().staggeredEntrance(2)) {
-                SegmentedButton(
-                    selected = zip,
-                    onClick = { zip = true },
-                    shape = SegmentedButtonDefaults.itemShape(0, 2),
-                ) { Text("ZIP 全量") }
-                SegmentedButton(
-                    selected = !zip,
-                    onClick = { zip = false },
-                    shape = SegmentedButtonDefaults.itemShape(1, 2),
-                ) { Text("JSON 仅设置") }
-            }
-            AnimatedContent(targetState = zip, label = "formatDesc",
-                transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) }) { z ->
-                Text(
-                    if (z) "包含：配置桥可读取的全部模块设置（聊天、外观、Agent、心跳计划、远程开关覆盖、语言等）" +
-                        "以及 YunSeek 启动器自身的数据文件。"
-                    else "仅包含模块设置，与旧版\u201c导出配置\u201d的 JSON 格式完全兼容。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 6.dp),
-                )
-            }
-            val exportInteraction = remember { MutableInteractionSource() }
-            Button(
-                onClick = { launchExport(zip) },
-                interactionSource = exportInteraction,
-                modifier = Modifier.fillMaxWidth().height(52.dp).pressScale(exportInteraction).staggeredEntrance(3),
-            ) {
-                Icon(Icons.Outlined.ArrowUpward, contentDescription = null, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(10.dp))
-                Text(if (zip) "导出 ZIP" else "导出 JSON")
-            }
-            SectionHeader("导入恢复", Modifier.staggeredEntrance(4))
-            Text(
-                "选择之前导出的 ZIP 或 JSON（也兼容旧版 Deekseep 导出的配置 JSON）。导入会覆盖同名设置。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 6.dp).staggeredEntrance(5),
-            )
-            val importInteraction = remember { MutableInteractionSource() }
-            FilledTonalButton(
-                onClick = { launchImport() },
-                interactionSource = importInteraction,
-                modifier = Modifier.fillMaxWidth().height(52.dp).pressScale(importInteraction).staggeredEntrance(6),
-            ) {
-                Icon(Icons.Outlined.ArrowDownward, contentDescription = null, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(10.dp))
-                Text("导入恢复")
-            }
-            NoteCard(
-                "提示词库、置顶与会话记录保存在 DeepSeek 私有目录，启动器无法读取，不在此备份中；" +
-                    "请在 DeepSeek 内的模块设置中处理。导入后需强制停止并重新打开 DeepSeek 才会生效。",
-                Modifier.staggeredEntrance(7),
-                icon = Icons.Filled.Lock,
-            )
-            if (BuildInfo.PROTECTED_BUILD && isFullBackupHostSupported()) {
-                SectionHeader("完整数据（需要 Root）", Modifier.staggeredEntrance(8))
-                CategoryCard(Icons.Outlined.ArrowUpward, "一键备份全部数据",
-                    "加密保存模块配置、DeepSeek 数据、聊天记录与日志", Modifier.staggeredEntrance(9)) {
-                    runCatching { ClosedFullDataBackupBridge.beginBackup(this@SettingsActivity) }
-                        .onFailure { toast("备份失败：${it.message}") }
-                }
-                CategoryCard(Icons.Outlined.ArrowDownward, "一键恢复全部数据",
-                    "校验备份后覆盖当前私有数据", Modifier.staggeredEntrance(10)) {
-                    runCatching { ClosedFullDataBackupBridge.beginRestore(this@SettingsActivity) }
-                        .onFailure { toast("恢复失败：${it.message}") }
-                }
-            }
-        }
-    }
+
 
     @Suppress("DEPRECATION")
     private fun isFullBackupHostSupported(): Boolean = runCatching {
