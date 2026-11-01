@@ -785,11 +785,14 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     public static synchronized void log(String msg) {
         if (z8.shouldSuppressGeneralMessage(msg)) return;
         if (isLocalApiExecutionLogContext() && !z8.isError(msg)) return;
-        try { DeveloperDiagnostics.record(msg); } catch (Throwable ignored) {}
-        try { Main m = MODULE; if (m != null) m.log(Log.INFO, TAG, msg); } catch (Throwable ignored) {}
-        try { HookLogOverlay.onLog(msg); } catch (Throwable ignored) {}
+        // Sanitize before every ordinary diagnostic sink. RawHookTrace remains an explicitly
+        // opt-in, separately stored development trace and is never routed through DshLog files.
+        String safe = DshLog.sanitizeForStorage(msg == null ? "" : msg);
+        try { DeveloperDiagnostics.record(safe); } catch (Throwable ignored) {}
+        try { Main m = MODULE; if (m != null) m.log(Log.INFO, TAG, safe); } catch (Throwable ignored) {}
+        try { HookLogOverlay.onLog(safe); } catch (Throwable ignored) {}
         try { RawHookTrace.module(msg); } catch (Throwable ignored) {}
-        DshLog.info("Main", msg);
+        DshLog.info("Main", safe);
     }
 
     // 专门记录服务器返回内容的诊断日志：写 DeepSeek files 目录（root 可读），
