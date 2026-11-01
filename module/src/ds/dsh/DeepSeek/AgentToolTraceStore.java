@@ -3,6 +3,7 @@ package ds.dsh.DeepSeek;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import android.system.Os;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -339,8 +340,9 @@ final class AgentToolTraceStore {
                 output.flush();
                 output.getFD().sync();
             }
-            if (target.exists() && !target.delete()) return;
-            if (!temporary.renameTo(target)) temporary.delete();
+            // POSIX rename within the same directory atomically replaces an existing target.
+            // Never delete the last known-good ledger before the replacement is committed.
+            Os.rename(temporary.getAbsolutePath(), target.getAbsolutePath());
         } catch (Throwable ignored) {
             temporary.delete();
         }
