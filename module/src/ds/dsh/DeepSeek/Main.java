@@ -797,16 +797,40 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     public static synchronized void srvLog(String msg) {
         if (z8.shouldSuppressGeneralMessage(msg)) return;
         if (isLocalApiExecutionLogContext() && !z8.isError(msg)) return;
-        DshLog.info("Server", msg);
-        try { Main m = MODULE; if (m != null) m.log(Log.INFO, TAG, "SRV " + msg); } catch (Throwable ignored) {}
+        DshLog.info("Server", sanitizeDiagnosticPayload(msg));
+        try { Main m = MODULE; if (m != null) m.log(Log.INFO, TAG, "SRV " + sanitizeDiagnosticPayload(msg)); } catch (Throwable ignored) {}
     }
 
     // 视觉中继诊断日志：私有目录直写为主，同时尽力镜像一份到公共目录。
     public static synchronized void extLog(String msg) {
         if (z8.shouldSuppressGeneralMessage(msg)) return;
         if (isLocalApiExecutionLogContext() && !z8.isError(msg)) return;
-        try { Main m = MODULE; if (m != null) m.log(Log.INFO, TAG, msg); } catch (Throwable ignored) {}
-        DshLog.info("Vision", msg);
+        String safe = sanitizeVisionDiagnostic(msg);
+        try { Main m = MODULE; if (m != null) m.log(Log.INFO, TAG, safe); } catch (Throwable ignored) {}
+        DshLog.info("Vision", safe);
+    }
+
+    /** Keep diagnostic structure while removing raw SSE, prompt, message and object payloads. */
+    private static String sanitizeDiagnosticPayload(String raw) {
+        if (raw == null) return "";
+        String value = raw.replace('\n', ' ').replace('\r', ' ');
+        value = value.replaceAll(
+                "(?i)(\\b(?:data|payload|body|content|prompt|message|text|json|response|result|description|desc|authorization|cookie|client[_-]?secret|x-api-key|api[_-]?key)\\s*[:=]\\s*).*$",
+                "$1[redacted]");
+        value = value.replaceAll(
+                "(?i)(\\barg\\d+\\s*=\\s*).*?(?=\\s+arg\\d+\\s*=|$)",
+                "$1[redacted]");
+        return value;
+    }
+
+    private static String sanitizeVisionDiagnostic(String raw) {
+        String value = sanitizeDiagnosticPayload(raw);
+        value = value.replaceAll("(?i)(\\bemit#\\d+\\s+).*$", "$1[redacted]");
+        value = value.replaceAll("(?i)(\\bcollect returned:\\s*).*$", "$1[redacted]");
+        value = value.replaceAll("(?i)(\\bcollect threw:\\s*).*$", "$1[redacted]");
+        value = value.replaceAll("(?i)(\\bresumed:\\s*).*$", "$1[redacted]");
+        value = value.replaceAll("(?i)(\\bdescribeOneImage threw:\\s*).*$", "$1[redacted]");
+        return value;
     }
 
     private static volatile boolean crashHandlerInstalled = false;
