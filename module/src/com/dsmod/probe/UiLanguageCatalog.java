@@ -512,7 +512,7 @@ final class UiLanguageCatalog {
                 "Choose an image from the system gallery, then use it as wallpaper or add it as a sticker.");
         add("模块会保存私有副本，删除相册原图后仍可显示。",
                 "The module keeps a private copy, so it remains available if the gallery original is deleted.");
-        add("选择图片", "Select image");
+        add("选择图片", "Choose image");
         add("背景图", "Wallpaper");
         add("背景图旋转：", "Wallpaper rotation: ");
         add("取景决定缩放或裁剪后保留哪一块；横图可重点保留左侧、中央或右侧。",
@@ -585,7 +585,7 @@ final class UiLanguageCatalog {
         add("聊天界面", "Chat screen");
         add("会话侧栏", "Conversation sidebar");
         add("设置界面", "Settings screen");
-        add("未绑定", "None");
+        add("未绑定", "Not bound");
         add("、", ", ");
         add("清除背景图", "Remove wallpaper");
         add("清除背景图？", "Remove wallpaper?");
@@ -980,7 +980,7 @@ final class UiLanguageCatalog {
         add("立即重新校准", "Recenter now");
         add("将当前持机姿态设为视觉中心",
                 "Use the current device pose as the visual center");
-        add("已请求重新校准", "Recentering requested");
+        add("已请求重新校准", "Recenter requested");
         add("修改 AI 心跳间隔", "Change AI heartbeat interval");
         add("当前间隔：%d 分钟。点按此处修改；模型主动消息会写入绑定对话，并在前后台都发送系统通知。",
                 "Current interval: %d minutes. Tap here to change it. Proactive model messages are added to the bound chat and always produce a system notification.");
@@ -1645,7 +1645,7 @@ final class UiLanguageCatalog {
         add("无法导出", "Could not export");
         add("已选择", "Selected");
         add("未选择", "Not selected");
-        add("无法打开保存位置", "Could not open save location");
+        add("无法打开保存位置", "Could not open a save location");
         add("导出内容已失效，请重新选择账号", "Export selection expired; select accounts again");
         add("目标文件不可写", "Destination file is not writable");
         add("目标文件写入失败", "Could not write destination file");
