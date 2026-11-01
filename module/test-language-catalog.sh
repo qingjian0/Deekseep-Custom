@@ -9,7 +9,7 @@ import re
 import sys
 
 root = pathlib.Path("src/ds/dsh/DeepSeek")
-catalog_source = (root / "UiLanguageCatalog.java").read_text(encoding="utf-8")
+catalog_source = (root / "UiLanguageCatalog.kt").read_text(encoding="utf-8")
 string_literal = re.compile(r'"(?:\\.|[^"\\])*"')
 cjk = re.compile(r'[\u3400-\u9fff]')
 
@@ -153,9 +153,9 @@ if uncovered:
 
 # Guard the production contract: catalog lookup must remain exact-only and dynamic
 # text must not perform substring replacement.
-if "return EXACT.containsKey(value);" not in catalog_source:
+if "return EXACT.containsKey(value)" not in catalog_source:
     raise SystemExit("UiLanguageCatalog.mightTranslate must use exact lookup")
-if "return value;" not in catalog_source[catalog_source.find("static String toEnglish"):]:
+if "return value;" not in catalog_source[catalog_source.find("fun toEnglish"):]:
     raise SystemExit("UiLanguageCatalog.toEnglish must preserve unknown text unchanged")
 
 language_source = (root / "UiLanguage.java").read_text(encoding="utf-8")
