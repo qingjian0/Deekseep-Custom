@@ -911,7 +911,7 @@ final class HookChatPipeline {
     }
 
     // ── 阻止内容安全审查擦除（clear_response 拦截）─────────────────
-    void hookSafetyRetraction(ClassLoader cl) {
+    void hookSafetyRetraction(ClassLoader cl) throws Throwable {
         try {
             Class<?> k = HostCompat.load(cl, "kb7");
             int n = 0;
@@ -950,11 +950,17 @@ final class HookChatPipeline {
                 n++;
             }
             Main.log("hooked kb7 constructors x" + n + " (clear_response guard)");
-        } catch (Throwable t) { Main.log("hookSafetyRetraction failed: " + t); }
+        } catch (Throwable t) {
+            if (n == 0) {
+                throw new NoSuchMethodException("hookSafetyRetraction matched no hook targets");
+            }
+            Main.log("hookSafetyRetraction failed: " + t);
+            throw t;
+        }
     }
 
     // ── 诊断：抓取服务器返回的 SSE 原始事件 ─────────────────────────
-    void installServerCapture(ClassLoader cl) {
+    void installServerCapture(ClassLoader cl) throws Throwable {
         try {
             // code257's SSE line parser emits ff8(event,data). The old lv7
             // compatibility chain now resolves a one-field analytics Type and
@@ -998,7 +1004,13 @@ final class HookChatPipeline {
                 n++;
             }
             Main.log("installed server capture on lv7 x" + n);
-        } catch (Throwable t) { Main.log("installServerCapture failed: " + t); }
+        } catch (Throwable t) {
+            if (n == 0) {
+                throw new NoSuchMethodException("installServerCapture matched no hook targets");
+            }
+            Main.log("installServerCapture failed: " + t);
+            throw t;
+        }
     }
 
     /** Sanitizes 2.3.4's whole-fragments replacement before gw.i builds its Markdown State. */
@@ -1089,7 +1101,7 @@ final class HookChatPipeline {
     }
 
     // ── 真正的替换拦截：mv.i() JSON-patch 应用点 ────────────────────
-    void hookContentFilterApply(ClassLoader cl) {
+    void hookContentFilterApply(ClassLoader cl) throws Throwable {
         try {
             Class<?> k = HostCompat.load(cl, "mv");
             int n = 0;
@@ -1196,7 +1208,13 @@ final class HookChatPipeline {
                 n++;
             }
             Main.log("hooked mv.i x" + n + " (content-filter guard)");
-        } catch (Throwable t) { Main.log("hookContentFilterApply failed: " + t); }
+        } catch (Throwable t) {
+            if (n == 0) {
+                throw new NoSuchMethodException("hookContentFilterApply matched no hook targets");
+            }
+            Main.log("hookContentFilterApply failed: " + t);
+            throw t;
+        }
     }
 
     private static void forceLiveRegenerateAllowedV241(Object message) {
@@ -1255,7 +1273,7 @@ final class HookChatPipeline {
     }
 
     // 诊断：抓 vv7.e()（把服务端 kv 反序列化成全新 mv 消息对象）
-    void installMsgRebuildCapture(ClassLoader cl) {
+    void installMsgRebuildCapture(ClassLoader cl) throws Throwable {
         try {
             Class<?> k = HostCompat.load(cl, "vv7");
             int n = 0;
@@ -1273,11 +1291,17 @@ final class HookChatPipeline {
                 n++;
             }
             Main.log("installed msg-rebuild capture on vv7.e x" + n);
-        } catch (Throwable t) { Main.log("installMsgRebuildCapture failed: " + t); }
+        } catch (Throwable t) {
+            if (n == 0) {
+                throw new NoSuchMethodException("installMsgRebuildCapture matched no hook targets");
+            }
+            Main.log("installMsgRebuildCapture failed: " + t);
+            throw t;
+        }
     }
 
     // 第二拦截点：mv.S(status)/mv.R(quasi_status) 直接状态写入
-    void hookStatusWrite(ClassLoader cl) {
+    void hookStatusWrite(ClassLoader cl) throws Throwable {
         try {
             Class<?> k = HostCompat.load(cl, "mv");
             int n = 0;
@@ -1359,7 +1383,13 @@ final class HookChatPipeline {
                 n++;
             }
             Main.log("hooked mv.S/R x" + n + " (status-write guard)");
-        } catch (Throwable t) { Main.log("hookStatusWrite failed: " + t); }
+        } catch (Throwable t) {
+            if (n == 0) {
+                throw new NoSuchMethodException("hookStatusWrite matched no hook targets");
+            }
+            Main.log("hookStatusWrite failed: " + t);
+            throw t;
+        }
     }
 
     private static void maybeAutoContinue(
@@ -1579,7 +1609,7 @@ final class HookChatPipeline {
     }
 
     // 诊断：hook h83.h(l84) fragment 反序列化选择器
-    void hookTemplateProbe(ClassLoader cl) {
+    void hookTemplateProbe(ClassLoader cl) throws Throwable {
         try {
             // code257's polymorphic fragment serializer selector is ii3.h(ak4).
             // The legacy h83 key is retained unchanged outside this branch.
@@ -1607,11 +1637,17 @@ final class HookChatPipeline {
                 n++;
             }
             Main.log("hooked h83.h x" + n + " (template probe)");
-        } catch (Throwable t) { Main.log("hookTemplateProbe failed: " + t); }
+        } catch (Throwable t) {
+            if (n == 0) {
+                throw new NoSuchMethodException("hookTemplateProbe matched no hook targets");
+            }
+            Main.log("hookTemplateProbe failed: " + t);
+            throw t;
+        }
     }
 
     // ── close 后整表合并 tp.u(tp, List) ──────────────────
-    void hookFinalMessageMerge(ClassLoader cl) {
+    void hookFinalMessageMerge(ClassLoader cl) throws Throwable {
         try {
             final Class<?> tpk = HostCompat.load(cl, "tp");
             final Field fField = HostRemap.declaredField(tpk, HostCompat.sessionMessageMapField());
@@ -1700,11 +1736,17 @@ final class HookChatPipeline {
                 n++;
             }
             Main.log("hooked tp.u x" + n + " (final-merge guard)");
-        } catch (Throwable t) { Main.log("hookFinalMessageMerge failed: " + t); }
+        } catch (Throwable t) {
+            if (n == 0) {
+                throw new NoSuchMethodException("hookFinalMessageMerge matched no hook targets");
+            }
+            Main.log("hookFinalMessageMerge failed: " + t);
+            throw t;
+        }
     }
 
     // ── 单条消息替换拦截：tp.q(uo)/tp.p(uo,String)/tp.a(uo,bool) ─────────
-    void hookFinalMessageApply(ClassLoader cl) {
+    void hookFinalMessageApply(ClassLoader cl) throws Throwable {
         try {
             final Class<?> tpk = HostCompat.load(cl, "tp");
             final Field fField = HostRemap.declaredField(tpk, HostCompat.sessionMessageMapField());
@@ -1781,7 +1823,13 @@ final class HookChatPipeline {
                 n++;
             }
             Main.log("hooked tp.q/p/a x" + n + " (final-apply guard)");
-        } catch (Throwable t) { Main.log("hookFinalMessageApply failed: " + t); }
+        } catch (Throwable t) {
+            if (n == 0) {
+                throw new NoSuchMethodException("hookFinalMessageApply matched no hook targets");
+            }
+            Main.log("hookFinalMessageApply failed: " + t);
+            throw t;
+        }
     }
 
     // 反射调用无参方法返回字符串（uo.D()=status / uo.x()=quasi_status）
@@ -1977,7 +2025,7 @@ final class HookChatPipeline {
      * server-side (the completion request carries only the current message), so removal here
      * cannot break the agent loop.
      */
-    void hookS11RenderFilter(final ClassLoader cl) {
+    void hookS11RenderFilter(final ClassLoader cl) throws Throwable {
         if (!HostCompat.isV230() || HostCompat.isV234()) return;
         try {
             Class<?> s11 = HostRemap.load(cl, "s11");
@@ -2015,7 +2063,11 @@ final class HookChatPipeline {
             }
             Main.log("installed s11 render filter x" + installed);
         } catch (Throwable error) {
+            if (installed == 0) {
+                throw new NoSuchMethodException("hookS11RenderFilter matched no hook targets");
+            }
             Main.log("hook s11 render filter failed: " + error);
+            throw error;
         }
     }
 
@@ -2024,7 +2076,7 @@ final class HookChatPipeline {
      * screenshot uploads appear there before their hidden message is sent; strip those rows so
      * the capture is never visible on the user side.
      */
-    void hookCs1RenderFilter(final ClassLoader cl) {
+    void hookCs1RenderFilter(final ClassLoader cl) throws Throwable {
         if (!HostCompat.isV230() || HostCompat.isV234()) return;
         try {
             Class<?> cs1 = HostRemap.load(cl, "cs1");
@@ -2076,7 +2128,11 @@ final class HookChatPipeline {
             }
             Main.log("installed cs1.m attachment filter x" + installed);
         } catch (Throwable error) {
+            if (installed == 0) {
+                throw new NoSuchMethodException("hookCs1RenderFilter matched no hook targets");
+            }
             Main.log("hook cs1.m attachment filter failed: " + error);
+            throw error;
         }
     }
 
@@ -2192,7 +2248,7 @@ final class HookChatPipeline {
     }
 
     // 4) 捕获一个活着的 q71（completion PoW 管理器）实例
-    void installPowManagerCapture(ClassLoader cl) {
+    void installPowManagerCapture(ClassLoader cl) throws Throwable {
         try {
             Class<?> q71 = HostCompat.load(cl, "q71");
             int n = 0;
@@ -2219,7 +2275,13 @@ final class HookChatPipeline {
                 }
             }
             Main.log("installed pow manager capture on q71 x" + n);
-        } catch (Throwable t) { Main.log("installPowManagerCapture failed: " + t); }
+        } catch (Throwable t) {
+            if (n == 0) {
+                throw new NoSuchMethodException("installPowManagerCapture matched no hook targets");
+            }
+            Main.log("installPowManagerCapture failed: " + t);
+            throw t;
+        }
     }
 
     private static void captureApiManagers(Object q71) {
