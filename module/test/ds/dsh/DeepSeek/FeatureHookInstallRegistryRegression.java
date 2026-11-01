@@ -56,7 +56,11 @@ public final class FeatureHookInstallRegistryRegression {
     private static void testSkippedEntryIsTerminal() throws Throwable {
         FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
         AtomicInteger calls = new AtomicInteger();
-        registry.markSkipped("host.v271.optional", "not verified for this host generation");
+        registry.markSkipped("host.v271.optional",
+                "Authorization: Bearer skip-secret /data/user/0/private/config");
+        String detail = detailFor(registry, "host.v271.optional");
+        assertFalse(detail.contains("skip-secret"), "skip reason must redact bearer credentials");
+        assertFalse(detail.contains("/data/user/0/private"), "skip reason must redact private paths");
         registry.install("host.v271.optional", calls::incrementAndGet);
         assertEquals(0, calls.get(), "skipped feature must not execute");
         assertState(registry, "host.v271.optional", FeatureHookInstallRegistry.State.SKIPPED, 0);
@@ -110,7 +114,7 @@ public final class FeatureHookInstallRegistryRegression {
 
     private static void testFailureIsRethrownAndRecorded() throws Throwable {
         FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
-        RuntimeException expected = new RuntimeException("identity");
+        RuntimeException expected = new RuntimeException("Authorization: Bearer test-secret /data/user/0/private/state");
         try {
             registry.install("failed.feature", () -> { throw expected; });
             throw new AssertionError("failure was not propagated");
@@ -118,6 +122,11 @@ public final class FeatureHookInstallRegistryRegression {
             if (actual != expected) throw new AssertionError("failure identity changed");
         }
         assertState(registry, "failed.feature", FeatureHookInstallRegistry.State.FAILED, 1);
+        String detail = detailFor(registry, "failed.feature");
+        assertFalse(detail.contains("test-secret"), "status detail must redact bearer credentials");
+        assertFalse(detail.contains("/data/user/0/private"), "status detail must redact private paths");
+        assertTrue(detail.contains("[redacted]"), "status detail should retain a redaction marker");
+        assertTrue(detail.contains("[private-path]"), "status detail should retain a private-path marker");
         assertTrue(registry.hasFailures(), "failed registry must be unhealthy");
     }
 
@@ -131,6 +140,13 @@ public final class FeatureHookInstallRegistryRegression {
             if (actual != fatal) throw new AssertionError("fatal failure identity changed");
         }
         assertState(registry, "fatal.feature", FeatureHookInstallRegistry.State.FAILED, 1);
+    }
+
+    private static String detailFor(FeatureHookInstallRegistry registry, String id) {
+        for (FeatureHookInstallRegistry.Status status : registry.snapshot()) {
+            if (id.equals(status.id)) return status.detail == null ? "" : status.detail;
+        }
+        throw new AssertionError("missing registry detail for " + id);
     }
 
     private static void assertState(FeatureHookInstallRegistry registry, String id,
