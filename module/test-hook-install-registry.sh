@@ -27,6 +27,12 @@ grep -Fq 'public_queued' "$QUEUE_SOURCE"
 grep -Fq 'partial' "$QUEUE_SOURCE"
 ! test -e "$MODULE_DIR/src/ds/dsh/DeepSeek/DshLogIpcQueue.java"
 grep -Fq 'return DshLogIpcQueue.enqueue(context, category, line);' "$PROVIDER_SOURCE"
+grep -Fq 'synchronized (FRAMEWORK_BINDER_LOCK)' "$PROVIDER_SOURCE"
+grep -Fq 'binder.linkToDeath(deathRecipient, 0)' "$PROVIDER_SOURCE"
+grep -Fq 'if (!binder.isBinderAlive())' "$PROVIDER_SOURCE"
+BINDER_LINK_LINE="$(grep -nF 'binder.linkToDeath(deathRecipient, 0)' "$PROVIDER_SOURCE" | cut -d: -f1)"
+BINDER_PUBLISH_LINE="$(grep -nF 'frameworkBinder = binder;' "$PROVIDER_SOURCE" | cut -d: -f1)"
+test "$BINDER_LINK_LINE" -lt "$BINDER_PUBLISH_LINE"
 # All three log IPC operations (write, status, crash read) must enforce the exclusive UID.
 test "$(grep -Fc 'uidOwnsExclusivePackage(context, callingUid, TARGET_PACKAGE)' "$PROVIDER_SOURCE")" -eq 3
 grep -Fq 'object DshRemoteFileLogSink' "$REMOTE_SINK_SOURCE"
