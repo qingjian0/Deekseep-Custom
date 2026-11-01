@@ -645,7 +645,7 @@ class SettingsActivity : ComponentActivity() {
                                 },
                                 onOpenDeepSeekSettings = { openDeepSeekSettings() },
                             )
-                        } ?: HomeScreen(onOpen = { route = it })
+                        } ?: HomeScreen(onOpen = { route = it }, statusContent = { StatusCard(0, statusState) })
                     }
                 }
                 val busy = busyMessage
