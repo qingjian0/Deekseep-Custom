@@ -5,6 +5,8 @@ pluginManagement {
         repositories {
             google()
             mavenCentral()
+            // Official standalone R8 release repository documented by the R8 project.
+            maven { url = uri("https://storage.googleapis.com/r8-releases/raw") }
         }
         dependencies {
             classpath("com.android.tools:r8:9.1.29")
