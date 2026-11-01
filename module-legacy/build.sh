@@ -86,12 +86,30 @@ mkdir -p "$OUT/xstage/assets"
 cp assets/xposed_init "$OUT/xstage/assets/xposed_init"
 ( cd "$OUT/xstage" && zip -q -9 -r ../unsigned.apk assets )
 $ZIPALIGN -f -p 4 "$OUT/unsigned.apk" "$OUT/aligned.apk"
-if [ ! -f legacy.keystore ]; then
-  keytool -genkeypair -keystore legacy.keystore -storepass deekseep \
-    -keypass deekseep -alias deekseeplegacy \
-    -dname "CN=Deekseep Legacy,O=Deekseep,C=US" \
+# Legacy, Universal and Compose share one applicationId. They must also share a
+# signing identity so users can upgrade between the maintained variants.
+# CI creates this key per run; local builds reuse the ordinary ignored debug key.
+if [[ -n "${ANDROID_KEYSTORE_PATH:-}" ]]; then
+  KEYSTORE="$ANDROID_KEYSTORE_PATH"
+else
+  KEYSTORE="$ROOT_DIR/module/debug.keystore"
+fi
+STORE_PASSWORD="${ANDROID_STORE_PASSWORD:-android}"
+KEY_ALIAS="${ANDROID_KEY_ALIAS:-androiddebugkey}"
+KEY_PASSWORD="${ANDROID_KEY_PASSWORD:-$STORE_PASSWORD}"
+
+if [[ ! -f "$KEYSTORE" ]]; then
+  if [[ -n "${ANDROID_KEYSTORE_PATH:-}" ]]; then
+    echo "Configured ANDROID_KEYSTORE_PATH does not exist: $KEYSTORE" >&2
+    exit 1
+  fi
+  keytool -genkeypair -v -keystore "$KEYSTORE" \
+    -storepass "$STORE_PASSWORD" -keypass "$KEY_PASSWORD" \
+    -alias "$KEY_ALIAS" \
+    -dname "CN=Android Debug,O=Android,C=US" \
     -keyalg RSA -keysize 2048 -validity 10000 >/dev/null
 fi
-$APKSIGNER sign --ks legacy.keystore --ks-pass pass:deekseep \
-  --key-pass pass:deekseep --out ds-probe-legacy.apk "$OUT/aligned.apk"
+$APKSIGNER sign --ks "$KEYSTORE" --ks-pass "pass:$STORE_PASSWORD" \
+  --ks-key-alias "$KEY_ALIAS" --key-pass "pass:$KEY_PASSWORD" \
+  --out ds-probe-legacy.apk "$OUT/aligned.apk"
 echo "DONE -> $(pwd)/ds-probe-legacy.apk"
