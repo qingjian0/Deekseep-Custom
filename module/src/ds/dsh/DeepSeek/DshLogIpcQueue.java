@@ -59,6 +59,22 @@ final class DshLogIpcQueue {
         }
     }
 
+    /** Crash records bypass the normal queue so process teardown cannot discard them. */
+    static Bundle writeCrashNow(Context context, String line) {
+        Bundle result = new Bundle();
+        boolean privateWritten = DshFileLogStore.appendPrivate(context, "crash", line);
+        boolean publicWritten = DshFileLogStore.appendPublic(context, "crash", line);
+        if (privateWritten) PRIVATE_WRITES.incrementAndGet();
+        else PRIVATE_FAILURES.incrementAndGet();
+        if (publicWritten) PUBLIC_WRITES.incrementAndGet();
+        else PUBLIC_FAILURES.incrementAndGet();
+        result.putBoolean("private_written", privateWritten);
+        result.putBoolean("public_written", publicWritten);
+        result.putBoolean("accepted", privateWritten || publicWritten);
+        result.putBoolean("queued", false);
+        return result;
+    }
+
     static void putStatus(Bundle result) {
         result.putLong("private_writes", PRIVATE_WRITES.get());
         result.putLong("private_failures", PRIVATE_FAILURES.get());
