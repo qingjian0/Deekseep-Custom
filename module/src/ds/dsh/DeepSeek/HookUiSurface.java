@@ -1085,7 +1085,7 @@ final class HookUiSurface {
             }
         });
 
-        Main.MODULE.hook(runtime.clipMethod).intercept(new Hooker() {
+        hookUiFeatureMember("hookChatBubbleCustomization", runtime.clipMethod, new Hooker() {
             @Override public Object intercept(Chain chain) throws Throwable {
                 BubbleRenderContext context = BUBBLE_RENDER_CONTEXT.get();
                 if (context == null || !context.user) {
@@ -1101,7 +1101,7 @@ final class HookUiSurface {
             }
         });
 
-        Main.MODULE.hook(runtime.backgroundMethod).intercept(new Hooker() {
+        hookUiFeatureMember("hookChatBubbleCustomization", runtime.backgroundMethod, new Hooker() {
             @Override public Object intercept(Chain chain) throws Throwable {
                 InputGlassContext input = INPUT_GLASS_CONTEXT.get();
                 if (input != null && "Attachment".equals(input.label)
@@ -1309,7 +1309,7 @@ final class HookUiSurface {
         }
     }
 
-    private static void restoreBubbleContext(BubbleRenderContext previous) {
+    enderContext previous) {
         if (previous == null) BUBBLE_RENDER_CONTEXT.remove();
         else BUBBLE_RENDER_CONTEXT.set(previous);
     }
