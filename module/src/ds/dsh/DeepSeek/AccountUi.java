@@ -1401,9 +1401,10 @@ final class AccountUi {
                             StringBuilder message = new StringBuilder();
                             if (imported > 0) {
                                 refreshOpen(act);
-                                message.append("已从 ").append(uris.size())
-                                        .append(" 个所选项目中验证并加入 ").append(imported)
-                                        .append(" 个账号。当前登录账号未改变。");
+                                message.append(UiLanguage.format(act,
+                                        "已从 %2$d 个所选项目中验证并加入 %1$d 个账号。当前登录账号未改变。",
+                                        "Validated and added %1$d accounts from %2$d selected items. The currently signed-in account was not changed.",
+                                        imported, uris.size()));
                             } else {
                                 message.append("所有候选账号均验证失败，未导入任何账号。原账号列表保持不变。");
                             }
