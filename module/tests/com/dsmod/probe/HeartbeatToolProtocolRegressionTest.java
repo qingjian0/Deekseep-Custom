@@ -6,7 +6,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.TimeZone;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 /** Pure-JVM regression coverage for hidden heartbeat tool framing and strict JSON parsing. */
 public final class HeartbeatToolProtocolRegressionTest {
@@ -74,13 +77,66 @@ public final class HeartbeatToolProtocolRegressionTest {
         return count;
     }
 
-    private static int timestampedToolRows(String value) {
-        int count = 0;
-        if (value == null) return count;
-        for (String line : value.split("\n")) {
-            if (line.matches("> \\d{2}:\\d{2}:\\d{2}  .+")) count++;
+    /** Decode the private DSLG2 presentation carrier consumed by the native Canvas hook. */
+    private static JSONArray toolLogRows(String value) {
+        JSONArray result = new JSONArray();
+        if (value == null) return result;
+        String prefix = RichPanelRenderer.TOOL_LOG_PAYLOAD_PREFIX;
+        int cursor = 0;
+        while (cursor < value.length()) {
+            int marker = value.indexOf(prefix, cursor);
+            if (marker < 0) break;
+            int start = marker + prefix.length();
+            int end = start;
+            while (end < value.length()
+                    && Character.digit(value.charAt(end), 16) >= 0) end++;
+            require(end > start && ((end - start) & 1) == 0,
+                    "native tool-log carrier has no complete hex payload");
+            byte[] bytes = new byte[(end - start) / 2];
+            for (int index = 0; index < bytes.length; index++) {
+                int high = Character.digit(value.charAt(start + index * 2), 16);
+                int low = Character.digit(value.charAt(start + index * 2 + 1), 16);
+                bytes[index] = (byte) ((high << 4) | low);
+            }
+            try {
+                JSONArray decoded = new JSONArray(
+                        new String(bytes, java.nio.charset.StandardCharsets.UTF_8));
+                for (int index = 0; index < decoded.length(); index++) {
+                    JSONObject row = decoded.optJSONObject(index);
+                    require(row != null, "native tool-log payload contains a non-object row");
+                    result.put(row);
+                }
+            } catch (RuntimeException error) {
+                throw new AssertionError("native tool-log payload is not valid JSON", error);
+            }
+            cursor = end;
         }
-        return count;
+        return result;
+    }
+
+    private static String toolLogRowName(String value, int index) {
+        JSONArray rows = toolLogRows(value);
+        return index < 0 || index >= rows.length()
+                ? "" : rows.optJSONObject(index).optString("n", "");
+    }
+
+    private static String toolLogRowKey(String value, int index) {
+        JSONArray rows = toolLogRows(value);
+        return index < 0 || index >= rows.length()
+                ? "" : rows.optJSONObject(index).optString("k", "");
+    }
+
+    private static String toolLogRowSummary(String value) {
+        JSONArray rows = toolLogRows(value);
+        StringBuilder summary = new StringBuilder();
+        for (int index = 0; index < rows.length(); index++) {
+            JSONObject row = rows.optJSONObject(index);
+            if (row == null) continue;
+            summary.append(row.optString("n", "")).append('\n')
+                    .append(row.optString("d", "")).append('\n')
+                    .append(row.optString("i", "")).append('\n');
+        }
+        return summary.toString();
     }
 
     private static String singleCallBlock(String jsonObject) {
@@ -173,44 +229,41 @@ public final class HeartbeatToolProtocolRegressionTest {
             Locale.setDefault(previousLocale);
             TimeZone.setDefault(previousTimeZone);
         }
-        require(HeartbeatToolProtocol.hasToolStatusStyleMarker(presented.visibleText),
-                "conversation heartbeat status omitted its private style marker");
-        require(!HeartbeatToolProtocol.isIsolatedToolStatusText(presented.visibleText),
-                "mixed assistant response was mistaken for an isolated tool status");
-        String isolatedStatus = null;
-        for (String line : presented.visibleText.split("\n")) {
-            if (line.startsWith("> ") && line.contains("\u8bbe\u7f6e\u5fc3\u8df3 to ")) {
-                isolatedStatus = line.substring(2);
-                break;
-            }
+        require(RichPanelRenderer.hasToolLogCarrier(presented.visibleText),
+                "conversation heartbeat status did not emit a native Canvas carrier");
+        JSONArray presentedRows = toolLogRows(presented.visibleText);
+        require(presentedRows.length() == 4,
+                "legacy batch did not render exactly the four accepted calls");
+        Set<String> presentedKeys = RichPanelRenderer.toolLogTraceKeys(presented.visibleText);
+        require(presentedKeys.size() == 4,
+                "native rows did not retain four distinct durable call identities");
+        String[] expectedIds = {"once_001", "plan_001", "int_001", "bind_001"};
+        for (String id : expectedIds) {
+            require(presentedKeys.contains("conversation-1234\\u001f" + id),
+                    "native row is missing the trace identity for " + id);
         }
-        require(HeartbeatToolProtocol.isIsolatedToolStatusText(isolatedStatus),
-                "isolated heartbeat status was not recognized for styling");
+        require("设置心跳".equals(toolLogRowName(presented.visibleText, 0))
+                        && "更新心跳约定".equals(toolLogRowName(presented.visibleText, 1))
+                        && "设置心跳".equals(toolLogRowName(presented.visibleText, 2))
+                        && "绑定心跳".equals(toolLogRowName(presented.visibleText, 3)),
+                "native Canvas rows do not match the accepted tool sequence");
+
         String presentedText =
-                HeartbeatToolProtocol.stripToolStatusStyleMarkers(presented.visibleText);
-        require(HeartbeatToolProtocol.isRegisteredToolStatusText(isolatedStatus),
-                "generated heartbeat status was not registered for Markdown fallback");
-        require(!HeartbeatToolProtocol.isRegisteredToolStatusText(
-                        "\u6a21\u578b\u8bf4\u6211\u53ef\u4ee5\u8bbe\u7f6e\u5fc3\u8df3\uff0c\u4f46\u8fd9\u4e0d\u662f\u5de5\u5177\u72b6\u6001\u3002"),
-                "ordinary model prose was mistaken for a registered tool status");
-        require(presentedText.contains("\u8bbe\u7f6e\u5fc3\u8df3 to 8\u67082\u65e5 18:37:00"),
-                "one-time heartbeat did not clearly label its trigger time");
-        require(!presentedText.contains("\u6bcf90\u5206\u949f")
-                        && !presentedText.contains("\u53d6\u6d88\u5fc3\u8df3"),
-                "later calls from a multi-tool batch leaked into the single-step UI");
-        require(timestampedToolRows(presentedText) == 1,
-                "single-step heartbeat response rendered more than one activity row");
-        require(!presentedText.contains("\u25cc")
-                        && !presentedText.contains("\u8c03\u7528\u4e86")
-                        && !presentedText.contains("**"),
-                "removed icon or agent-style wording remained in the status row");
-        require(!HeartbeatToolProtocol.hasToolStatusStyleMarker(
-                        HeartbeatToolProtocol.stripControlBlocks(
-                                presented.visibleText)),
-                "private style marker leaked through the model-context sanitizer");
+                RichPanelRenderer.stripToolLogCarriers(presented.visibleText);
+        require(presentedText.contains("已经替你安排好了。")
+                        && !presentedText.contains("晚点见。")
+                        && !RichPanelRenderer.hasToolLogCarrier(presentedText),
+                "history sanitizer did not remove the private carrier or preserve only trusted prose");
+        String carrierPayload = toolLogRowSummary(presented.visibleText);
+        require(carrierPayload.contains("2026-08-02T18:37:00+08:00")
+                        && carrierPayload.contains("每次主动分享一个轻松话题")
+                        && carrierPayload.contains("\\"minutes\\":90"),
+                "native card metadata omitted the accepted heartbeat inputs");
+        require(!HeartbeatToolProtocol.hasToolStatusStyleMarker(presented.visibleText),
+                "obsolete inline style marker was emitted alongside native Canvas rows");
         require((HeartbeatToolProtocol.TOOL_STATUS_GRAY_COLOR >>> 32)
                         == 0xFF8A8A8AL,
-                "tool status color is not the configured neutral gray");
+                "tool status fallback color is not the configured neutral gray");
         float statusSp = Float.intBitsToFloat(
                 (int) HeartbeatToolProtocol.TOOL_STATUS_FONT_SIZE);
         require(statusSp > 10.6f && statusSp < 10.8f,
@@ -229,9 +282,9 @@ public final class HeartbeatToolProtocolRegressionTest {
         require(!presented.visibleText.contains("schedule_once")
                         && !presented.visibleText.contains("DEEKSEEP_LOCAL_TOOLS")
                         && !presented.visibleText.contains("conversation-1234"),
-                "private heartbeat protocol data leaked through the tool activity row");
+                "private heartbeat protocol data leaked outside the hex carrier");
         require(HeartbeatToolProtocol.stripControlBlocks(payload).length() == 0,
-                "history/context sanitizer unexpectedly retained presentation rows");
+                "history/context sanitizer unexpectedly retained control framing");
 
         String incomplete = "先正常回复\n" + HeartbeatToolProtocol.CONTROL_START
                 + "\n{\"calls\":[";
@@ -273,16 +326,16 @@ public final class HeartbeatToolProtocolRegressionTest {
                         && !completedCharacterStream.visibleText.contains("DEEKSEEP")
                         && !completedCharacterStream.visibleText.contains("char_stream_001"),
                 "completed character stream leaked private framing");
-        String incompleteDiagnostic = HeartbeatToolProtocol.stripToolStatusStyleMarkers(
+        String incompleteDiagnostic = toolLogRowSummary(
                 HeartbeatToolProtocol.renderConversationToolRows(incomplete));
         require(incompleteDiagnostic.contains("工具调用不完整，未执行")
                         || incompleteDiagnostic.contains("Incomplete tool call; not run"),
                 "final static rendering did not explain an interrupted tool call");
-        String unbackedDiagnostic = HeartbeatToolProtocol.stripToolStatusStyleMarkers(
-                HeartbeatToolProtocol.renderConversationToolRows("已经打开微信了。"));
-        require(unbackedDiagnostic.contains("未检测到完整工具调用，操作未执行")
-                        || unbackedDiagnostic.contains("No complete tool call detected"),
-                "an unbacked completion claim was not diagnosed honestly");
+        String unbackedDiagnostic =
+                HeartbeatToolProtocol.renderConversationToolRows("已经打开微信了。");
+        require("已经打开微信了。".equals(unbackedDiagnostic)
+                        && !RichPanelRenderer.hasToolLogCarrier(unbackedDiagnostic),
+                "ordinary model prose acquired a fabricated native tool activity row");
 
         String firstSingleCall = HeartbeatToolProtocol.CONTROL_START + "\n"
                 + "{\"call\":{\"id\":\"stream_plan\",\"tool\":\"set_plan\","
@@ -307,8 +360,8 @@ public final class HeartbeatToolProtocolRegressionTest {
                 "the first singular call was not available before the next call completed");
         require(!firstStreamingFrame.incompleteControlBlock,
                 "content after the first call kept the accepted step artificially open");
-        require(occurrences(firstStreamingFrame.visibleText, "> ") == 1,
-                "the first completed call did not render immediately and independently");
+        require(toolLogRows(firstStreamingFrame.visibleText).length() == 1,
+                "the first completed call did not render one native card immediately");
 
         String thirdCallPrefix = HeartbeatToolProtocol.CONTROL_START
                 + "\n{\"call\":{\"id\":\"stream_bind\"";
@@ -321,7 +374,7 @@ public final class HeartbeatToolProtocolRegressionTest {
                 "a second tool call escaped the single-step response gate");
         require(!secondStreamingFrame.incompleteControlBlock,
                 "content after the accepted tool call affected stream state");
-        require(occurrences(secondStreamingFrame.visibleText, "> ") == 1,
+        require(toolLogRows(secondStreamingFrame.visibleText).length() == 1,
                 "a later tool call rendered before the first result returned");
 
         HeartbeatToolProtocol.Result finalStreamingFrame =
@@ -332,7 +385,7 @@ public final class HeartbeatToolProtocolRegressionTest {
                         && "stream_plan".equals(finalStreamingFrame.calls.get(0).id),
                 "multiple complete tool blocks bypassed the single-step gate");
         require(!finalStreamingFrame.incompleteControlBlock
-                        && occurrences(finalStreamingFrame.visibleText, "> ") == 1,
+                        && toolLogRows(finalStreamingFrame.visibleText).length() == 1,
                 "later call rows remained after the stream completed");
 
         String[] agentBlocks = new String[]{
@@ -391,12 +444,7 @@ public final class HeartbeatToolProtocolRegressionTest {
                 agentVisible.append(one.visibleText).append('\n');
                 if (HeartbeatToolProtocol.TOOL_CAPTURE_SCREEN.equals(
                         one.calls.get(0).tool)) {
-                    for (String line : one.visibleText.split("\n")) {
-                        if (line.startsWith("> ")) {
-                            screenshotStatus = line.substring(2);
-                            break;
-                        }
-                    }
+                    screenshotStatus = toolLogRowName(one.visibleText, 0);
                 }
             }
         } finally {
@@ -439,26 +487,36 @@ public final class HeartbeatToolProtocolRegressionTest {
                         && "/storage/emulated/0/Music/demo.flac".equals(
                         agentCalls.get(12).path),
                 "local music source or path was not retained");
-        String agentText = HeartbeatToolProtocol.stripToolStatusStyleMarkers(
-                agentVisible.toString());
-        require(agentText.contains("\u83b7\u53d6\u5f53\u524d\u65f6\u95f4\uff1a")
-                        && agentText.contains("\u83b7\u53d6\u622a\u56fe")
-                        && agentText.contains("\u70b9\u51fb\u5c4f\u5e55\uff1ax=250, y=750")
-                        && agentText.contains("\u6ed1\u52a8\u5c4f\u5e55\uff1a(500,800)")
-                        && agentText.contains("\u8fd4\u56de\u4e0a\u4e00\u5c42")
-                        && agentText.contains("\u8bfb\u53d6\u6587\u4ef6\uff1a")
-                        && agentText.contains("\u8ffd\u52a0\u6587\u4ef6\uff1a")
-                        && agentText.contains("Shell\uff1awhich cp && id")
-                        && agentText.contains("延迟执行\uff1a5秒")
-                        && agentText.contains("打开应用\uff1acom.tencent.mm")
-                        && agentText.contains("熄灭屏幕")
-                        && agentText.contains("音乐：夜曲 周杰伦")
+        JSONArray agentRows = toolLogRows(agentVisible.toString());
+        require(agentRows.length() == agentCalls.size(),
+                "each basic Agent call must produce exactly one native activity row");
+        String agentText = toolLogRowSummary(agentVisible.toString());
+        require(agentText.contains("获取当前时间")
+                        && agentText.contains("获取截图")
+                        && agentText.contains("点击屏幕")
+                        && agentText.contains("滑动屏幕")
+                        && agentText.contains("返回上一层")
+                        && agentText.contains("读取文件")
+                        && agentText.contains("写入文件")
+                        && agentText.contains("Shell")
+                        && agentText.contains("延迟执行")
+                        && agentText.contains("打开应用")
+                        && agentText.contains("屏幕电源")
+                        && agentText.contains("音乐")
+                        && agentText.contains("250")
+                        && agentText.contains("750")
+                        && agentText.contains("which cp && id")
+                        && agentText.contains("com.tencent.mm")
+                        && agentText.contains("夜曲 周杰伦")
                         && agentText.contains("demo.flac"),
-                "basic Agent calls did not receive compact activity rows");
-        require(timestampedToolRows(agentText) == 13,
-                "basic Agent activity rows do not all start with invocation times");
+                "basic Agent native rows omitted their labels or structured inputs");
+        for (int index = 0; index < agentCalls.size(); index++) {
+            require(AgentToolTraceStore.key(agentCalls.get(index))
+                            .equals(toolLogRowKey(agentVisible.toString(), index)),
+                    "native row lost the durable identity for basic Agent call " + index);
+        }
         require(HeartbeatToolProtocol.isRegisteredToolStatusText(screenshotStatus),
-                "non-heartbeat Agent status was not registered for gray small-text styling");
+                "non-heartbeat Agent status was not registered for the Canvas text-style fallback");
 
         StringBuilder illegalMultiTool = new StringBuilder("开始\n");
         for (String block : agentBlocks) {
@@ -471,9 +529,7 @@ public final class HeartbeatToolProtocolRegressionTest {
         require(gatedAgent.calls.size() == 1
                         && HeartbeatToolProtocol.TOOL_GET_CURRENT_TIME.equals(
                         gatedAgent.calls.get(0).tool)
-                        && timestampedToolRows(
-                        HeartbeatToolProtocol.stripToolStatusStyleMarkers(
-                                gatedAgent.visibleText)) == 1
+                        && toolLogRows(gatedAgent.visibleText).length() == 1
                         && !gatedAgent.visibleText.contains("已经全部完成"),
                 "multi-tool output or premature final text bypassed the single-step gate");
 
@@ -501,11 +557,12 @@ public final class HeartbeatToolProtocolRegressionTest {
                         && "标准".equals(
                         askParsed.calls.get(0).questions.get(1).options.get(1)),
                 "ask_user questions or options were not retained");
-        String askStatus = HeartbeatToolProtocol.stripToolStatusStyleMarkers(
-                askParsed.visibleText);
-        require(askStatus.contains("询问用户：你希望先做哪一部分？")
-                        && timestampedToolRows(askStatus) == 1,
-                "ask_user did not render one immediate compact activity row");
+        String askStatus = toolLogRowSummary(askParsed.visibleText);
+        require(askStatus.contains("询问用户")
+                        && askStatus.contains("你希望先做哪一部分？")
+                        && toolLogRows(askParsed.visibleText).length() == 1,
+                "ask_user did not render one immediate native activity row");
+
         String visibleAnswer = AgentQuestionUi.buildVisibleAnswer(
                 askParsed.calls.get(0).questions,
                 new String[]{"先完成执行器", "标准"}, "");
