@@ -36,6 +36,13 @@ val r8Tool = configurations.create("r8Tool") {
 
 dependencies {
     add(r8Tool.name, "com.android.tools:r8:9.1.29")
+
+    testImplementation(kotlin("test-junit5"))
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 tasks.register<Copy>("stageR8Tool") {
