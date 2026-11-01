@@ -55,6 +55,7 @@ cp "$JSON_CACHE" "$JSON_JAR"
 
 javac -source 8 -target 8 -cp "$JSON_JAR:$ANDROID_JAR:$UNIVERSAL_CLASSES:build/classes:$KOTLIN_RUNTIME_JAR:$KOTLIN_STDLIB_JAR" \
     -d "$OUT/classes" \
+    tests/ds/dsh/DeepSeek/ModelDisplayNamePolicyRegressionTest.java \
     tests/ds/dsh/DeepSeek/ChatEditorThinkingRegressionTest.java \
     tests/ds/dsh/DeepSeek/ChatEditorHistoryImageRegressionTest.java \
     tests/ds/dsh/DeepSeek/HistoryBridgeRegressionTest.java \
@@ -141,6 +142,9 @@ javac -source 8 -target 8 -cp "$JSON_JAR:$ANDROID_JAR:$UNIVERSAL_CLASSES:build/c
 # Otherwise Java loads a stale HostCompat/Main from module-universal/build/classes and the
 # compatibility regression tests validate yesterday's APK instead of the pending build.
 TEST_CP="$JSON_JAR:$ANDROID_JAR:$OUT/classes:$UNIVERSAL_CLASSES:build/classes:$KOTLIN_RUNTIME_JAR:$KOTLIN_STDLIB_JAR"
+
+java -cp "$TEST_CP" \
+    ds.dsh.DeepSeek.ModelDisplayNamePolicyRegressionTest
 
 java -cp "$TEST_CP" \
     ds.dsh.DeepSeek.ChatEditorThinkingRegressionTest
