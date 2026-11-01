@@ -70,7 +70,8 @@ for apk in "${APKS[@]}"; do
     fi
     rm -f "$dex_strings"
 
-    "$AAPT" dump badging "$apk" | grep -Fq "package: name='ds.dsh.DeepSeek'" || {
+    package_metadata="$("$AAPT" dump badging "$apk")"
+    grep -Fq "package: name='ds.dsh.DeepSeek'" <<< "$package_metadata" || {
         echo "FAIL: $(basename "$apk") has an unexpected module package identity" >&2
         exit 1
     }
