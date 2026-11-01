@@ -34,7 +34,9 @@ test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$ACCOUNT_PIPELINE")" -ge 3
 UI_PIPELINE="$MODULE_DIR/src/ds/dsh/DeepSeek/HookUiSurface.java"
 grep -Fq 'welcome whale painter motion hook installation failed' "$UI_PIPELINE"
 grep -Fq 'Compose text wave hook installation failed' "$UI_PIPELINE"
-test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$UI_PIPELINE")" -ge 2
+grep -Fq 'native settings entry hook installation failed' "$UI_PIPELINE"
+grep -Fq 'home greeting hook installation failed' "$UI_PIPELINE"
+test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$UI_PIPELINE")" -ge 4
 test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$UI_PIPELINE")" -ge 2
 ATTACHMENT_PIPELINE="$MODULE_DIR/src/ds/dsh/DeepSeek/HookAttachmentPipeline.java"
 grep -Fq 'model-file link hooks were only partially installed' "$ATTACHMENT_PIPELINE"
