@@ -31,6 +31,8 @@ jobs:
         run: bash module-legacy/test-adapter-regression.sh
       - name: Run expert relay regression
         run: bash module/test-expert-relay-regression.sh
+      - name: Run feature hook registry regression
+        run: bash module/test-hook-install-registry.sh
 
   android-build-matrix:
     name: Android artifact compilation
@@ -78,12 +80,12 @@ jobs:
             -alias androiddebugkey \
             -dname "CN=Android Debug,O=Android,C=US" \
             -keyalg RSA -keysize 2048 -validity 10000
-      - name: Run Android-dependent chat thinking regression
-        run: bash module/test-thinking-regression.sh
       - name: Build legacy artifact
         run: bash module-legacy/build.sh
       - name: Build universal artifact
         run: bash module-universal/build.sh
+      - name: Run Android-dependent chat thinking regression
+        run: bash module/test-thinking-regression.sh
       - name: Build Compose launcher Open variant
         working-directory: compose-launcher
         run: |
