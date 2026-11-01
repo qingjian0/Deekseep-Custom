@@ -16,9 +16,6 @@ import android.widget.Toast;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileInputStream;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
 
 /**
  * Semi-automatic Agent delivery (default).
@@ -41,9 +38,6 @@ final class AgentManualGate {
             "/data/data/com.deepseek.chat/files/deekseep_agent/delivery_mode.txt";
     private static final String MODE_AUTO = "auto_ack_v1";
 
-    private static final Set<String> PENDING = Collections.synchronizedSet(new HashSet<String>());
-    private static final Set<String> APPROVED = Collections.synchronizedSet(new HashSet<String>());
-    private static final Set<String> REFUSED = Collections.synchronizedSet(new HashSet<String>());
 
     private static volatile Boolean cachedAuto;
 
@@ -94,18 +88,18 @@ final class AgentManualGate {
      */
     static int check(Context context, final String key, final String preview) {
         if (isAuto()) return ALLOW;
-        if (APPROVED.remove(key)) return ALLOW;
-        if (REFUSED.remove(key)) return DECLINED;
-        if (PENDING.contains(key)) return WAIT;
+        if (AgentManualGateState.consumeApproval(key)) return ALLOW;
+        if (AgentManualGateState.consumeRefusal(key)) return DECLINED;
+        if (AgentManualGateState.isPending(key)) return WAIT;
         final Activity activity = Main.currentHostActivityForAgent();
         if (activity == null || activity.isFinishing()) return WAIT;
-        PENDING.add(key);
+        AgentManualGateState.markPending(key);
         Runnable show = new Runnable() {
             @Override public void run() {
                 try {
                     showCard(activity, key, preview);
                 } catch (Throwable error) {
-                    PENDING.remove(key);
+                    AgentManualGateState.clearPending(key);
                     Main.log("agent manual card failed: " + error);
                 }
             }
@@ -131,8 +125,8 @@ final class AgentManualGate {
                 .setPositiveButton(UiLanguage.text(activity, "发送", "Send"),
                         new DialogInterface.OnClickListener() {
                             @Override public void onClick(DialogInterface d, int which) {
-                                APPROVED.add(key);
-                                PENDING.remove(key);
+                                AgentManualGateState.approve(key);
+                                AgentManualGateState.clearPending(key);
                             }
                         })
                 .setNeutralButton(UiLanguage.text(activity, "复制并稍后", "Copy, later"),
@@ -147,22 +141,22 @@ final class AgentManualGate {
                                             "已复制工具结果", "Tool result copied"),
                                             Toast.LENGTH_SHORT).show();
                                 } catch (Throwable ignored) {}
-                                REFUSED.add(key);
-                                PENDING.remove(key);
+                                AgentManualGateState.refuse(key);
+                                AgentManualGateState.clearPending(key);
                             }
                         })
                 .setNegativeButton(UiLanguage.text(activity, "稍后", "Later"),
                         new DialogInterface.OnClickListener() {
                             @Override public void onClick(DialogInterface d, int which) {
-                                REFUSED.add(key);
-                                PENDING.remove(key);
+                                AgentManualGateState.refuse(key);
+                                AgentManualGateState.clearPending(key);
                             }
                         })
                 .create();
         dialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
             @Override public void onCancel(DialogInterface d) {
-                REFUSED.add(key);
-                PENDING.remove(key);
+                AgentManualGateState.refuse(key);
+                AgentManualGateState.clearPending(key);
             }
         });
         dialog.show();
