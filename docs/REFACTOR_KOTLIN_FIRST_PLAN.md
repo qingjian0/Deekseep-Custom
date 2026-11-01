@@ -20,7 +20,7 @@ The target is a **Kotlin-first implementation with a narrow Java compatibility b
 
 ### 2.1 Runtime and entry
 
-- `module/src/com/dsmod/probe/Main.java`: 10,724 lines / approximately 535 KB in the audited `dev` snapshot.
+- `module/src/ds/dsh/DeepSeek/Main.java`: 10,724 lines / approximately 535 KB in the audited `dev` snapshot.
 - `Main` currently combines package admission, host compatibility initialization, main-thread bootstrap, application lifecycle callbacks, feature-hook orchestration, compatibility forwarders, and remaining feature implementations.
 - The existing `TargetProcessGuard` is already a small pure-JVM boundary for target-package admission and duplicate-process suppression.
 - `Main.installAllFeatureHooks()` is a large sequential installer. The current refactor introduces stable per-step IDs, a process-local `FeatureHookInstallRegistry`, scoped interceptor registration and independent best-effort groups. The global installed flag is now set only when the tracked steps complete without failures.

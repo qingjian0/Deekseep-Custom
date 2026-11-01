@@ -2,7 +2,7 @@
 
 ## 当前基线
 
-- 文件：`module/src/com/dsmod/probe/Main.java`
+- 文件：`module/src/ds/dsh/DeepSeek/Main.java`
 - 当前规模：约 10.7k 行（以本分支提交为准，后续可能变化）
 - 角色：传统 Xposed 入口、宿主进程启动、生命周期接入、功能 Hook 安装协调、管理 UI/运行状态的兼容转发，以及仍未迁出的历史功能实现。
 - 已有拆分：`MainReflectionSupport`、`HostCompat`、`HostRemap`、`HostV271`、多个 `Hook*` 功能类和 UI/服务类。
@@ -13,7 +13,7 @@ Main 仍然过大，但它不是一个可以通过机械拆分解决的单纯文
 
 将目标包名准入和同进程重复注入抑制从 `Main.handleLoadPackage` 提取到：
 
-- `module/src/com/dsmod/probe/TargetProcessGuard.java`
+- `module/src/ds/dsh/DeepSeek/TargetProcessGuard.java`
 - `module/tests/process/TargetProcessGuardRegressionTest.java`
 - `module/test-target-process-guard.sh`
 
