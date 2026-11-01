@@ -257,7 +257,7 @@ public final class HeartbeatToolProtocolRegressionTest {
         String carrierPayload = toolLogRowSummary(presented.visibleText);
         require(carrierPayload.contains("2026-08-02T18:37:00+08:00")
                         && carrierPayload.contains("minutes")
-                        && carrierPayload.contains("90")),
+                        && carrierPayload.contains("90"),
                 "native card metadata omitted the accepted heartbeat inputs");
         require(!HeartbeatToolProtocol.hasToolStatusStyleMarker(presented.visibleText),
                 "obsolete inline style marker was emitted alongside native Canvas rows");
