@@ -15,6 +15,8 @@ public final class AccountCredentialCodecRegressionTest {
         missingOrWrongTypedRequiredFieldsAreRejected();
         oneBadEntryRejectsTheWholeBatch();
         duplicateIdsAreRejected();
+        duplicateIdsAreRejectedDuringExport();
+        paddedCredentialIdentifiersAreRejected();
         System.out.println("AccountCredentialCodecRegressionTest OK");
     }
 
@@ -77,6 +79,29 @@ public final class AccountCredentialCodecRegressionTest {
         array.put(credential("account-00000001", "Alice"));
         array.put(credential("account-00000001", "Alice copy"));
         expectFailure(array.toString(), "duplicate id");
+    }
+
+    private static void duplicateIdsAreRejectedDuringExport() throws Exception {
+        List<AccountCredentialCodec.Entry> entries = new ArrayList<>();
+        entries.add(AccountCredentialCodec.entryFromCredential(
+                "Alice", credential("account-00000001", "Alice"), 1));
+        entries.add(AccountCredentialCodec.entryFromCredential(
+                "Alice copy", credential("account-00000001", "Alice copy"), 2));
+        boolean failed = false;
+        try {
+            AccountCredentialCodec.buildExport(entries);
+        } catch (AccountCredentialCodec.FormatException expected) {
+            failed = true;
+        }
+        check(failed, "export must not create an envelope that its own importer rejects");
+    }
+
+    private static void paddedCredentialIdentifiersAreRejected() throws Exception {
+        JSONObject paddedId = credential(" account-00000001 ", "Alice");
+        expectFailure(paddedId.toString(), "padded account id");
+        JSONObject paddedToken = credential("account-00000001", "Alice");
+        paddedToken.put("token", " token-abcdefghijklmnopqrstuvwxyz-0123456789 ");
+        expectFailure(paddedToken.toString(), "padded token");
     }
 
     private static JSONObject credential(String id, String name) throws Exception {

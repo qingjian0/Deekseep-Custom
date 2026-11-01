@@ -178,10 +178,15 @@ final class AccountCredentialCodec {
             root.put("version", VERSION);
             root.put("exported_at", System.currentTimeMillis());
             JSONArray accounts = new JSONArray();
+            Set<String> exportedIds = new HashSet<>();
             for (int i = 0; i < entries.size(); i++) {
                 Entry entry = entries.get(i);
                 JSONObject credential = new JSONObject(entry.credentialJson);
                 validateCredential(credential, i + 1);
+                String credentialId = credential.optString("id", "").trim();
+                if (!exportedIds.add(credentialId)) {
+                    throw new FormatException("导出列表中包含重复账号：" + shortId(credentialId));
+                }
                 JSONObject wrapper = new JSONObject();
                 wrapper.put("name", entry.name == null ? shortId(entry.id) : entry.name);
                 wrapper.put("credential", credential);
@@ -222,8 +227,12 @@ final class AccountCredentialCodec {
         if (!o.has(key) || !(o.opt(key) instanceof String)) {
             throw new FormatException(prefix + "缺少字符串字段 " + key);
         }
-        String value = ((String) o.opt(key)).trim();
+        String raw = (String) o.opt(key);
+        String value = raw.trim();
         if (value.length() == 0) throw new FormatException(prefix + "的 " + key + " 不能为空");
+        if (!value.equals(raw)) {
+            throw new FormatException(prefix + "的 " + key + " 不能包含首尾空白");
+        }
         return value;
     }
 
