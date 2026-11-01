@@ -10,8 +10,6 @@ public final class FeatureHookInstallRegistryRegression {
         testSuccessfulInstallIsIdempotent();
         testFailureCanBeRetriedWithoutRerunningCompletedEntries();
         testSkippedEntryIsTerminal();
-        testSkipDoesNotOverwriteFailedEntry();
-        testSkipDoesNotOverwriteDegradedEntry();
         testSkipDoesNotOverwriteInstalledEntry();
         testMarkSkippedPreservesFailedEntry();
         testMarkSkippedPreservesDegradedEntry();
@@ -92,33 +90,6 @@ public final class FeatureHookInstallRegistryRegression {
         assertState(registry, "degraded.then.skipped",
                 FeatureHookInstallRegistry.State.DEGRADED, 0);
         assertTrue(registry.hasFailures(), "markSkipped must not hide a degraded installation");
-    }
-
-    private static void testSkipDoesNotOverwriteFailedEntry() throws Throwable {
-        FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
-        try {
-            registry.install("failed.before.skip", () -> {
-                throw new IllegalStateException("failure must remain visible");
-            });
-            throw new AssertionError("failure was not propagated");
-        } catch (IllegalStateException expected) {
-            assertEquals("failure must remain visible", expected.getMessage(),
-                    "failed entry before skip");
-        }
-
-        registry.markSkipped("failed.before.skip", "later gate must not erase failure");
-        assertState(registry, "failed.before.skip", FeatureHookInstallRegistry.State.FAILED, 1);
-        assertTrue(registry.hasFailures(), "skip must not hide a failed entry");
-    }
-
-    private static void testSkipDoesNotOverwriteDegradedEntry() {
-        FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
-        registry.markDegraded("degraded.before.skip",
-                new IllegalStateException("partial installation"));
-        registry.markSkipped("degraded.before.skip", "later gate must not erase degradation");
-        assertState(registry, "degraded.before.skip",
-                FeatureHookInstallRegistry.State.DEGRADED, 0);
-        assertTrue(registry.hasFailures(), "skip must not hide a degraded entry");
     }
 
     private static void testSkipDoesNotOverwriteInstalledEntry() throws Throwable {
