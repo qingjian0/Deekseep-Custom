@@ -5,6 +5,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Constructor;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -30,18 +31,35 @@ abstract class LegacyXposedModule {
 
     // A stable installer scope lets a retried feature add only the registrations that did not
     // complete in its previous attempt. Unscoped callers keep the historical append behavior.
-    private final ThreadLocal<String> hookRegistrationScope = new ThreadLocal<String>();
+    private final ThreadLocal<HookRegistrationScope> hookRegistrationScope =
+            new ThreadLocal<HookRegistrationScope>();
 
-    final String beginHookRegistrationScope(String scope) {
-        String previous = hookRegistrationScope.get();
+    static final class HookRegistrationScope {
+        private final String id;
+        private final HashMap<String, Integer> occurrenceCounts =
+                new HashMap<String, Integer>();
+
+        HookRegistrationScope(String id) { this.id = id; }
+
+        String nextKey(Member member, Hooker hooker) {
+            String base = member.toString() + "#" + hooker.getClass().getName();
+            Integer previous = occurrenceCounts.get(base);
+            int ordinal = previous == null ? 0 : previous.intValue();
+            occurrenceCounts.put(base, Integer.valueOf(ordinal + 1));
+            return id + "#" + base + "#" + ordinal;
+        }
+    }
+
+    final HookRegistrationScope beginHookRegistrationScope(String scope) {
+        HookRegistrationScope previous = hookRegistrationScope.get();
         if (scope == null || scope.trim().isEmpty()) {
             throw new IllegalArgumentException("hook registration scope must not be blank");
         }
-        hookRegistrationScope.set(scope);
+        hookRegistrationScope.set(new HookRegistrationScope(scope));
         return previous;
     }
 
-    final void endHookRegistrationScope(String previous) {
+    final void endHookRegistrationScope(HookRegistrationScope previous) {
         if (previous == null) hookRegistrationScope.remove();
         else hookRegistrationScope.set(previous);
     }
@@ -231,9 +249,8 @@ abstract class LegacyXposedModule {
 
         synchronized void intercept(final Hooker hooker) {
             if (hooker == null) throw new NullPointerException("hooker");
-            String scope = hookRegistrationScope.get();
-            String registrationKey = scope == null ? null
-                    : scope + "#" + hooker.getClass().getName();
+            HookRegistrationScope scope = hookRegistrationScope.get();
+            String registrationKey = scope == null ? null : scope.nextKey(member, hooker);
             if (registrationKey != null && scopedRegistrations.contains(registrationKey)) return;
             hookers.add(hooker);
             try {
