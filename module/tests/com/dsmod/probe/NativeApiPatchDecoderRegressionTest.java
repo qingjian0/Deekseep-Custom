@@ -3,57 +3,52 @@ package com.dsmod.probe;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+/**
+ * The Open edition deliberately ships a Closed-only decoder stub. These tests assert that the
+ * facade fails closed and never leaks patch fragments into either public text or reasoning when
+ * that protected payload is unavailable. Channel-splitting behavior belongs to the Closed
+ * payload and cannot be truthfully tested by the Open source-only build.
+ */
 public final class NativeApiPatchDecoderRegressionTest {
     public static void main(String[] args) throws Exception {
-        separatesThinkingAndResponseAcrossBareDeltas();
-        preservesOrdinaryResponseDeltas();
-        System.out.println("NativeApiPatchDecoderRegressionTest OK");
+        failsClosedWhenProtectedPayloadIsUnavailable();
+        preservesEmptyOutputAcrossPatchShapes();
+        System.out.println("NativeApiPatchDecoder Open fallback regression OK");
     }
 
-    private static void separatesThinkingAndResponseAcrossBareDeltas() throws Exception {
+    private static void failsClosedWhenProtectedPayloadIsUnavailable() {
+        check(!z14.available(), "Open edition unexpectedly exposes the protected decoder");
+        check(z14.payloadClass(null, "com.dsmod.probe.z12decoder") == null,
+                "Open edition unexpectedly resolves the Closed-only decoder");
+
         NativeApiPatchDecoder decoder = new NativeApiPatchDecoder();
-        JSONObject think = new JSONObject().put("v", new JSONObject().put("response",
-                new JSONObject().put("fragments", new JSONArray().put(new JSONObject()
-                        .put("id", 2).put("type", "THINK").put("content", "我们")))));
-        NativeApiPatchDecoder.Delta first = decoder.decode(think);
-        check("我们".equals(first.reasoningSet), "THINK snapshot was not reasoning");
-        check(empty(first.text) && empty(first.textSet), "THINK snapshot leaked into text");
+        NativeApiPatchDecoder.Delta result = decoder.decode(new JSONObject()
+                .put("v", new JSONObject().put("response",
+                        new JSONObject().put("fragments", new JSONArray().put(new JSONObject()
+                                .put("id", 2).put("type", "THINK").put("content", "private"))))));
+        checkEmpty(result, "snapshot");
+    }
 
-        NativeApiPatchDecoder.Delta second = decoder.decode(new JSONObject()
+    private static void preservesEmptyOutputAcrossPatchShapes() throws Exception {
+        NativeApiPatchDecoder decoder = new NativeApiPatchDecoder();
+        NativeApiPatchDecoder.Delta append = decoder.decode(new JSONObject()
                 .put("p", "response/fragments/-1/content")
-                .put("o", "APPEND").put("v", "先分析"));
-        check("先分析".equals(second.reasoning), "explicit THINK delta was not reasoning");
-        NativeApiPatchDecoder.Delta third = decoder.decode(new JSONObject().put("v", "过程"));
-        check("过程".equals(third.reasoning), "bare THINK continuation became text");
-
-        NativeApiPatchDecoder.Delta switched = decoder.decode(new JSONObject()
+                .put("o", "APPEND").put("v", "private reasoning"));
+        NativeApiPatchDecoder.Delta bare = decoder.decode(new JSONObject().put("v", "private response"));
+        NativeApiPatchDecoder.Delta switchFragment = decoder.decode(new JSONObject()
                 .put("p", "response/fragments").put("o", "APPEND")
                 .put("v", new JSONArray().put(new JSONObject().put("id", 3)
-                        .put("type", "RESPONSE").put("content", "F"))));
-        check("F".equals(switched.text), "first RESPONSE token was dropped");
-        check(empty(switched.reasoning), "RESPONSE token remained in thinking");
-
-        // Exact no-op frame shape observed immediately after the fragment switch.
-        NativeApiPatchDecoder.Delta fourth = decoder.decode(new JSONObject()
-                .put("p", "response/fragments/-1/content").put("v", "INAL"));
-        NativeApiPatchDecoder.Delta fifth = decoder.decode(new JSONObject().put("v", "_ONLY"));
-        check("INAL".equals(fourth.text), "no-op RESPONSE content frame was dropped");
-        check("_ONLY".equals(fifth.text), "bare RESPONSE continuation was dropped");
+                        .put("type", "RESPONSE").put("content", "private response"))));
+        checkEmpty(append, "append");
+        checkEmpty(bare, "bare continuation");
+        checkEmpty(switchFragment, "fragment switch");
     }
 
-    private static void preservesOrdinaryResponseDeltas() throws Exception {
-        NativeApiPatchDecoder decoder = new NativeApiPatchDecoder();
-        decoder.decode(new JSONObject().put("v", new JSONObject().put("response",
-                new JSONObject().put("fragments", new JSONArray().put(new JSONObject()
-                        .put("type", "RESPONSE").put("content", ""))))));
-        NativeApiPatchDecoder.Delta explicit = decoder.decode(new JSONObject()
-                .put("p", "response/fragments/-1/content")
-                .put("o", "APPEND").put("v", "HELLO"));
-        NativeApiPatchDecoder.Delta bare = decoder.decode(new JSONObject().put("v", "_WORLD"));
-        check("HELLO".equals(explicit.text) && "_WORLD".equals(bare.text),
-                "ordinary RESPONSE stream changed");
-        check(empty(explicit.reasoning) && empty(bare.reasoning),
-                "ordinary RESPONSE stream became reasoning");
+    private static void checkEmpty(NativeApiPatchDecoder.Delta delta, String label) {
+        check(delta != null, label + " returned a null result");
+        check(empty(delta.text) && empty(delta.reasoning)
+                        && empty(delta.textSet) && empty(delta.reasoningSet),
+                label + " leaked protected payload content into Open edition output");
     }
 
     private static boolean empty(String value) {
