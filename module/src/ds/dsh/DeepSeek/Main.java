@@ -1101,6 +1101,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     @Override
     public void handleLoadPackage(LoadPackageParam param) {
+        DshAndroidLogSink.install();
         MODULE = this;
         if (param == null) DeekseepLetter.getLetter();
         final ClassLoader cl = param.classLoader;
