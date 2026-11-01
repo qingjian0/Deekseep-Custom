@@ -3306,6 +3306,7 @@ Main.log("[RISK] Android ID spoof installed");
         String setterName = HostCompat.localApiHeaderSetterMethod();
         int marked = 0;
         int replaced = 0;
+        Throwable firstFailure = null;
         try {
             Class<?> owner = HostRemap.forName(authOwner, false, loader);
             Class<?> requestBuilderType = null;
@@ -3445,8 +3446,16 @@ Main.log("[RISK] Android ID spoof installed");
                 try {
                     hookV241LocalApiUploadCoroutineRouting(loader);
                 } catch (Throwable uploadRouteError) {
+                    if (uploadRouteError instanceof VirtualMachineError) {
+                        throw (VirtualMachineError) uploadRouteError;
+                    }
+                    if (uploadRouteError instanceof ThreadDeath) {
+                        throw (ThreadDeath) uploadRouteError;
+                    }
                     Main.log("code257 context upload route hook unavailable: "
                             + Main.safeThrowableMessage(uploadRouteError));
+                    if (firstFailure == null) firstFailure = uploadRouteError;
+                    else firstFailure.addSuppressed(uploadRouteError);
                 }
                 Class<?> completionFactory = HostRemap.forName("fu0", false, loader);
                 for (Method method : completionFactory.getDeclaredMethods()) {
@@ -3523,8 +3532,12 @@ Main.log("[RISK] Android ID spoof installed");
                 }
             }
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             Main.log("local API account auth marker unavailable " + authOwner + ": "
                     + Main.safeThrowableMessage(error));
+            if (firstFailure == null) firstFailure = error;
+            else firstFailure.addSuppressed(error);
         }
         try {
             Class<?> builder = HostRemap.forName(headerOwner, false, loader);
@@ -3586,13 +3599,23 @@ Main.log("[RISK] Android ID spoof installed");
                 }
             }
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             Main.log("local API account header hook unavailable " + headerOwner + ": "
                     + Main.safeThrowableMessage(error));
+            if (firstFailure == null) firstFailure = error;
+            else firstFailure.addSuppressed(error);
         }
         String ready = "ROUTING_HOOK_READY auth=" + marked + " header=" + replaced
                 + " generation=" + HostCompat.generationName();
         Main.log(ready);
         z13.diagnostic(ready);
+        if (firstFailure != null || marked == 0 || replaced == 0) {
+            throw new IllegalStateException(
+                    "Local API account routing hooks were only partially installed: auth="
+                            + marked + " header=" + replaced,
+                    firstFailure);
+        }
     }
 
     /**
