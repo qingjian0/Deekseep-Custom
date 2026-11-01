@@ -3780,6 +3780,10 @@ final class HookUiSurface {
     }
 
     void hookSettingsNavigation(ClassLoader cl) {
+        Throwable firstFailure = null;
+        int routeHooks = 0;
+        int stateHooks = 0;
+        int popHooks = 0;
         try {
             Class<?> nav = HostCompat.load(cl, "rm5");
             for (Method m : nav.getDeclaredMethods()) {
@@ -3792,15 +3796,27 @@ final class HookUiSurface {
                         return r;
                     }
                 });
+                routeHooks++;
                 Main.log("hooked nav route rm5.n");
                 break;
             }
-            hookNavStateMethod(nav, "b");
-            hookNavStateMethod(nav, "m");
-            hookNavStateMethod(nav, "q");
-            hookNavStateMethod(nav, "r");
-            hookNavStateMethod(nav, "u");
-        } catch (Throwable t) { Main.log("hook nav route failed: " + t); }
+            if (routeHooks == 0) {
+                throw new NoSuchMethodException("rm5.n/2 navigation route method not found");
+            }
+            stateHooks += hookNavStateMethod(nav, "b");
+            stateHooks += hookNavStateMethod(nav, "m");
+            stateHooks += hookNavStateMethod(nav, "q");
+            stateHooks += hookNavStateMethod(nav, "r");
+            stateHooks += hookNavStateMethod(nav, "u");
+            if (stateHooks == 0) {
+                throw new NoSuchMethodException("rm5 navigation state methods were not found");
+            }
+        } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            firstFailure = error;
+            Main.log("hook nav route failed: " + Main.safeThrowableMessage(error));
+        }
 
         try {
             Class<?> gf8 = HostCompat.load(cl, "gf8");
@@ -3824,13 +3840,29 @@ final class HookUiSurface {
                         return r;
                     }
                 });
+                popHooks++;
                 Main.log("hooked nav pop gf8.A0");
                 break;
             }
-        } catch (Throwable t) { Main.log("hook nav pop failed: " + t); }
+            if (popHooks == 0) {
+                throw new NoSuchMethodException("gf8.A0/1 navigation pop method not found");
+            }
+        } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            if (firstFailure == null) firstFailure = error;
+            else firstFailure.addSuppressed(error);
+            Main.log("hook nav pop failed: " + Main.safeThrowableMessage(error));
+        }
+        if (firstFailure != null) {
+            throw new IllegalStateException(
+                    "settings navigation hooks were only partially installed: route="
+                            + routeHooks + " state=" + stateHooks + " pop=" + popHooks,
+                    firstFailure);
+        }
     }
 
-    private void hookNavStateMethod(Class<?> nav, String name) {
+    private int hookNavStateMethod(Class<?> nav, String name) {
         int count = 0;
         for (Method m : nav.getDeclaredMethods()) {
             if (!HostRemap.name(m).equals(name)) continue;
@@ -3845,6 +3877,7 @@ final class HookUiSurface {
             count++;
         }
         Main.log("hooked nav state rm5." + name + " x" + count);
+        return count;
     }
 
     private void rememberNavController(Object nav) {
