@@ -67,11 +67,15 @@ grep -Fq 'final-message merge hook installation failed' "$CHAT_PIPELINE"
 grep -Fq 'final-message apply hook installation failed' "$CHAT_PIPELINE"
 grep -Fq 's11 render filter hook installation failed' "$CHAT_PIPELINE"
 grep -Fq 'cs1 attachment filter hook installation failed' "$CHAT_PIPELINE"
-test "$(grep -Fc 'if (n == 0) throw new NoSuchMethodException' "$CHAT_PIPELINE")" -ge 8
+grep -Fq 'POW manager capture hook installation failed' "$CHAT_PIPELINE"
+test "$(grep -Fc 'if (n == 0) throw new NoSuchMethodException' "$CHAT_PIPELINE")" -ge 9
 test "$(grep -Fc 'if (installed == 0) throw new NoSuchMethodException' "$CHAT_PIPELINE")" -ge 2
 test "$(grep -Fc 'if (t instanceof VirtualMachineError)' "$CHAT_PIPELINE")" -ge 7
 test "$(grep -Fc 'if (t instanceof ThreadDeath)' "$CHAT_PIPELINE")" -ge 7
 grep -Fq 'local editor image URI hook installation failed' "$ATTACHMENT_PIPELINE"
+grep -Fq 'expert unlock hook installation failed' "$ATTACHMENT_PIPELINE"
+grep -Fq 'expert upload gate hook installation failed' "$ATTACHMENT_PIPELINE"
+grep -Fq 'local API session visibility hook installation failed' "$ATTACHMENT_PIPELINE"
 grep -Fq 'native image preview hooks were only partially installed' "$ATTACHMENT_PIPELINE"
 grep -Fq 'if (resourceHooks != 3 || ownerHooks == 0 || firstFailure != null)' "$ATTACHMENT_PIPELINE"
 
