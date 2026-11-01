@@ -106,7 +106,7 @@ public final class HeartbeatToolProtocolRegressionTest {
                     require(row != null, "native tool-log payload contains a non-object row");
                     result.put(row);
                 }
-            } catch (RuntimeException error) {
+            } catch (Exception error) {
                 throw new AssertionError("native tool-log payload is not valid JSON", error);
             }
             cursor = end;
@@ -239,7 +239,7 @@ public final class HeartbeatToolProtocolRegressionTest {
                 "native rows did not retain four distinct durable call identities");
         String[] expectedIds = {"once_001", "plan_001", "int_001", "bind_001"};
         for (String id : expectedIds) {
-            require(presentedKeys.contains("conversation-1234\\u001f" + id),
+            require(presentedKeys.contains("conversation-1234" + String.valueOf((char) 31) + id),
                     "native row is missing the trace identity for " + id);
         }
         require("设置心跳".equals(toolLogRowName(presented.visibleText, 0))
