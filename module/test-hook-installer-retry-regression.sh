@@ -137,6 +137,20 @@ fi
 biz_body="$(sed -n '/private boolean installBizCodeLogger(/,/private Object proceedWithRegionalLoginOptions/p' "$login_src")"
 grep -Fq 'hookLoginRiskMember(ctor, new Hooker()' <<<"$biz_body"
 
+# Local API routing preserves successful v2.4.1 Member hooks across partial-install retries.
+grep -Fq 'LOCAL_API_ROUTING_HOOKED_MEMBERS' "$login_src"
+routing_helper="$(sed -n '/private static void hookLocalApiRoutingMember/,/void hookLocalApiAccountRouting/p' "$login_src")"
+grep -Fq 'synchronized (LOCAL_API_ROUTING_HOOKED_MEMBERS)' <<<"$routing_helper"
+grep -Fq 'LOCAL_API_ROUTING_HOOKED_MEMBERS.contains(member)' <<<"$routing_helper"
+grep -Fq 'LOCAL_API_ROUTING_HOOKED_MEMBERS.add(member)' <<<"$routing_helper"
+routing_body="$(sed -n '/void hookLocalApiAccountRouting(/,/private void hookV241LocalApiUploadCoroutineRouting/p' "$login_src")"
+grep -Fq 'hookLocalApiRoutingMember(method, new Hooker()' <<<"$routing_body"
+grep -Fq 'hookLocalApiRoutingMember(constructor, new Hooker()' <<<"$routing_body"
+if grep -Fq 'Main.MODULE.hook(' <<<"$routing_body"; then
+  echo "Local API routing bypasses retry-safe registration." >&2
+  exit 1
+fi
+
 # Session installers propagate installation failures to Main/Registry.
 session_src="$SRC/HookSessionManagement.java"
 for method in \
