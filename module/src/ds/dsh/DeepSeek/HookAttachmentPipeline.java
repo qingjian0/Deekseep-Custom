@@ -391,7 +391,7 @@ final class HookAttachmentPipeline {
     }
 
     /** Appends the host's native upload-file card at the bottom of the matching message body. */
-    void hookNativeModelFileCards(final ClassLoader cl) {
+    void hookNativeModelFileCards(final ClassLoader cl) throws Throwable {
         if (!HostCompat.isV234()) return;
         // 2.7.1: AssistantTextItem ch2.e -> u73.e/d, same 14-arg shape (alias ch2r).
         final String rendererName = HostCompat.isV271() ? "ch2r" : HostCompat.isV241() ? "ch2"
@@ -435,10 +435,12 @@ final class HookAttachmentPipeline {
                 });
                 installed++;
             }
+            if (installed == 0) throw new NoSuchMethodException(rendererName + " native model-file renderer");
             Main.log("native model-file message cards=" + installed
                     + " renderer=" + rendererName);
         } catch (Throwable error) {
             Main.log("native model-file message card hook unavailable: " + error);
+            throw error;
         }
     }
 
