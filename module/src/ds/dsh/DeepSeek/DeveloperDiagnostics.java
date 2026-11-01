@@ -17,58 +17,18 @@ import android.widget.Toast;
 import java.io.File;
 import java.io.FileWriter;
 import java.text.SimpleDateFormat;
-import java.util.ArrayDeque;
 import java.util.Date;
 import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /** Bounded, content-redacted diagnostics for compatibility and performance maintenance. */
 final class DeveloperDiagnostics {
-    private static final Object LOCK = new Object();
-    private static final int MAX_EVENTS = 320;
-    private static final ArrayDeque<String> EVENTS = new ArrayDeque<>();
     private static final long STARTED_AT = SystemClock.elapsedRealtime();
-    private static final Pattern COST = Pattern.compile("(?:cost|elapsed|duration)=([0-9]{1,7})ms", Pattern.CASE_INSENSITIVE);
-    private static final Pattern BEARER = Pattern.compile("(?i)(authorization|bearer|api[_-]?key|token)(\\s*[:=]\\s*|\\s+)[^\\s,;]{6,}");
-    private static final Pattern PRIVATE_PATH = Pattern.compile("/(?:data|storage)/[^\\s,;]+", Pattern.CASE_INSENSITIVE);
-    private static long total;
-    private static long errors;
-    private static long hooks;
-    private static long network;
-    private static long agent;
-    private static long timed;
-    private static long totalCostMs;
-    private static long maxCostMs;
-    private static long slow;
+    private static final DshDiagnosticsRecorder RECORDER = new DshDiagnosticsRecorder();
 
     private DeveloperDiagnostics() {}
 
     static void record(String raw) {
-        if (raw == null || raw.length() == 0) return;
-        String lower = raw.toLowerCase(Locale.US);
-        long cost = parseCost(raw);
-        String event = sanitize(raw);
-        synchronized (LOCK) {
-            total++;
-            if (lower.contains("fail") || lower.contains("error")
-                    || lower.contains("exception") || lower.contains("crash")) errors++;
-            if (lower.contains("hook") || lower.contains("inject")) hooks++;
-            if (lower.contains("server") || lower.contains("request")
-                    || lower.contains("response") || lower.contains("sse")) network++;
-            if (lower.contains("agent") || lower.contains("tool")) agent++;
-            if (cost >= 0L) {
-                timed++;
-                totalCostMs += cost;
-                if (cost > maxCostMs) maxCostMs = cost;
-                if (cost >= 32L) slow++;
-            }
-            if (isUseful(lower)) {
-                EVENTS.addLast(new SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
-                        .format(new Date()) + "  " + event);
-                while (EVENTS.size() > MAX_EVENTS) EVENTS.removeFirst();
-            }
-        }
+        RECORDER.record(raw);
     }
 
     static void showCompatibility(Activity activity) {
@@ -89,21 +49,8 @@ final class DeveloperDiagnostics {
     }
 
     static void showPerformance(Activity activity) {
-        String report;
-        synchronized (LOCK) {
-            long uptime = Math.max(1L, SystemClock.elapsedRealtime() - STARTED_AT);
-            long average = timed == 0L ? 0L : totalCostMs / timed;
-            report = "session=" + formatDuration(uptime)
-                    + "\nevents=" + total
-                    + "\nhooks=" + hooks
-                    + "\nnetwork=" + network
-                    + "\nagent=" + agent
-                    + "\nerrors=" + errors
-                    + "\ntimedEvents=" + timed
-                    + "\naverageCost=" + average + "ms"
-                    + "\nmaxCost=" + maxCostMs + "ms"
-                    + "\nslowEvents(>=32ms)=" + slow;
-        }
+        long uptime = Math.max(1L, SystemClock.elapsedRealtime() - STARTED_AT);
+        String report = RECORDER.performanceSummary(uptime);
         report += "\n\n" + logStorageStatus(activity);
         showReport(activity, "Hook 性能统计", report);
     }
@@ -160,9 +107,7 @@ final class DeveloperDiagnostics {
         StringBuilder out = new StringBuilder();
         out.append("YunSeek sanitized developer trace\n")
                 .append(HostCompat.diagnosticSummary()).append("\n\n");
-        synchronized (LOCK) {
-            for (String event : EVENTS) out.append(event).append('\n');
-        }
+        for (String event : RECORDER.traceLines()) out.append(event).append('\n');
         return out.toString();
     }
 
@@ -189,10 +134,7 @@ final class DeveloperDiagnostics {
         } catch (Throwable ignored) {}
     }
 
-    private static long parseCost(String raw) {
-        Matcher matcher = COST.matcher(raw);
-        if (!matcher.find()) return -1L;
-        try { return Long.parseLong(matcher.group(1)); }
+}
         catch (Throwable ignored) { return -1L; }
     }
 
