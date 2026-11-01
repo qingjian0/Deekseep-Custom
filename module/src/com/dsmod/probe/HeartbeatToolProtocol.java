@@ -530,9 +530,27 @@ final class HeartbeatToolProtocol {
         return stripToolStatusStyleMarkers(parse(value).visibleText);
     }
 
-    /** History contains model prose only; local graphics carriers are re-created for live UI. */
+    /**
+     * Persist safe assistant prose and a compact plain-text summary for scheduled heartbeat
+     * actions. Private control JSON and local graphics carriers are never persisted.
+     */
     static String sanitizeAssistantHistory(String value) {
-        String clean = stripControlBlocks(value);
+        Result parsed = parse(value);
+        String clean = stripToolStatusStyleMarkers(parsed.visibleText);
+        if (!parsed.calls.isEmpty()) {
+            boolean chinese = Locale.getDefault().getLanguage()
+                    .toLowerCase(Locale.US).startsWith("zh");
+            StringBuilder summarized = new StringBuilder(clean);
+            for (ToolCall call : parsed.calls) {
+                if (call == null || (!TOOL_SCHEDULE_ONCE.equals(call.tool)
+                        && !TOOL_SET_INTERVAL.equals(call.tool))) continue;
+                String status = toolStatusText(call, chinese);
+                if (status.length() == 0 || summarized.indexOf(status) >= 0) continue;
+                if (summarized.length() > 0) summarized.append('\n');
+                summarized.append(status);
+            }
+            clean = summarized.toString();
+        }
         // code249 persists its exact local display carrier. The trace payload is bounded and
         // contains no control block; keeping it lets a cold conversation restore rebuild the
         // same clickable invocation row instead of silently deleting it.
