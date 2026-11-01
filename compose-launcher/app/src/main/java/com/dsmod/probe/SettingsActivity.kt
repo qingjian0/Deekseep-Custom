@@ -149,13 +149,11 @@ class SettingsActivity : ComponentActivity() {
         private const val ROUTE_ABOUT = "about"
     }
 
-    private enum class BridgeStatus { IDLE, LOADING, READY, UNAVAILABLE }
-
     private val main = Handler(Looper.getMainLooper())
 
     // ---- Compose-observed state owned by the activity -----------------------------------------
     private lateinit var statusViewModel: LauncherStatusViewModel
-    private var bridgeStatus by mutableStateOf(BridgeStatus.IDLE)
+    private var bridgeStatus by mutableStateOf(ConfigBridgeUiStatus.IDLE)
     private var configFiles by mutableStateOf<Map<String, ByteArray>>(emptyMap())
     private var busyMessage by mutableStateOf<String?>(null)
 
@@ -268,15 +266,15 @@ class SettingsActivity : ComponentActivity() {
     }
 
     private fun loadConfig(onDone: ((String?) -> Unit)? = null) {
-        bridgeStatus = BridgeStatus.LOADING
+        bridgeStatus = ConfigBridgeUiStatus.LOADING
         bridgeRequest(ModuleConfigBridge.MODE_EXPORT, null) { code, data ->
             val json = data?.getString(ModuleConfigBridge.EXTRA_JSON)
             if (code == ModuleConfigBridge.RESULT_OK && !json.isNullOrEmpty()) {
                 configFiles = runCatching { parseConfigFiles(json) }.getOrDefault(emptyMap())
-                bridgeStatus = BridgeStatus.READY
+                bridgeStatus = ConfigBridgeUiStatus.READY
                 onDone?.invoke(json)
             } else {
-                bridgeStatus = BridgeStatus.UNAVAILABLE
+                bridgeStatus = ConfigBridgeUiStatus.UNAVAILABLE
                 onDone?.invoke(null)
             }
         }
@@ -508,7 +506,7 @@ class SettingsActivity : ComponentActivity() {
         bridgeRequest(ModuleConfigBridge.MODE_IMPORT, settings) { code, data ->
             busyMessage = null
             if (code == ModuleConfigBridge.RESULT_OK) {
-                runCatching { configFiles = parseConfigFiles(settings); bridgeStatus = BridgeStatus.READY }
+                runCatching { configFiles = parseConfigFiles(settings); bridgeStatus = ConfigBridgeUiStatus.READY }
                 toast("导入完成。请强制停止并重新打开 DeepSeek 后生效")
             } else {
                 toast(bridgeFailureText(code, data))
@@ -636,8 +634,18 @@ class SettingsActivity : ComponentActivity() {
                             },
                         )
                         s == LauncherCatalog.HELP_ID -> HelpScreen(onAbout = { route = ROUTE_ABOUT }, onOpenDeepSeekSettings = { openDeepSeekSettings() })
-                        else -> LauncherCatalog.find(s)?.let { CategoryScreen(it) }
-                            ?: HomeScreen(onOpen = { route = it })
+                        else -> LauncherCatalog.find(s)?.let { category ->
+                            CategoryScreen(
+                                category = category,
+                                bridgeStatus = bridgeStatus,
+                                configFiles = configFiles,
+                                onRefresh = { loadConfig() },
+                                onWrite = { path, value, done ->
+                                    writeConfigValue(path, value, done)
+                                },
+                                onOpenDeepSeekSettings = { openDeepSeekSettings() },
+                            )
+                        } ?: HomeScreen(onOpen = { route = it })
                     }
                 }
                 val busy = busyMessage
@@ -680,102 +688,7 @@ class SettingsActivity : ComponentActivity() {
         )
     }
 
-    @Composable
-    private fun ConfigKeyRow(key: ConfigKey, current: ByteArray?) {
-        Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                if (key.kind == ConfigKind.FLAG) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(key.label, style = MaterialTheme.typography.titleSmall)
-                            Text(key.path, style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        AssistChip(
-                            onClick = {},
-                            enabled = false,
-                            label = { Text(if (current != null) "已开启" else "未开启") },
-                        )
-                    }
-                } else {
-                    EditableValue(key, current)
-                }
-            }
-        }
-    }
-
-    @Composable
-    private fun EditableValue(key: ConfigKey, current: ByteArray?) {
-        val original = remember(current) { current?.let { String(it, StandardCharsets.UTF_8) } ?: "" }
-        var text by remember(original) { mutableStateOf(original) }
-        var saving by remember { mutableStateOf(false) }
-        var expanded by remember { mutableStateOf(key.kind == ConfigKind.VALUE) }
-        val multiline = key.kind != ConfigKind.VALUE
-        val error = remember(text, key.kind) { validate(key, text) }
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(key.label, style = MaterialTheme.typography.titleSmall)
-                Text(
-                    if (current == null) "${key.path} · 未设置" else key.path,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (multiline) {
-                TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "收起" else "编辑") }
-            }
-        }
-        AnimatedVisibility(visible = expanded, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-            Column(Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = !multiline,
-                    minLines = if (multiline) 4 else 1,
-                    maxLines = if (multiline) 14 else 1,
-                    textStyle = if (key.kind == ConfigKind.JSON) {
-                        MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
-                    } else MaterialTheme.typography.bodyMedium,
-                    placeholder = { if (key.hint.isNotEmpty()) Text(key.hint) },
-                    supportingText = { Text(error ?: key.hint) },
-                    isError = error != null,
-                    keyboardOptions = if (key.hint == "正整数") {
-                        KeyboardOptions(keyboardType = KeyboardType.Number)
-                    } else KeyboardOptions.Default,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilledTonalButton(
-                        enabled = !saving && error == null && text != original,
-                        onClick = {
-                            saving = true
-                            writeConfigValue(key.path, text) { saving = false }
-                        },
-                    ) { Text(if (saving) "写入中…" else "写入 DeepSeek") }
-                    OutlinedButton(enabled = text != original, onClick = { text = original }) { Text("还原") }
-                }
-            }
-        }
-    }
-
-    private fun validate(key: ConfigKey, text: String): String? = when {
-        key.kind == ConfigKind.JSON && text.isNotBlank() -> runCatching {
-            val value = JSONTokener(text).nextValue()
-            require(value is JSONObject || value is JSONArray)
-            null
-        }.getOrElse { "JSON 格式错误" }
-        key.hint == "正整数" && text.isNotBlank() && (text.trim().toIntOrNull()?.let { it <= 0 } != false) -> "请输入正整数"
-        else -> null
-    }
-
-
-
-    @Suppress("DEPRECATION")
+                @Suppress("DEPRECATION")
     private fun isFullBackupHostSupported(): Boolean = runCatching {
         val info = packageManager.getPackageInfo(TARGET_PACKAGE, 0)
         val code = if (Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
