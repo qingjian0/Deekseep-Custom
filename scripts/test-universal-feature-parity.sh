@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "$ROOT/scripts/android-tools.sh"
+AAPT="$(dirname "$AAPT2")/aapt"
+test -x "$AAPT"
 
 APKS=(
     "$ROOT/module-universal/ds-probe-universal.apk"
@@ -68,7 +70,7 @@ for apk in "${APKS[@]}"; do
     fi
     rm -f "$dex_strings"
 
-    "$AAPT2" dump badging "$apk" | grep -Fq "package: name='ds.dsh.DeepSeek'" || {
+    "$AAPT" dump badging "$apk" | grep -Fq "package: name='ds.dsh.DeepSeek'" || {
         echo "FAIL: $(basename "$apk") has an unexpected module package identity" >&2
         exit 1
     }
@@ -78,7 +80,7 @@ for apk in "${APKS[@]}"; do
         echo "FAIL: $(basename "$apk") has no xposedminversion" >&2
         exit 1
     }
-    printf '%s\n' "$manifest" | grep -Eq 'android:value.*=82$' || {
+    printf '%s\n' "$manifest" | grep -Eq 'android:value.*(=82$|0x52$)' || {
         echo "FAIL: $(basename "$apk") does not start at Xposed API 82" >&2
         exit 1
     }
