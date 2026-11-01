@@ -369,7 +369,8 @@ final class AgentToolTraceStore {
             // Never delete the last known-good ledger before the replacement is committed.
             Os.rename(temporary.getAbsolutePath(), target.getAbsolutePath());
         } catch (Throwable ignored) {
-            temporary.delete();
+            // Keep a fully-synced temporary snapshot when replacement fails.
+            // The next load validates it before attempting recovery.
         }
     }
 
