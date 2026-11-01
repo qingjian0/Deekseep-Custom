@@ -20,7 +20,7 @@ mkdir -p "$ROOT/build"
 source_list="$(mktemp "$ROOT/build/universal-core-sources.XXXXXX")"
 trap 'rm -f "$source_list"' EXIT
 find "$ROOT/module/src/ds/dsh/DeepSeek" -maxdepth 1 -name '*.java' \
-    ! -name 'BuildInfo.java' -printf '%f\\n' | sed 's/[.]java$//' | sort > "$source_list"
+    ! -name 'BuildInfo.java' -printf '%f\n' | sed 's/[.]java$//' | sort > "$source_list"
 
 expected="$(wc -l < "$source_list" | tr -d '[:space:]')"
 [[ "$expected" -gt 0 ]] || {
@@ -64,15 +64,15 @@ for apk in "${APKS[@]}"; do
     }
 
     manifest="$("$AAPT2" dump xmltree "$apk" --file AndroidManifest.xml)"
-    printf '%s\\n' "$manifest" | grep -Eq '"xposedminversion"' || {
+    printf '%s\n' "$manifest" | grep -Eq '"xposedminversion"' || {
         echo "FAIL: $(basename "$apk") has no xposedminversion" >&2
         exit 1
     }
-    printf '%s\\n' "$manifest" | grep -Eq 'android:value.*=82$' || {
+    printf '%s\n' "$manifest" | grep -Eq 'android:value.*=82$' || {
         echo "FAIL: $(basename "$apk") does not start at Xposed API 82" >&2
         exit 1
     }
-    if printf '%s\\n' "$manifest" | grep -Eq '"xposedmaxversion"'; then
+    if printf '%s\n' "$manifest" | grep -Eq '"xposedmaxversion"'; then
         echo "FAIL: $(basename "$apk") unexpectedly caps the Xposed API" >&2
         exit 1
     fi
