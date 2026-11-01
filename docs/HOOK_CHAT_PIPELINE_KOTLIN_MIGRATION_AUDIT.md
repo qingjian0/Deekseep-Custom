@@ -59,6 +59,17 @@ Do not translate `HookChatPipeline.java` or `z17.java` wholesale. Preserve the e
 - Run the existing Legacy Xposed API 82–102 adapter regression and the relevant relay/host-map tests after each integration change.
 - A JVM test or CI build does not establish LSPosed injection or real DeepSeek host behavior; those remain device-validation items.
 
+## Implementation progress (2026-11-01)
+
+- P2a endpoint/header policy is implemented in `ConversationRelayEndpointPolicy.kt`; the legacy `z17` adapter delegates endpoint selection, authentication headers, default model selection, and timeout constants to it.
+- P2a immutable `ConversationRelayConfig` exists as a Kotlin contract. The legacy JSON file read/write adapter remains Java and retains its original path and keys.
+- P2b line framing is implemented in `ConversationRelaySsePolicy.kt`. It intentionally retains the legacy exact `data: ` prefix and Java `String.trim()` semantics.
+- P2b provider event routing is implemented in `ConversationRelayProviderEventPolicy.kt`; OpenAI reasoning/content and Anthropic thinking/text event classification are delegated from the Java adapter.
+- JVM tests cover endpoint/header behavior, Java trim compatibility, SSE line framing, OpenAI field routing, and Anthropic block/delta routing.
+- CI includes the `module-kotlin-runtime test` task. The GitHub connector has not returned a workflow run for the latest adapter commit, so CI status is not claimed as passing.
+
+Remaining P2b work: integration-level tests for the Android `org.json` decoding adapter and stream lifecycle; preserve JSON decoding and `HttpURLConnection` ownership at the Android boundary.
+
 ## Current status
 
 ### Implementation progress
