@@ -62,8 +62,13 @@ mkdir -p "$OUT/classes" "$OUT/dex" "$OUT/generated-src/ds/dsh/DeepSeek"
 ANDROIDX_PATH_PARSER_JAR="$(prepare_androidx_path_parser "$OUT")"
 
 echo "[0/7] generate BuildInfo.java"
-MODULE_VER=$(grep -oE 'android:versionName="[^"]+"' AndroidManifest.xml \
-  | head -n1 | cut -d'"' -f2)
+MODULE_VER=$(awk 'match($0, /android:versionName="[^"]+"/) {
+  value = substr($0, RSTART, RLENGTH)
+  sub(/^android:versionName="/, "", value)
+  sub(/"$/, "", value)
+  print value
+  exit
+}' AndroidManifest.xml)
 cat > "$OUT/generated-src/ds/dsh/DeepSeek/BuildInfo.java" <<EOF
 package ds.dsh.DeepSeek;
 public final class BuildInfo {
