@@ -54,7 +54,7 @@ GOOGLE_PLAY_APK="$DIST/deekseep-google-play-universal-$VERSION_NAME.apk"
 cp "$ROOT/module-universal/ds-probe-universal.apk" "$UNIVERSAL_APK"
 cp "$ROOT/module-universal/ds-probe-universal-google-play.apk" "$GOOGLE_PLAY_APK"
 
-if find "$DIST" -maxdepth 1 -type f -name '*test*' | grep -q . || find "$DIST" -maxdepth 1 -type f -name '*probe*' | grep -q .; then
+if [[ -n "$(find "$DIST" -maxdepth 1 -type f \( -name '*test*' -o -name '*probe*' \) -print -quit)" ]]; then
     echo "Refusing to package retired test/diagnostic APKs" >&2
     exit 1
 fi
@@ -63,7 +63,9 @@ AAPT="$(resolve_android_tool aapt)"
 grep -Fq 'android:name="xposedminversion" android:value="82"' "$MANIFEST"
 
 certificate_sha256() {
-    "$APKSIGNER" verify --print-certs "$1" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1
+    local signer_output
+    signer_output="$("$APKSIGNER" verify --print-certs "$1")"
+    awk -F': ' '/^Signer #1 certificate SHA-256 digest:/ { print $2; exit }' <<< "$signer_output"
 }
 domestic_cert="$(certificate_sha256 "$UNIVERSAL_APK")"
 google_play_cert="$(certificate_sha256 "$GOOGLE_PLAY_APK")"
