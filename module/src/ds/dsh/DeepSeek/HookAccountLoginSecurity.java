@@ -891,13 +891,14 @@ final class HookAccountLoginSecurity {
      * <li>The tracker uploader and the remote-config fetcher never send anything.</li>
      * </ul>
      */
-    void installRiskSdkNeutralizer(final ClassLoader cl) {
+    void installRiskSdkNeutralizer(final ClassLoader cl) throws Throwable {
         if (!Main.HARD_LINES_ENABLED) return; // YunSeek hard line: hard-gated off
-        if (cl == null) return;
+        if (cl == null) throw new IllegalArgumentException("risk SDK class loader is null");
         if (!isRiskBypassEnabled()) {
             Main.log("[RISK] SmAntiFraud neutralizer skipped (bypass disabled)");
             return;
         }
+        int primaryHooks = 0;
         try {
             Class<?> sm = HostRemap.forName("com.ishumei.smantifraud.SmAntiFraud", false, cl);
             for (final Method method : sm.getDeclaredMethods()) {
@@ -913,6 +914,7 @@ final class HookAccountLoginSecurity {
                             return smid;
                         }
                     });
+                    primaryHooks++;
                     try { Main.MODULE.deoptimize(method); } catch (Throwable ignored) {}
                 } else if ("getVData".equals(name) && params.length == 0
                         && method.getReturnType() == String.class) {
@@ -921,6 +923,7 @@ final class HookAccountLoginSecurity {
                             return riskNeutralizedSmid();
                         }
                     });
+                    primaryHooks++;
                     try { Main.MODULE.deoptimize(method); } catch (Throwable ignored) {}
                 } else if (("startDetector".equals(name) || "stopDetector".equals(name))
                         && params.length == 1) {
@@ -929,8 +932,12 @@ final class HookAccountLoginSecurity {
                             return null;
                         }
                     });
+                    primaryHooks++;
                     try { Main.MODULE.deoptimize(method); } catch (Throwable ignored) {}
                 }
+            }
+            if (primaryHooks == 0) {
+                throw new NoSuchMethodException("SmAntiFraud device identity/detector targets");
             }
             // Forge instead of blocking: the SDK still collects, encrypts and uploads normally,
             // but every detector returns "clean" and the box JSON carries the synthetic smid, so
@@ -1007,6 +1014,7 @@ final class HookAccountLoginSecurity {
             }
         } catch (Throwable t) {
             Main.log("[RISK] SmAntiFraud neutralizer unavailable: " + Main.safeThrowableMessage(t));
+            throw t;
         }
     }
 
