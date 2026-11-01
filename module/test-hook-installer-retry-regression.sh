@@ -88,7 +88,7 @@ grep -Fq 'IMAGE_CREDENTIAL_BRIDGE_HOOKED.contains(constructor)' <<<"$bridge_help
 grep -Fq 'IMAGE_CREDENTIAL_BRIDGE_HOOKED.add(constructor)' <<<"$bridge_helper"
 bridge_body="$(sed -n '/void installImageCredentialBridge(/,/\/\*\* Removes the gateway/p' "$attachment_src")"
 grep -Fq 'if (installFailure != null) throw installFailure;' <<<"$bridge_body"
-grep -Fq 'installFailure.addSuppressed(t)' <<<"$bridge_body"
+grep -Fq 'installFailure.addSuppressed(error)' <<<"$bridge_body"
 grep -Fq 'pv0 image credential bridge constructors' <<<"$bridge_body"
 grep -Fq 'k31 image credential bridge constructors' <<<"$bridge_body"
 grep -Fq 'ownerInstalled == 0' <<<"$bridge_body"
