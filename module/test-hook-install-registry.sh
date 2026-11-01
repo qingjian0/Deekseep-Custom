@@ -15,9 +15,13 @@ grep -Fq 'heartbeat tracked State hook installation failed' "$AGENT_PIPELINE"
 grep -Fq 'heartbeat fragment render hook installation failed' "$AGENT_PIPELINE"
 grep -Fq 'heartbeat Markdown input hook installation failed' "$AGENT_PIPELINE"
 grep -Fq 'native Markdown privacy hook installation failed' "$AGENT_PIPELINE"
+test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$AGENT_PIPELINE")" -ge 7
+test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$AGENT_PIPELINE")" -ge 7
 ATTACHMENT_PIPELINE="$MODULE_DIR/src/ds/dsh/DeepSeek/HookAttachmentPipeline.java"
 grep -Fq 'model-file link hooks were only partially installed' "$ATTACHMENT_PIPELINE"
 grep -Fq 'native model-file message card hooks were only partially installed' "$ATTACHMENT_PIPELINE"
+test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$ATTACHMENT_PIPELINE")" -ge 3
+test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$ATTACHMENT_PIPELINE")" -ge 3
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
