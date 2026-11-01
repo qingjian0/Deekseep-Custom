@@ -1774,6 +1774,8 @@ final class HookAgentPipeline {
                     liveHooks++;
                 }
             } catch (Throwable t) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
                 Main.log("heartbeat live response hook unavailable for "
                         + className + ": " + t);
                 if (firstFailure == null) firstFailure = t;
@@ -1845,6 +1847,8 @@ final class HookAgentPipeline {
                     staticHooks++;
                 }
             } catch (Throwable t) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
                 Main.log("heartbeat static response hook unavailable for "
                         + className + ": " + t);
                 if (firstFailure == null) firstFailure = t;
@@ -1964,6 +1968,8 @@ final class HookAgentPipeline {
                         "heartbeat JSON Patch dispatcher discovery returned no methods");
             }
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             Main.log("heartbeat JSON Patch dispatcher hook unavailable: "
                     + Main.safeThrowableMessage(error));
             throw new IllegalStateException(
@@ -2089,6 +2095,8 @@ final class HookAgentPipeline {
                         "heartbeat tracked State hook discovery returned no methods");
             }
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             Main.log("heartbeat tracked RESPONSE state hook unavailable: "
                     + Main.safeThrowableMessage(error));
             throw new IllegalStateException(
@@ -2136,6 +2144,8 @@ final class HookAgentPipeline {
                         "heartbeat fragment render discovery returned no methods");
             }
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             Main.log("heartbeat fragment screen monitor unavailable: "
                     + Main.safeThrowableMessage(error));
             throw new IllegalStateException(
@@ -2182,6 +2192,8 @@ final class HookAgentPipeline {
                         "heartbeat Markdown input discovery returned no methods");
             }
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             Main.log("heartbeat Markdown input hook unavailable: "
                     + Main.safeThrowableMessage(error));
             throw new IllegalStateException(
@@ -2262,6 +2274,8 @@ final class HookAgentPipeline {
                         "native Markdown parser discovery returned no methods for " + ownerName);
             }
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             Main.log("heartbeat native Markdown privacy hook unavailable owner="
                     + ownerName + ": " + Main.safeThrowableMessage(error));
             throw new IllegalStateException(
