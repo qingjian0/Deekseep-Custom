@@ -40,6 +40,14 @@ grep -Fq 'heartbeat tool status BasicText hook installation failed' "$AGENT_PIPE
 test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$AGENT_PIPELINE")" -ge 11
 test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$AGENT_PIPELINE")" -ge 11
 MAIN_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/Main.java"
+grep -Fq 'settings composable method not found' "$MAIN_SOURCE"
+grep -Fq 'settings composable hook installation failed' "$MAIN_SOURCE"
+grep -Fq 'code249 live session publish method fh.e was not found' "$MAIN_SOURCE"
+grep -Fq 'code249 live session publish repair hook installation failed' "$MAIN_SOURCE"
+grep -Fq 'code257 live session publish method jh.e was not found' "$MAIN_SOURCE"
+grep -Fq 'code257 live session publish repair hook installation failed' "$MAIN_SOURCE"
+grep -Fq 'code257 feedback deletion method h61.a was not found' "$MAIN_SOURCE"
+grep -Fq 'code257 feedback deletion hook installation failed' "$MAIN_SOURCE"
 grep -Fq 'private static void rethrowFatalLogFailure(Throwable failure)' "$MAIN_SOURCE"
 grep -Fq 'rethrowFatalLogFailure(ignored);' "$MAIN_SOURCE"
 grep -Fq 'code249 Local API routing hooks were only partially installed' "$MAIN_SOURCE"
