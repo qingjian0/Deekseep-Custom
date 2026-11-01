@@ -184,10 +184,24 @@ jobs:
           test -n "$universal_cert"
           test -n "$google_play_cert"
           test -n "$compose_cert"
-          test "$legacy_cert" = "$universal_cert"
-          test "$universal_cert" = "$google_play_cert"
-          test "$google_play_cert" = "$compose_cert"
-          echo "Legacy, domestic Universal, Google Play Universal and Compose APKs share signing certificate $legacy_cert"
+          echo "APK signing certificate SHA-256:"
+          echo "  Legacy:        $legacy_cert"
+          echo "  Universal:     $universal_cert"
+          echo "  Google Play:   $google_play_cert"
+          echo "  Compose:       $compose_cert"
+          if [[ "$legacy_cert" != "$universal_cert" ]]; then
+            echo "Legacy and Universal signing certificates differ." >&2
+            exit 1
+          fi
+          if [[ "$universal_cert" != "$google_play_cert" ]]; then
+            echo "Domestic and Google Play Universal signing certificates differ." >&2
+            exit 1
+          fi
+          if [[ "$google_play_cert" != "$compose_cert" ]]; then
+            echo "Google Play Universal and Compose signing certificates differ." >&2
+            exit 1
+          fi
+          echo "All four APKs share signing certificate $legacy_cert"
 
       - name: Upload Android artifacts and verification reports
         if: always()
