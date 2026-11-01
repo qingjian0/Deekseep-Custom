@@ -3317,6 +3317,10 @@ Main.log("[RISK] Android ID spoof installed");
         String setterName = HostCompat.localApiHeaderSetterMethod();
         int marked = 0;
         int replaced = 0;
+        int requestBuilderConstructors = 0;
+        int requestBuilderFactories = 0;
+        int completionFactoryHooks = 0;
+        int requestHeaderHooks = 0;
         Throwable installFailure = null;
         try {
             Class<?> owner = HostRemap.forName(authOwner, false, loader);
@@ -3409,6 +3413,7 @@ Main.log("[RISK] Android ID spoof installed");
                             return result;
                         }
                     });
+                    requestBuilderConstructors++;
                 }
                 for (Method method : requestBuilderType.getDeclaredMethods()) {
                     if (!"b".equals(HostRemap.name(method))
@@ -3451,7 +3456,14 @@ Main.log("[RISK] Android ID spoof installed");
                             return chain.proceed();
                         }
                     });
+                    requestBuilderFactories++;
                 }
+                if (requestBuilderConstructors == 0 || requestBuilderFactories == 0) {
+                    throw new NoSuchMethodException(
+                            "Local API request builder constructor/factory routing hooks");
+                }
+            } else {
+                throw new NoSuchMethodException("Local API request builder type");
             }
             if (HostCompat.isV241()) {
                 try {
@@ -3481,6 +3493,10 @@ Main.log("[RISK] Android ID spoof installed");
                             }
                         }
                     });
+                    completionFactoryHooks++;
+                }
+                if (completionFactoryHooks == 0) {
+                    throw new NoSuchMethodException("fu0.e completion factory targets");
                 }
                 Class<?> requestHeaders = HostRemap.forName("s95", false, loader);
                 for (Method method : requestHeaders.getDeclaredMethods()) {
@@ -3534,6 +3550,10 @@ Main.log("[RISK] Android ID spoof installed");
                             return chain.proceed();
                         }
                     });
+                    requestHeaderHooks++;
+                }
+                if (requestHeaderHooks == 0) {
+                    throw new NoSuchMethodException("s95.y request-header targets");
                 }
             }
         } catch (Throwable error) {
