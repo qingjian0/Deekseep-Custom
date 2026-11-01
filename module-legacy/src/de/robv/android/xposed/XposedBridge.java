@@ -9,6 +9,7 @@ public final class XposedBridge {
     public static XC_MethodHook callbackForTest;
     public static Member memberForTest;
     public static int hookCountForTest;
+    public static Error hookFailureForTest;
     public static OriginalMethodInvoker originalMethodInvokerForTest;
 
     public interface OriginalMethodInvoker {
@@ -22,6 +23,11 @@ public final class XposedBridge {
     public static void log(Throwable t) {}
 
     public static XC_MethodHook.Unhook hookMethod(Member hookMethod, XC_MethodHook callback) {
+        if (hookFailureForTest != null) {
+            Error failure = hookFailureForTest;
+            hookFailureForTest = null;
+            throw failure;
+        }
         memberForTest = hookMethod;
         callbackForTest = callback;
         hookCountForTest++;
@@ -38,6 +44,7 @@ public final class XposedBridge {
         callbackForTest = null;
         memberForTest = null;
         hookCountForTest = 0;
+        hookFailureForTest = null;
         originalMethodInvokerForTest = null;
     }
 }
