@@ -35,6 +35,8 @@ jobs:
         run: bash module/test-expert-relay-regression.sh
       - name: Run feature hook registry regression
         run: bash module/test-hook-install-registry.sh
+      - name: Run login diagnostics privacy regression
+        run: bash module/test-login-diagnostics-regression.sh
       - name: Run target process admission regression
         run: bash module/test-target-process-guard.sh
 
