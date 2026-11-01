@@ -79,6 +79,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.Member;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
@@ -328,6 +329,20 @@ final class HookAgentPipeline {
         }
     }
 
+    // A failed multi-target installer may be retried after some targets were already hooked.
+    // Keep successful Member registrations so retries install only the missing targets.
+    private static final Set<Member> AGENT_TOOL_INSTALLED_HOOKS =
+            Collections.newSetFromMap(new ConcurrentHashMap<Member, Boolean>());
+
+    private static boolean hookAgentToolOnce(Member member, Hooker hooker) throws Throwable {
+        synchronized (AGENT_TOOL_INSTALLED_HOOKS) {
+            if (AGENT_TOOL_INSTALLED_HOOKS.contains(member)) return false;
+            Main.MODULE.hook(member).intercept(hooker);
+            AGENT_TOOL_INSTALLED_HOOKS.add(member);
+            return true;
+        }
+    }
+
     void hookAgentToolLogRoundedRect(ClassLoader cl) throws Throwable {
         if (HostCompat.isV241()) {
             hookV241AgentToolLogRoundedRect(cl);
@@ -349,7 +364,7 @@ final class HookAgentPipeline {
             if (draw == null) throw new NoSuchMethodException("l96.c");
             int constructorHooks = 0;
             for (Constructor<?> constructor : ovalBox.getDeclaredConstructors()) {
-                Main.MODULE.hook(constructor).intercept(new Hooker() {
+                hookAgentToolOnce(constructor).intercept(new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object result = chain.proceed();
                         String payload = pollAgentToolParseLabel();
@@ -365,7 +380,7 @@ final class HookAgentPipeline {
             if (constructorHooks == 0) {
                 throw new NoSuchMethodException("agent tool-log rounded-box constructors");
             }
-            Main.MODULE.hook(draw).intercept(new Hooker() {
+            hookAgentToolOnce(draw).intercept(new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     return interceptAgentToolBoxDraw(chain);
                 }
@@ -376,7 +391,7 @@ final class HookAgentPipeline {
             Class<?> frameBox = HostRemap.load(cl, "ve3");
             int frameConstructorHooks = 0;
             for (Constructor<?> constructor : frameBox.getDeclaredConstructors()) {
-                Main.MODULE.hook(constructor).intercept(new Hooker() {
+                hookAgentToolOnce(constructor).intercept(new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object result = chain.proceed();
                         Object box = chain.getThisObject();
@@ -407,7 +422,7 @@ final class HookAgentPipeline {
                 }
             }
             if (frameDraw == null) throw new NoSuchMethodException("ve3.c");
-            Main.MODULE.hook(frameDraw).intercept(new Hooker() {
+            hookAgentToolOnce(frameDraw).intercept(new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     return interceptAgentToolBoxDraw(chain);
                 }
@@ -444,7 +459,7 @@ final class HookAgentPipeline {
             if (draw == null) throw new NoSuchMethodException("mf6.c");
             int constructorHooks = 0;
             for (Constructor<?> constructor : ovalBox.getDeclaredConstructors()) {
-                Main.MODULE.hook(constructor).intercept(new Hooker() {
+                hookAgentToolOnce(constructor).intercept(new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object result = chain.proceed();
                         String payload = pollAgentToolParseLabel();
@@ -460,7 +475,7 @@ final class HookAgentPipeline {
             if (constructorHooks == 0) {
                 throw new NoSuchMethodException("agent tool-log rounded-box constructors");
             }
-            Main.MODULE.hook(draw).intercept(new Hooker() {
+            hookAgentToolOnce(draw).intercept(new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     return interceptAgentToolBoxDraw(chain);
                 }
@@ -469,7 +484,7 @@ final class HookAgentPipeline {
             Class<?> frameBox = HostRemap.load(cl, "aj3");
             int frameConstructorHooks = 0;
             for (Constructor<?> constructor : frameBox.getDeclaredConstructors()) {
-                Main.MODULE.hook(constructor).intercept(new Hooker() {
+                hookAgentToolOnce(constructor).intercept(new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object result = chain.proceed();
                         Object box = chain.getThisObject();
@@ -497,7 +512,7 @@ final class HookAgentPipeline {
                 }
             }
             if (frameDraw == null) throw new NoSuchMethodException("aj3.c");
-            Main.MODULE.hook(frameDraw).intercept(new Hooker() {
+            hookAgentToolOnce(frameDraw).intercept(new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     return interceptAgentToolBoxDraw(chain);
                 }
@@ -525,7 +540,7 @@ final class HookAgentPipeline {
             Method dispatch = HostRemap.declaredMethod(touchActivity, 
                     "dispatchTouchEvent", MotionEvent.class);
             dispatch.setAccessible(true);
-            Main.MODULE.hook(dispatch).intercept(new Hooker() {
+            hookAgentToolOnce(dispatch).intercept(new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     MotionEvent event = (MotionEvent) chain.getArg(0);
                     Object result = chain.proceed();
@@ -577,7 +592,7 @@ final class HookAgentPipeline {
                         || p[0] != MotionEvent.class || method.getReturnType() != boolean.class) {
                     continue;
                 }
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookAgentToolOnce(method).intercept(new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         MotionEvent event = (MotionEvent) chain.getArg(0);
                         Object result = chain.proceed();
