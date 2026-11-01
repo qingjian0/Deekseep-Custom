@@ -286,7 +286,12 @@ for method in \
   hookRegionOverride \
   installRiskSdkNeutralizer \
   installSmsdkForge \
-  forgeSmsdkBoxJson; do
+  hookAndroidIdSpoof \
+  hookOaidSpoof \
+  hookConcreteOaidPreferencesV241 \
+  neutralizeRiskIoClass \
+  fa \
+  hookV241LocalApiUploadCoroutineRouting; do
   body="$(sed -n "/void $method(/,/^    }/p" "$login_src")"
   if [ -z "$body" ]; then
     body="$(sed -n "/private .* $method(/,/^    }/p" "$login_src")"
