@@ -1190,7 +1190,7 @@ final class HookAccountLoginSecurity {
             Class<?> settingsSecure = android.provider.Settings.Secure.class;
             Method getString = HostRemap.declaredMethod(settingsSecure, 
                     "getString", android.content.ContentResolver.class, String.class);
-            hookLoginFeatureMember("forgeSmsdkBoxJson", getString, new Hooker() {
+            hookLoginFeatureMember("hookAndroidIdSpoof", getString, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Object key = chain.getArg(1);
                     if ("android_id".equals(key)) {
@@ -1226,7 +1226,7 @@ Main.log("[RISK] Android ID spoof installed");
         try {
             Class<?> sp = Class.forName("android.content.SharedPreferences");
             Method getString = HostRemap.declaredMethod(sp, "getString", String.class, String.class);
-            hookLoginFeatureMember("forgeSmsdkBoxJson", getString, new Hooker() {
+            hookLoginFeatureMember("hookOaidSpoof", getString, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Object key = chain.getArg(0);
                     for (String oaidKey : OAID_KEYS) {
@@ -1258,7 +1258,7 @@ Main.log("[RISK] Android ID spoof installed");
                 final Method getString = HostRemap.declaredMethod(owner, 
                         "getString", String.class, String.class);
                 getString.setAccessible(true);
-                hookLoginFeatureMember("forgeSmsdkBoxJson", getString, new Hooker() {
+                hookLoginFeatureMember("hookConcreteOaidPreferencesV241", getString, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object key = chain.getArg(0);
                         for (String oaidKey : OAID_KEYS) {
@@ -1284,7 +1284,7 @@ Main.log("[RISK] Android ID spoof installed");
                 if (method.getReturnType() != void.class
                         || java.lang.reflect.Modifier.isStatic(method.getModifiers())
                         || method.getParameterTypes().length < 1) continue;
-                hookLoginFeatureMember("forgeSmsdkBoxJson", method, new Hooker() {
+                hookLoginFeatureMember("neutralizeRiskIoClass", method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         return null;
                     }
@@ -1669,7 +1669,7 @@ Main.log("[RISK] Android ID spoof installed");
             Method onReceive = HostRemap.declaredMethod(receiverClass, 
                     "onReceive", Context.class, Intent.class);
             onReceive.setAccessible(true);
-            hookLoginFeatureMember("forgeSmsdkBoxJson", onReceive, new Hooker() {
+            hookLoginFeatureMember("fa", onReceive, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Intent intent = chain.getArg(1) instanceof Intent
                             ? (Intent) chain.getArg(1) : null;
@@ -3773,7 +3773,7 @@ Main.log("[RISK] Android ID spoof installed");
         for (Constructor<?> constructor : uploadCoroutine.getDeclaredConstructors()) {
             Class<?>[] p = constructor.getParameterTypes();
             if (p.length == 0 || p[p.length - 1] != int.class) continue;
-            hookLoginFeatureMember("forgeSmsdkBoxJson", constructor, new Hooker() {
+            hookLoginFeatureMember("hookV241LocalApiUploadCoroutineRouting", constructor, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Object result = chain.proceed();
                     java.util.List<Object> args = chain.getArgs();
@@ -3794,7 +3794,7 @@ Main.log("[RISK] Android ID spoof installed");
             boolean propagates = "w".equals(HostRemap.name(method)) && p.length == 2;
             boolean resumesUpload = "y".equals(HostRemap.name(method)) && p.length == 1;
             if (!propagates && !resumesUpload) continue;
-            hookLoginFeatureMember("forgeSmsdkBoxJson", method, new Hooker() {
+            hookLoginFeatureMember("hookV241LocalApiUploadCoroutineRouting", method, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     z12.Route route = V241_LOCAL_API_ROUTED_UPLOAD_COROUTINES.get(
                             chain.getThisObject());
@@ -3827,7 +3827,7 @@ Main.log("[RISK] Android ID spoof installed");
         for (Method method : multipartUpload.getDeclaredMethods()) {
             Class<?>[] p = method.getParameterTypes();
             if (!"y".equals(HostRemap.name(method)) || p.length != 1) continue;
-            hookLoginFeatureMember("forgeSmsdkBoxJson", method, new Hooker() {
+            hookLoginFeatureMember("hookV241LocalApiUploadCoroutineRouting", method, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     z12.Route route = V241_ACTIVE_ROUTED_CONTEXT_UPLOAD;
                     Object fileDescriptor = Main.readHostField(chain.getThisObject(), "j");
@@ -3862,7 +3862,7 @@ Main.log("[RISK] Android ID spoof installed");
         for (Method method : filePowCoroutine.getDeclaredMethods()) {
             Class<?>[] p = method.getParameterTypes();
             if (!"y".equals(HostRemap.name(method)) || p.length != 1) continue;
-            hookLoginFeatureMember("forgeSmsdkBoxJson", method, new Hooker() {
+            hookLoginFeatureMember("hookV241LocalApiUploadCoroutineRouting", method, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     z12.Route route = V241_ACTIVE_ROUTED_CONTEXT_UPLOAD;
                     Object rawDiscriminator = Main.readHostField(chain.getThisObject(), "e");
@@ -3894,7 +3894,7 @@ Main.log("[RISK] Android ID spoof installed");
             Class<?>[] p = method.getParameterTypes();
             if (!"a".equals(HostRemap.name(method)) || p.length != 2
                     || !"ag3".equals(p[0].getName())) continue;
-            hookLoginFeatureMember("forgeSmsdkBoxJson", method, new Hooker() {
+            hookLoginFeatureMember("hookV241LocalApiUploadCoroutineRouting", method, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     z12.Route route = V241_ACTIVE_ROUTED_CONTEXT_UPLOAD;
                     if (route == null) return chain.proceed();
