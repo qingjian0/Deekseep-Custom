@@ -3799,7 +3799,7 @@ final class HookUiSurface {
             int routeHooks = 0;
             for (Method m : nav.getDeclaredMethods()) {
                 if (!HostRemap.name(m).equals("n") || m.getParameterTypes().length != 2) continue;
-                hookSettingsNavigationOnce(m).intercept(new Hooker() {
+                hookSettingsNavigationOnce(m, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object r = chain.proceed();
                         rememberNavController(chain.getThisObject());
@@ -3829,7 +3829,7 @@ final class HookUiSurface {
             int popHooks = 0;
             for (Method m : gf8.getDeclaredMethods()) {
                 if (!HostRemap.name(m).equals("A0") || m.getParameterTypes().length != 1) continue;
-                hookSettingsNavigationOnce(m).intercept(new Hooker() {
+                hookSettingsNavigationOnce(m, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object r = chain.proceed();
                         Object nav = chain.getArg(0);
@@ -3866,7 +3866,7 @@ final class HookUiSurface {
         int count = 0;
         for (Method m : nav.getDeclaredMethods()) {
             if (!HostRemap.name(m).equals(name)) continue;
-            hookSettingsNavigationOnce(m).intercept(new Hooker() {
+            hookSettingsNavigationOnce(m, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Object r = chain.proceed();
                     rememberNavController(chain.getThisObject());
