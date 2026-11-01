@@ -23,17 +23,22 @@ final class DshFileLogStore {
     private static final long MAX_FILE_BYTES = 2L * 1024L * 1024L;
     private static final int BACKUP_COUNT = 3;
     private static final int MAX_LINE_CHARS = 2048;
+    private static final Object PRIVATE_LOCK = new Object();
+    private static final Object PUBLIC_LOCK = new Object();
 
     private DshFileLogStore() {}
 
     /** Must run in the module application's process so filesDir belongs to ds.dsh.DeepSeek. */
-    static synchronized boolean appendPrivate(Context context, String category, String line) {
-        if (context == null || !isAllowedCategory(category) || line == null) return false;
-        return appendFile(context.getFilesDir(), category + ".log", line);
+    static boolean appendPrivate(Context context, String category, String line) {
+        synchronized (PRIVATE_LOCK) {
+            if (context == null || !isAllowedCategory(category) || line == null) return false;
+            return appendFile(context.getFilesDir(), category + ".log", line);
+        }
     }
 
     /** Reads a bounded chronological tail across the active crash log and its rotations. */
-    static synchronized String readPrivateCrashTail(Context context, int requestedMaxBytes) {
+    static String readPrivateCrashTail(Context context, int requestedMaxBytes) {
+        synchronized (PRIVATE_LOCK) {
         if (context == null) return "";
         int maxBytes = Math.max(1, Math.min(requestedMaxBytes, 512 * 1024));
         File directory = context.getFilesDir();
@@ -63,6 +68,7 @@ final class DshFileLogStore {
             }
         }
         return new String(combined.toByteArray(), StandardCharsets.UTF_8);
+        }
     }
 
     private static byte[] readFileTail(File file, int maxBytes) {
@@ -82,7 +88,8 @@ final class DshFileLogStore {
     }
 
     /** Writes Download/ds through MediaStore on Q+, with the legacy permission path on P-. */
-    static synchronized boolean appendPublic(Context context, String category, String line) {
+    static boolean appendPublic(Context context, String category, String line) {
+        synchronized (PUBLIC_LOCK) {
         if (context == null || !isAllowedCategory(category) || line == null) return false;
         String safeLine = sanitize(line);
         if (safeLine == null) return false;
@@ -101,6 +108,7 @@ final class DshFileLogStore {
             return appendFile(new File(downloads, PUBLIC_DIRECTORY), category + ".log", safeLine);
         } catch (Throwable ignored) {
             return false;
+        }
         }
     }
 
