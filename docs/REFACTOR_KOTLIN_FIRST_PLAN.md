@@ -89,7 +89,7 @@ The Gradle launcher currently declares AGP 9.3.0, Kotlin Compose plugin 2.4.10, 
 - Added a dedicated refactor validation workflow with separate JVM regression and Android artifact jobs.
 - SDK bootstrap now uses the runner's installed command-line tools directly; Android 17 is installed using the platform package ID `platforms;android-37.0`, not the unavailable `platforms;android-37`.
 - The CI order builds Legacy and Universal before running `test-thinking-regression.sh`, because that test consumes the Universal class output.
-- The workflow verifies APK ZIP structure and DEX presence. Full Legacy, Universal and Compose build validation remains pending a successful Android job.
+- The workflow verifies APK ZIP structure, at least one DEX file (including multi-dex outputs), 4-byte ZIP alignment and APK signatures. Full Legacy, Universal and Compose build validation remains pending a successful Android job.
 - CI signing material is ephemeral and limited to debug verification. No release keystore or publication path is used.
 
 ### P1 — Hook install lifecycle
@@ -108,7 +108,7 @@ The Gradle launcher currently declares AGP 9.3.0, Kotlin Compose plugin 2.4.10, 
 - The Compose Launcher source set includes the same runtime Kotlin source root through AGP 9 `kotlin.directories`.
 - The registry and process-admission JVM test runners build the Kotlin runtime artifact and run the existing Java regressions against it; the Android-dependent thinking test also includes the runtime JAR/stdlib on its classpath.
 - Gradle 9.8.2 bootstrap is shared by the runtime tests, Legacy/Universal builds and launcher Open build.
-- Validation gate: the first Kotlin runtime CI attempt exposed a Java 21/Kotlin 1.8 target mismatch. The Java compile target is now explicitly aligned to 1.8; the new run must pass before these migrations are considered validated. Expand the Kotlin runtime incrementally; do not migrate host-reflection logic until both distribution paths prove the runtime classes and stdlib are present in APK DEX output.
+- Validation gate: the first Kotlin runtime CI attempt exposed a Java 21/Kotlin 1.8 target mismatch; the runtime module now explicitly aligns Java and Kotlin output to 1.8. A later JVM CI run passed both Kotlin runtime regression scripts. The Android artifact matrix has not yet completed successfully. Expand the runtime incrementally; do not migrate host-reflection logic until both distribution paths prove the runtime classes and stdlib are present in APK DEX output.
 
 ### P3 — Compose launcher decomposition (in progress)
 
