@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST="$ROOT/dist"
@@ -9,10 +9,11 @@ rm -rf "$DIST"
 mkdir -p "$DIST"
 
 echo
-echo "=== Building universal module ==="
+echo "=== Building domestic Universal module ==="
 (cd "$ROOT/module-universal" && bash build.sh)
+
 echo
-echo "=== Building Google Play universal module ==="
+echo "=== Building Google Play Universal module ==="
 (cd "$ROOT/module-universal" && GOOGLE_PLAY_BUILD=true bash build.sh)
 
 echo
@@ -32,18 +33,17 @@ echo "=== Running traditional-Xposed adapter regression test ==="
 (cd "$ROOT/module-legacy" && bash test-adapter-regression.sh)
 
 echo
-echo "=== Verifying shared-core parity, entry formats, and APK signatures ==="
-for class_name in AccountManager ChatAppearance ChatAppearanceUi DeekseepUi \
-        AgentDeviceBridge HeartbeatToolProtocol ResponsePreserver; do
-    test -f "$ROOT/module-universal/build/classes/ds/dsh/DeepSeek/${class_name}.class"
+echo "=== Verifying shared-core parity and generated entry ==="
+for class_name in AccountManager ChatAppearance ChatAppearanceUi DeekseepUi AgentDeviceBridge HeartbeatToolProtocol ResponsePreserver; do
+    test -f "$ROOT/module-universal/build/classes/ds/dsh/DeepSeek/$class_name.class"
 done
-if grep -q '^import io\.github\.libxposed' \
-        "$ROOT/module-universal/build/generated-src/ds/dsh/DeepSeek/Main.java"; then
+if grep -q '^import io[.]github[.]libxposed' "$ROOT/module-universal/build/generated-src/ds/dsh/DeepSeek/Main.java"; then
     echo "Generated universal entry still imports modern libxposed APIs" >&2
     exit 1
 fi
+
 MANIFEST="$ROOT/module-universal/AndroidManifest.xml"
-VERSION_NAME="$(sed -n 's/.*android:versionName="\\([^"]*\\)".*/\\1/p' "$MANIFEST" | head -n 1)"
+VERSION_NAME="$(awk -F '"' '/android:versionName=/ { print $2; exit }' "$MANIFEST")"
 if [[ -z "$VERSION_NAME" ]]; then
     echo "Unable to read Universal module version from $MANIFEST" >&2
     exit 1
@@ -54,18 +54,16 @@ GOOGLE_PLAY_APK="$DIST/deekseep-google-play-universal-$VERSION_NAME.apk"
 cp "$ROOT/module-universal/ds-probe-universal.apk" "$UNIVERSAL_APK"
 cp "$ROOT/module-universal/ds-probe-universal-google-play.apk" "$GOOGLE_PLAY_APK"
 
-if find "$DIST" -maxdepth 1 -type f \\( -name '*test*' -o -name '*probe*' \\) | grep -q .; then
+if find "$DIST" -maxdepth 1 -type f -name '*test*' | grep -q . || find "$DIST" -maxdepth 1 -type f -name '*probe*' | grep -q .; then
     echo "Refusing to package retired test/diagnostic APKs" >&2
     exit 1
 fi
 
 AAPT="$(resolve_android_tool aapt)"
-grep -q 'android:name="xposedminversion" android:value="82"' "$MANIFEST"
+grep -Fq 'android:name="xposedminversion" android:value="82"' "$MANIFEST"
 
 certificate_sha256() {
-    "$APKSIGNER" verify --print-certs "$1" \\
-        | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' \\
-        | head -n 1
+    "$APKSIGNER" verify --print-certs "$1" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1
 }
 domestic_cert="$(certificate_sha256 "$UNIVERSAL_APK")"
 google_play_cert="$(certificate_sha256 "$GOOGLE_PLAY_APK")"
@@ -78,13 +76,12 @@ for apk in "$UNIVERSAL_APK" "$GOOGLE_PLAY_APK"; do
     "$APKSIGNER" verify --verbose "$apk"
     package_metadata="$("$AAPT" dump badging "$apk")"
     grep -Fq "package: name='ds.dsh.DeepSeek'" <<< "$package_metadata"
-    unzip -p "$apk" assets/xposed_init | grep -qx 'ds[.]dsh[.]DeepSeek[.]Main'
-    if unzip -Z1 "$apk" | grep -Fq 'META-INF/xposed/java_init.list'; then
+    unzip -p "$apk" assets/xposed_init | grep -Fxq "ds.dsh.DeepSeek.Main"
+    if unzip -Z1 "$apk" | grep -Fxq 'META-INF/xposed/java_init.list'; then
         echo "Universal APK unexpectedly contains a modern libxposed entry: $apk" >&2
         exit 1
     fi
-    dex_count="$(unzip -Z1 "$apk" | grep -Ec '^classes([0-9]+)?[.]dex
- || true)"
+    dex_count="$(unzip -Z1 "$apk" | grep -Ec '^classes([0-9]+)?[.]dex$' || true)"
     test "$dex_count" -ge 1
 done
 
