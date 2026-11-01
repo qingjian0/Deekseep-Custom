@@ -17,6 +17,7 @@ KOTLIN_STDLIB_JAR="$(find "$RUNTIME_DIR/build/runtime-classpath" -maxdepth 1 \
 test -s "$KOTLIN_RUNTIME_JAR"
 test -s "$KOTLIN_STDLIB_JAR"
 test -s "$R8_JAR"
+java -cp "$R8_JAR" com.android.tools.r8.D8 --version
 OUT=build
 rm -rf "$OUT"
 mkdir -p "$OUT/classes" "$OUT/dex" "$OUT/generated-src/com/dsmod/probe"
