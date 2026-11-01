@@ -127,6 +127,16 @@ public final class XposedActivationProvider extends ContentProvider {
         }
         result.putBoolean("accepted", true);
         DshLogIpcQueue.putStatus(result);
+        result.putInt("public_storage_api", android.os.Build.VERSION.SDK_INT);
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            result.putString("public_storage_state", "mediastore");
+        } else {
+            boolean granted = context.checkSelfPermission(
+                    android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    == android.content.pm.PackageManager.PERMISSION_GRANTED;
+            result.putBoolean("public_storage_permission_granted", granted);
+            result.putString("public_storage_state", granted ? "legacy-permission" : "permission-required");
+        }
         return result;
     }
 
