@@ -4,7 +4,7 @@ package ds.dsh.DeepSeek
  * Exact-string English copy catalog for the manually rendered module UI.
  * Unknown and user-authored text is preserved; arbitrary substring replacement is forbidden.
  */
-object UiLanguageCatalog {
+object UiLanguageCatalogData {
     private val EXACT = HashMap<String, String>()
 
     init {
