@@ -1,4 +1,4 @@
-package com.dsmod.probe
+package ds.dsh.DeepSeek
 
 /**
  * Pure process-admission guard for the Xposed package callback.

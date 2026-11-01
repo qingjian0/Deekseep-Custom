@@ -1,4 +1,4 @@
-package com.dsmod.probe.ui
+package ds.dsh.DeepSeek.ui
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
