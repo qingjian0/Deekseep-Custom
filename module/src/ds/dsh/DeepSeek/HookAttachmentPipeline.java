@@ -279,7 +279,7 @@ final class HookAttachmentPipeline {
             signedPath.setAccessible(true);
             Method resolve = HostRemap.declaredMethod(imagePath, "a", String.class);
             resolve.setAccessible(true);
-            Main.MODULE.hook(resolve).intercept(new Hooker() {
+            hookAttachmentMember(resolve, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Object raw = signedPath.get(chain.getThisObject());
                     if (raw instanceof String
@@ -421,7 +421,7 @@ final class HookAttachmentPipeline {
                         || types[1] != int.class
                         || types[12] != int.class
                         || types[13] != int.class) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookAttachmentMember(method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object result = chain.proceed();
                         if (!NativeDualChatBridge.isActive()) return result;
@@ -506,7 +506,7 @@ final class HookAttachmentPipeline {
                 // i 是 kotlinx bitmask，位缺失时字段被置 null。构造后再反射写 final 对 App 编译读取点不可见，
                 // 故改为「构造前」把模板塞进 args 并置位 bitmask → 字段出生即非空，任何读取路径都能看到。
                 final boolean synth = pt.length >= 13 && pt[0] == int.class;
-                Main.MODULE.hook(ctor).intercept(new Hooker() {
+                hookAttachmentMember(ctor, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object r;
                         if (synth) {
@@ -550,7 +550,7 @@ final class HookAttachmentPipeline {
                 if (!"b".equals(HostRemap.name(mtd))) continue;
                 Class<?>[] pt = mtd.getParameterTypes();
                 if (pt.length != 2 || pt[0] != boolean.class) continue;
-                Main.MODULE.hook(mtd).intercept(new Hooker() {
+                hookAttachmentMember(mtd, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         try {
                             Object self = chain.getThisObject();
@@ -599,7 +599,7 @@ Main.log("hookExpertUnlock failed: " + t);
                 if (!"a".equals(HostRemap.name(mtd))) continue;
                 Class<?>[] pt = mtd.getParameterTypes();
                 if (pt.length != 2 || pt[0] != Object.class) continue;
-                Main.MODULE.hook(mtd).intercept(new Hooker() {
+                hookAttachmentMember(mtd, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         try {
                             Object ev = chain.getArg(0);
@@ -901,7 +901,7 @@ Main.log("installExpertUploadGate failed: " + t);
                 if (types.length != 3 || types[0] != int.class
                         || !List.class.isAssignableFrom(types[1])
                         || types[2] != boolean.class) continue;
-                Main.MODULE.hook(ctor).intercept(new Hooker() {
+                hookAttachmentMember(ctor, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object raw = chain.getArg(1);
                         if (!(raw instanceof List)) return chain.proceed();
@@ -1047,7 +1047,7 @@ Main.log("f9 failed: " + t);
             Class<?> pw0 = HostCompat.load(cl, "pw0");
             int n = 0;
             for (Constructor<?> ctor : pw0.getDeclaredConstructors()) {
-                Main.MODULE.hook(ctor).intercept(new Hooker() {
+                hookAttachmentMember(ctor, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object r = chain.proceed();
                         try {
@@ -1241,7 +1241,7 @@ Main.log("f9 failed: " + t);
                 }
             }
             if (send == null) throw new NoSuchMethodException(className + ".x(Object) send-point hook");
-            Main.MODULE.hook(send).intercept(new Hooker() {
+            hookAttachmentMember(send, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     if (!isExpertRelayEnabled()) return chain.proceed();
                     Main.tlPendingFps.remove();
@@ -1333,7 +1333,7 @@ Main.log("f9 failed: " + t);
         try {
             Class<?> c = HostCompat.load(cl, cls);
             final Method y = HostRemap.declaredMethod(c, "y", Object.class);
-            Main.MODULE.hook(y).intercept(new Hooker() {
+            hookAttachmentMember(y, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     if (!isExpertRelayEnabled()) return chain.proceed();
                     Main.tlPendingFps.remove();
@@ -1904,7 +1904,7 @@ Main.log("f9 failed: " + t);
                 if (HostRemap.name(m).equals("b") && p.length == 2 && p[0] == q03) { bColl = m; break; }
             }
             if (bColl == null) throw new NoSuchMethodException("b41.b(q03,uz1) expert flow collect target");
-            Main.MODULE.hook(bColl).intercept(new Hooker() {
+            hookAttachmentMember(bColl, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Object self = chain.getThisObject();
                     Object[] entry;
