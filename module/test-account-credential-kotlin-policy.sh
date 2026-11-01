@@ -20,6 +20,7 @@ grep -Fq 'AccountCredentialFieldPolicy.isValidTokenLength(token.length())' "$COD
 grep -Fq 'AccountCredentialFieldPolicy.isIntegralNumber(value)' "$CODEC_SOURCE"
 grep -Fq 'AccountCredentialFieldPolicy.trim((String) o.opt(key))' "$CODEC_SOURCE"
 grep -Fq 'AccountCredentialFieldPolicy.shortId(id)' "$CODEC_SOURCE"
+! grep -Fq 'import java.util.Locale;' "$CODEC_SOURCE"
 ! grep -Fq 'Double.isNaN(value)' "$CODEC_SOURCE"
 ! grep -Fq 'toLowerCase(Locale.US)' "$CODEC_SOURCE"
 
