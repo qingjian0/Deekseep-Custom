@@ -79,6 +79,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.Member;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
@@ -3776,6 +3777,21 @@ final class HookUiSurface {
                 b = Color.blue(color) / 255f;
         return 0.2126f * r + 0.7152f * g + 0.0722f * b;
     }
+    // Route and pop groups install independently. If one partially succeeds and the other
+    // fails, the enclosing feature step may retry; never stack interceptors on prior targets.
+    private static final Set<Member> SETTINGS_NAV_INSTALLED_MEMBERS =
+            Collections.newSetFromMap(new ConcurrentHashMap<Member, Boolean>());
+
+    private static boolean hookSettingsNavigationOnce(Member member, Hooker hooker)
+            throws Throwable {
+        synchronized (SETTINGS_NAV_INSTALLED_MEMBERS) {
+            if (SETTINGS_NAV_INSTALLED_MEMBERS.contains(member)) return false;
+            Main.MODULE.hook(member).intercept(hooker);
+            SETTINGS_NAV_INSTALLED_MEMBERS.add(member);
+            return true;
+        }
+    }
+
     void hookSettingsNavigation(ClassLoader cl) throws Throwable {
         Throwable installFailure = null;
         try {
@@ -3783,7 +3799,7 @@ final class HookUiSurface {
             int routeHooks = 0;
             for (Method m : nav.getDeclaredMethods()) {
                 if (!HostRemap.name(m).equals("n") || m.getParameterTypes().length != 2) continue;
-                Main.MODULE.hook(m).intercept(new Hooker() {
+                hookSettingsNavigationOnce(m).intercept(new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object r = chain.proceed();
                         rememberNavController(chain.getThisObject());
@@ -3813,7 +3829,7 @@ final class HookUiSurface {
             int popHooks = 0;
             for (Method m : gf8.getDeclaredMethods()) {
                 if (!HostRemap.name(m).equals("A0") || m.getParameterTypes().length != 1) continue;
-                Main.MODULE.hook(m).intercept(new Hooker() {
+                hookSettingsNavigationOnce(m).intercept(new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object r = chain.proceed();
                         Object nav = chain.getArg(0);
@@ -3850,7 +3866,7 @@ final class HookUiSurface {
         int count = 0;
         for (Method m : nav.getDeclaredMethods()) {
             if (!HostRemap.name(m).equals(name)) continue;
-            Main.MODULE.hook(m).intercept(new Hooker() {
+            hookSettingsNavigationOnce(m).intercept(new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Object r = chain.proceed();
                     rememberNavController(chain.getThisObject());
