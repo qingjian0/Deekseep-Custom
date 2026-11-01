@@ -2075,7 +2075,44 @@ final class UiLanguageCatalog {
         if (value == null || value.length() == 0) return value == null ? "" : value;
         String exact = EXACT.get(value);
         if (exact != null) return exact;
+
+        // Translate only complete, known dynamic templates. Arbitrary substring replacement
+        // remains disabled so unrelated sentences cannot be partially rewritten.
+        final String singlePrefix = "已验证并加入 ";
+        final String singleSuffix = " 个账号。当前登录账号未改变，可在列表中随时切换。";
+        if (value.startsWith(singlePrefix) && value.endsWith(singleSuffix)) {
+            String count = value.substring(singlePrefix.length(), value.length() - singleSuffix.length());
+            if (isAsciiDigits(count)) {
+                return "Validated and added " + count + (count.equals("1") ? " account." : " accounts.")
+                        + " The currently signed-in account was not changed; switch from the list at any time.";
+            }
+        }
+
+        final String batchPrefix = "已从 ";
+        final String batchMiddle = " 个所选项目中验证并加入 ";
+        final String batchSuffix = " 个账号。当前登录账号未改变。";
+        if (value.startsWith(batchPrefix) && value.endsWith(batchSuffix)) {
+            int middle = value.indexOf(batchMiddle, batchPrefix.length());
+            if (middle > batchPrefix.length()) {
+                String itemCount = value.substring(batchPrefix.length(), middle);
+                String accountCount = value.substring(middle + batchMiddle.length(),
+                        value.length() - batchSuffix.length());
+                if (isAsciiDigits(itemCount) && isAsciiDigits(accountCount)) {
+                    return "Validated and added " + accountCount + " accounts from " + itemCount
+                            + " selected items. The currently signed-in account was not changed.";
+                }
+            }
+        }
         return value;
+    }
+
+    private static boolean isAsciiDigits(String value) {
+        if (value == null || value.length() == 0) return false;
+        for (int i = 0; i < value.length(); i++) {
+            char ch = value.charAt(i);
+            if (ch < '0' || ch > '9') return false;
+        }
+        return true;
     }
 
     private static void add(String zh, String en) {

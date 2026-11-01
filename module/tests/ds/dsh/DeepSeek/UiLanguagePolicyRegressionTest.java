@@ -33,6 +33,10 @@ public final class UiLanguagePolicyRegressionTest {
                 "功能可能随时失败、产生不完整结果或导致数据丢失。继续表示你已理解上述风险并自行承担后果。"));
         assertEnglish("account import status", UiLanguageCatalog.toEnglish(
                 "已验证并加入 3 个账号。当前登录账号未改变，可在列表中随时切换。"));
+        assertEnglish("single account import status", UiLanguageCatalog.toEnglish(
+                "已验证并加入 1 个账号。当前登录账号未改变，可在列表中随时切换。"));
+        assertEnglish("batch account import status", UiLanguageCatalog.toEnglish(
+                "已从 2 个所选项目中验证并加入 3 个账号。当前登录账号未改变。"));
         assertEnglish("editor status", UiLanguageCatalog.toEnglish(
                 "这是一个空白对话\n请用底部按钮添加用户消息或 AI 回复"));
         System.out.println("UiLanguage policy regression tests passed");
