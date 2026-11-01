@@ -82,8 +82,14 @@ final class DshFileLogStore {
         final String fileName = category + ".log";
         Uri collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI;
         Uri current = findDownload(resolver, collection, fileName, relativePath);
-        long currentSize = current == null ? 0L : querySize(resolver, current);
+        long currentSize = 0L;
         if (current != null) {
+            int pendingState = queryPending(resolver, current);
+            if (pendingState < 0) return false;
+            // Recover a row left pending by a process death or a failed earlier append.
+            // Publish it before rotation so a later append cannot leave it permanently hidden.
+            if (pendingState == 1 && !publishMediaStore(resolver, current)) return false;
+            currentSize = querySize(resolver, current);
             if (currentSize < 0L) return false;
             if (currentSize + bytes.length > MAX_FILE_BYTES) {
                 if (!rotateMediaStore(resolver, collection, category, relativePath)) return false;
@@ -105,12 +111,23 @@ final class DshFileLogStore {
             output.write(bytes);
             output.flush();
         }
-        if (created) {
-            ContentValues publish = new ContentValues();
-            publish.put(MediaStore.MediaColumns.IS_PENDING, 0);
-            if (resolver.update(current, publish, null, null) <= 0) return false;
-        }
+        if (created && !publishMediaStore(resolver, current)) return false;
         return true;
+    }
+
+    /** Returns 1 for pending, 0 for published, and -1 when the state cannot be read. */
+    private static int queryPending(ContentResolver resolver, Uri uri) {
+        try (Cursor cursor = resolver.query(uri,
+                new String[] { MediaStore.MediaColumns.IS_PENDING }, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) return cursor.getInt(0);
+        } catch (Throwable ignored) {}
+        return -1;
+    }
+
+    private static boolean publishMediaStore(ContentResolver resolver, Uri uri) {
+        ContentValues publish = new ContentValues();
+        publish.put(MediaStore.MediaColumns.IS_PENDING, 0);
+        return resolver.update(uri, publish, null, null) > 0;
     }
 
     private static Uri findDownload(ContentResolver resolver, Uri collection,
