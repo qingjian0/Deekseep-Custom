@@ -98,6 +98,10 @@ public final class KotlinPolicyJavaInteropRegression {
         require(AgentManualGateState.consumeApproval("interop-call")
                         && !AgentManualGateState.consumeApproval("interop-call"),
                 "Java caller could not use the migrated Kotlin manual-gate state");
+        require("executing".equals(AgentRunStatePolicy.cleanState("unknown"))
+                        && AgentRunStatePolicy.isFinished("cancelled")
+                        && !AgentRunStatePolicy.hasPendingResult("outbox", "event", "completed"),
+                "Java caller could not use the migrated Agent run-state policy");
         DshDiagnosticsRecorder diagnostics = new DshDiagnosticsRecorder(2);
         diagnostics.record("hook installed cost=16ms");
         diagnostics.record("server request Cookie: sid=interop-secret-123");
