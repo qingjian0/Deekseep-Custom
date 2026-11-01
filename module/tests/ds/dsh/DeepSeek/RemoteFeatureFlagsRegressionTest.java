@@ -5,6 +5,8 @@ import java.util.HashSet;
 public final class RemoteFeatureFlagsRegressionTest {
     public static void main(String[] args) {
         HashSet<String> keys = new HashSet<>();
+        checkPolicyHelpers();
+
         for (RemoteFeatureFlags.Feature feature : RemoteFeatureFlags.FEATURES) {
             if (feature.nativeBoolean) {
                 require(feature.key.startsWith("kv_remote_settings_"),
@@ -47,6 +49,25 @@ public final class RemoteFeatureFlagsRegressionTest {
                         == RemoteFeatureFlags.FORCE_ON,
                 "hide-avatar=false must display show-avatar ON");
         System.out.println("Remote feature flag regression passed");
+    }
+
+    private static void checkPolicyHelpers() {
+        require("kv_settings_voice_input_enabled".equals(
+                        RemoteFeatureFlagsPolicy.localKey("kv_remote_settings_voice_input_enabled")),
+                "remote key prefix mapping");
+        require(RemoteFeatureFlagsPolicy.localKey("custom_key").equals("custom_key"),
+                "non-remote key must remain unchanged");
+        require(RemoteFeatureFlagsPolicy.localKey(null) == null, "null key");
+        require(RemoteFeatureFlagsPolicy.hostValue(false, true),
+                "non-inverted feature preserves user value");
+        require(!RemoteFeatureFlagsPolicy.hostValue(true, true),
+                "inverted feature negates enabled user value");
+        require(RemoteFeatureFlagsPolicy.userModeFromHost(true, false)
+                        == RemoteFeatureFlags.FORCE_ON,
+                "host false maps to user enabled for inverted feature");
+        require(RemoteFeatureFlagsPolicy.userModeFromHost(false, false)
+                        == RemoteFeatureFlags.FORCE_OFF,
+                "host false maps to user disabled for normal feature");
     }
 
     private static void require(boolean value, String message) {

@@ -326,9 +326,7 @@ final class RemoteFeatureFlags {
     }
 
     static String localKey(String remoteKey) {
-        final String prefix = "kv_remote_settings_";
-        if (remoteKey == null || !remoteKey.startsWith(prefix)) return remoteKey;
-        return "kv_settings_" + remoteKey.substring(prefix.length());
+        return RemoteFeatureFlagsPolicy.localKey(remoteKey);
     }
 
     static Feature featureForKey(String key) {
@@ -367,11 +365,12 @@ final class RemoteFeatureFlags {
     }
 
     static boolean hostValue(Feature feature, boolean userValue) {
-        return feature != null && feature.inverted ? !userValue : userValue;
+        return feature != null && RemoteFeatureFlagsPolicy.hostValue(feature.inverted, userValue);
     }
 
     static int userModeFromHost(Feature feature, boolean hostValue) {
-        return hostValue(feature, hostValue) ? FORCE_ON : FORCE_OFF;
+        return RemoteFeatureFlagsPolicy.userModeFromHost(
+                feature != null && feature.inverted, hostValue);
     }
 
     /** Config fallback used before the host MMKV is available. */
