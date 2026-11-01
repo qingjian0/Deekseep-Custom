@@ -949,8 +949,13 @@ final class HookChatPipeline {
                 });
                 n++;
             }
+            if (n == 0) throw new NoSuchMethodException("kb7 clear_response constructor");
             Main.log("hooked kb7 constructors x" + n + " (clear_response guard)");
-        } catch (Throwable t) { Main.log("hookSafetyRetraction failed: " + t); }
+        } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw new IllegalStateException("hookSafetyRetraction installation failed", t);
+        }
     }
 
     // ── 诊断：抓取服务器返回的 SSE 原始事件 ─────────────────────────
@@ -997,8 +1002,13 @@ final class HookChatPipeline {
                 });
                 n++;
             }
-            Main.log("installed server capture on lv7 x" + n);
-        } catch (Throwable t) { Main.log("installServerCapture failed: " + t); }
+            if (n == 0) throw new NoSuchMethodException("SSE event constructor(String,String)");
+            Main.log("installed server capture constructors x" + n);
+        } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw new IllegalStateException("server capture hook installation failed", t);
+        }
     }
 
     /** Sanitizes 2.3.4's whole-fragments replacement before gw.i builds its Markdown State. */
@@ -1195,8 +1205,13 @@ final class HookChatPipeline {
                 });
                 n++;
             }
+            if (n == 0) throw new NoSuchMethodException("mv.i content-filter patch method");
             Main.log("hooked mv.i x" + n + " (content-filter guard)");
-        } catch (Throwable t) { Main.log("hookContentFilterApply failed: " + t); }
+        } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw new IllegalStateException("content-filter apply hook installation failed", t);
+        }
     }
 
     private static void forceLiveRegenerateAllowedV241(Object message) {
@@ -1272,8 +1287,13 @@ final class HookChatPipeline {
                 });
                 n++;
             }
+            if (n == 0) throw new NoSuchMethodException("vv7.e message rebuild method");
             Main.log("installed msg-rebuild capture on vv7.e x" + n);
-        } catch (Throwable t) { Main.log("installMsgRebuildCapture failed: " + t); }
+        } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw new IllegalStateException("message rebuild capture hook installation failed", t);
+        }
     }
 
     // 第二拦截点：mv.S(status)/mv.R(quasi_status) 直接状态写入
@@ -1358,8 +1378,13 @@ final class HookChatPipeline {
                 });
                 n++;
             }
+            if (n == 0) throw new NoSuchMethodException("mv status write methods");
             Main.log("hooked mv.S/R x" + n + " (status-write guard)");
-        } catch (Throwable t) { Main.log("hookStatusWrite failed: " + t); }
+        } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw new IllegalStateException("status-write hook installation failed", t);
+        }
     }
 
     private static void maybeAutoContinue(
@@ -1606,8 +1631,13 @@ final class HookChatPipeline {
                 });
                 n++;
             }
+            if (n == 0) throw new NoSuchMethodException("fragment template selector h");
             Main.log("hooked h83.h x" + n + " (template probe)");
-        } catch (Throwable t) { Main.log("hookTemplateProbe failed: " + t); }
+        } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw new IllegalStateException("template probe hook installation failed", t);
+        }
     }
 
     // ── close 后整表合并 tp.u(tp, List) ──────────────────
@@ -1699,8 +1729,13 @@ final class HookChatPipeline {
                 });
                 n++;
             }
+            if (n == 0) throw new NoSuchMethodException("tp session message merge method");
             Main.log("hooked tp.u x" + n + " (final-merge guard)");
-        } catch (Throwable t) { Main.log("hookFinalMessageMerge failed: " + t); }
+        } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw new IllegalStateException("final-message merge hook installation failed", t);
+        }
     }
 
     // ── 单条消息替换拦截：tp.q(uo)/tp.p(uo,String)/tp.a(uo,bool) ─────────
