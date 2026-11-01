@@ -83,3 +83,10 @@ Remaining P2b work: integration-level tests for the Android `org.json` decoding 
 - Remaining P2b work: exercise the real Java/Android `org.json` adapter and stream lifecycle, including malformed events, truncated streams, EOF without `[DONE]`, disconnect/exception cleanup, and actual provider fixtures. Keep JSON decoding in the Android adapter.
 
 This remains a staged migration. Do not rewrite `HookChatPipeline` or move host reflection, Xposed callbacks, Flow identity, or HostRemap tables into the shared runtime.
+
+## Follow-up implementation (2026-11-01)
+
+- Added `ConversationRelayStreamAccumulator` to the standalone Kotlin runtime and routed both OpenAI and Anthropic stream readers through one per-response instance. Reasoning/content buffers are isolated; appended text is preserved verbatim until the existing `RelayResult` constructor applies its legacy trim.
+- Added accumulator tests for interleaved chunks, empty/unknown values, whitespace preservation, and response-instance isolation.
+- Hardened `z17.fetchModels` and `z17.relay` connection cleanup with `finally`-based `HttpURLConnection.disconnect()`. This covers setup, response-code, body-read, and parser failures while preserving existing HTTP status/error text and parser ownership. Duplicate disconnect after parser completion is intentional and safe for `HttpURLConnection`.
+- Local validation: Kotlin policy/accumulator/SSE sources compiled with the installed Kotlin compiler; smoke assertions passed; a Java caller compiled and ran against the Kotlin accumulator (`@JvmStatic` policy + enum + accumulator interop). Full Gradle/JUnit, Android build, and device/provider integration remain unverified.
