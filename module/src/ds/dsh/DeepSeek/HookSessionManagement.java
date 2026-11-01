@@ -1765,6 +1765,9 @@ final class HookSessionManagement {
                 });
                 directoryHooks++;
             }
+            if (transactionHooks == 0 || directoryHooks == 0) {
+                throw new NoSuchMethodException("local session directory merge hooks missing");
+            }
             Main.log("installed local cloud-directory merge p68=" + transactionHooks
                     + " aw=" + directoryHooks);
         } catch (Throwable t) {
@@ -1830,6 +1833,7 @@ final class HookSessionManagement {
                 });
                 installed++;
             }
+            if (installed == 0) throw new NoSuchMethodException("ed0.h native refresh guard");
             Main.log("installed editor-local native-state refresh guard ed0.h x" + installed);
         } catch (Throwable t) {
             Main.log("hookLocalNativeSessionRefresh failed: " + t);
@@ -2089,6 +2093,7 @@ final class HookSessionManagement {
                 });
                 installed++;
             }
+            if (installed == 0) throw new NoSuchMethodException("local session remote reload guard");
             Main.log("installed editor-local remote reload guard "
                     + HostRemap.simpleName(viewModel) + "."
                     + (HostCompat.isV241() ? "E"
@@ -2148,6 +2153,7 @@ final class HookSessionManagement {
                 });
                 installed++;
             }
+            if (installed == 0) throw new NoSuchMethodException("vm9.W native detail request guard");
             Main.log("installed editor-local detail request guard vm9.W x" + installed);
         } catch (Throwable t) {
             Main.log("hookNativeDetailRequest failed: " + t);
@@ -2217,6 +2223,7 @@ final class HookSessionManagement {
                 });
                 installed++;
             }
+            if (installed == 0) throw new NoSuchMethodException("at0.a local session deleted-response guard");
             Main.log("installed editor-local deleted-response guard at0.a x" + installed);
         } catch (Throwable t) {
             Main.log("hookLocalSessionDeletedResponse failed: " + t);
@@ -2298,6 +2305,7 @@ final class HookSessionManagement {
                 });
                 installed++;
             }
+            if (installed == 0) throw new NoSuchMethodException("za1.N local session deletion guard");
             Main.log("installed editor-local ViewModel deletion guard za1.N x" + installed);
         } catch (Throwable t) {
             Main.log("hookLocalSessionDeletedFlow failed: " + t);
@@ -2474,6 +2482,7 @@ final class HookSessionManagement {
                 });
                 installed++;
             }
+            if (installed == 0) throw new NoSuchMethodException("p41.a feedback deletion guard");
             Main.log("installed code249 feedback deletion guard p41.a x" + installed);
         } catch (Throwable error) {
             Main.log("hookV236FeedbackDeletedFlow failed: " + error);
@@ -2609,6 +2618,7 @@ final class HookSessionManagement {
                 });
                 installed++;
             }
+            if (installed == 0) throw new NoSuchMethodException("native session navigator hook");
             Main.log("installed native session navigator hook mc.f x" + installed);
         } catch (Throwable t) { Main.log("hookNativeSessionNavigator failed: " + t); 
             if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
@@ -3042,6 +3052,9 @@ final class HookSessionManagement {
                 });
                 mapperHooks++;
             }
+            if (rawHooks == 0 || mapperHooks == 0) {
+                throw new NoSuchMethodException("history-load diagnostics hooks incomplete");
+            }
             Main.log("installed history-load diagnostics ve1=" + rawHooks
                     + " ie=" + mapperHooks);
         } catch (Throwable t) {
@@ -3104,6 +3117,7 @@ final class HookSessionManagement {
                 });
                 installed++;
             }
+            if (installed == 0) throw new NoSuchMethodException("za1.G active chat session capture");
             Main.log("installed active chat session capture za1.G x" + installed);
         } catch (Throwable error) {
             Main.log("hook active chat session capture failed: " + error);
@@ -3117,6 +3131,7 @@ final class HookSessionManagement {
     void hookComposeVisibleThreadState(final ClassLoader cl) throws Throwable {
         if (!HostCompat.isV230() || HostCompat.isV234()) return;
         try {
+            int installed = 0;
             Class<?> stateLambda = HostRemap.load(cl, "o5");
             Method u = HostRemap.declaredMethod(stateLambda, "u");
             Main.MODULE.hook(u).intercept(new Hooker() {
@@ -3145,6 +3160,8 @@ final class HookSessionManagement {
                     return kept;
                 }
             });
+            installed++;
+            if (installed == 0) throw new NoSuchMethodException("o5.u compose visible-thread filter");
             Main.log("installed compose visible-thread state filter o5.u");
         } catch (Throwable error) {
             Main.log("hook compose visible-thread state filter failed: " + error);
