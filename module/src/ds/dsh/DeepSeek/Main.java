@@ -1880,20 +1880,29 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             installHookStep("session.native-refresh", () -> HookSessionManagement.INSTANCE.hookLocalNativeSessionRefresh(hookLoader));
             if (HostCompat.isV236() && BuildInfo.PROTECTED_BUILD && BuildInfo.LOCAL_API_INCLUDED) {
                 installHookStep("host.v236.live-session-publish", () -> hookV236LiveSessionPublish(hookLoader));
-                installHookStep("host.v236.feedback-delete-flow",
-                        () -> HookSessionManagement.INSTANCE.hookV236FeedbackDeletedFlow(hookLoader));
             } else {
-                String reason = "code249 local-session hooks are not included for " + HostCompat.generationName();
-                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("host.v236.live-session-publish", reason);
-                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("host.v236.feedback-delete-flow", reason);
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("host.v236.live-session-publish",
+                        "code249 Local API live-session publish is not included for this build");
             }
             if (HostCompat.isV241() && BuildInfo.PROTECTED_BUILD && BuildInfo.LOCAL_API_INCLUDED) {
                 installHookStep("host.v241.live-session-publish", () -> hookV241LiveSessionPublish(hookLoader));
-                installHookStep("host.v241.feedback-delete-flow", () -> hookV241FeedbackDeletedFlow(hookLoader));
             } else {
-                String reason = "code257 local-session hooks are not included for " + HostCompat.generationName();
-                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("host.v241.live-session-publish", reason);
-                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("host.v241.feedback-delete-flow", reason);
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("host.v241.live-session-publish",
+                        "code257 Local API live-session publish is not included for this build");
+            }
+            if (HostCompat.isV236()) {
+                installHookStep("host.v236.feedback-delete-flow",
+                        () -> HookSessionManagement.INSTANCE.hookV236FeedbackDeletedFlow(hookLoader));
+            } else {
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("host.v236.feedback-delete-flow",
+                        "code249 feedback-delete guard is not mapped for this host generation");
+            }
+            if (HostCompat.isV241()) {
+                installHookStep("host.v241.feedback-delete-flow",
+                        () -> hookV241FeedbackDeletedFlow(hookLoader));
+            } else {
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("host.v241.feedback-delete-flow",
+                        "code257 feedback-delete guard is not mapped for this host generation");
             }
             installHookStep("session.remote-reload", () -> HookSessionManagement.INSTANCE.hookLocalSessionRemoteReload(hookLoader));
             if (HostCompat.isV230() && !HostCompat.isV234()) {
