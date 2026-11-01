@@ -10,6 +10,7 @@ public final class XposedBridge {
     public static Member memberForTest;
     public static int hookCountForTest;
     public static Error hookFailureForTest;
+    public static boolean nativeHookInstalledForTest;
     public static OriginalMethodInvoker originalMethodInvokerForTest;
 
     public interface OriginalMethodInvoker {
@@ -23,14 +24,19 @@ public final class XposedBridge {
     public static void log(Throwable t) {}
 
     public static XC_MethodHook.Unhook hookMethod(Member hookMethod, XC_MethodHook callback) {
+        // Mirror XposedBridge's callback registry: the callback is published before the native
+        // hook is installed. If native installation throws, the Member entry remains present;
+        // another hookMethod call sees that entry and does not retry native installation.
+        if (memberForTest != null && memberForTest.equals(hookMethod)) return null;
+        memberForTest = hookMethod;
+        callbackForTest = callback;
+        hookCountForTest++;
         if (hookFailureForTest != null) {
             Error failure = hookFailureForTest;
             hookFailureForTest = null;
             throw failure;
         }
-        memberForTest = hookMethod;
-        callbackForTest = callback;
-        hookCountForTest++;
+        nativeHookInstalledForTest = true;
         return null;
     }
 
@@ -45,6 +51,7 @@ public final class XposedBridge {
         memberForTest = null;
         hookCountForTest = 0;
         hookFailureForTest = null;
+        nativeHookInstalledForTest = false;
         originalMethodInvokerForTest = null;
     }
 }
