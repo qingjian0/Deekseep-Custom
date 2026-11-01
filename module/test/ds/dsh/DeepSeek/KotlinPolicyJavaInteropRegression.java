@@ -43,6 +43,8 @@ public final class KotlinPolicyJavaInteropRegression {
                         "com.deepseek.chat.ui.pages.ChatRoute".getBytes(StandardCharsets.ISO_8859_1)))
                         .contains("com.deepseek.chat.ui.pages.ChatRoute"),
                 "Java caller could not use the migrated DEX route parser");
+        require(AndroidManifestVersion.parse(new byte[7]) == null,
+                "Java caller could not use the migrated Kotlin AXML parser");
         require(AgentRateLimiter.MIN_GAP_MS == 8_000L
                         && AgentRateLimiter.PER_MINUTE == 5
                         && AgentRateLimiter.PER_HOUR == 60,
