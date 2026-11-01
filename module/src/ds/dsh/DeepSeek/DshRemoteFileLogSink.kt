@@ -28,7 +28,7 @@ object DshRemoteFileLogSink {
         { runnable ->
             Thread(runnable, "dsh-log-ipc").apply { isDaemon = true }
         },
-        { _, _ -> DROPPED_EVENTS.incrementAndGet() },
+        ThreadPoolExecutor.AbortPolicy(),
     )
 
     @JvmStatic
@@ -46,24 +46,32 @@ object DshRemoteFileLogSink {
                 .append(" thread=").append(event.threadName)
                 .append(" message=").append(event.message)
             event.errorType?.let { line.append(" errorType=").append(it) }
+            // Reserve prior ingress drops for this record. Restore them if this record
+            // cannot be accepted by both provider-side queues.
             val dropped = DROPPED_EVENTS.getAndSet(0L)
             if (dropped > 0L) line.append(" droppedBefore=").append(dropped)
+            val record = line.toString()
             if (category == "crash") {
-                writeToProvider(resolver, category, line.toString())
+                writeToProvider(resolver, category, record, dropped)
                 return@addSink
             }
             try {
-                EXECUTOR.execute { writeToProvider(resolver, category, line.toString()) }
+                EXECUTOR.execute { writeToProvider(resolver, category, record, dropped) }
             } catch (_: RejectedExecutionException) {
-                DROPPED_EVENTS.incrementAndGet()
+                DROPPED_EVENTS.addAndGet(dropped + 1L)
             } catch (_: Throwable) {
-                DROPPED_EVENTS.incrementAndGet()
+                DROPPED_EVENTS.addAndGet(dropped + 1L)
             }
         }
         installed = true
     }
 
-    private fun writeToProvider(resolver: ContentResolver, category: String, line: String) {
+    private fun writeToProvider(
+        resolver: ContentResolver,
+        category: String,
+        line: String,
+        carriedDropCount: Long,
+    ) {
         val payload = Bundle().apply {
             putString("category", category)
             putString("line", line)
@@ -79,13 +87,17 @@ object DshRemoteFileLogSink {
                 result.containsKey("private_written") &&
                 result.containsKey("public_written") &&
                 result.getBoolean("private_written") != result.getBoolean("public_written")
-            if (result == null || !result.getBoolean("accepted", false) ||
-                result.getBoolean("partial", false) || crashPartial
-            ) {
-                DROPPED_EVENTS.incrementAndGet()
+            val notAcceptedByBothQueuesOrStores = result == null ||
+                !result.getBoolean("accepted", false) ||
+                result.getBoolean("partial", false) ||
+                crashPartial
+            if (notAcceptedByBothQueuesOrStores) {
+                // A normal record is accepted when both provider queues accept it;
+                // a crash record is accepted only when both stores report a write.
+                DROPPED_EVENTS.addAndGet(carriedDropCount + 1L)
             }
         } catch (_: Throwable) {
-            DROPPED_EVENTS.incrementAndGet()
+            DROPPED_EVENTS.addAndGet(carriedDropCount + 1L)
         }
     }
 
