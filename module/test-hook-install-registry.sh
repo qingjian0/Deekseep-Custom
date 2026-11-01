@@ -25,6 +25,7 @@ grep -Fq 'fun enqueue(context: Context?, category: String?, line: String?): Bund
 grep -Fq 'private_queued' "$QUEUE_SOURCE"
 grep -Fq 'public_queued' "$QUEUE_SOURCE"
 grep -Fq 'partial' "$QUEUE_SOURCE"
+! test -e "$MODULE_DIR/src/ds/dsh/DeepSeek/DshLogIpcQueue.java"
 grep -Fq 'return DshLogIpcQueue.enqueue(context, category, line);' "$PROVIDER_SOURCE"
 # All three log IPC operations (write, status, crash read) must enforce the exclusive UID.
 test "$(grep -Fc 'uidOwnsExclusivePackage(context, callingUid, TARGET_PACKAGE)' "$PROVIDER_SOURCE")" -eq 3
