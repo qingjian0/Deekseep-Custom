@@ -676,6 +676,9 @@ class SettingsActivity : ComponentActivity() {
         val lines = buildList {
             add(appVersionLine)
             add("DeepSeek：${host.label}")
+            if (status.frameworkConnected && !active) {
+                add("LSPosed 框架服务已连接，但尚未验证 DeepSeek 目标进程注入")
+            }
             if (!active) add("请在 LSPosed 中启用 YunSeek 并勾选 DeepSeek，然后重启 DeepSeek")
             else if (host.installed && !host.supported) add("当前 DeepSeek 版本未经适配，部分功能可能失效")
         }
