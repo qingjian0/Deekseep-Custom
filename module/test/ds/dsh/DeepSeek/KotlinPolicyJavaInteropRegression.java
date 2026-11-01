@@ -1,11 +1,14 @@
 package ds.dsh.DeepSeek;
 
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
+
 /**
  * Compile-time and runtime guard for Java/Xposed callers of policies migrated into the
  * Kotlin-only runtime JAR. This protects the existing static Java call sites during migration.
  */
 public final class KotlinPolicyJavaInteropRegression {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         require(LocalApiKeepAliveDecision.heartbeatAlreadySatisfies(true, 15_000L, true),
                 "Java caller could not use the Kotlin heartbeat policy");
         require(!LocalApiKeepAliveDecision.throttleSameDirection(
@@ -27,6 +30,19 @@ public final class KotlinPolicyJavaInteropRegression {
                 "Java caller could not use the migrated Kotlin expert relay gate");
         require(!ds.dsh.DeepSeek.relay.ExpertRelayGate.matches("vision", "expert", true),
                 "Java caller observed a changed expert relay model precedence rule");
+        require(HostNavigationCatalog.DIRECT.equals(HostNavigationCatalog.policy(
+                        "com.deepseek.chat.ui.pages.ChatRoute")),
+                "Java caller could not use the migrated navigation policy");
+        require("oa1".equals(HostNavigationCatalog.obfuscatedRouteClass(
+                        "com.deepseek.chat.ui.pages.ChatRoute", true, false)),
+                "Java caller observed a changed code249 route mapping");
+        require("id1".equals(HostNavigationCatalog.obfuscatedRouteClass(
+                        "com.deepseek.chat.ui.pages.ChatRoute", false, true)),
+                "Java caller observed a changed code257 route mapping");
+        require(HostNavigationCatalog.extractRoutes(new ByteArrayInputStream(
+                        "com.deepseek.chat.ui.pages.ChatRoute".getBytes(StandardCharsets.ISO_8859_1)))
+                        .contains("com.deepseek.chat.ui.pages.ChatRoute"),
+                "Java caller could not use the migrated DEX route parser");
         DshDiagnosticsRecorder diagnostics = new DshDiagnosticsRecorder(2);
         diagnostics.record("hook installed cost=16ms");
         diagnostics.record("server request Cookie: sid=interop-secret-123");
