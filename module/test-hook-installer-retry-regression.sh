@@ -247,6 +247,57 @@ if grep -Fq 'Main.MODULE.hook(' <<<"$theme_body"; then
   exit 1
 fi
 
+# Agent feature-specific installers keep separate Member sets and retry without duplicate hooks.
+grep -Fq 'AGENT_FEATURE_HOOKED_MEMBERS' "$AGENT"
+agent_feature_helper="$(sed -n '/private static void hookAgentFeatureMember/,/void hookAgentToolLogRoundedRect/p' "$AGENT")"
+grep -Fq 'synchronized (AGENT_FEATURE_HOOKED_MEMBERS)' <<<"$agent_feature_helper"
+grep -Fq 'installed.contains(member)' <<<"$agent_feature_helper"
+grep -Fq 'installed.add(member)' <<<"$agent_feature_helper"
+for method in \
+  hookHeartbeatFragmentRenderBoundary \
+  hookHeartbeatMarkdownInputBoundary \
+  hookHeartbeatNativeMarkdownParser \
+  hookHeartbeatToolStatusStyle \
+  hookHeartbeatToolStatusBasicText \
+  hookProactiveVisibleThreadFilter \
+  hookNativeUiHeartbeatCompletion; do
+  body="$(sed -n "/void $method(/,/^    }/p" "$AGENT")"
+  grep -Fq "hookAgentFeatureMember(\"$method\"," <<<"$body"
+  if grep -Fq 'Main.MODULE.hook(' <<<"$body"; then
+    echo "$method bypasses Agent retry-safe registration." >&2
+    exit 1
+  fi
+done
+
+# Login feature installers use per-feature Member sets, so unrelated interceptors do not mask one another.
+grep -Fq 'LOGIN_FEATURE_HOOKED_MEMBERS' "$login_src"
+login_feature_helper="$(sed -n '/private static void hookLoginFeatureMember/,/void installLoginRiskLogger/p' "$login_src")"
+grep -Fq 'synchronized (LOGIN_FEATURE_HOOKED_MEMBERS)' <<<"$login_feature_helper"
+grep -Fq 'installed.contains(member)' <<<"$login_feature_helper"
+grep -Fq 'installed.add(member)' <<<"$login_feature_helper"
+for method in \
+  hookTrainingOptOutControl \
+  hookNativeFakeMute \
+  hookRegionalLoginUnlock \
+  hookLoginEntryPasswordUnlock \
+  hookCandidateLoginErrorMessages \
+  hookCandidatePasswordLoginCapture \
+  hookCandidateRegistrationCaptchaCallbacks \
+  hookRegionOverride \
+  installRiskSdkNeutralizer \
+  installSmsdkForge \
+  forgeSmsdkBoxJson; do
+  body="$(sed -n "/void $method(/,/^    }/p" "$login_src")"
+  if [ -z "$body" ]; then
+    body="$(sed -n "/private .* $method(/,/^    }/p" "$login_src")"
+  fi
+  grep -Fq "hookLoginFeatureMember(\"$method\"," <<<"$body"
+  if grep -Fq 'Main.MODULE.hook(' <<<"$body"; then
+    echo "$method bypasses login retry-safe registration." >&2
+    exit 1
+  fi
+done
+
 # Session installers propagate installation failures to Main/Registry.
 session_src="$SRC/HookSessionManagement.java"
 for method in \
