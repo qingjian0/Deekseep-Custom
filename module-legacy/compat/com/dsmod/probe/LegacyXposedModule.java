@@ -272,9 +272,9 @@ abstract class LegacyXposedModule {
                     }
                 });
                 registered = true;
-                if (registrationKey != null) scopedRegistrations.add(registrationKey);
                 RawHookTrace.registered(member);
                 JavaPluginRuntimeBridge.registered(member);
+                if (registrationKey != null) scopedRegistrations.add(registrationKey);
             } catch (RuntimeException error) {
                 hookers.remove(hooker);
                 throw error;
