@@ -96,16 +96,31 @@ object DshFileLogStore {
             } catch (_: Throwable) { false }
         }
 
-    private fun appendFile(directory: File, name: String, line: String): Boolean = try {
-        if ((!directory.isDirectory && !directory.mkdirs()) || !directory.isDirectory) return false
-        val target = File(directory, name)
-        val safe = sanitize(line) ?: return false
-        val bytes = (safe + "\n").toByteArray(StandardCharsets.UTF_8)
-        if (target.exists() && target.length() + bytes.size > MAX_FILE_BYTES &&
-            !rotateFile(target)) return false
-        FileOutputStream(target, true).use { it.write(bytes); it.flush() }
-        true
-    } catch (_: Throwable) { false }
+    private fun appendFile(directory: File, name: String, line: String): Boolean {
+        return try {
+            if ((!directory.isDirectory && !directory.mkdirs()) || !directory.isDirectory) {
+                false
+            } else {
+                val target = File(directory, name)
+                val safe = sanitize(line)
+                if (safe == null) {
+                    false
+                } else {
+                    val bytes = (safe + "\n").toByteArray(StandardCharsets.UTF_8)
+                    if (target.exists() && target.length() + bytes.size > MAX_FILE_BYTES &&
+                        !rotateFile(target)
+                    ) {
+                        false
+                    } else {
+                        FileOutputStream(target, true).use { it.write(bytes); it.flush() }
+                        true
+                    }
+                }
+            }
+        } catch (_: Throwable) {
+            false
+        }
+    }
 
     private fun appendMediaStore(
         resolver: ContentResolver, category: String, bytes: ByteArray,
@@ -163,11 +178,17 @@ object DshFileLogStore {
     ): Uri? {
         val selection = MediaStore.MediaColumns.DISPLAY_NAME + "=? AND " +
             MediaStore.MediaColumns.RELATIVE_PATH + "=?"
-        return resolver.query(collection, arrayOf(MediaStore.MediaColumns._ID), selection,
-            arrayOf(name, relative), null)?.use {
+        val cursor = resolver.query(
+            collection,
+            arrayOf(MediaStore.MediaColumns._ID),
+            selection,
+            arrayOf(name, relative),
+            null,
+        ) ?: throw IllegalStateException("MediaStore query returned no cursor")
+        return cursor.use {
             if (it.moveToFirst()) Uri.withAppendedPath(collection, it.getLong(0).toString())
             else null
-        } ?: throw IllegalStateException("MediaStore query returned no cursor")
+        }
     }
 
     private fun querySize(resolver: ContentResolver, uri: Uri): Long = try {
