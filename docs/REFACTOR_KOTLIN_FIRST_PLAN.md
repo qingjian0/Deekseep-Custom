@@ -106,7 +106,7 @@ The Gradle launcher currently declares AGP 9.3.0, Kotlin Compose plugin 2.4.10, 
 
 - Added the standalone `module-kotlin-runtime` Gradle JVM project using Kotlin 2.4.10 and JVM 1.8 bytecode.
 - Migrated two pure-JVM runtime units from Java to Kotlin: `FeatureHookInstallRegistry` and `TargetProcessGuard`. Their Java-facing names, nested `Admission`/`State` enums, static `admit` entry point, installer SAM, status fields and method calls remain compatible with `Main.java` and the existing Java regression harness.
-- Legacy and Universal build scripts now compile the shared runtime JAR and Kotlin stdlib, invoke standalone R8/D8 9.1.29 (minimum documented compatibility for Kotlin 2.4 metadata), and package all generated `classes*.dex` files. Compose Launcher overrides AGP's embedded R8 with the same version.
+- Legacy and Universal build scripts now compile the shared runtime JAR and Kotlin stdlib, invoke standalone R8/D8 9.1.29 (minimum documented compatibility for Kotlin 2.4 metadata), and package all generated `classes*.dex` files. Compose Launcher retains AGP 9.3.0's bundled R8; forcing the standalone R8 onto AGP's plugin classpath caused an R8 API `NoSuchMethodError` and was removed.
 - The Compose Launcher source set includes the same runtime Kotlin source root through AGP 9 `kotlin.directories`.
 - The registry and process-admission JVM test runners build the Kotlin runtime artifact and run the existing Java regressions against it; the Android-dependent thinking test also includes the runtime JAR/stdlib on its classpath.
 - Gradle 9.8.2 bootstrap is shared by the runtime tests, Legacy/Universal builds and launcher Open build.
