@@ -20,6 +20,8 @@ grep -Fq 'native proactive visible-thread filter method not found' "$AGENT_PIPEL
 grep -Fq 'native proactive visible-thread filter hook installation failed' "$AGENT_PIPELINE"
 grep -Fq 'native proactive stream completion hooks were only partially discovered' "$AGENT_PIPELINE"
 grep -Fq 'native proactive stream completion hook installation failed' "$AGENT_PIPELINE"
+grep -Fq 'int sessionHooks = 0;' "$AGENT_PIPELINE"
+grep -Fq 'int outcomeHooks = 0;' "$AGENT_PIPELINE"
 grep -Fq 'Throwable firstFailure = null;' "$AGENT_PIPELINE"
 grep -Fq 'heartbeat response hooks were only partially installed' "$AGENT_PIPELINE"
 grep -Fq 'if (liveHooks == 0 || staticHooks == 0)' "$AGENT_PIPELINE"
