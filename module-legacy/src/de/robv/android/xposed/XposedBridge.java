@@ -12,6 +12,7 @@ public final class XposedBridge {
     public static Error hookFailureForTest;
     public static boolean nativeHookInstalledForTest;
     public static boolean hookFailureAfterNativeInstallForTest;
+    public static boolean returnNullForTest;
     public static OriginalMethodInvoker originalMethodInvokerForTest;
 
     public interface OriginalMethodInvoker {
@@ -25,10 +26,18 @@ public final class XposedBridge {
     public static void log(Throwable t) {}
 
     public static XC_MethodHook.Unhook hookMethod(Member hookMethod, XC_MethodHook callback) {
-        // Mirror XposedBridge's callback registry: the callback is published before the native
-        // hook is installed. If native installation throws, the Member entry remains present;
-        // another hookMethod call sees that entry and does not retry native installation.
-        if (memberForTest != null && memberForTest.equals(hookMethod)) return null;
+        // LSPosed returns null when HookBridge explicitly reports that installation failed.
+        // Model that result before callback publication so the adapter can safely retry it.
+        if (returnNullForTest) {
+            returnNullForTest = false;
+            return null;
+        }
+        // Mirror standard Xposed's callback registry: the callback is published before the
+        // native hook is installed. If native installation throws, the Member entry remains;
+        // another hookMethod call sees it and does not retry native installation.
+        if (memberForTest != null && memberForTest.equals(hookMethod)) {
+            return callback.new Unhook();
+        }
         memberForTest = hookMethod;
         callbackForTest = callback;
         hookCountForTest++;
@@ -39,7 +48,7 @@ public final class XposedBridge {
             throw failure;
         }
         nativeHookInstalledForTest = true;
-        return null;
+        return callback.new Unhook();
     }
 
     public static Object invokeOriginalMethod(Member method, Object thisObject, Object[] args)
@@ -55,6 +64,7 @@ public final class XposedBridge {
         hookFailureForTest = null;
         nativeHookInstalledForTest = false;
         hookFailureAfterNativeInstallForTest = false;
+        returnNullForTest = false;
         originalMethodInvokerForTest = null;
     }
 }
