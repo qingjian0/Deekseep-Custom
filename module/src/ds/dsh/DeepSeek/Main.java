@@ -1555,9 +1555,18 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     n++;
                 }
             }
+            if (n == 0) {
+                throw new NoSuchMethodException(
+                        "settings composable method not found: " + settingsClass + "." + settingsMethod);
+            }
             log("hooked settings composable " + settingsClass + "."
                     + settingsMethod + " x" + n);
-        } catch (Throwable t) { log("hook settings composable failed: " + t); }
+        } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            log("hook settings composable failed: " + safeThrowableMessage(t));
+            throw new IllegalStateException("settings composable hook installation failed", t);
+        }
     }
 
     private final AtomicBoolean FEATURE_HOOKS_INSTALLED = new AtomicBoolean(false);
@@ -8349,10 +8358,17 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 try { deoptimize(method); } catch (Throwable ignored) {}
                 installed++;
             }
+            if (installed == 0) {
+                throw new NoSuchMethodException("code249 live session publish method fh.e was not found");
+            }
             log("installed code249 live session publish repair fh.e x" + installed);
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             log("code249 live session publish repair unavailable: "
                     + safeThrowableMessage(error));
+            throw new IllegalStateException(
+                    "code249 live session publish repair hook installation failed", error);
         }
     }
 
@@ -8426,10 +8442,17 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 try { deoptimize(method); } catch (Throwable ignored) {}
                 installed++;
             }
+            if (installed == 0) {
+                throw new NoSuchMethodException("code257 live session publish method jh.e was not found");
+            }
             log("installed code257 live session publish repair jh.e x" + installed);
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             log("code257 live session publish repair unavailable: "
                     + safeThrowableMessage(error));
+            throw new IllegalStateException(
+                    "code257 live session publish repair hook installation failed", error);
         }
     }
 
@@ -8520,9 +8543,16 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 });
                 installed++;
             }
+            if (installed == 0) {
+                throw new NoSuchMethodException("code257 feedback deletion method h61.a was not found");
+            }
             log("installed code257 feedback deletion guard h61.a x" + installed);
         } catch (Throwable error) {
-            log("hookV241FeedbackDeletedFlow failed: " + error);
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            log("hookV241FeedbackDeletedFlow failed: " + safeThrowableMessage(error));
+            throw new IllegalStateException(
+                    "code257 feedback deletion hook installation failed", error);
         }
     }
 
