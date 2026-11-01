@@ -119,6 +119,7 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 /** Hook group extracted from Main.java: CHAT category (see JavaHookGuide). */
 final class HookChatPipeline {
     static final HookChatPipeline INSTANCE = new HookChatPipeline();
+    private static final Set<Member> CHAT_DIAGNOSTIC_HOOKED_MEMBERS = new HashSet<>();
 
     static final String PROMPT_LINK_FILE  = "/data/data/com.deepseek.chat/files/deekseep_prompt_link.txt";
 
@@ -926,6 +927,15 @@ final class HookChatPipeline {
     }
 
     // ── 阻止内容安全审查擦除（clear_response 拦截）─────────────────
+    private static void hookChatDiagnosticMember(Member member, Hooker hooker)
+            throws Throwable {
+        synchronized (CHAT_DIAGNOSTIC_HOOKED_MEMBERS) {
+            if (CHAT_DIAGNOSTIC_HOOKED_MEMBERS.contains(member)) return;
+            Main.MODULE.hook(member).intercept(hooker);
+            CHAT_DIAGNOSTIC_HOOKED_MEMBERS.add(member);
+        }
+    }
+
     void hookSafetyRetraction(ClassLoader cl) throws Throwable {
         try {
             Class<?> k = HostCompat.load(cl, "kb7");
@@ -938,7 +948,7 @@ final class HookChatPipeline {
                 }
                 if (boolIdx < 0) continue;
                 final int idx = boolIdx;
-                Main.MODULE.hook(ctor).intercept(new Hooker() {
+                hookChatDiagnosticMember(ctor, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         try {
                             List<Object> a = chain.getArgs();
@@ -986,7 +996,7 @@ Main.log("hookSafetyRetraction failed: " + t);
             for (Constructor<?> ctor : k.getDeclaredConstructors()) {
                 Class<?>[] pts = ctor.getParameterTypes();
                 if (pts.length != 2 || pts[0] != String.class || pts[1] != String.class) continue;
-                Main.MODULE.hook(ctor).intercept(new Hooker() {
+                hookChatDiagnosticMember(ctor, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object r = chain.proceed();
                         try {
