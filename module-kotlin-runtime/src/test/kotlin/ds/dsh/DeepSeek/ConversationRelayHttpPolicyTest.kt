@@ -25,6 +25,14 @@ class ConversationRelayHttpPolicyTest {
     }
 
     @Test
+    fun truncationPreservesJavaUtf16AndWhitespaceSemantics() {
+        val body = "x".repeat(199) + "😀"
+        assertEquals("x".repeat(199) + "\uD83D", ConversationRelayHttpPolicy.truncateErrorBody(body))
+        assertEquals("  leading and trailing  ",
+            ConversationRelayHttpPolicy.truncateErrorBody("  leading and trailing  "))
+    }
+
+    @Test
     fun preservesLegacyErrorMessageFormat() {
         assertEquals("HTTP 401", ConversationRelayHttpPolicy.formatHttpError(401, ""))
         assertEquals("HTTP 401: denied", ConversationRelayHttpPolicy.formatHttpError(401, "denied"))
