@@ -1,6 +1,6 @@
 # Kotlin-first Hook Architecture Refactor Plan
 
-> Status: implementation in progress. P0 CI/build integration and P1 per-step Hook installation tracking are active; P2 has a first shared Kotlin runtime migration; P3 has extracted screens and a lifecycle-aware status ViewModel; P4 device validation remains pending.
+> Status: implementation in progress. P1 installer audit is being handled separately; P2 now includes the shared Kotlin runtime and Java 8 API enforcement; P3 includes screen extraction plus config/status repositories and ViewModels; P0/P4 automated artifact validation is expanded but awaits a fresh CI result and real-device evidence.
 > Baseline: `dev` at `8e2edf53b4982a11e720f39437ee562df696136c`.
 > Work branch: `refactor/kotlin-hook-architecture`.
 > Scope: preserve the existing DeepSeek host features and LSPosed/Xposed compatibility while moving new and migrated application logic toward Kotlin.
@@ -89,9 +89,13 @@ The Gradle launcher currently declares AGP 9.3.0, Kotlin Compose plugin 2.4.10, 
 - Added a dedicated refactor validation workflow with separate JVM regression and Android artifact jobs.
 - SDK bootstrap now uses the runner's installed command-line tools directly; Android 17 is installed using the platform package ID `platforms;android-37.0`, not the unavailable `platforms;android-37`.
 - The CI order builds Legacy and Universal before running `test-thinking-regression.sh`, because that test consumes the Universal class output.
-- The workflow verifies APK ZIP structure, at least one DEX file (including multi-dex outputs), 4-byte ZIP alignment and APK signatures. A completed artifact job built both Legacy and Universal APKs with standalone R8/D8 9.1.29. It then exposed a stale heartbeat prompt regression assertion: the production prompt supports bounded batches of up to four independent tool calls, while the test still required single-tool-only behavior. The test now asserts the implemented bounded-batch contract; the fresh CI run is in progress.
-- The main Android CI now installs API 37 / Build Tools 37 and compiles with `androidCompileSdk=37`, matching AndroidX Lifecycle 2.11.0's AAR metadata requirement. The previous CI job explicitly forced API 36 and failed AAR metadata validation.
+- The refactor workflow now runs source/JVM regressions and an Android artifact matrix for Legacy, domestic Universal, Google Play Universal and Compose Open.
+- Source checks include package identity, target-process activation semantics, launcher config repository/ViewModel boundaries, shell syntax, the Kotlin install registry, login-diagnostics privacy and target-process admission.
+- APK checks cover ZIP integrity, multi-DEX presence, 4-byte alignment, apksigner verification, module applicationId, Xposed entry metadata, Kotlin runtime classes and matching signer SHA-256 fingerprints across all four artifacts.
+- Legacy and Universal use standalone R8/D8 9.1.29. Compose uses AGP 9.3.0's bundled R8; no forced standalone R8 override is applied to AGP.
+- The Android workflow installs API 37 / Build Tools 37, matching AndroidX Lifecycle 2.11.0 AAR metadata requirements.
 - CI signing material is ephemeral and limited to debug verification. No release keystore or publication path is used.
+- Latest HEAD has not yet returned an associated PR workflow run or commit status through the available GitHub status query; all post-change Android/JVM results remain pending.
 
 ### P1 — Hook install lifecycle
 
@@ -110,21 +114,25 @@ The Gradle launcher currently declares AGP 9.3.0, Kotlin Compose plugin 2.4.10, 
 - The Compose Launcher source set includes the same runtime Kotlin source root through AGP 9 `kotlin.directories`.
 - The registry and process-admission JVM test runners build the Kotlin runtime artifact and run the existing Java regressions against it; the Android-dependent thinking test also includes the runtime JAR/stdlib on its classpath.
 - Gradle 9.8.2 bootstrap is shared by the runtime tests, Legacy/Universal builds and launcher Open build.
-- Validation gate: the first Kotlin runtime CI attempt exposed a Java 21/Kotlin 1.8 target mismatch; the runtime module now explicitly aligns both outputs to 1.8. A later JVM CI run passed the registry and process-admission runtime regressions. One Legacy APK was emitted before its workflow was cancelled, but its DEX step reported Kotlin 2.4 metadata parser warnings with SDK D8 9.0.32. The current branch pins R8/D8 9.1.29 for all APK paths; a successful Android matrix is still required before considering the distribution integration validated.
+- Manual Java/Xposed compilation now uses `javac --release 8` in Legacy and Universal, and the adapter regression harness uses the same API floor. This prevents JDK 21 platform APIs from leaking into Java 8 bytecode.
+- Legacy, domestic/Google Play Universal and Compose use the same ignored local debug keystore for local builds; CI creates an ephemeral shared debug key and compares signer fingerprints across the four outputs.
+- Validation gate: earlier JVM CI passed the registry and process-admission regressions. The latest HEAD has not yet returned a workflow run/status, so the new `--release 8` builds and cross-artifact signing check remain unverified.
 
 ### P3 — Compose launcher decomposition (in progress)
 
 - Extracted stateless building blocks into `LauncherSharedScreens.kt` and Home/Features/Settings/Help/About/Data/Category pages into `LauncherStaticScreens.kt`. Activity behavior is supplied through callbacks and a status slot; visual hierarchy is retained.
 - The Data screen emits export/import/full-backup actions through callbacks; ActivityResult launchers, ZIP/JSON codecs, SAF I/O and the Closed full-backup bridge remain owned by the Activity.
-- Restored the previously missing Category screen using the existing config catalog; bridge status, config file bytes, refresh and write actions are injected by the Activity. The original flag read-only behavior, JSON/positive-integer validation and edit/reset interactions are retained.
-- Fixed compile issues surfaced by the first Android CI attempt: shared OpenInNew icon import, unified `ConfigBridgeUiStatus` references, `ConfigKeyRow` write callback wiring, and the Home fallback status slot. These fixes are not yet verified by a completed post-fix Android build.
-- Added `LauncherStatusRepository`, `LauncherStatusViewModel` and immutable `LauncherStatusUiState`. Host-version and activation reads run on `Dispatchers.IO`; Compose observes the state using `collectAsStateWithLifecycle`.
-- Added AndroidX Lifecycle 2.11.0 dependencies for ViewModel coroutine scope and lifecycle-aware Compose collection.
-- The configuration bridge state, file import/export, Activity Result launchers and full-backup activity results remain in `SettingsActivity`. They are not yet migrated to repositories/ViewModels. Preserve the authenticated broadcast contract, ZIP/JSON shape, backup paths and SAF behavior while extracting that slice.
+- Restored the Category screen using the existing config catalog; flag read-only behavior, JSON/positive-integer validation and edit/reset interactions remain intact.
+- Added `LauncherStatusRepository`, `LauncherStatusViewModel` and immutable status state. Host-version and activation reads run off the main thread; Compose collects state with `collectAsStateWithLifecycle`.
+- Corrected activation semantics: only a recent target-process heartbeat reports active. Framework binder connection is exposed separately and cannot imply that the target process has injected the module.
+- Extracted config IPC, request timeout handling, JSON serialization and config-file decoding into `LauncherConfigRepository`. `LauncherConfigViewModel` owns immutable config state through StateFlow; the Activity no longer owns config IPC or config screen state.
+- Activity still owns document-picker contracts, ZIP/JSON backup orchestration, SAF I/O and the Closed full-backup bridge. These are platform-facing operations and remain candidates for later extraction only when focused tests can preserve their behavior.
+- Added AndroidX Lifecycle 2.11.0 for ViewModel coroutine scope and lifecycle-aware Compose collection. Cancellation is rethrown rather than swallowed by config operations.
+- The new repository/ViewModel boundary has a source regression guard. The latest Android build and target-process IPC behavior remain unverified.
 
 ### P4 — distribution and device validation
 
-Partially prepared only. The CI matrix is in place, but no completed APK matrix or real-device LSPosed validation has been confirmed. Host-version compatibility claims remain limited to existing tested evidence.
+Automated validation is expanded to build and inspect Legacy, domestic Universal, Google Play Universal and Compose Open artifacts, verify package identity and signer consistency, and check traditional Xposed entry metadata plus Kotlin runtime class presence. A fresh successful matrix has not yet been confirmed. Real-device LSPosed install, target-process injection, Hook hit and feature regression remain NOT RUN. Host-version compatibility claims remain limited to existing tested evidence.
 
 ## 3. Target architecture
 
