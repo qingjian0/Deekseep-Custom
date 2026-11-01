@@ -18,8 +18,8 @@ grep -Fq 'object AgentToolConfigPolicy' "$POLICY_SOURCE"
 grep -Fq 'AgentToolConfigPolicy.backend(' "$CONFIG_SOURCE"
 grep -Fq 'AgentToolConfigPolicy.permission(' "$CONFIG_SOURCE"
 grep -Fq 'AgentToolConfigPolicy.promptStrength(' "$CONFIG_SOURCE"
-! grep -Fq 'private static String cleanBackend(String value)' "$CONFIG_SOURCE" && \
-  grep -Fq 'return AgentToolConfigPolicy.backend(' "$CONFIG_SOURCE"
+grep -Fq 'private static String cleanBackend(String value)' "$CONFIG_SOURCE"
+grep -Fq 'return AgentToolConfigPolicy.backend(' "$CONFIG_SOURCE"
 ! grep -Fq 'if (value <= PROMPT_STRENGTH_BASIC)' "$CONFIG_SOURCE"
 
 GRADLE_BIN="$(bash "$ROOT_DIR/scripts/gradle-bootstrap.sh")"
