@@ -47,7 +47,12 @@ jobs:
           fi
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0"
+          "$SDKMANAGER" --install "platforms;android-37.0" "build-tools;36.0.0"
+          # SDK Manager stores the stable API 37.0 platform under its versioned name,
+          # while this AGP build resolves compileSdk=37 through android-37.
+          if [ ! -e "$ANDROID_SDK_ROOT/platforms/android-37" ]; then
+            ln -s android-37.0 "$ANDROID_SDK_ROOT/platforms/android-37"
+          fi
           test -d "$ANDROID_SDK_ROOT/platforms/android-36"
           test -x "$ANDROID_SDK_ROOT/build-tools/36.0.0/zipalign"
           test -x "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner"
@@ -85,7 +90,7 @@ jobs:
           gradle --no-daemon --stacktrace \
             -PprotectedBuild=false \
             -PlocalApiIncluded=false \
-            -PandroidCompileSdk=36 \
+            -PandroidCompileSdk=37 \
             :app:assembleRelease
 
       - name: Verify signed APK and prepare release output
