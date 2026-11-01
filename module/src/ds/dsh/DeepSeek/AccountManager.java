@@ -54,8 +54,6 @@ final class AccountManager {
     private static final String RANGERS_ID_KEY = "bd_did";
     private static final int VERIFY_MAX_ATTEMPTS = 2;
     private static final long VERIFY_MIN_INTERVAL_MS = 1500L;
-    private static final long VERIFY_DEFAULT_RETRY_MS = 2500L;
-    private static final long VERIFY_MAX_INLINE_RETRY_MS = 10000L;
     private static final Object VERIFY_PACING_LOCK = new Object();
     private static long lastVerifyStartedAtMs;
 
@@ -584,18 +582,11 @@ final class AccountManager {
     }
 
     static String validationUserAgent(String version, int sdkInt) {
-        String value = version == null ? "" : version.trim();
-        if (value.length() == 0) value = "2.2.2";
-        return "DeepSeek/" + value + " Android/" + Math.max(1, sdkInt);
+        return AccountValidationPolicy.userAgent(version, sdkInt);
     }
 
     static String validationLocale(Locale locale) {
-        if (locale == null) return "zh_CN";
-        String language = locale.getLanguage();
-        if (language == null || language.length() == 0) language = "zh";
-        String country = locale.getCountry();
-        return country == null || country.length() == 0
-                ? language : language + "_" + country;
+        return AccountValidationPolicy.locale(locale);
     }
 
     /**
@@ -606,27 +597,12 @@ final class AccountManager {
     static Map<String, String> validationHeaders(String token, String version, int sdkInt,
                                                   String locale, String rangersId,
                                                   int timezoneOffsetSeconds) {
-        LinkedHashMap<String, String> headers = new LinkedHashMap<>();
-        headers.put("Accept", "application/json");
-        headers.put("User-Agent", validationUserAgent(version, sdkInt));
-        headers.put("Referer", "https://chat.deepseek.com");
-        headers.put("Authorization", "Bearer " + token);
-        headers.put("x-client-platform", "android");
-        headers.put("x-client-bundle-id", PKG);
-        headers.put("x-client-version", version == null || version.trim().length() == 0
-                ? "2.2.2" : version.trim());
-        headers.put("x-client-locale", locale == null || locale.trim().length() == 0
-                ? "zh_CN" : locale.trim());
-        headers.put("x-client-timezone-offset", String.valueOf(timezoneOffsetSeconds));
-        if (rangersId != null && rangersId.trim().length() > 0) {
-            headers.put("x-rangers-id", rangersId.trim());
-        }
-        return headers;
+        return AccountValidationPolicy.headers(
+                token, version, sdkInt, locale, rangersId, timezoneOffsetSeconds);
     }
 
     static int validationTimezoneOffsetSeconds(TimeZone timezone, long nowMs) {
-        TimeZone value = timezone == null ? TimeZone.getDefault() : timezone;
-        return value.getOffset(nowMs) / 1000;
+        return AccountValidationPolicy.timezoneOffsetSeconds(timezone, nowMs);
     }
 
     private static String hostLocale(Context context) {
@@ -748,17 +724,7 @@ final class AccountManager {
     }
 
     static long retryDelayMillis(String retryAfter) {
-        if (retryAfter == null || retryAfter.trim().length() == 0) {
-            return VERIFY_DEFAULT_RETRY_MS;
-        }
-        try {
-            long seconds = Long.parseLong(retryAfter.trim());
-            if (seconds < 0L || seconds > VERIFY_MAX_INLINE_RETRY_MS / 1000L) return -1L;
-            return Math.max(VERIFY_MIN_INTERVAL_MS, seconds * 1000L);
-        } catch (Throwable ignored) {
-            // 无法可靠解释服务端要求的等待时间时不立即重试，避免放大限流。
-            return -1L;
-        }
+        return AccountValidationPolicy.retryDelayMillis(retryAfter);
     }
 
     private static String appVersion(Context context) {
