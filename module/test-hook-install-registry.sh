@@ -54,6 +54,9 @@ grep -Fq 'object ExpertRelayGate' "$RUNTIME_DIR/src/main/kotlin/ds/dsh/DeepSeek/
 ! test -e "$MODULE_DIR/src/ds/dsh/DeepSeek/relay/ExpertRelayGate.java"
 grep -Fq 'object AgentRateLimiter' "$RUNTIME_DIR/src/main/kotlin/ds/dsh/DeepSeek/AgentRateLimiter.kt"
 ! test -e "$MODULE_DIR/src/ds/dsh/DeepSeek/AgentRateLimiter.java"
+grep -Fq 'object AgentManualGateState' "$RUNTIME_DIR/src/main/kotlin/ds/dsh/DeepSeek/AgentManualGateState.kt"
+grep -Fq 'AgentManualGateState.consumeApproval(key)' "$MODULE_DIR/src/ds/dsh/DeepSeek/AgentManualGate.java"
+grep -Fq 'AgentManualGateState.refuse(key)' "$MODULE_DIR/src/ds/dsh/DeepSeek/AgentManualGate.java"
 grep -Fq 'object AndroidManifestVersion' "$RUNTIME_DIR/src/main/kotlin/ds/dsh/DeepSeek/AndroidManifestVersion.kt"
 ! test -e "$MODULE_DIR/src/ds/dsh/DeepSeek/AndroidManifestVersion.java"
 # The exported provider is required for cross-process IPC; both package variants must declare it.
