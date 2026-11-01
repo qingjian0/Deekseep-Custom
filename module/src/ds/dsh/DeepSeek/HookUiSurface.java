@@ -3581,14 +3581,21 @@ final class HookUiSurface {
                 });
                 hooks++;
             }
+            if (hooks == 0) {
+                throw new NoSuchMethodException(
+                        "theme color provider hooks were not discovered");
+            }
             Main.log("theme color hook ready providers=" + hooks);
             hookHostThemeDrawColors(cl);
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             Main.log("theme color hook unavailable: " + Main.safeThrowableMessage(error));
+            throw new IllegalStateException("host theme color hook installation failed", error);
         }
     }
 
-    private void hookHostThemeDrawColors(final ClassLoader cl) {
+    private void hookHostThemeDrawColors(final ClassLoader cl) throws Throwable {
         try {
             final boolean[] settingsBackgroundLogged = new boolean[1];
             final boolean[] settingsSurfaceLogged = new boolean[1];
@@ -3666,8 +3673,15 @@ final class HookUiSurface {
             }
             Main.log("theme draw hooks ready background=" + (background != null)
                     + " surfaces=" + surfaceHooks);
+            if (background == null && surfaceHooks == 0) {
+                throw new NoSuchMethodException(
+                        "theme draw background and surface hooks were not discovered");
+            }
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             Main.log("theme draw hooks unavailable: " + Main.safeThrowableMessage(error));
+            throw new IllegalStateException("host theme draw hook installation failed", error);
         }
     }
 
