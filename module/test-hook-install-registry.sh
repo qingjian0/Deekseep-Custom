@@ -63,6 +63,8 @@ grep -Fq 'object ExpertRelayGate' "$RUNTIME_DIR/src/main/kotlin/ds/dsh/DeepSeek/
 ! test -e "$MODULE_DIR/src/ds/dsh/DeepSeek/relay/ExpertRelayGate.java"
 grep -Fq 'object AgentRateLimiter' "$RUNTIME_DIR/src/main/kotlin/ds/dsh/DeepSeek/AgentRateLimiter.kt"
 ! test -e "$MODULE_DIR/src/ds/dsh/DeepSeek/AgentRateLimiter.java"
+grep -Fq 'object ZipArchivePathPolicy' "$RUNTIME_DIR/src/main/kotlin/ds/dsh/DeepSeek/ZipArchivePathPolicy.kt"
+grep -Fq 'ZipArchivePathPolicy.isSafePath(path)' "$MODULE_DIR/src/ds/dsh/DeepSeek/AccountImportArchive.java"
 grep -Fq 'object AgentManualGateState' "$RUNTIME_DIR/src/main/kotlin/ds/dsh/DeepSeek/AgentManualGateState.kt"
 grep -Fq 'AgentManualGateState.consumeApproval(key)' "$MODULE_DIR/src/ds/dsh/DeepSeek/AgentManualGate.java"
 grep -Fq 'AgentManualGateState.refuse(key)' "$MODULE_DIR/src/ds/dsh/DeepSeek/AgentManualGate.java"
