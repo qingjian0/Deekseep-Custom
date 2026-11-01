@@ -1,7 +1,7 @@
 # Kotlin-first Hook Architecture Refactor Plan
 
 > Status: source audit complete; implementation has not started.
-> Baseline: `dev` at `a886b7c85921ac3d4fd320e899d6ed22777296dd`.
+> Baseline: `dev` at `8e2edf53b4982a11e720f39437ee562df696136c`.
 > Work branch: `refactor/kotlin-hook-architecture`.
 > Scope: preserve the existing DeepSeek host features and LSPosed/Xposed compatibility while moving new and migrated application logic toward Kotlin.
 
