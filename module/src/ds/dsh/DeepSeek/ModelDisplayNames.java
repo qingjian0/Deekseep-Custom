@@ -114,9 +114,7 @@ final class ModelDisplayNames {
     }
 
     static String clean(String value) {
-        if (value == null) return "";
-        String s = value.replace('\r', ' ').replace('\n', ' ').replace('\t', ' ').trim();
-        return s.length() > 40 ? s.substring(0, 40) : s;
+        return ModelDisplayNamePolicy.clean(value);
     }
 
     /** Display-only mapping for a text about to be rendered. Returns null when unchanged. */
@@ -129,8 +127,6 @@ final class ModelDisplayNames {
             lastCheckAt = now;
             try { load(); } catch (Throwable ignored) { return null; }
         }
-        if (!fastEnabled) return null;
-        String mapped = fastMap.get(value.trim());
-        return mapped == null || mapped.equals(value) ? null : mapped;
+        return ModelDisplayNamePolicy.mapDisplay(value, fastEnabled, fastMap);
     }
 }
