@@ -63,7 +63,7 @@ class ConversationRelayEndpointPolicyTest {
         val config = ConversationRelayConfig("  secret  ", "anthropic", " https://relay/ ", " model ")
         assertEquals("secret", config.apiKey)
         assertEquals("anthropic", config.format)
-        assertEquals("https://relay/ ", config.baseUrl.trimEnd())
+        assertEquals("https://relay/", config.baseUrl)
         assertEquals("model", config.model)
         assertTrue(config.toString().contains("<redacted>"))
         assertFalse(config.toString().contains("secret"))
