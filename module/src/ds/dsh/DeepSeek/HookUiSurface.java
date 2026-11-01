@@ -3472,6 +3472,9 @@ final class HookUiSurface {
             }
             Main.log("installed native dual root capture ComposeView.setContent x" + installed);
         } catch (Throwable error) {
+            // The registration scope retains already-installed members across retries. Release
+            // the group guard so a later lifecycle pass can finish any remaining registrations.
+            NATIVE_DUAL_ROOT_HOOK_INSTALLED.set(false);
             Main.log("native dual root capture unavailable: " + error);
             throw error;
         }
