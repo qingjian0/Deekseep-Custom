@@ -293,18 +293,8 @@ final class HookChatPipeline {
 
     static synchronized void recordCrashTest(String phase, String mode) {
         String line = Main.TS.format(new Date()) + "  CRASH_TEST phase=" + phase
-                + " mode=" + mode + " pid=" + android.os.Process.myPid() + "\n";
-        try {
-            FileWriter writer = new FileWriter(
-                    "/data/data/com.deepseek.chat/files/dsprobe_crash.log", true);
-            writer.write(line);
-            writer.close();
-        } catch (Throwable ignored) {}
-        try {
-            FileWriter writer = new FileWriter(Main.EXT_CRASH_LOG, true);
-            writer.write(line);
-            writer.close();
-        } catch (Throwable ignored) {}
+                + " mode=" + mode + " pid=" + android.os.Process.myPid();
+        DshLog.info("Crash", line);
     }
 
     static boolean hasProactiveHeartbeatBinding() {
