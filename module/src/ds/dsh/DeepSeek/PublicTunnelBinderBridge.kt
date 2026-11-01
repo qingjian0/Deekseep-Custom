@@ -41,9 +41,10 @@ class PublicTunnelBinderBridge private constructor() {
 
         private class Bridge : Binder() {
             @Throws(RemoteException::class)
-            override fun onTransact(code: Int, data: Parcel, reply: Parcel, flags: Int): Boolean {
+            override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
                 if (code == INTERFACE_TRANSACTION) {
-                    reply.writeString(DESCRIPTOR)
+                    val response = reply ?: return false
+                    response.writeString(DESCRIPTOR)
                     return true
                 }
                 if (code != TRANSACTION_STATUS
@@ -55,6 +56,9 @@ class PublicTunnelBinderBridge private constructor() {
                 ) {
                     return super.onTransact(code, data, reply, flags)
                 }
+                // All supported bridge operations are synchronous request/response calls.
+                // Reject one-way transactions before performing any side effect.
+                val response = reply ?: return false
 
                 data.enforceInterface(DESCRIPTOR)
                 val extras = data.readBundle(PublicTunnelBinderBridge::class.java.classLoader)
@@ -92,8 +96,8 @@ class PublicTunnelBinderBridge private constructor() {
                     else -> PublicTunnelManager.status(context)
                 }
 
-                reply.writeNoException()
-                reply.writeBundle(result)
+                response.writeNoException()
+                response.writeBundle(result)
                 return true
             }
         }
