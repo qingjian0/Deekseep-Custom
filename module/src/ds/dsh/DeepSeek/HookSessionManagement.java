@@ -536,7 +536,8 @@ final class HookSessionManagement {
     }
 
     // 侧栏收起时 mq5.i 的 toggle 回调(xa3)：包一层，收起动作触发时把多选覆盖层滑出并退出。
-    void hookSidebarToggleCleanup(final ClassLoader cl) {
+    void hookSidebarToggleCleanup(final ClassLoader cl) throws Throwable {
+        Throwable installFailure = null;
         try {
             // code257's sidebar toggle composable is qp0.s(fv2,a81,il3,mv5,r12,int).
             // Keep the earlier mq5 adapter untouched for all legacy hosts.
@@ -579,8 +580,12 @@ final class HookSessionManagement {
                 });
                 n++;
             }
+            if (n == 0) throw new NoSuchMethodException("sidebar toggle compositor targets");
             Main.log("installed sidebar toggle cleanup hook mq5.i x" + n);
-        } catch (Throwable t) { Main.log("hookSidebarToggleCleanup failed: " + t); }
+        } catch (Throwable t) {
+            Main.log("hookSidebarToggleCleanup failed: " + t);
+            installFailure = t;
+        }
 
         // DrawerState.c() is the exact animated pixel offset: closed≈-width, open=0. It is read
         // on every native drawer frame and therefore also covers closing, swipe gestures, and
@@ -635,9 +640,12 @@ final class HookSessionManagement {
                 });
                 n++;
             }
+            if (n == 0) throw new NoSuchMethodException("sidebar live DrawerState.c targets");
             Main.log("installed sidebar live-offset hook bn2.c x" + n);
         } catch (Throwable t) {
             Main.log("hook sidebar live offset failed: " + t);
+            if (installFailure == null) installFailure = t;
+            else installFailure.addSuppressed(t);
         }
 
         // mq5.i creates n51(case 0) as the icon's real click action. Keep this only as a diagnostic
@@ -681,10 +689,14 @@ final class HookSessionManagement {
                 });
                 n++;
             }
+            if (n == 0) throw new NoSuchMethodException("sidebar appearance click action targets");
             Main.log("installed sidebar appearance click hook n51.u x" + n);
         } catch (Throwable t) {
             Main.log("hook sidebar appearance click failed: " + t);
+            if (installFailure == null) installFailure = t;
+            else installFailure.addSuppressed(t);
         }
+        if (installFailure != null) throw installFailure;
     }
 
     private static int resolveSidebarDrawerWidth(Object drawerState, ClassLoader cl) {
