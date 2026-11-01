@@ -2,6 +2,13 @@
 set -e
 cd "$(dirname "$0")"
 
+# A partial multi-hook install must clear its atomic guard so the registry can retry.
+THINKING_RETRY_GUARDS="$(grep -Fc 'if (installed == 0 || firstFailure != null) {' src/ds/dsh/DeepSeek/Main.java || true)"
+if [[ "$THINKING_RETRY_GUARDS" != "2" ]]; then
+    echo "Thinking code-copy partial-failure retry guards are missing or inconsistent" >&2
+    exit 1
+fi
+
 source ../scripts/android-tools.sh
 OUT="build/thinking-test"
 JSON_JAR="$OUT/lib/json-20240303.jar"
