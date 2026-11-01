@@ -1085,7 +1085,6 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     @Override
     public void handleLoadPackage(LoadPackageParam param) {
-        DshAndroidLogSink.install();
         MODULE = this;
         if (param == null) DeekseepLetter.getLetter();
         final ClassLoader cl = param.classLoader;
@@ -1099,6 +1098,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     + android.os.Process.myPid() + ", skipping duplicate injection");
             return;
         }
+        DshAndroidLogSink.install();
         // Loader/embedding/anti-tamper admission is a Closed-edition feature.  Open builds must
         // remain usable with ordinary Xposed/compatible loaders and must not perform anti-root or
         // anti-Frida checks or terminate the host process.
