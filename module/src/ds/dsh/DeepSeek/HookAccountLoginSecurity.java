@@ -3673,7 +3673,11 @@ Main.log("[RISK] Android ID spoof installed");
         if (!HostCompat.isV241()) return;
         Class<?> uploadCoroutine = HostRemap.forName("rz", false, loader);
         int constructors = 0;
-        int resumes = 0;
+        int routePropagationHooks = 0;
+        int uploadResumeHooks = 0;
+        int multipartUploadHooks = 0;
+        int filePowHooks = 0;
+        int fileModelHooks = 0;
         for (Constructor<?> constructor : uploadCoroutine.getDeclaredConstructors()) {
             Class<?>[] p = constructor.getParameterTypes();
             if (p.length == 0 || p[p.length - 1] != int.class) continue;
@@ -3718,7 +3722,11 @@ Main.log("[RISK] Android ID spoof installed");
                     }
                 }
             });
-            resumes++;
+            if (propagates) routePropagationHooks++;
+            if (resumesUpload) uploadResumeHooks++;
+        }
+        if (constructors == 0 || routePropagationHooks == 0 || uploadResumeHooks == 0) {
+            throw new NoSuchMethodException("rz upload coroutine constructors/continuation hooks");
         }
         // q71 is the code257 multipart upload coroutine created after ly0.a's optional file-PoW
         // suspension. Re-enter the selected route only for our hidden context_*.txt attachment;
@@ -3749,7 +3757,10 @@ Main.log("[RISK] Android ID spoof installed");
                     }
                 }
             });
-            resumes++;
+            multipartUploadHooks++;
+        }
+        if (multipartUploadHooks == 0) {
+            throw new NoSuchMethodException("q71.y multipart context upload continuation");
         }
         // i8 discriminator 1 obtains the authed PoW challenge specifically for
         // /api/v0/file/upload_file. It runs before q71 and must use the same routed account;
@@ -3777,7 +3788,10 @@ Main.log("[RISK] Android ID spoof installed");
                     }
                 }
             });
-            resumes++;
+            filePowHooks++;
+        }
+        if (filePowHooks == 0) {
+            throw new NoSuchMethodException("i8.y file-upload PoW continuation");
         }
         // g71.a suspends while it waits for the source-model attachment state. The actual
         // default->expert/vision request is created later by q63.a(ag3, Continuation) on another
@@ -3804,10 +3818,17 @@ Main.log("[RISK] Android ID spoof installed");
                     }
                 }
             });
-            resumes++;
+            fileModelHooks++;
+        }
+        if (fileModelHooks == 0) {
+            throw new NoSuchMethodException("q63.a file-model conversion request");
         }
         String ready = "V241_UPLOAD_ROUTE_HOOK_READY constructors=" + constructors
-                + " resumes=" + resumes;
+                + " routePropagation=" + routePropagationHooks
+                + " uploadResume=" + uploadResumeHooks
+                + " multipart=" + multipartUploadHooks
+                + " filePow=" + filePowHooks
+                + " fileModel=" + fileModelHooks;
         Main.log(ready);
         z13.diagnostic(ready);
     }
