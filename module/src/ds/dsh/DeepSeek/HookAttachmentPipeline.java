@@ -124,6 +124,8 @@ final class HookAttachmentPipeline {
     static final String EDITOR_IMAGE_URI_PREFIX =
             "content://com.deepseek.chat.provider/tmp_captured_images/";
 
+    private static final Set<Constructor<?>> IMAGE_CREDENTIAL_BRIDGE_HOOKED = new HashSet<>();
+
     // 专家模式解锁：俘获任意"已启用"模型的真 feature 模板，回填给 expert
     private static volatile Object tplThink;
 
@@ -773,12 +775,23 @@ Main.log("installExpertUploadGate failed: " + t);
 
     private static volatile boolean imageComposerCaptureLogged;
 
+    private static boolean hookImageCredentialBridgeConstructor(
+            Constructor<?> constructor, Hooker hooker) throws Throwable {
+        synchronized (IMAGE_CREDENTIAL_BRIDGE_HOOKED) {
+            if (IMAGE_CREDENTIAL_BRIDGE_HOOKED.contains(constructor)) return true;
+            Main.MODULE.hook(constructor).intercept(hooker);
+            IMAGE_CREDENTIAL_BRIDGE_HOOKED.add(constructor);
+            return true;
+        }
+    }
+
     void installImageCredentialBridge(final ClassLoader cl) throws Throwable {
         int installed = 0;
+        Throwable installFailure = null;
         try {
             Class<?> apiClass = HostCompat.load(cl, "pv0");
             for (Constructor<?> ctor : apiClass.getDeclaredConstructors()) {
-                Main.MODULE.hook(ctor).intercept(new Hooker() {
+                hookImageCredentialBridgeConstructor(ctor, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object result = chain.proceed();
                         IMAGE_FILE_API = chain.getThisObject();
@@ -793,13 +806,16 @@ Main.log("installExpertUploadGate failed: " + t);
                 });
                 installed++;
             }
-        } catch (Throwable t) { Main.log("capture pv0 failed: " + t); }
+        } catch (Throwable t) {
+            Main.log("capture pv0 failed: " + Main.safeThrowableMessage(t));
+            installFailure = t;
+        }
 
-        // 兜底：即使 pv0 比模块安装钩子更早构造，也能从之后创建的 k31.c.d 取回同一实例。
+        // Fallback capture path; retain successful constructor registrations across retries.
         try {
             Class<?> composerClass = HostCompat.load(cl, "k31");
             for (Constructor<?> ctor : composerClass.getDeclaredConstructors()) {
-                Main.MODULE.hook(ctor).intercept(new Hooker() {
+                hookImageCredentialBridgeConstructor(ctor, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object result = chain.proceed();
                         try {
@@ -823,10 +839,16 @@ Main.log("installExpertUploadGate failed: " + t);
                 });
                 installed++;
             }
-        } catch (Throwable t) { Main.log("capture k31 file api failed: " + t); }
+        } catch (Throwable t) {
+            Main.log("capture k31 file api failed: " + Main.safeThrowableMessage(t));
+            if (installFailure == null) installFailure = t;
+            else installFailure.addSuppressed(t);
+        }
         if (installed == 0) {
+            if (installFailure != null) throw installFailure;
             throw new NoSuchMethodException("image credential bridge constructors");
         }
+        if (installFailure != null) throw installFailure;
         Main.log("installed image credential bridge constructors=" + installed);
     }
 
