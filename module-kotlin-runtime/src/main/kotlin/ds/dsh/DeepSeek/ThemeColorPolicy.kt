@@ -30,8 +30,10 @@ object ThemeColorPolicy {
         vertical: String,
         diagonalDown: String,
         diagonalUp: String
-    ): String = when (direction) {
-        vertical, diagonalDown, diagonalUp -> direction
+    ): String = when {
+        direction == vertical -> vertical
+        direction == diagonalDown -> diagonalDown
+        direction == diagonalUp -> diagonalUp
         else -> horizontal
     }
 }
