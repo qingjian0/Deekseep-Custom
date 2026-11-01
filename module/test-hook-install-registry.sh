@@ -10,6 +10,9 @@ AGENT_PIPELINE="$MODULE_DIR/src/ds/dsh/DeepSeek/HookAgentPipeline.java"
 grep -Fq 'Throwable firstFailure = null;' "$AGENT_PIPELINE"
 grep -Fq 'heartbeat response hooks were only partially installed' "$AGENT_PIPELINE"
 grep -Fq 'if (liveHooks == 0 || staticHooks == 0)' "$AGENT_PIPELINE"
+ATTACHMENT_PIPELINE="$MODULE_DIR/src/ds/dsh/DeepSeek/HookAttachmentPipeline.java"
+grep -Fq 'model-file link hooks were only partially installed' "$ATTACHMENT_PIPELINE"
+grep -Fq 'native model-file message card hooks were only partially installed' "$ATTACHMENT_PIPELINE"
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
