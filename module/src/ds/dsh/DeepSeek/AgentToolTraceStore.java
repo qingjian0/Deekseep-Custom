@@ -170,7 +170,7 @@ final class AgentToolTraceStore {
             if (trace != null) return trace;
         }
         String input = fallbackInput == null || fallbackInput.trim().length() == 0
-                ? "{}" : fallbackInput.trim();
+                ? "{}" : trim(fallbackInput.trim(), MAX_INPUT_CHARS);
         return new Trace(safe, input, "", false, false, 0L, 0L);
     }
 
