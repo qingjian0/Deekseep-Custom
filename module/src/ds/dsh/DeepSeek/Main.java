@@ -7248,25 +7248,71 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         if (AgentToolConfig.enabledFast() || isDualChatEnabled()) {
             installBestEffortHook("optional.agent.render-pipeline", () -> {
                 if (!AGENT_RENDER_HOOKS_INSTALLED.compareAndSet(false, true)) return;
+                Throwable installFailure = null;
+                try { HookAgentPipeline.INSTANCE.hookHeartbeatToolResponses(cl); }
+                catch (Throwable error) {
+                    if (installFailure == null) installFailure = error;
+                    else installFailure.addSuppressed(error);
+                }
+                try { HookAgentPipeline.INSTANCE.hookHeartbeatPatchDispatcher(cl); }
+                catch (Throwable error) {
+                    if (installFailure == null) installFailure = error;
+                    else installFailure.addSuppressed(error);
+                }
+                try { HookAgentPipeline.INSTANCE.hookTrackedHeartbeatStateWrites(cl); }
+                catch (Throwable error) {
+                    if (installFailure == null) installFailure = error;
+                    else installFailure.addSuppressed(error);
+                }
+                try { HookAgentPipeline.INSTANCE.hookHeartbeatFragmentRenderBoundary(cl); }
+                catch (Throwable error) {
+                    if (installFailure == null) installFailure = error;
+                    else installFailure.addSuppressed(error);
+                }
+                try { HookAgentPipeline.INSTANCE.hookHeartbeatMarkdownInputBoundary(cl); }
+                catch (Throwable error) {
+                    if (installFailure == null) installFailure = error;
+                    else installFailure.addSuppressed(error);
+                }
+                try { HookAgentPipeline.INSTANCE.hookHeartbeatNativeMarkdownParser(cl); }
+                catch (Throwable error) {
+                    if (installFailure == null) installFailure = error;
+                    else installFailure.addSuppressed(error);
+                }
+                try { HookAgentPipeline.INSTANCE.hookAgentToolLogRoundedRect(cl); }
+                catch (Throwable error) {
+                    if (installFailure == null) installFailure = error;
+                    else installFailure.addSuppressed(error);
+                }
+                try { HookAttachmentPipeline.INSTANCE.hookNativeModelFileCards(cl); }
+                catch (Throwable error) {
+                    if (installFailure == null) installFailure = error;
+                    else installFailure.addSuppressed(error);
+                }
                 try {
-                    HookAgentPipeline.INSTANCE.hookHeartbeatToolResponses(cl);
-                    HookAgentPipeline.INSTANCE.hookHeartbeatPatchDispatcher(cl);
-                    HookAgentPipeline.INSTANCE.hookTrackedHeartbeatStateWrites(cl);
-                    HookAgentPipeline.INSTANCE.hookHeartbeatFragmentRenderBoundary(cl);
-                    HookAgentPipeline.INSTANCE.hookHeartbeatMarkdownInputBoundary(cl);
-                    HookAgentPipeline.INSTANCE.hookHeartbeatNativeMarkdownParser(cl);
-                    HookAgentPipeline.INSTANCE.hookAgentToolLogRoundedRect(cl);
-                    HookAttachmentPipeline.INSTANCE.hookNativeModelFileCards(cl);
                     HookAgentPipeline.INSTANCE.hookHeartbeatToolStatusStyle(
                             cl, HostCompat.name("i68"), HostCompat.name("h78"));
+                } catch (Throwable error) {
+                    if (installFailure == null) installFailure = error;
+                    else installFailure.addSuppressed(error);
+                }
+                try {
                     HookAgentPipeline.INSTANCE.hookHeartbeatToolStatusBasicText(
                             cl, HostCompat.isV241() ? "ox1" : HostCompat.name("yg8"),
                             HostCompat.isV241() ? "e" : HostCompat.method("yg8", "b"),
                             HostCompat.name("h78"));
-                    HookAttachmentPipeline.INSTANCE.hookModelFileLinks();
                 } catch (Throwable error) {
+                    if (installFailure == null) installFailure = error;
+                    else installFailure.addSuppressed(error);
+                }
+                try { HookAttachmentPipeline.INSTANCE.hookModelFileLinks(); }
+                catch (Throwable error) {
+                    if (installFailure == null) installFailure = error;
+                    else installFailure.addSuppressed(error);
+                }
+                if (installFailure != null) {
                     AGENT_RENDER_HOOKS_INSTALLED.set(false);
-                    throw error;
+                    throw installFailure;
                 }
             }, "Agent render hook installation failed: ");
         }
