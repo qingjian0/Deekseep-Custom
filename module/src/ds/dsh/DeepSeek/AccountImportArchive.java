@@ -75,15 +75,8 @@ final class AccountImportArchive {
 
     static String safePath(String raw) throws AccountCredentialCodec.FormatException {
         String path = raw == null ? "" : raw.replace('\\', '/');
-        if (path.length() == 0 || path.startsWith("/") || path.indexOf('\0') >= 0
-                || path.matches("^[A-Za-z]:.*")) {
+        if (!ZipArchivePathPolicy.isSafePath(path)) {
             throw new AccountCredentialCodec.FormatException("ZIP 含不安全路径：" + path);
-        }
-        String[] segments = path.split("/", -1);
-        for (String segment : segments) {
-            if ("..".equals(segment)) {
-                throw new AccountCredentialCodec.FormatException("ZIP 含不安全路径：" + path);
-            }
         }
         return path;
     }
