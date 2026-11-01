@@ -17,7 +17,7 @@ class HostNavigationCatalog private constructor() {
     companion object {
         private const val MAX_DEX_BYTES = 48 * 1024 * 1024
         private val ROUTE = Pattern.compile(
-            "com\\\\.deepseek\\\\.chat\\\\.ui\\\\.pages\\\\.[A-Za-z0-9_.$]{1,160}(?:Route|Graph)"
+            "com\\.deepseek\\.chat\\.ui\\.pages\\.[A-Za-z0-9_.$]{1,160}(?:Route|Graph)"
         )
 
         const val DIRECT = "direct"
