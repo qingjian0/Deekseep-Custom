@@ -9429,6 +9429,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         String setterName = HostCompat.localApiHeaderSetterMethod();
         int marked = 0;
         int replaced = 0;
+        Throwable firstFailure = null;
         try {
             Class<?> owner = HostRemap.forName(authOwner, false, loader);
             for (Method method : owner.getDeclaredMethods()) {
@@ -9451,8 +9452,11 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 marked++;
             }
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             log("local API account auth marker unavailable " + authOwner + ": "
                     + safeThrowableMessage(error));
+            firstFailure = error;
         }
         try {
             Class<?> builder = HostRemap.forName(headerOwner, false, loader);
@@ -9488,13 +9492,23 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 }
             }
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             log("local API account header hook unavailable " + headerOwner + ": "
                     + safeThrowableMessage(error));
+            if (firstFailure == null) firstFailure = error;
+            else firstFailure.addSuppressed(error);
         }
         log("local API multi-account hooks auth=" + marked + " header=" + replaced
                 + " generation=" + HostCompat.generationName());
         z13.diagnostic("ROUTING_HOOK_READY auth=" + marked + " header=" + replaced
                 + " generation=" + HostCompat.generationName());
+        if (firstFailure != null || marked == 0 || replaced == 0) {
+            throw new IllegalStateException(
+                    "code249 Local API routing hooks were only partially installed: auth="
+                            + marked + " header=" + replaced,
+                    firstFailure);
+        }
     }
 
     private static boolean isLocalApiExecutionLogContext() {
