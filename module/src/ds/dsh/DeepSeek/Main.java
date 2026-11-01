@@ -8337,7 +8337,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
      * Exact code249 hot-rollout repair. fh.e(lq) is the 2.3.6 optimistic publish entry and bh1
      * appends the row into fh.f, that host's canonical yz7 sidebar state list.
      */
-    private void hookV236LiveSessionPublish(final ClassLoader cl) {
+    private void hookV236LiveSessionPublish(final ClassLoader cl) throws Throwable {
         if (!BuildInfo.PROTECTED_BUILD || !BuildInfo.LOCAL_API_INCLUDED || !HostCompat.isV236()) return;
         try {
             final Class<?> repository = HostRemap.forName("fh", false, cl);
@@ -8362,10 +8362,14 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 try { deoptimize(method); } catch (Throwable ignored) {}
                 installed++;
             }
+            if (installed == 0) throw new NoSuchMethodException("fh.e(lq)");
             log("installed code249 live session publish repair fh.e x" + installed);
         } catch (Throwable error) {
             log("code249 live session publish repair unavailable: "
                     + safeThrowableMessage(error));
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            throw error;
         }
     }
 
@@ -8414,7 +8418,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
      * composed sidebar stale until a process restart reconstructs the directory. Reconcile only
      * the exact pq passed through that native entry, on the main thread, and never touch storage.
      */
-    private void hookV241LiveSessionPublish(final ClassLoader cl) {
+    private void hookV241LiveSessionPublish(final ClassLoader cl) throws Throwable {
         if (!BuildInfo.PROTECTED_BUILD || !BuildInfo.LOCAL_API_INCLUDED || !HostCompat.isV241()) return;
         try {
             final Class<?> repository = HostRemap.forName("jh", false, cl);
@@ -8439,10 +8443,14 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 try { deoptimize(method); } catch (Throwable ignored) {}
                 installed++;
             }
+            if (installed == 0) throw new NoSuchMethodException("jh.e(pq)");
             log("installed code257 live session publish repair jh.e x" + installed);
         } catch (Throwable error) {
             log("code257 live session publish repair unavailable: "
                     + safeThrowableMessage(error));
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            throw error;
         }
     }
 
@@ -8486,7 +8494,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     }
 
     /** code257's independent successor of code249 p41.a; never installed on older hosts. */
-    private void hookV241FeedbackDeletedFlow(final ClassLoader cl) {
+    private void hookV241FeedbackDeletedFlow(final ClassLoader cl) throws Throwable {
         if (!HostCompat.isV241()) return;
         try {
             Class<?> component = HostRemap.forName("h61", false, cl);
@@ -8533,9 +8541,13 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 });
                 installed++;
             }
+            if (installed == 0) throw new NoSuchMethodException("h61.a(component,pq,tn5,p46)");
             log("installed code257 feedback deletion guard h61.a x" + installed);
         } catch (Throwable error) {
-            log("hookV241FeedbackDeletedFlow failed: " + error);
+            log("hookV241FeedbackDeletedFlow failed: " + safeThrowableMessage(error));
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            throw error;
         }
     }
 
@@ -9212,7 +9224,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     // ══════════════════════════════════════════════════════════════════════
 
     // 1) transport 入口 r92.b：捕获活着的 r92、把发送点图片挂到 ew0、返回时包装 Flow 跑中继
-    private void installNetworkPayloadCapture(ClassLoader cl) {
+    private void installNetworkPayloadCapture(ClassLoader cl) throws Throwable {
         try {
             Class<?> rs0 = HostCompat.isV241()
                     ? HostRemap.load(cl, "nv0") : HostCompat.load(cl, "rs0");
@@ -9254,7 +9266,15 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             }
             // 中继实现：collect 时机的 hook(见 registerRelayFlow)。返回值是 Object，不会被强转闪退。
             HookAttachmentPipeline.INSTANCE.installExpertFlowCollectHook(cl);
-        } catch (Throwable t) { log("installNetworkPayloadCapture failed: " + t); }
+            if (n == 0) {
+                throw new NoSuchMethodException("network transport hook was not installed");
+            }
+        } catch (Throwable error) {
+            log("installNetworkPayloadCapture failed: " + safeThrowableMessage(error));
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            throw error;
+        }
     }
 
     // 运行时(app 进程内)扫描自身 dex，按结构签名 (rs0,Long)->非void 找 transport 方法。build 无关。
