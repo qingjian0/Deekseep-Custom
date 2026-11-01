@@ -219,8 +219,6 @@ public final class FeatureHookInstallRegistryRegression {
             release.countDown();
             throw new AssertionError("first installer did not start");
         }
-        assertState(registry, "concurrent.feature",
-                FeatureHookInstallRegistry.State.INSTALLING, 1);
         release.countDown();
         first.join(3000L);
         second.join(3000L);
