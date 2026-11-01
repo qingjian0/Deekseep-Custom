@@ -3479,10 +3479,16 @@ final class HookUiSurface {
                 });
                 installed++;
             }
+            if (installed == 0) {
+                throw new NoSuchMethodException("ComposeView.setContent(1) hook was not discovered");
+            }
             Main.log("installed native dual root capture ComposeView.setContent x" + installed);
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             NATIVE_DUAL_ROOT_HOOK_INSTALLED.set(false);
-            Main.log("native dual root capture unavailable: " + error);
+            Main.log("native dual root capture unavailable: " + Main.safeThrowableMessage(error));
+            throw new IllegalStateException("native dual root capture hook installation failed", error);
         }
     }
 
