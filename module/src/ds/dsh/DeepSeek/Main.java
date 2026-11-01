@@ -1664,25 +1664,34 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             }
 
             if (HostCompat.isV236() && BuildInfo.PROTECTED_BUILD
-                    && BuildInfo.LOCAL_API_INCLUDED
-                    && V236_LOCAL_API_HOOKS_INSTALLED.compareAndSet(false, true)) {
-                try {
-                    hookLegacyLocalApiAccountRouting(hookLoader);
-                } catch (Throwable error) {
-                    V236_LOCAL_API_HOOKS_INSTALLED.set(false);
-                    log("code249 Local API credential hook bootstrap failed: "
-                            + safeThrowableMessage(error));
-                }
-            } else if (HostCompat.isV241()
-                    && BuildInfo.PROTECTED_BUILD && BuildInfo.LOCAL_API_INCLUDED
-                    && LOCAL_API_HOOKS_INSTALLED.compareAndSet(false, true)) {
-                try {
-                    HookAccountLoginSecurity.INSTANCE.hookLocalApiAccountRouting(hookLoader);
-                } catch (Throwable error) {
-                    LOCAL_API_HOOKS_INSTALLED.set(false);
-                    log("Local API credential hook bootstrap failed: "
-                            + safeThrowableMessage(error));
-                }
+                    && BuildInfo.LOCAL_API_INCLUDED) {
+                installHookStep("account.local-api-routing.v236", () -> {
+                    if (!V236_LOCAL_API_HOOKS_INSTALLED.compareAndSet(false, true)) return;
+                    try {
+                        hookLegacyLocalApiAccountRouting(hookLoader);
+                    } catch (Throwable error) {
+                        V236_LOCAL_API_HOOKS_INSTALLED.set(false);
+                        throw error;
+                    }
+                });
+            } else {
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("account.local-api-routing.v236",
+                        "code249 Local API routing is not included in this build or host generation");
+            }
+            if (HostCompat.isV241() && BuildInfo.PROTECTED_BUILD
+                    && BuildInfo.LOCAL_API_INCLUDED) {
+                installHookStep("account.local-api-routing.v241", () -> {
+                    if (!LOCAL_API_HOOKS_INSTALLED.compareAndSet(false, true)) return;
+                    try {
+                        HookAccountLoginSecurity.INSTANCE.hookLocalApiAccountRouting(hookLoader);
+                    } catch (Throwable error) {
+                        LOCAL_API_HOOKS_INSTALLED.set(false);
+                        throw error;
+                    }
+                });
+            } else {
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("account.local-api-routing.v241",
+                        "code257 Local API routing is not included in this build or host generation");
             }
             installHookStep("account.native-fake-mute", () -> HookAccountLoginSecurity.INSTANCE.hookNativeFakeMute(hookLoader));
             installHookStep("account.training-opt-out", () -> HookAccountLoginSecurity.INSTANCE.hookTrainingOptOutControl(hookLoader));
@@ -7218,24 +7227,6 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             }, "appearance hook installation failed: ");
         }
 
-        // Install the credential bridge whenever this build contains the Local API. Tying the
-        // hook to a marker-file read made persisted installations timing-dependent: the first
-        // optional-hook pass can run before the protected gateway has reconciled its settings,
-        // and the listener then starts without the account-specific Authorization replacement.
-        // The hooks are inert unless z18 binds a request-scoped Route.
-        if (HostCompat.isV241()
-                && BuildInfo.PROTECTED_BUILD && BuildInfo.LOCAL_API_INCLUDED) {
-            installBestEffortHook("optional.local-api-credential-routing", () -> {
-                if (!LOCAL_API_HOOKS_INSTALLED.compareAndSet(false, true)) return;
-                try {
-                    log("activating Local API credential hooks on demand");
-                    HookAccountLoginSecurity.INSTANCE.hookLocalApiAccountRouting(cl);
-                } catch (Throwable error) {
-                    LOCAL_API_HOOKS_INSTALLED.set(false);
-                    throw error;
-                }
-            }, "Local API credential hook activation failed: ");
-        }
     }
 
     /** Replaces DSLG2 transport boxes before their first frame; unrelated JLaTeX boxes pass on. */
