@@ -120,6 +120,23 @@ preview_body="$(sed -n '/void hookNativeImagePreviewBoundary/,/void hookNativeMo
 grep -Fq 'hookAttachmentMember(boundary, new Hooker()' <<<"$preview_body"
 grep -Fq 'hookAttachmentMember(method, new Hooker()' <<<"$preview_body"
 
+# Login-risk diagnostic retries must not register the same host Member more than once.
+login_src="$SRC/HookAccountLoginSecurity.java"
+grep -Fq 'LOGIN_RISK_HOOKED_MEMBERS' "$login_src"
+login_helper="$(sed -n '/private static void hookLoginRiskMember/,/void installLoginRiskLogger/p' "$login_src")"
+grep -Fq 'synchronized (LOGIN_RISK_HOOKED_MEMBERS)' <<<"$login_helper"
+grep -Fq 'LOGIN_RISK_HOOKED_MEMBERS.contains(member)' <<<"$login_helper"
+grep -Fq 'LOGIN_RISK_HOOKED_MEMBERS.add(member)' <<<"$login_helper"
+login_body="$(sed -n '/void installLoginRiskLogger(/,/private static Throwable appendOptionalHookFailure/p' "$login_src")"
+grep -Fq 'hookLoginRiskMember(method, new Hooker()' <<<"$login_body"
+grep -Fq 'hookLoginRiskMember(ctor, new Hooker()' <<<"$login_body"
+if grep -Fq 'Main.MODULE.hook(' <<<"$login_body"; then
+  echo "Login-risk installer bypasses retry-safe registration." >&2
+  exit 1
+fi
+biz_body="$(sed -n '/private boolean installBizCodeLogger(/,/private Object proceedWithRegionalLoginOptions/p' "$login_src")"
+grep -Fq 'hookLoginRiskMember(ctor, new Hooker()' <<<"$biz_body"
+
 # Session installers propagate installation failures to Main/Registry.
 session_src="$SRC/HookSessionManagement.java"
 for method in \
