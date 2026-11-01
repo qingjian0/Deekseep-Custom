@@ -77,7 +77,7 @@ class FeatureHookInstallRegistry {
             if (entry.state == State.INSTALLED) return
             entry.state = State.SKIPPED
             entry.completedAtMillis = System.currentTimeMillis()
-            entry.detail = reason ?: ""
+            entry.detail = reason?.let(DshLog::sanitizeForStorage) ?: ""
             DshLog.info("HookInstall", "id=$stableId state=SKIPPED")
         }
     }
@@ -126,6 +126,7 @@ class FeatureHookInstallRegistry {
         val message = failure.message
         val value = failure.javaClass.name +
             if (message.isNullOrEmpty()) "" else ": $message"
-        return if (value.length > 320) value.substring(0, 320) else value
+        val sanitized = DshLog.sanitizeForStorage(value)
+        return if (sanitized.length > 320) sanitized.substring(0, 320) else sanitized
     }
 }
