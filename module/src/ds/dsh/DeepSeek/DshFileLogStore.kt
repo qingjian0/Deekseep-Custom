@@ -217,26 +217,44 @@ object DshFileLogStore {
         resolver: ContentResolver, collection: Uri, category: String, relative: String,
     ): Boolean {
         return try {
-            val oldest = findDownload(resolver, collection, "$category.log.$BACKUP_COUNT", relative)
-            if (oldest != null && resolver.delete(oldest, null, null) <= 0) {
-                false
-            } else {
-                var successful = true
-                for (i in BACKUP_COUNT - 1 downTo 1) {
-                    val source = findDownload(resolver, collection, "$category.log.$i", relative)
-                    if (source != null &&
-                        !renameMediaStore(resolver, source, "$category.log.${i + 1}")
-                    ) {
-                        successful = false
-                        break
+            val oldestName = "$category.log.$BACKUP_COUNT"
+            val oldest = findDownload(resolver, collection, oldestName, relative)
+            val stagedName = "$category.log.rotate-old-${System.nanoTime()}"
+            if (findDownload(resolver, collection, stagedName, relative) != null) {
+                return false
+            }
+            if (oldest != null && !renameMediaStore(resolver, oldest, stagedName)) {
+                return false
+            }
+
+            val moved = mutableListOf<Pair<Uri, String>>()
+            fun move(sourceName: String, destinationName: String): Boolean {
+                val source = findDownload(resolver, collection, sourceName, relative)
+                    ?: return true
+                if (!renameMediaStore(resolver, source, destinationName)) return false
+                moved.add(source to sourceName)
+                return true
+            }
+
+            val shifted = move("$category.log.2", "$category.log.3") &&
+                move("$category.log.1", "$category.log.2") &&
+                move("$category.log", "$category.log.1")
+            if (!shifted) {
+                var rollbackSucceeded = true
+                for ((uri, originalName) in moved.asReversed()) {
+                    if (!renameMediaStore(resolver, uri, originalName)) {
+                        rollbackSucceeded = false
                     }
                 }
-                if (!successful) false
-                else {
-                    val active = findDownload(resolver, collection, "$category.log", relative)
-                    active == null || renameMediaStore(resolver, active, "$category.log.1")
+                if (oldest != null && !renameMediaStore(resolver, oldest, oldestName)) {
+                    rollbackSucceeded = false
                 }
+                return false
             }
+
+            // The oldest backup is intentionally deleted only after every rename succeeded.
+            if (oldest != null) runCatching { resolver.delete(oldest, null, null) }
+            true
         } catch (_: Throwable) {
             false
         }
@@ -248,16 +266,36 @@ object DshFileLogStore {
     }
 
     private fun rotateFile(target: File): Boolean {
-        val parent = target.parentFile
+        val parent = target.parentFile ?: return false
         val oldest = File(parent, target.name + "." + BACKUP_COUNT)
-        if (oldest.exists() && !oldest.delete()) return false
-        for (i in BACKUP_COUNT - 1 downTo 1) {
-            val source = File(parent, target.name + "." + i)
-            if (source.exists() && !source.renameTo(File(parent, target.name + "." + (i + 1))))
-                return false
+        val stagedOldest = File(parent, target.name + ".rotate-old-" + System.nanoTime())
+        if (stagedOldest.exists()) return false
+        if (oldest.exists() && !oldest.renameTo(stagedOldest)) return false
+
+        val moved = mutableListOf<Pair<File, File>>()
+        fun move(source: File, destination: File): Boolean {
+            if (!source.exists()) return true
+            if (!source.renameTo(destination)) return false
+            moved.add(source to destination)
+            return true
         }
-        val first = File(parent, target.name + ".1")
-        return !target.exists() || target.renameTo(first)
+
+        val shifted = move(File(parent, target.name + ".2"),
+            File(parent, target.name + ".3")) &&
+            move(File(parent, target.name + ".1"),
+                File(parent, target.name + ".2")) &&
+            move(target, File(parent, target.name + ".1"))
+        if (!shifted) {
+            for ((source, destination) in moved.asReversed()) {
+                destination.renameTo(source)
+            }
+            if (stagedOldest.exists()) stagedOldest.renameTo(oldest)
+            return false
+        }
+
+        // Drop the oldest snapshot only after the active log and backups have shifted.
+        if (stagedOldest.exists()) stagedOldest.delete()
+        return true
     }
 
     private fun sanitize(value: String?): String? {
