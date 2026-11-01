@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -18,7 +18,7 @@ public final class NativeApiPatchDecoderRegressionTest {
 
     private static void failsClosedWhenProtectedPayloadIsUnavailable() {
         check(!z14.available(), "Open edition unexpectedly exposes the protected decoder");
-        check(z14.payloadClass(null, "com.dsmod.probe.z12decoder") == null,
+        check(z14.payloadClass(null, "ds.dsh.DeepSeek.z12decoder") == null,
                 "Open edition unexpectedly resolves the Closed-only decoder");
 
         NativeApiPatchDecoder decoder = new NativeApiPatchDecoder();
