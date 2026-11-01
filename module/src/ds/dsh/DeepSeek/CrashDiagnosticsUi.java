@@ -13,6 +13,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -202,9 +203,23 @@ final class CrashDiagnosticsUi {
 
     private static String readCrashReport(Context context) {
         StringBuilder out = new StringBuilder();
-        File file = new File(PRIVATE_LOG);
-        if (file.isFile() && file.length() > 0) {
-            appendBoundedFile(out, file, 384 * 1024);
+        // The unified crash log belongs to the module app UID. Read it through the
+        // provider's caller-UID-checked endpoint instead of opening another app's filesDir.
+        try {
+            Bundle result = context.getContentResolver().call(
+                    Uri.parse("content://" + XposedActivationProvider.AUTHORITY),
+                    XposedActivationProvider.METHOD_READ_DSH_CRASH_LOG, null, null);
+            if (result != null && result.getBoolean("accepted", false)) {
+                String content = result.getString("content", "");
+                if (content != null && content.length() > 0) out.append(content);
+            }
+        } catch (Throwable ignored) {}
+        // Backward compatibility for crash records written before the unified store existed.
+        if (out.length() == 0) {
+            File file = new File(PRIVATE_LOG);
+            if (file.isFile() && file.length() > 0) {
+                appendBoundedFile(out, file, 384 * 1024);
+            }
         }
         if (Build.VERSION.SDK_INT >= 30) appendSystemExitHistory(context, out);
         return out.toString().trim();
