@@ -127,12 +127,11 @@ final class HookConfigRollout {
     }
 
     /** Suppresses DeepSeek's shared normal/forced update dialog while the opt-in marker exists. */
-    void hookHotUpdateDialog(final ClassLoader loader) {
+    void hookHotUpdateDialog(final ClassLoader loader) throws Throwable {
         try {
             Method method = HostCompat.updateDialogMethod(loader);
             if (method == null) {
-                Main.log("client update renderer not found for " + HostCompat.generationName());
-                return;
+                throw new NoSuchMethodException("client update renderer for " + HostCompat.generationName());
             }
             Main.MODULE.hook(method).intercept(new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
@@ -142,12 +141,17 @@ final class HookConfigRollout {
             Main.log("client update renderer hooked: " + method);
         } catch (Throwable error) {
             Main.log("hook client update renderer failed: " + error);
+            throw error;
         }
     }
 
     /** Blocks application of newly downloaded remote settings, not only the update dialog. */
-    void hookRemoteConfigHotUpdates(final ClassLoader loader) {
-        if (loader == null || (!HostCompat.isV236() && !HostCompat.isV241())) return;
+    void hookRemoteConfigHotUpdates(final ClassLoader loader) throws Throwable {
+        if (loader == null) throw new IllegalArgumentException("remote config class loader is null");
+        if (!HostCompat.isV236() && !HostCompat.isV241()) {
+            throw new UnsupportedOperationException("remote config hot-update hooks are not mapped for "
+                    + HostCompat.generationName());
+        }
         int count = 0;
         String[] owners = HostCompat.isV241()
                 ? new String[]{"fv5", "ys1"}
@@ -177,6 +181,7 @@ final class HookConfigRollout {
                         + Main.safeThrowableMessage(error));
             }
         }
+        if (count == 0) throw new NoSuchMethodException("remote settings hot-update blocker targets");
         Main.log("remote settings hot-update blocker hooks=" + count);
     }
 
@@ -187,8 +192,10 @@ final class HookConfigRollout {
      * function gives the manager a real FORCE_OFF state while FOLLOW/FORCE_ON retain DeepSeek's
      * native attachment, empty-input and animation conditions.
      */
-    void hookAttachmentGuidePromptRollout(ClassLoader cl) {
-        if (cl == null || !HostCompat.isV234()) return;
+    void hookAttachmentGuidePromptRollout(ClassLoader cl) throws Throwable {
+        if (cl == null) throw new IllegalArgumentException("attachment guide class loader is null");
+        if (!HostCompat.isV234()) throw new UnsupportedOperationException(
+                "attachment guide rollout is not mapped for " + HostCompat.generationName());
         String ownerName = HostCompat.isV241() ? "q55"
                 : HostCompat.isV236() ? "oa5"
                 : HostCompat.isGooglePlay() ? "zf6" : "ra5";
@@ -219,16 +226,20 @@ final class HookConfigRollout {
                 });
                 count++;
             }
+            if (count == 0) throw new NoSuchMethodException(ownerName + "." + methodName);
             Main.log("attachment guide-prompt rollout hook=" + ownerName + "."
                     + methodName + " count=" + count);
         } catch (Throwable error) {
             Main.log("attachment guide-prompt rollout hook unavailable: " + error);
+            throw error;
         }
     }
 
     /** Returns DeepSeek's built-in empty welcome configuration when the rollout is forced off. */
-    void hookHomeWelcomeRollout(final ClassLoader cl) {
-        if (cl == null || (!HostCompat.isV236() && !HostCompat.isV241())) return;
+    void hookHomeWelcomeRollout(final ClassLoader cl) throws Throwable {
+        if (cl == null) throw new IllegalArgumentException("home welcome class loader is null");
+        if (!HostCompat.isV236() && !HostCompat.isV241()) throw new UnsupportedOperationException(
+                "home welcome rollout is not mapped for " + HostCompat.generationName());
         try {
             final String repositoryName = HostCompat.isV241() ? "fv5" : "lp5";
             final String configName = HostCompat.isV241() ? "oi9" : "p99";
@@ -252,6 +263,7 @@ final class HookConfigRollout {
         } catch (Throwable error) {
             Main.log("home welcome-message rollout hook unavailable: "
                     + Main.safeThrowableMessage(error));
+            throw error;
         }
     }
 }
