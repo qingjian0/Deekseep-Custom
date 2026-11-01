@@ -147,7 +147,7 @@ final class HookConfigRollout {
             if (method == null) {
                 throw new NoSuchMethodException("client update renderer for " + HostCompat.generationName());
             }
-            Main.MODULE.hook(method).intercept(new Hooker() {
+            hookRolloutMethodOnce(method, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     return isHotUpdateDisabled() ? null : chain.proceed();
                 }
@@ -276,7 +276,7 @@ final class HookConfigRollout {
             emptyConfig.setAccessible(true);
             Method getter = HostRemap.declaredMethod(repository, getterName);
             getter.setAccessible(true);
-            Main.MODULE.hook(getter).intercept(new Hooker() {
+            hookRolloutMethodOnce(getter, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     if (RemoteFeatureFlags.mode(cl, RemoteFeatureFlags.HOME_WELCOME_MESSAGES)
                             == RemoteFeatureFlags.FORCE_OFF) {
