@@ -1,6 +1,6 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
-import com.dsmod.relay.ExpertRelayGate;
+import ds.dsh.DeepSeek.relay.ExpertRelayGate;
 
 import android.app.Activity;
 import android.app.ActivityManager;
@@ -109,8 +109,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
-import com.dsmod.probe.LegacyXposedModule.Chain;
-import com.dsmod.probe.LegacyXposedModule.Hooker;
+import ds.dsh.DeepSeek.LegacyXposedModule.Chain;
+import ds.dsh.DeepSeek.LegacyXposedModule.Hooker;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
 /** Shared hook core used by both domestic and Google Play universal APKs. */
@@ -148,7 +148,7 @@ final class HookAccountLoginSecurity {
     public static final ThreadLocal<Boolean> tlProactiveHeartbeatRequest = new ThreadLocal<>();
 
     private static final String ACTION_AGENT_COMMAND =
-            "com.dsmod.probe.action.AGENT_COMMAND";
+            "ds.dsh.DeepSeek.action.AGENT_COMMAND";
 
     private static final String EXTRA_AGENT_COMMAND = "agent_command_json";
 
@@ -3257,7 +3257,7 @@ Main.log("[RISK] Android ID spoof installed");
                     "local-api-" + request.requestId);
         }
         try {
-            Class<?> cls = z14.payloadClass(Main.hostApplicationContext, "com.dsmod.probe.z18");
+            Class<?> cls = z14.payloadClass(Main.hostApplicationContext, "ds.dsh.DeepSeek.z18");
             java.lang.reflect.Method m = cls == null ? null
                     : HostRemap.declaredMethod(cls, "executeLocalApiCompletion",
                             z2.CompletionRequest.class, z2.DeltaSink.class);
