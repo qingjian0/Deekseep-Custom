@@ -292,7 +292,9 @@ abstract class LegacyXposedModule {
                 RawHookTrace.registered(member);
                 JavaPluginRuntimeBridge.registered(member);
                 if (registrationKey != null) scopedRegistrations.add(registrationKey);
-            } catch (RuntimeException error) {
+            } catch (RuntimeException | Error error) {
+                // Registry retries may follow linkage/framework Errors as well as runtime
+                // exceptions. Never leave a failed registration staged in the interceptor list.
                 hookers.remove(hooker);
                 throw error;
             }
