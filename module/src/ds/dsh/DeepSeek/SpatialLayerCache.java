@@ -144,189 +144,20 @@ final class SpatialLayerCache {
         return ready;
     }
 
-    static int[] buildMidgroundPixels(
-            int[] pixels, byte[] keepMask) {
-        int count = Math.min(pixels.length, keepMask.length);
-        int[] result = new int[count];
-        for (int index = 0; index < count; index++) {
-            int sourceColor = pixels[index];
-            int keep = keepMask[index] & 0xFF;
-            int sourceAlpha = sourceColor >>> 24;
-            int midAlpha = sourceAlpha * keep / 255;
-            result[index] =
-                    (sourceColor & 0x00FFFFFF) | (midAlpha << 24);
-        }
-        return result;
+    static int[] buildMidgroundPixels(int[] pixels, byte[] keepMask) {
+        return SpatialLayerPixelPolicy.buildMidgroundPixels(pixels, keepMask);
     }
 
     static int[] buildBackplatePixels(
             int[] pixels, byte[] keepMask, int width, int height) {
-        int[] backgroundField = buildBackgroundField(
+        return SpatialLayerPixelPolicy.buildBackplatePixels(
                 pixels, keepMask, width, height);
-        int count = Math.min(
-                Math.min(pixels.length, keepMask.length),
-                backgroundField.length);
-        int[] result = new int[count];
-        for (int index = 0; index < count; index++) {
-            int keep = keepMask[index] & 0xFF;
-            result[index] = keep == 0
-                    ? pixels[index]
-                    : blend(pixels[index], backgroundField[index], keep);
-        }
-        return result;
     }
 
     static int[] buildBackgroundField(
             int[] pixels, byte[] keepMask, int width, int height) {
-        int columns = Math.max(8, Math.min(48, (width + 31) / 32));
-        int rows = Math.max(8, Math.min(48, (height + 31) / 32));
-        int cells = columns * rows;
-        long[] red = new long[cells];
-        long[] green = new long[cells];
-        long[] blue = new long[cells];
-        int[] samples = new int[cells];
-        long globalRed = 0L;
-        long globalGreen = 0L;
-        long globalBlue = 0L;
-        int globalSamples = 0;
-
-        for (int y = 0; y < height; y++) {
-            int cellY = Math.min(rows - 1, y * rows / height);
-            int row = y * width;
-            for (int x = 0; x < width; x++) {
-                int index = row + x;
-                if ((keepMask[index] & 0xFF) > 16) continue;
-                int color = pixels[index];
-                int cell = cellY * columns
-                        + Math.min(columns - 1, x * columns / width);
-                int r = red(color);
-                int g = green(color);
-                int b = blue(color);
-                red[cell] += r;
-                green[cell] += g;
-                blue[cell] += b;
-                samples[cell]++;
-                globalRed += r;
-                globalGreen += g;
-                globalBlue += b;
-                globalSamples++;
-            }
-        }
-        int fallback = globalSamples == 0 ? 0xFF202020
-                : rgb(
-                        (int) (globalRed / globalSamples),
-                        (int) (globalGreen / globalSamples),
-                        (int) (globalBlue / globalSamples));
-        int[] colors = new int[cells];
-        for (int cell = 0; cell < cells; cell++) {
-            if (samples[cell] > 0) {
-                colors[cell] = rgb(
-                        (int) (red[cell] / samples[cell]),
-                        (int) (green[cell] / samples[cell]),
-                        (int) (blue[cell] / samples[cell]));
-                continue;
-            }
-            int row = cell / columns;
-            int column = cell % columns;
-            int left = column - 1;
-            while (left >= 0
-                    && samples[row * columns + left] == 0) left--;
-            int right = column + 1;
-            while (right < columns
-                    && samples[row * columns + right] == 0) right++;
-            if (left >= 0 && right < columns) {
-                float fraction = (column - left) / (float) (right - left);
-                colors[cell] = mix(
-                        averageColor(red, green, blue, samples,
-                                row * columns + left, fallback),
-                        averageColor(red, green, blue, samples,
-                                row * columns + right, fallback),
-                        fraction);
-            } else if (left >= 0) {
-                colors[cell] = averageColor(
-                        red, green, blue, samples,
-                        row * columns + left, fallback);
-            } else if (right < columns) {
-                colors[cell] = averageColor(
-                        red, green, blue, samples,
-                        row * columns + right, fallback);
-            } else {
-                colors[cell] = fallback;
-            }
-        }
-
-        int[] field = new int[width * height];
-        for (int y = 0; y < height; y++) {
-            float gridY = (y + 0.5f) * rows / height - 0.5f;
-            int top = Math.max(0, Math.min(rows - 1,
-                    (int) Math.floor(gridY)));
-            int bottom = Math.min(rows - 1, top + 1);
-            float fy = Math.max(0f, Math.min(1f, gridY - top));
-            int row = y * width;
-            for (int x = 0; x < width; x++) {
-                float gridX = (x + 0.5f) * columns / width - 0.5f;
-                int left = Math.max(0, Math.min(columns - 1,
-                        (int) Math.floor(gridX)));
-                int right = Math.min(columns - 1, left + 1);
-                float fx = Math.max(0f, Math.min(1f, gridX - left));
-                int topColor = mix(
-                        colors[top * columns + left],
-                        colors[top * columns + right], fx);
-                int bottomColor = mix(
-                        colors[bottom * columns + left],
-                        colors[bottom * columns + right], fx);
-                field[row + x] = mix(topColor, bottomColor, fy);
-            }
-        }
-        return field;
-    }
-
-    private static int averageColor(
-            long[] red, long[] green, long[] blue, int[] samples,
-            int index, int fallback) {
-        int count = samples[index];
-        if (count <= 0) return fallback;
-        return rgb(
-                (int) (red[index] / count),
-                (int) (green[index] / count),
-                (int) (blue[index] / count));
-    }
-
-    private static int blend(int original, int replacement, int amount) {
-        float fraction = Math.max(0f, Math.min(1f, amount / 255f));
-        int mixed = mix(original, replacement, fraction);
-        return (original & 0xFF000000) | (mixed & 0x00FFFFFF);
-    }
-
-    private static int mix(int first, int second, float fraction) {
-        float f = Math.max(0f, Math.min(1f, fraction));
-        float inverse = 1f - f;
-        return rgb(
-                Math.round(red(first) * inverse
-                        + red(second) * f),
-                Math.round(green(first) * inverse
-                        + green(second) * f),
-                Math.round(blue(first) * inverse
-                        + blue(second) * f));
-    }
-
-    private static int red(int color) {
-        return (color >>> 16) & 0xFF;
-    }
-
-    private static int green(int color) {
-        return (color >>> 8) & 0xFF;
-    }
-
-    private static int blue(int color) {
-        return color & 0xFF;
-    }
-
-    private static int rgb(int red, int green, int blue) {
-        return 0xFF000000
-                | ((red & 0xFF) << 16)
-                | ((green & 0xFF) << 8)
-                | (blue & 0xFF);
+        return SpatialLayerPixelPolicy.buildBackgroundField(
+                pixels, keepMask, width, height);
     }
 
     private static boolean writePng(Bitmap bitmap, File target) {
