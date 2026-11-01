@@ -10,6 +10,8 @@ public final class FeatureHookInstallRegistryRegression {
         testSuccessfulInstallIsIdempotent();
         testFailureCanBeRetriedWithoutRerunningCompletedEntries();
         testSkippedEntryIsTerminal();
+        testMarkSkippedPreservesFailedEntry();
+        testMarkSkippedPreservesDegradedEntry();
         testConcurrentCallersDoNotDoubleInstall();
         testFailureIsRethrownAndRecorded();
         testDegradedEntryCanBeRetried();
@@ -61,6 +63,32 @@ public final class FeatureHookInstallRegistryRegression {
         registry.install("host.v271.optional", calls::incrementAndGet);
         assertEquals(0, calls.get(), "skipped feature must not execute");
         assertState(registry, "host.v271.optional", FeatureHookInstallRegistry.State.SKIPPED, 0);
+    }
+
+    private static void testMarkSkippedPreservesFailedEntry() throws Throwable {
+        FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
+        try {
+            registry.install("failed.then.skipped", () -> {
+                throw new IllegalStateException("original install failure");
+            });
+            throw new AssertionError("failure was not propagated");
+        } catch (IllegalStateException expected) {
+            assertEquals("original install failure", expected.getMessage(), "failure message");
+        }
+
+        registry.markSkipped("failed.then.skipped", "later host gate");
+        assertState(registry, "failed.then.skipped", FeatureHookInstallRegistry.State.FAILED, 1);
+        assertTrue(registry.hasFailures(), "markSkipped must not hide a failed installation");
+    }
+
+    private static void testMarkSkippedPreservesDegradedEntry() throws Throwable {
+        FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
+        registry.markDegraded("degraded.then.skipped",
+                new IllegalStateException("partial installation"));
+        registry.markSkipped("degraded.then.skipped", "later host gate");
+        assertState(registry, "degraded.then.skipped",
+                FeatureHookInstallRegistry.State.DEGRADED, 0);
+        assertTrue(registry.hasFailures(), "markSkipped must not hide a degraded installation");
     }
 
     private static void testConcurrentCallersDoNotDoubleInstall() throws Throwable {
