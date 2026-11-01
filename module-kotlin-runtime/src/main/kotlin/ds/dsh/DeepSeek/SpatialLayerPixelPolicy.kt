@@ -47,9 +47,9 @@ object SpatialLayerPixelPolicy {
         val columns = maxOf(8, minOf(48, (width + 31) / 32))
         val rows = maxOf(8, minOf(48, (height + 31) / 32))
         val cells = columns * rows
-        val red = LongArray(cells)
-        val green = LongArray(cells)
-        val blue = LongArray(cells)
+        val redSums = LongArray(cells)
+        val greenSums = LongArray(cells)
+        val blueSums = LongArray(cells)
         val samples = IntArray(cells)
         var globalRed = 0L
         var globalGreen = 0L
@@ -67,9 +67,9 @@ object SpatialLayerPixelPolicy {
                 val r = red(color)
                 val g = green(color)
                 val b = blue(color)
-                red[cell] += r.toLong()
-                green[cell] += g.toLong()
-                blue[cell] += b.toLong()
+                redSums[cell] += r.toLong()
+                greenSums[cell] += g.toLong()
+                blueSums[cell] += b.toLong()
                 samples[cell]++
                 globalRed += r.toLong()
                 globalGreen += g.toLong()
@@ -86,9 +86,9 @@ object SpatialLayerPixelPolicy {
         for (cell in 0 until cells) {
             if (samples[cell] > 0) {
                 colors[cell] = rgb(
-                    (red[cell] / samples[cell]).toInt(),
-                    (green[cell] / samples[cell]).toInt(),
-                    (blue[cell] / samples[cell]).toInt()
+                    (redSums[cell] / samples[cell]).toInt(),
+                    (greenSums[cell] / samples[cell]).toInt(),
+                    (blueSums[cell] / samples[cell]).toInt()
                 )
                 continue
             }
@@ -102,7 +102,7 @@ object SpatialLayerPixelPolicy {
                 left >= 0 && right < columns -> {
                     val fraction = (column - left) / (right - left).toFloat()
                     mix(
-                        averageColor(red, green, blue, samples,
+                        averageColor(redSums, greenSums, blueSums,
                             gridRow * columns + left, fallback),
                         averageColor(red, green, blue, samples,
                             gridRow * columns + right, fallback),
