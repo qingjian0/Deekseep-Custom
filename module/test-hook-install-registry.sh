@@ -7,6 +7,23 @@ RUNTIME_DIR="$ROOT_DIR/module-kotlin-runtime"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
+# Source-level contracts for the Android-only IPC/storage path. These checks complement
+# JVM regressions; they do not replace an Android Gradle build or device verification.
+QUEUE_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/DshLogIpcQueue.java"
+PROVIDER_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/XposedActivationProvider.java"
+REMOTE_SINK_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/DshRemoteFileLogSink.java"
+STORE_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/DshFileLogStore.java"
+SETTINGS_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/SettingsActivity.java"
+
+grep -Fq 'private_queued' "$QUEUE_SOURCE"
+grep -Fq 'public_queued' "$QUEUE_SOURCE"
+grep -Fq 'partial' "$QUEUE_SOURCE"
+grep -Fq 'return DshLogIpcQueue.enqueue(context, category, line);' "$PROVIDER_SOURCE"
+grep -Fq 'result.getBoolean("partial", false)' "$REMOTE_SINK_SOURCE"
+grep -Fq 'result.getBoolean("private_written") != result.getBoolean("public_written")' "$REMOTE_SINK_SOURCE"
+grep -Fq 'Manifest.permission.WRITE_EXTERNAL_STORAGE' "$STORE_SOURCE"
+grep -Fq '!readGranted || !writeGranted' "$SETTINGS_SOURCE"
+
 GRADLE_BIN="$(bash "$ROOT_DIR/scripts/gradle-bootstrap.sh")"
 "$GRADLE_BIN" --no-daemon --stacktrace -p "$RUNTIME_DIR" jar stageRuntimeClasspath
 
