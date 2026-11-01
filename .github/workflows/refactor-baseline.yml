@@ -44,6 +44,9 @@ jobs:
       - name: Run Kotlin language catalog regression
         run: bash module/test-language-catalog.sh
 
+      - name: Run Kotlin hook-install lifecycle regression
+        run: bash module/test-hook-install-registry.sh
+
       - name: Install required Android SDK components
         run: |
           set -e
