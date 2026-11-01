@@ -25,8 +25,8 @@ final class z17 {
     private static final String DIR = "/data/data/com.deepseek.chat/files";
     private static final String ENABLED_FILE = DIR + "/deekseep_chat_proxy_enabled";
     private static final String CONFIG_FILE = DIR + "/deekseep_chat_proxy_config.json";
-    static final String FORMAT_OPENAI = "openai";
-    static final String FORMAT_ANTHROPIC = "anthropic";
+    static final String FORMAT_OPENAI = ConversationRelayEndpointPolicy.FORMAT_OPENAI;
+    static final String FORMAT_ANTHROPIC = ConversationRelayEndpointPolicy.FORMAT_ANTHROPIC;
 
     private static volatile JSONObject cache;
 
@@ -103,8 +103,7 @@ final class z17 {
     static String model() { return get("model"); }
 
     static String format() {
-        String v = get("format");
-        return FORMAT_ANTHROPIC.equals(v) ? FORMAT_ANTHROPIC : FORMAT_OPENAI;
+        return ConversationRelayEndpointPolicy.normalizeFormat(get("format"));
     }
 
     static synchronized void save(String apiKey, String format, String baseUrl, String model) {
@@ -128,17 +127,14 @@ final class z17 {
     /** Fetches the model id list from {@code baseUrl}/v1/models using the configured API key. */
     static List<String> fetchModels(String apiKey, String format, String baseUrl)
             throws Exception {
-        String endpoint = normalize(baseUrl) + "/v1/models";
+        String endpoint = ConversationRelayEndpointPolicy.modelsEndpoint(baseUrl);
         HttpURLConnection conn = (HttpURLConnection) new URL(endpoint).openConnection();
         conn.setRequestMethod("GET");
         conn.setConnectTimeout(8000);
         conn.setReadTimeout(12000);
-        conn.setRequestProperty("Accept", "application/json");
-        if (FORMAT_ANTHROPIC.equals(format)) {
-            conn.setRequestProperty("x-api-key", apiKey == null ? "" : apiKey);
-            conn.setRequestProperty("anthropic-version", "2023-06-01");
-        } else {
-            conn.setRequestProperty("Authorization", "Bearer " + (apiKey == null ? "" : apiKey));
+        for (java.util.Map.Entry<String, String> header :
+                ConversationRelayEndpointPolicy.modelDiscoveryHeaders(format, apiKey).entrySet()) {
+            conn.setRequestProperty(header.getKey(), header.getValue());
         }
         int code = conn.getResponseCode();
         if (code != 200) {
@@ -163,9 +159,7 @@ final class z17 {
 
     private static String normalize(String baseUrl) {
         if (baseUrl == null) return "";
-        String v = baseUrl.trim();
-        while (v.endsWith("/")) v = v.substring(0, v.length() - 1);
-        return v;
+        return ConversationRelayEndpointPolicy.normalizeBaseUrl(baseUrl);
     }
 
     /**
@@ -178,11 +172,11 @@ final class z17 {
         String key = apiKey();
         String model = model();
         boolean anthropic = FORMAT_ANTHROPIC.equals(format());
-        String endpoint = anthropic ? baseUrl + "/v1/messages"
-                : baseUrl + "/v1/chat/completions";
+        String endpoint = ConversationRelayEndpointPolicy.chatEndpoint(baseUrl,
+                anthropic ? FORMAT_ANTHROPIC : FORMAT_OPENAI);
         try {
             JSONObject root = new JSONObject();
-            root.put("model", model.length() == 0 ? "default" : model);
+            root.put("model", ConversationRelayEndpointPolicy.effectiveModel(model));
             JSONArray messages = new JSONArray();
             messages.put(new JSONObject().put("role", "user").put("content", prompt));
             root.put("messages", messages);
@@ -195,13 +189,10 @@ final class z17 {
             conn.setConnectTimeout(10000);
             conn.setReadTimeout(180000);
             conn.setDoOutput(true);
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setRequestProperty("Accept", "text/event-stream");
-            if (anthropic) {
-                conn.setRequestProperty("x-api-key", key);
-                conn.setRequestProperty("anthropic-version", "2023-06-01");
-            } else {
-                conn.setRequestProperty("Authorization", "Bearer " + key);
+            for (java.util.Map.Entry<String, String> header :
+                    ConversationRelayEndpointPolicy.requestHeaders(
+                            anthropic ? FORMAT_ANTHROPIC : FORMAT_OPENAI, key).entrySet()) {
+                conn.setRequestProperty(header.getKey(), header.getValue());
             }
             OutputStream out = conn.getOutputStream();
             try {
