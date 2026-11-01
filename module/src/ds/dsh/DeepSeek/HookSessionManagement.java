@@ -1768,11 +1768,11 @@ final class HookSessionManagement {
             Main.log("installed local cloud-directory merge p68=" + transactionHooks
                     + " aw=" + directoryHooks);
         } catch (Throwable t) {
-            Main.log("hookLocalSessionDirectoryMerge failed:
+            Main.log("hookLocalSessionDirectoryMerge failed: " + t);
+        
             if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
             if (t instanceof ThreadDeath) throw (ThreadDeath) t;
             throw t;
-         " + t);
         }
     }
 
@@ -1832,11 +1832,11 @@ final class HookSessionManagement {
             }
             Main.log("installed editor-local native-state refresh guard ed0.h x" + installed);
         } catch (Throwable t) {
-            Main.log("hookLocalNativeSessionRefresh failed:
+            Main.log("hookLocalNativeSessionRefresh failed: " + t);
+        
             if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
             if (t instanceof ThreadDeath) throw (ThreadDeath) t;
             throw t;
-         " + t);
         }
     }
 
@@ -2094,11 +2094,11 @@ final class HookSessionManagement {
                     + (HostCompat.isV241() ? "E"
                     : HostCompat.isV236() ? "D" : "E") + " x" + installed);
         } catch (Throwable t) {
-            Main.log("hookLocalSessionRemoteReload failed:
+            Main.log("hookLocalSessionRemoteReload failed: " + t);
+        
             if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
             if (t instanceof ThreadDeath) throw (ThreadDeath) t;
             throw t;
-         " + t);
         }
     }
 
@@ -2150,11 +2150,11 @@ final class HookSessionManagement {
             }
             Main.log("installed editor-local detail request guard vm9.W x" + installed);
         } catch (Throwable t) {
-            Main.log("hookNativeDetailRequest failed:
+            Main.log("hookNativeDetailRequest failed: " + t);
+        
             if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
             if (t instanceof ThreadDeath) throw (ThreadDeath) t;
             throw t;
-         " + t);
         }
     }
 
@@ -2219,11 +2219,11 @@ final class HookSessionManagement {
             }
             Main.log("installed editor-local deleted-response guard at0.a x" + installed);
         } catch (Throwable t) {
-            Main.log("hookLocalSessionDeletedResponse failed:
+            Main.log("hookLocalSessionDeletedResponse failed: " + t);
+        
             if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
             if (t instanceof ThreadDeath) throw (ThreadDeath) t;
             throw t;
-         " + t);
         }
     }
 
@@ -2300,11 +2300,11 @@ final class HookSessionManagement {
             }
             Main.log("installed editor-local ViewModel deletion guard za1.N x" + installed);
         } catch (Throwable t) {
-            Main.log("hookLocalSessionDeletedFlow failed:
+            Main.log("hookLocalSessionDeletedFlow failed: " + t);
+        
             if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
             if (t instanceof ThreadDeath) throw (ThreadDeath) t;
             throw t;
-         " + t);
         }
     }
 
@@ -2476,11 +2476,11 @@ final class HookSessionManagement {
             }
             Main.log("installed code249 feedback deletion guard p41.a x" + installed);
         } catch (Throwable error) {
-            Main.log("hookV236FeedbackDeletedFlow failed: " +
+            Main.log("hookV236FeedbackDeletedFlow failed: " + error);
+        
             if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
             if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             throw error;
-         error);
         }
     }
 
@@ -2610,11 +2610,11 @@ final class HookSessionManagement {
                 installed++;
             }
             Main.log("installed native session navigator hook mc.f x" + installed);
-        } catch (Throwable t) { Main.log("hookNativeSessionNavigator
+        } catch (Throwable t) { Main.log("hookNativeSessionNavigator failed: " + t); 
             if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
             if (t instanceof ThreadDeath) throw (ThreadDeath) t;
             throw t;
-         failed: " + t); }
+        }
     }
 
     /**
@@ -3045,11 +3045,11 @@ final class HookSessionManagement {
             Main.log("installed history-load diagnostics ve1=" + rawHooks
                     + " ie=" + mapperHooks);
         } catch (Throwable t) {
-            Main.log("hook history-load diagnostics failed:
+            Main.log("hook history-load diagnostics failed: " + t);
+        
             if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
             if (t instanceof ThreadDeath) throw (ThreadDeath) t;
             throw t;
-         " + t);
         }
     }
 
@@ -3106,11 +3106,11 @@ final class HookSessionManagement {
             }
             Main.log("installed active chat session capture za1.G x" + installed);
         } catch (Throwable error) {
-            Main.log("hook active chat session capture failed: " +
+            Main.log("hook active chat session capture failed: " + error);
+        
             if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
             if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             throw error;
-         error);
         }
     }
 
@@ -3147,11 +3147,11 @@ final class HookSessionManagement {
             });
             Main.log("installed compose visible-thread state filter o5.u");
         } catch (Throwable error) {
-            Main.log("hook compose visible-thread state filter failed: " +
+            Main.log("hook compose visible-thread state filter failed: " + error);
+        
             if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
             if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             throw error;
-         error);
         }
     }
 
