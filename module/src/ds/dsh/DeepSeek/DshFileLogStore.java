@@ -2,10 +2,8 @@ package ds.dsh.DeepSeek;
 
 import android.content.Context;
 
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -30,16 +28,16 @@ final class DshFileLogStore {
                 return false;
             }
             File target = new File(directory, category + ".log");
-            byte[] bytes = (line.length() > MAX_LINE_CHARS
-                    ? line.substring(0, MAX_LINE_CHARS) : line).concat("\n")
-                    .getBytes(StandardCharsets.UTF_8);
-            if (target.exists() && target.length() + bytes.length > MAX_FILE_BYTES) {
-                rotate(target);
+            String boundedLine = line.length() > MAX_LINE_CHARS
+                    ? line.substring(0, MAX_LINE_CHARS) : line;
+            byte[] bytes = (boundedLine + "\n").getBytes(StandardCharsets.UTF_8);
+            if (target.exists() && target.length() + bytes.length > MAX_FILE_BYTES
+                    && !rotate(target)) {
+                return false;
             }
             try (FileOutputStream output = new FileOutputStream(target, true)) {
                 output.write(bytes);
                 output.flush();
-                output.getFD().sync();
             }
             return true;
         } catch (Throwable ignored) {
@@ -47,22 +45,19 @@ final class DshFileLogStore {
         }
     }
 
-    private static void rotate(File target) {
-        File oldest = new File(target.getParentFile(), target.getName() + "." + BACKUP_COUNT);
-        if (oldest.exists()) oldest.delete();
+    private static boolean rotate(File target) {
+        File parent = target.getParentFile();
+        File oldest = new File(parent, target.getName() + "." + BACKUP_COUNT);
+        if (oldest.exists() && !oldest.delete()) return false;
         for (int index = BACKUP_COUNT - 1; index >= 1; index--) {
-            File source = new File(target.getParentFile(), target.getName() + "." + index);
+            File source = new File(parent, target.getName() + "." + index);
             if (source.exists()) {
-                File destination = new File(target.getParentFile(),
-                        target.getName() + "." + (index + 1));
-                if (!source.renameTo(destination)) source.delete();
+                File destination = new File(parent, target.getName() + "." + (index + 1));
+                if (!source.renameTo(destination)) return false;
             }
         }
-        File firstBackup = new File(target.getParentFile(), target.getName() + ".1");
-        if (target.exists() && !target.renameTo(firstBackup)) {
-            // Keep the active file usable if the filesystem refuses a rename.
-            target.delete();
-        }
+        File firstBackup = new File(parent, target.getName() + ".1");
+        return !target.exists() || target.renameTo(firstBackup);
     }
 
     private static boolean isAllowedCategory(String category) {
