@@ -37,6 +37,8 @@ grep -Fq 'heartbeat tool status BasicText hook installation failed' "$AGENT_PIPE
 test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$AGENT_PIPELINE")" -ge 11
 test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$AGENT_PIPELINE")" -ge 11
 MAIN_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/Main.java"
+grep -Fq 'private static void rethrowFatalLogFailure(Throwable failure)' "$MAIN_SOURCE"
+grep -Fq 'rethrowFatalLogFailure(ignored);' "$MAIN_SOURCE"
 grep -Fq 'code249 Local API routing hooks were only partially installed' "$MAIN_SOURCE"
 test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$MAIN_SOURCE")" -ge 1
 test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$MAIN_SOURCE")" -ge 1
