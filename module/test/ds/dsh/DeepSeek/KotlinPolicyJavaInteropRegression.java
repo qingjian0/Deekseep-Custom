@@ -65,6 +65,17 @@ public final class KotlinPolicyJavaInteropRegression {
         require(AccountValidationPolicy.retryDelayMillis("1") == 1500L
                         && AccountValidationPolicy.retryDelayMillis("11") == -1L,
                 "Java caller observed changed account-validation retry boundaries");
+        require("DeepSeek/2.4.1 Android/35".equals(
+                        AccountManager.validationUserAgent(" 2.4.1 ", 35)),
+                "AccountManager Java adapter did not delegate User-Agent policy");
+        require("zh_CN".equals(AccountManager.validationLocale(null)),
+                "AccountManager Java adapter did not delegate locale policy");
+        require("Bearer interop-token".equals(AccountManager.validationHeaders(
+                        "interop-token", null, 0, null, null, 0).get("Authorization")),
+                "AccountManager Java adapter did not delegate header policy");
+        require(AccountManager.retryDelayMillis("1") == 1500L
+                        && AccountManager.retryDelayMillis("11") == -1L,
+                "AccountManager Java adapter changed Retry-After boundaries");
         require(AndroidManifestVersion.parse(new byte[7]) == null,
                 "Java caller could not use the migrated Kotlin AXML parser");
         require(AgentRateLimiter.MIN_GAP_MS == 8_000L
