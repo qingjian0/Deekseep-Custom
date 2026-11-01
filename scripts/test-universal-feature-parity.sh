@@ -61,7 +61,7 @@ for apk in "${APKS[@]}"; do
         echo "FAIL: $(basename "$apk") unexpectedly caps the Xposed API" >&2
         exit 1
     fi
-    unzip -p "$apk" assets/xposed_init | grep -qx 'com[.]dsmod[.]probe[.]Main' || {
+    unzip -p "$apk" assets/xposed_init | grep -qx 'ds[.]dsh[.]DeepSeek[.]Main' || {
         echo "FAIL: $(basename "$apk") has an invalid traditional Xposed entry" >&2
         exit 1
     }
