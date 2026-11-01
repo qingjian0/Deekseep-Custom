@@ -140,11 +140,11 @@ final class AccountCredentialCodec {
         if (o == null) throw new FormatException(prefix + "不是 JSON 对象");
 
         String id = requiredString(o, "id", prefix);
-        if (id.length() < 8 || id.length() > 128) {
+        if (!AccountCredentialFieldPolicy.isValidIdLength(id.length())) {
             throw new FormatException(prefix + "的 id 长度不正确");
         }
         String token = requiredString(o, "token", prefix);
-        if (token.length() < 16 || token.length() > 16384) {
+        if (!AccountCredentialFieldPolicy.isValidTokenLength(token.length())) {
             throw new FormatException(prefix + "的 token 长度不正确");
         }
 
@@ -222,7 +222,7 @@ final class AccountCredentialCodec {
         if (!o.has(key) || !(o.opt(key) instanceof String)) {
             throw new FormatException(prefix + "缺少字符串字段 " + key);
         }
-        String value = ((String) o.opt(key)).trim();
+        String value = AccountCredentialFieldPolicy.trim((String) o.opt(key));
         if (value.length() == 0) throw new FormatException(prefix + "的 " + key + " 不能为空");
         return value;
     }
@@ -242,7 +242,7 @@ final class AccountCredentialCodec {
             throw new FormatException(prefix + "缺少数字字段 " + key);
         }
         double value = ((Number) o.opt(key)).doubleValue();
-        if (Double.isNaN(value) || Double.isInfinite(value) || value != Math.rint(value)) {
+        if (!AccountCredentialFieldPolicy.isIntegralNumber(value)) {
             throw new FormatException(prefix + "的 " + key + " 必须是整数");
         }
     }
@@ -281,7 +281,6 @@ final class AccountCredentialCodec {
 
     private static String shortId(String id) {
         if (id == null) return "未知账号";
-        String value = id.trim().toLowerCase(Locale.US);
-        return value.length() > 8 ? value.substring(0, 8) : value;
+        return AccountCredentialFieldPolicy.shortId(id);
     }
 }
