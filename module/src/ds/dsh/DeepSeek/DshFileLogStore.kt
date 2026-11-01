@@ -146,21 +146,38 @@ object DshFileLogStore {
             }
         }
         val created = current == null
-        if (created) {
-            val values = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, name)
-                put(MediaStore.MediaColumns.MIME_TYPE, "text/plain")
-                put(MediaStore.MediaColumns.RELATIVE_PATH, relative)
-                put(MediaStore.MediaColumns.IS_PENDING, 1)
+        var createdUri: Uri? = null
+        try {
+            if (created) {
+                val values = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "text/plain")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, relative)
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+                val inserted = resolver.insert(collection, values) ?: return false
+                current = inserted
+                createdUri = inserted
             }
-            current = resolver.insert(collection, values) ?: return false
+            val uri = current ?: return false
+            resolver.openOutputStream(uri, if (created) "w" else "wa")?.use {
+                it.write(bytes)
+                it.flush()
+            } ?: return false
+            if (created && !publishMediaStore(resolver, uri)) return false
+            return true
+        } catch (_: Throwable) {
+            return false
+        } finally {
+            // Never leave a newly-created incomplete row pending after an open/write/flush/
+            // publish failure. If its state cannot be read, the next append's stale-pending
+            // recovery remains the fallback; do not risk deleting an already-published row.
+            createdUri?.let { pendingUri ->
+                if (queryPending(resolver, pendingUri) == 1) {
+                    runCatching { resolver.delete(pendingUri, null, null) }
+                }
+            }
         }
-        val uri = current ?: return false
-        resolver.openOutputStream(uri, if (created) "w" else "wa")?.use {
-            it.write(bytes); it.flush()
-        } ?: return false
-        if (created && !publishMediaStore(resolver, uri)) return false
-        return true
     }
 
     private fun queryPending(resolver: ContentResolver, uri: Uri): Int = try {
