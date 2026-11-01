@@ -877,10 +877,11 @@ Main.log("f9 failed: " + t);
     }
 
     // 2) 通用历史清理/快照 + 专家图片保留。2.2.1=fm8/rl8，2.2.2=gm8/sl8。
-    void installExpertHistoryImagePreserver(final ClassLoader cl) {
+    void installExpertHistoryImagePreserver(final ClassLoader cl) throws Throwable {
         int repoCount = 0;
         int ctorCount = 0;
         int writeCount = 0;
+        Throwable installFailure = null;
         for (String legacyRepoName : new String[]{"gm8", "fm8"}) {
             String repoName = HostCompat.name(legacyRepoName);
             try {
@@ -950,6 +951,11 @@ Main.log("f9 failed: " + t);
                 }
             } catch (Throwable ignored) {}
         }
+        if (repoCount == 0 || ctorCount == 0 || writeCount == 0) {
+            installFailure = new NoSuchMethodException(
+                    "history repository hooks unavailable: repo=" + repoCount
+                            + " ctor=" + ctorCount + " write=" + writeCount);
+        }
         Main.log("installed history repositories=" + repoCount + " ctor=" + ctorCount + " write=" + writeCount);
 
         try {
@@ -1005,10 +1011,16 @@ Main.log("f9 failed: " + t);
                 });
                 n++;
             }
+            if (n == 0) {
+                throw new NoSuchMethodException("pw0 online history response constructors");
+            }
             Main.log("installed online history bridge pw0 ctor x" + n);
         } catch (Throwable t) {
             Main.log("installExpertHistoryImagePreserver pw0 failed: " + t);
+            if (installFailure == null) installFailure = t;
+            else installFailure.addSuppressed(t);
         }
+        if (installFailure != null) throw installFailure;
     }
 
     private static void scheduleFrozenEditReapply(final ClassLoader cl, final String sid) {
