@@ -1,6 +1,6 @@
 # Kotlin-first Hook Architecture Refactor Plan
 
-> Status: implementation in progress. P1 installer audit is being handled separately; P2 now includes the shared Kotlin runtime and Java 8 API enforcement; P3 includes screen extraction plus config/status repositories and ViewModels; P0/P4 automated artifact validation is expanded but awaits a fresh CI result and real-device evidence.
+> Status: implementation in progress. P1 installer audit is being handled separately; P2 includes the shared Kotlin runtime and Java 8 API enforcement; P3 includes screen, config/status and backup repositories/ViewModels plus maintained host-version detection; P0/P4 automated artifact validation is running on the current branch head, while real-device evidence remains pending.
 > Baseline: `dev` at `8e2edf53b4982a11e720f39437ee562df696136c`.
 > Work branch: `refactor/kotlin-hook-architecture`.
 > Scope: preserve the existing DeepSeek host features and LSPosed/Xposed compatibility while moving new and migrated application logic toward Kotlin.
@@ -121,14 +121,14 @@ The Gradle launcher currently declares AGP 9.3.0, Kotlin Compose plugin 2.4.10, 
 ### P3 — Compose launcher decomposition (in progress)
 
 - Extracted stateless building blocks into `LauncherSharedScreens.kt` and Home/Features/Settings/Help/About/Data/Category pages into `LauncherStaticScreens.kt`. Activity behavior is supplied through callbacks and a status slot; visual hierarchy is retained.
-- The Data screen emits export/import/full-backup actions through callbacks; ActivityResult launchers, ZIP/JSON codecs, SAF I/O and the Closed full-backup bridge remain owned by the Activity.
+- The Data screen emits export/import/full-backup actions through callbacks. ActivityResult launchers, SAF document streams and the Closed full-backup bridge remain platform-facing Activity responsibilities.
 - Restored the Category screen using the existing config catalog; flag read-only behavior, JSON/positive-integer validation and edit/reset interactions remain intact.
 - Added `LauncherStatusRepository`, `LauncherStatusViewModel` and immutable status state. Host-version and activation reads run off the main thread; Compose collects state with `collectAsStateWithLifecycle`.
 - Corrected activation semantics: only a recent target-process heartbeat reports active. Framework binder connection is exposed separately and cannot imply that the target process has injected the module.
 - Extracted config IPC, request timeout handling, JSON serialization and config-file decoding into `LauncherConfigRepository`. `LauncherConfigViewModel` owns immutable config state through StateFlow; the Activity no longer owns config IPC or config screen state.
-- Activity still owns document-picker contracts, ZIP/JSON backup orchestration, SAF I/O and the Closed full-backup bridge. These are platform-facing operations and remain candidates for later extraction only when focused tests can preserve their behavior.
+- Extracted `LauncherBackupRepository` for the stable ZIP/JSON format, metadata, bounded import parsing, ZIP entry count limits, safe relative paths, atomic file replacement and restoration of both `files/` and `shared_prefs/` payloads. The latter fixes a restore gap: previous ZIP export included shared preferences but import restored only `files/`.
 - Added AndroidX Lifecycle 2.11.0 for ViewModel coroutine scope and lifecycle-aware Compose collection. Cancellation is rethrown rather than swallowed by config operations.
-- The new repository/ViewModel boundary has a source regression guard. The latest Android build and target-process IPC behavior remain unverified.
+- Config import/export now validates the `deekseep-config` envelope, rejects malformed entries, duplicate paths and payload files larger than the host bridge's 96 KiB per-file limit. Parsing errors are surfaced as typed UI errors instead of being silently converted into an empty configuration.
 
 ### P4 — distribution and device validation
 
