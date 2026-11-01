@@ -28,7 +28,55 @@ expected="$(wc -l < "$source_list" | tr -d '[:space:]')"
 
 for apk in "${APKS[@]}"; do
     dex_strings="$(mktemp "$ROOT/build/universal-dex-strings.XXXXXX")"
-    unzip -p "$apk" classes.dex | strings -n 8 > "$dex_strings"
+    dex_entries="$(unzip -Z1 "$apk" | grep -E '^classes([0-9]+)?[.]dex
+    while IFS= read -r class_name; do
+        grep -Fq -- "Lds/dsh/DeepSeek/${class_name};" "$dex_strings" || {
+            echo "FAIL: $(basename "$apk") is missing canonical class ${class_name}" >&2
+            rm -f "$dex_strings"
+            exit 1
+        }
+    done < "$source_list"
+    grep -Fq -- 'Lds/dsh/DeepSeek/BuildInfo;' "$dex_strings" || {
+        echo "FAIL: $(basename "$apk") is missing generated BuildInfo" >&2
+        rm -f "$dex_strings"
+        exit 1
+    }
+    if grep -Eq 'io/github/libxposed|META-INF/xposed/java_init[.]list' "$dex_strings"; then
+        echo "FAIL: $(basename "$apk") contains a modern-only Xposed entry" >&2
+        rm -f "$dex_strings"
+        exit 1
+    fi
+    rm -f "$dex_strings"
+
+    manifest="$($AAPT2 dump xmltree "$apk" --file AndroidManifest.xml)"
+    printf '%s\n' "$manifest" | grep -Eq '"xposedminversion"' || {
+        echo "FAIL: $(basename "$apk") has no xposedminversion" >&2
+        exit 1
+    }
+    printf '%s\n' "$manifest" | grep -Eq 'android:value.*=82$' || {
+        echo "FAIL: $(basename "$apk") does not start at Xposed API 82" >&2
+        exit 1
+    }
+    if printf '%s\n' "$manifest" | grep -Eq '"xposedmaxversion"'; then
+        echo "FAIL: $(basename "$apk") unexpectedly caps the Xposed API" >&2
+        exit 1
+    fi
+    unzip -p "$apk" assets/xposed_init | grep -qx 'ds[.]dsh[.]DeepSeek[.]Main' || {
+        echo "FAIL: $(basename "$apk") has an invalid traditional Xposed entry" >&2
+        exit 1
+    }
+done
+
+echo "Universal feature parity passed: ${expected} canonical classes in both channels; Xposed API 82-102 uses one uncapped traditional entry"
+ || true)"
+    [[ -n "$dex_entries" ]] || {
+        echo "FAIL: $(basename "$apk") contains no DEX files" >&2
+        rm -f "$dex_strings"
+        exit 1
+    }
+    while IFS= read -r dex_entry; do
+        unzip -p "$apk" "$dex_entry" | strings -n 8
+    done <<< "$dex_entries" > "$dex_strings"
     while IFS= read -r class_name; do
         grep -Fq -- "Lds/dsh/DeepSeek/${class_name};" "$dex_strings" || {
             echo "FAIL: $(basename "$apk") is missing canonical class ${class_name}" >&2
