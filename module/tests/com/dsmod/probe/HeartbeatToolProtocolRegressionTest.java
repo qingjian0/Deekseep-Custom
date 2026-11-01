@@ -119,8 +119,14 @@ public final class HeartbeatToolProtocolRegressionTest {
         require(parsed.visibleText.contains("已经替你安排好了。")
                         && !parsed.visibleText.contains("晚点见。"),
                 "text after a tool call was not held until the real result returned");
-        require(parsed.calls.size() == 1,
-                "one response accepted more than one Agent tool call");
+        require(parsed.calls.size() == 4,
+                "legacy batches must be capped at four accepted Agent tool calls per response");
+        require("bind_001".equals(parsed.calls.get(3).id),
+                "legacy batch did not stop at the four-call boundary");
+        for (HeartbeatToolProtocol.ToolCall call : parsed.calls) {
+            require("conversation-1234".equals(call.scope),
+                    "legacy batch crossed its originating conversation scope");
+        }
         require("2026-08-02T18:37:00+08:00".equals(parsed.calls.get(0).at),
                 "absolute one-time heartbeat was not retained");
         require("conversation-1234".equals(parsed.calls.get(0).scope),
