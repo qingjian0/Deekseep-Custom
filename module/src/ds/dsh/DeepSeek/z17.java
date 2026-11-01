@@ -217,8 +217,7 @@ final class z17 {
     }
 
     private static RelayResult parseOpenAIStream(HttpURLConnection conn) throws Exception {
-        StringBuilder reasoning = new StringBuilder();
-        StringBuilder content = new StringBuilder();
+        ConversationRelayStreamAccumulator accumulator = new ConversationRelayStreamAccumulator();
         BufferedReader reader = new BufferedReader(
                 new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
         try {
@@ -240,11 +239,7 @@ final class z17 {
                                         ConversationRelayProviderEventPolicy.openAiChannel(field);
                                 String value = delta.optString(field, "");
                                 if (value.length() == 0) continue;
-                                if (channel == ConversationRelayProviderEventPolicy.OutputChannel.REASONING) {
-                                    reasoning.append(value);
-                                } else if (channel == ConversationRelayProviderEventPolicy.OutputChannel.CONTENT) {
-                                    content.append(value);
-                                }
+                                accumulator.append(channel, value);
                             }
                         }
                     }
@@ -254,12 +249,11 @@ final class z17 {
             try { reader.close(); } catch (Throwable ignored) {}
             conn.disconnect();
         }
-        return new RelayResult(reasoning.toString(), content.toString());
+        return new RelayResult(accumulator.reasoningText(), accumulator.contentText());
     }
 
     private static RelayResult parseAnthropicStream(HttpURLConnection conn) throws Exception {
-        StringBuilder reasoning = new StringBuilder();
-        StringBuilder content = new StringBuilder();
+        ConversationRelayStreamAccumulator accumulator = new ConversationRelayStreamAccumulator();
         BufferedReader reader = new BufferedReader(
                 new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
         try {
@@ -278,10 +272,10 @@ final class z17 {
                                     ConversationRelayProviderEventPolicy.anthropicDeltaChannel(type, dt);
                             if (channel == ConversationRelayProviderEventPolicy.OutputChannel.REASONING) {
                                 String think = delta.optString("thinking", "");
-                                if (think.length() > 0) reasoning.append(think);
+                                accumulator.append(channel, think);
                             } else if (channel == ConversationRelayProviderEventPolicy.OutputChannel.CONTENT) {
                                 String text = delta.optString("text", "");
-                                if (text.length() > 0) content.append(text);
+                                accumulator.append(channel, text);
                             }
                         }
                     } else if ("content_block_start".equals(type)) {
@@ -292,10 +286,10 @@ final class z17 {
                                     ConversationRelayProviderEventPolicy.anthropicStartChannel(type, bt);
                             if (channel == ConversationRelayProviderEventPolicy.OutputChannel.REASONING) {
                                 String think = block.optString("thinking", "");
-                                if (think.length() > 0) reasoning.append(think);
+                                accumulator.append(channel, think);
                             } else if (channel == ConversationRelayProviderEventPolicy.OutputChannel.CONTENT) {
                                 String text = block.optString("text", "");
-                                if (text.length() > 0) content.append(text);
+                                accumulator.append(channel, text);
                             }
                         }
                     }
@@ -305,7 +299,7 @@ final class z17 {
             try { reader.close(); } catch (Throwable ignored) {}
             conn.disconnect();
         }
-        return new RelayResult(reasoning.toString(), content.toString());
+        return new RelayResult(accumulator.reasoningText(), accumulator.contentText());
     }
 
     private static String readStream(InputStream in) throws Exception {
