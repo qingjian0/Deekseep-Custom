@@ -103,14 +103,13 @@ internal class LauncherConfigViewModel(application: Application) : AndroidViewMo
         val previous = mutableState.value
         mutableState.value = previous.copy(errorMessage = null)
         try {
-            withContext(Dispatchers.Default) { repository.parseConfigFiles(json) }
+            val files = withContext(Dispatchers.Default) {
+                repository.parseConfigFiles(json)
+            }
             val reply = withContext(Dispatchers.IO) {
                 repository.request(ModuleConfigBridge.MODE_IMPORT, json)
             }
             if (reply.code == ModuleConfigBridge.RESULT_OK) {
-                val files = withContext(Dispatchers.Default) {
-                    repository.parseConfigFiles(json)
-                }
                 mutableState.value = LauncherConfigUiState(
                     bridgeStatus = ConfigBridgeUiStatus.READY,
                     files = files,
