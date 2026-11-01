@@ -29,8 +29,6 @@ jobs:
         run: bash module-legacy/test-adapter-regression.sh
       - name: Run expert relay regression
         run: bash module/test-expert-relay-regression.sh
-      - name: Run chat thinking regression
-        run: bash module/test-thinking-regression.sh
 
   android-build-matrix:
     name: Android artifact compilation
@@ -68,6 +66,8 @@ jobs:
             -alias androiddebugkey \
             -dname "CN=Android Debug,O=Android,C=US" \
             -keyalg RSA -keysize 2048 -validity 10000
+      - name: Run Android-dependent chat thinking regression
+        run: bash module/test-thinking-regression.sh
       - name: Build legacy artifact
         run: bash module-legacy/build.sh
       - name: Build universal artifact
@@ -91,5 +91,5 @@ jobs:
             module-universal/ds-probe-universal.apk \
             compose-launcher/app/build/outputs/apk/debug/app-debug.apk; do
             unzip -t "$apk" >/dev/null
-            unzip -Z1 "$apk" | grep -Eq '^classes([0-9]+)?\.dex$'
+            unzip -Z1 "$apk" | grep -Eq '^classes([0-9]+)?\\.dex$'
           done
