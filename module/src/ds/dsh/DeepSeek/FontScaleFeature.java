@@ -131,13 +131,7 @@ final class FontScaleFeature {
 
     /** Parses and clamps a stored scale; invalid input means "unchanged" (1.0). */
     static float parse(String text) {
-        try {
-            float v = Float.parseFloat(text.trim());
-            if (Float.isNaN(v) || Float.isInfinite(v)) return 1f;
-            return clamp(v, MIN, MAX);
-        } catch (Throwable ignored) {
-            return 1f;
-        }
+        return FontScalePolicy.parse(text);
     }
 
     static boolean save(float scale) {
@@ -162,7 +156,7 @@ final class FontScaleFeature {
     }
 
     static float clamp(float v, float lo, float hi) {
-        return v < lo ? lo : (v > hi ? hi : v);
+        return FontScalePolicy.clamp(v, lo, hi);
     }
 
     /** Settings dialog: 80%-160% in 5% steps; applies by recreating DeepSeek's activity. */

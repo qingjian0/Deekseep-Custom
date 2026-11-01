@@ -71,7 +71,7 @@
 | 37 | `module/src/ds/dsh/DeepSeek/DeveloperDiagnostics.java` | 6.3 KiB | P1 | 中 | 纯逻辑/领域/工具：优先迁移；补充行为等价测试和 Java 调用兼容检查 | 待认领 | — |
 | 38 | `module/src/ds/dsh/DeepSeek/DualChatUi.java` | 0.4 KiB | P4 | 高 | UI：先拆职责与状态边界；保持资源 ID、主线程、生命周期和交互行为 | 待认领 | — |
 | 39 | `module/src/ds/dsh/DeepSeek/FontOverride.java` | 3.8 KiB | P1 | 中 | 纯逻辑/领域/工具：优先迁移；补充行为等价测试和 Java 调用兼容检查 | 待认领 | — |
-| 40 | `module/src/ds/dsh/DeepSeek/FontScaleFeature.java` | 12.0 KiB | P1 | 中 | 纯逻辑/领域/工具：优先迁移；补充行为等价测试和 Java 调用兼容检查 | 待认领 | — |
+| 40 | `module/src/ds/dsh/DeepSeek/FontScaleFeature.java` | 12.0 KiB | P1 | 中 | Android Hook、配置读写与 UI 保留 Java；parse/clamp 纯策略抽取至 Kotlin，保留 Java ABI | 迁移中 | A |
 | 41 | `module/src/ds/dsh/DeepSeek/GoogleLoginUnlock.java` | 4.0 KiB | P2 | 高 | 存储/数据：保持序列化格式、路径、权限、原子性、并发和异常语义 | 待认领 | — |
 | 42 | `module/src/ds/dsh/DeepSeek/HeartbeatToolProtocol.java` | 129.6 KiB | P4 | 高 | 超大/复杂文件：先提取职责、梳理调用图与静态状态，再分片迁移；禁止整体机械转换 | 待认领 | — |
 | 43 | `module/src/ds/dsh/DeepSeek/HistoryBridge.java` | 25.2 KiB | P2-P3 | 高 | 服务/协议：按调用链迁移，保持线程、超时、重试、IPC 与协议兼容 | 待认领 | — |
