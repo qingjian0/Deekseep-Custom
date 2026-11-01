@@ -1627,7 +1627,13 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             if (HostCompat.isV236() || HostCompat.isV241()) {
                 installHookStep("host.navigation.bridge", () -> HostNavigationBridge.install(this, hookLoader));
             }
-            installHookStep("agent.tool-log.rounded-rect", () -> HookAgentPipeline.INSTANCE.hookAgentToolLogRoundedRect(hookLoader));
+            if (HostCompat.isV236() || HostCompat.isV241()) {
+                installHookStep("agent.tool-log.rounded-rect",
+                        () -> HookAgentPipeline.INSTANCE.hookAgentToolLogRoundedRect(hookLoader));
+            } else {
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("agent.tool-log.rounded-rect",
+                        "agent tool-log Canvas renderer is only verified for host 2.3.6 and 2.4.1");
+            }
             if (!HostCompat.isV271()) installHookStep("remote.feature-flags", () -> RemoteFeatureFlags.install(this, hookLoader));
             installHookStep("config.attachment-guide-rollout", () -> HookConfigRollout.INSTANCE.hookAttachmentGuidePromptRollout(hookLoader));
             installHookStep("config.home-welcome-rollout", () -> HookConfigRollout.INSTANCE.hookHomeWelcomeRollout(hookLoader));
