@@ -32,6 +32,9 @@ grep -Fq 'code249 Local API routing hooks were only partially installed' "$MAIN_
 test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$MAIN_SOURCE")" -ge 1
 test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$MAIN_SOURCE")" -ge 1
 ACCOUNT_PIPELINE="$MODULE_DIR/src/ds/dsh/DeepSeek/HookAccountLoginSecurity.java"
+grep -Fq 'quick-registration captcha callbacks were only partially installed' "$ACCOUNT_PIPELINE"
+grep -Fq 'int generationHooks = 0;' "$ACCOUNT_PIPELINE"
+grep -Fq 'if (generationHooks > 0) break;' "$ACCOUNT_PIPELINE"
 grep -Fq 'Local API account routing hooks were only partially installed' "$ACCOUNT_PIPELINE"
 grep -Fq 'code257 Local API upload route hooks were incomplete' "$ACCOUNT_PIPELINE"
 grep -Fq 'native fake mute renderer discovery returned no installable methods' "$ACCOUNT_PIPELINE"
