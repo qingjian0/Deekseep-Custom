@@ -12,10 +12,10 @@ class ConversationRelayConfig(
     baseUrl: String?,
     model: String?,
 ) {
-    val apiKey: String = apiKey?.trim().orEmpty()
+    val apiKey: String = apiKey?.trim { it <= ' ' }.orEmpty()
     val format: String = ConversationRelayEndpointPolicy.normalizeFormat(format)
-    val baseUrl: String = baseUrl?.trim().orEmpty()
-    val model: String = model?.trim().orEmpty()
+    val baseUrl: String = baseUrl?.trim { it <= ' ' }.orEmpty()
+    val model: String = model?.trim { it <= ' ' }.orEmpty()
 
     override fun toString(): String =
         "ConversationRelayConfig(apiKey=<redacted>, format=$format, baseUrl=$baseUrl, model=$model)"
