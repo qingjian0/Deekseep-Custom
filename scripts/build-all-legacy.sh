@@ -43,7 +43,7 @@ if grep -q '^import io[.]github[.]libxposed' "$ROOT/module-universal/build/gener
 fi
 
 MANIFEST="$ROOT/module-universal/AndroidManifest.xml"
-VERSION_NAME="$(awk -F '"' '/android:versionName=/ { print $2; exit }' "$MANIFEST")"
+VERSION_NAME="$(grep -o 'android:versionName="[^"]*"' "$MANIFEST" | cut -d '"' -f 2 || true)"
 if [[ -z "$VERSION_NAME" ]]; then
     echo "Unable to read Universal module version from $MANIFEST" >&2
     exit 1
