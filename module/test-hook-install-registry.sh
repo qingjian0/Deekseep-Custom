@@ -11,7 +11,7 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 # JVM regressions; they do not replace an Android Gradle build or device verification.
 QUEUE_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/DshLogIpcQueue.kt"
 PROVIDER_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/XposedActivationProvider.java"
-REMOTE_SINK_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/DshRemoteFileLogSink.java"
+REMOTE_SINK_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/DshRemoteFileLogSink.kt"
 STORE_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/DshFileLogStore.kt"
 SETTINGS_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/SettingsActivity.java"
 LEGACY_MANIFEST="$ROOT_DIR/module-legacy/AndroidManifest.xml"
@@ -26,7 +26,12 @@ grep -Fq 'partial' "$QUEUE_SOURCE"
 grep -Fq 'return DshLogIpcQueue.enqueue(context, category, line);' "$PROVIDER_SOURCE"
 # All three log IPC operations (write, status, crash read) must enforce the exclusive UID.
 test "$(grep -Fc 'uidOwnsExclusivePackage(context, callingUid, TARGET_PACKAGE)' "$PROVIDER_SOURCE")" -eq 3
+grep -Fq 'object DshRemoteFileLogSink' "$REMOTE_SINK_SOURCE"
+grep -Fq '@JvmStatic' "$REMOTE_SINK_SOURCE"
+grep -Fq 'fun install(source: Context?)' "$REMOTE_SINK_SOURCE"
+grep -Fq 'QUEUE_CAPACITY = 256' "$REMOTE_SINK_SOURCE"
 grep -Fq 'result.getBoolean("partial", false)' "$REMOTE_SINK_SOURCE"
+! test -e "$MODULE_DIR/src/ds/dsh/DeepSeek/DshRemoteFileLogSink.java"
 grep -Fq 'result.getBoolean("private_written") != result.getBoolean("public_written")' "$REMOTE_SINK_SOURCE"
 grep -Fq 'object DshFileLogStore' "$STORE_SOURCE"
 grep -Fq '@JvmStatic' "$STORE_SOURCE"
