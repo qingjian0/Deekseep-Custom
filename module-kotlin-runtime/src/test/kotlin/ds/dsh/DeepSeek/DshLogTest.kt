@@ -71,7 +71,7 @@ class DshLogTest {
         val sink = DshLog.addSink { event -> events += event }
         try {
             Thread.currentThread().name =
-                "worker Authorization: Bearer thread-secret-123 Cookie: sid=cookie-secret-456 /data/user/0/private"
+                "Bearer thread-secret-123 /data/user/0/private Cookie: sid=cookie-secret-456"
             DshLog.info("ThreadTest", "safe message")
 
             assertTrue(events.size == 1)
