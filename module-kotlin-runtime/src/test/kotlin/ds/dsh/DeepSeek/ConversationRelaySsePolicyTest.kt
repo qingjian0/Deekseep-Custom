@@ -9,9 +9,7 @@ import kotlin.test.assertTrue
 class ConversationRelaySsePolicyTest {
     @Test
     fun acceptsOnlyTheLegacyDataPrefix() {
-        assertEquals("{\"choices\":[]}", ConversationRelaySsePolicy.dataPayload("data: {\"choices\":[] }").let {
-            it?.replace(" }", "}")
-        })
+        assertEquals("{\"choices\":[]}", ConversationRelaySsePolicy.dataPayload("data: {\"choices\":[]}"))
         assertEquals("", ConversationRelaySsePolicy.dataPayload("data: "))
         assertNull(ConversationRelaySsePolicy.dataPayload("data:"))
         assertNull(ConversationRelaySsePolicy.dataPayload("event: message"))
