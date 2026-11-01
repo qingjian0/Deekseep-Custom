@@ -89,6 +89,21 @@ bridge_body="$(sed -n '/void installImageCredentialBridge(/,/\/\*\* Removes the 
 grep -Fq 'if (installFailure != null) throw installFailure;' <<<"$bridge_body"
 grep -Fq 'installFailure.addSuppressed(t)' <<<"$bridge_body"
 
+# Expert history preserver registers each Constructor/Method once and aggregates owner failures.
+grep -Fq 'HISTORY_PRESERVER_HOOKED_MEMBERS' "$attachment_src"
+history_helper="$(sed -n '/private static void hookHistoryPreserverMember/,/void installExpertHistoryImagePreserver/p' "$attachment_src")"
+grep -Fq 'synchronized (HISTORY_PRESERVER_HOOKED_MEMBERS)' <<<"$history_helper"
+grep -Fq 'HISTORY_PRESERVER_HOOKED_MEMBERS.contains(member)' <<<"$history_helper"
+grep -Fq 'HISTORY_PRESERVER_HOOKED_MEMBERS.add(member)' <<<"$history_helper"
+history_body="$(sed -n '/void installExpertHistoryImagePreserver(/,/private static void scheduleFrozenEditReapply/p' "$attachment_src")"
+grep -Fq 'hookHistoryPreserverMember(ctor, new Hooker()' <<<"$history_body"
+grep -Fq 'hookHistoryPreserverMember(writer, new Hooker()' <<<"$history_body"
+grep -Fq 'installFailure.addSuppressed(error)' <<<"$history_body"
+if grep -Fq 'catch (Throwable ignored) {}' <<<"$history_body"; then
+  echo "History preserver silently ignores an installation failure." >&2
+  exit 1
+fi
+
 # Session installers propagate installation failures to Main/Registry.
 session_src="$SRC/HookSessionManagement.java"
 for method in \
