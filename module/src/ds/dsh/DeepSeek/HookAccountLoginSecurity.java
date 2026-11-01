@@ -1833,8 +1833,13 @@ Main.log("[RISK] Android ID spoof installed");
             });
             Main.log("local API cached-freezer keepalive receiver installed");
         } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
             localApiKeepAliveError = "保活接收器安装失败：" + Main.safeThrowableMessage(t);
-            Main.log("local API keepalive receiver hook failed: " + t);
+            Main.log("local API keepalive receiver hook failed: "
+                    + Main.safeThrowableMessage(t));
+            throw new IllegalStateException(
+                    "Local API keepalive receiver hook installation failed", t);
         }
     }
 
