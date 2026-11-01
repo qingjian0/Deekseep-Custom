@@ -1,4 +1,20 @@
 package com.dsmod.probe
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.KeyboardType
+import org.json.JSONArray
+import org.json.JSONObject
+import org.json.JSONTokener
+import java.nio.charset.StandardCharsets
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -401,4 +417,165 @@ internal fun AboutScreen(
                 }
             }
         }
+    }
+internal enum class ConfigBridgeUiStatus { IDLE, LOADING, READY, UNAVAILABLE }
+
+@Composable
+    internal fun CategoryScreen(
+    category: FeatureCategory,
+    bridgeStatus: ConfigBridgeUiStatus,
+    configFiles: Map<String, ByteArray>,
+    onRefresh: () -> Unit,
+    onWrite: (String, String, (Boolean) -> Unit) -> Unit,
+    onOpenDeepSeekSettings: () -> Unit,
+) {
+        LaunchedEffect(category.id) {
+            if (category.keys.isNotEmpty() && bridgeStatus != ConfigBridgeUiStatus.LOADING) onRefresh()
+        }
+        PageColumn {
+            CategoryHeader(category, 0)
+            OpenInDeepSeekButton(Modifier.staggeredEntrance(1), onClick = onOpenDeepSeekSettings)
+            NoteCard(
+                "在启动器中修改的设置会写入 DeepSeek 内的模块配置，需强制停止并重新打开 DeepSeek 后生效。",
+                Modifier.staggeredEntrance(2),
+                icon = Icons.Filled.Info,
+            )
+            if (category.note.isNotEmpty()) {
+                NoteCard(category.note, Modifier.staggeredEntrance(3), icon = Icons.Filled.Lock)
+            }
+            if (category.keys.isNotEmpty()) {
+                Row(
+                    Modifier.fillMaxWidth().staggeredEntrance(3),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SectionHeader("当前设置", Modifier.weight(1f))
+                    TextButton(onClick = onRefresh, enabled = bridgeStatus != BridgeStatus.LOADING) {
+                        Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("刷新")
+                    }
+                }
+                AnimatedContent(
+                    targetState = bridgeStatus,
+                    transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(160)) },
+                    label = "bridge",
+                ) { status ->
+                    when (status) {
+                        BridgeStatus.IDLE, BridgeStatus.LOADING -> Box(
+                            Modifier.fillMaxWidth().padding(24.dp),
+                            contentAlignment = Alignment.Center,
+                        ) { CircularProgressIndicator() }
+                        BridgeStatus.UNAVAILABLE -> NoteCard(
+                            "无法读取设置：DeepSeek 未响应。请先打开一次 DeepSeek（确认模块已在 LSPosed 中启用并勾选 DeepSeek），" +
+                                "返回此页后点\u201c刷新\u201d。也可以直接点击上方按钮在 DeepSeek 中修改。",
+                            icon = Icons.Filled.Info,
+                        )
+                        BridgeStatus.READY -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            val files = configFiles
+                            category.keys.forEach { key -> ConfigKeyRow(key, files[key.path]) }
+                            if (category.keys.any { it.kind == ConfigKind.FLAG }) {
+                                NoteCard(
+                                    "开关类设置在启动器中只读：配置桥只能写入文件、无法删除开关文件，" +
+                                        "且部分开关需要在 DeepSeek 内确认风险提示。请在 DeepSeek 中切换。",
+                                    icon = Icons.Filled.Lock,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+@Composable
+    private fun ConfigKeyRow(key: ConfigKey, current: ByteArray?, onWrite: (String, String, (Boolean) -> Unit) -> Unit) {
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                if (key.kind == ConfigKind.FLAG) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(key.label, style = MaterialTheme.typography.titleSmall)
+                            Text(key.path, style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        AssistChip(
+                            onClick = {},
+                            enabled = false,
+                            label = { Text(if (current != null) "已开启" else "未开启") },
+                        )
+                    }
+                } else {
+                    EditableValue(key, current, onWrite)
+                }
+            }
+        }
+    }
+
+@Composable
+    private fun EditableValue(key: ConfigKey, current: ByteArray?, onWrite: (String, String, (Boolean) -> Unit) -> Unit) {
+        val original = remember(current) { current?.let { String(it, StandardCharsets.UTF_8) } ?: "" }
+        var text by remember(original) { mutableStateOf(original) }
+        var saving by remember { mutableStateOf(false) }
+        var expanded by remember { mutableStateOf(key.kind == ConfigKind.VALUE) }
+        val multiline = key.kind != ConfigKind.VALUE
+        val error = remember(text, key.kind) { validate(key, text) }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(key.label, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    if (current == null) "${key.path} · 未设置" else key.path,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (multiline) {
+                TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "收起" else "编辑") }
+            }
+        }
+        AnimatedVisibility(visible = expanded, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+            Column(Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = !multiline,
+                    minLines = if (multiline) 4 else 1,
+                    maxLines = if (multiline) 14 else 1,
+                    textStyle = if (key.kind == ConfigKind.JSON) {
+                        MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+                    } else MaterialTheme.typography.bodyMedium,
+                    placeholder = { if (key.hint.isNotEmpty()) Text(key.hint) },
+                    supportingText = { Text(error ?: key.hint) },
+                    isError = error != null,
+                    keyboardOptions = if (key.hint == "正整数") {
+                        KeyboardOptions(keyboardType = KeyboardType.Number)
+                    } else KeyboardOptions.Default,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilledTonalButton(
+                        enabled = !saving && error == null && text != original,
+                        onClick = {
+                            saving = true
+                            onWrite(key.path, text) { saving = false }
+                        },
+                    ) { Text(if (saving) "写入中…" else "写入 DeepSeek") }
+                    OutlinedButton(enabled = text != original, onClick = { text = original }) { Text("还原") }
+                }
+            }
+        }
+    }
+
+private fun validate(key: ConfigKey, text: String): String? = when {
+        key.kind == ConfigKind.JSON && text.isNotBlank() -> runCatching {
+            val value = JSONTokener(text).nextValue()
+            require(value is JSONObject || value is JSONArray)
+            null
+        }.getOrElse { "JSON 格式错误" }
+        key.hint == "正整数" && text.isNotBlank() && (text.trim().toIntOrNull()?.let { it <= 0 } != false) -> "请输入正整数"
+        else -> null
     }
