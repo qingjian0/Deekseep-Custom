@@ -30,6 +30,11 @@ grep -Fq '!readGranted || !writeGranted' "$SETTINGS_SOURCE"
 grep -Fq 'METHOD_GET_DSH_LOG_STATUS' "$MODULE_DIR/src/ds/dsh/DeepSeek/DeveloperDiagnostics.java"
 grep -Fq 'privateQueue=' "$MODULE_DIR/src/ds/dsh/DeepSeek/DeveloperDiagnostics.java"
 grep -Fq 'publicQueue=' "$MODULE_DIR/src/ds/dsh/DeepSeek/DeveloperDiagnostics.java"
+# Diagnostics aggregation is owned by the Kotlin runtime; Java retains Android presentation only.
+grep -Fq 'RECORDER.record(raw);' "$MODULE_DIR/src/ds/dsh/DeepSeek/DeveloperDiagnostics.java"
+! grep -Fq 'private static final Pattern BEARER' "$MODULE_DIR/src/ds/dsh/DeepSeek/DeveloperDiagnostics.java"
+! grep -Fq 'private static final ArrayDeque<String> EVENTS' "$MODULE_DIR/src/ds/dsh/DeepSeek/DeveloperDiagnostics.java"
+grep -Fq 'DshDiagnosticsRecorder' "$RUNTIME_DIR/src/main/kotlin/ds/dsh/DeepSeek/DshDiagnosticsRecorder.kt"
 # The exported provider is required for cross-process IPC; both package variants must declare it.
 grep -A4 -Fq 'android:name="ds.dsh.DeepSeek.XposedActivationProvider"' "$LEGACY_MANIFEST"
 grep -A4 -Fq 'android:name="ds.dsh.DeepSeek.XposedActivationProvider"' "$UNIVERSAL_MANIFEST"
