@@ -1671,7 +1671,11 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             }
 
             installHookStep("ui.home-greeting", () -> HookUiSurface.INSTANCE.hookHomeGreeting(cl));
-            installHookStep("chat.request-construction", () -> HookChatPipeline.INSTANCE.hookChatRequest(cl));
+            installHookStep("chat.request-construction", () -> {
+                if (!HookChatPipeline.INSTANCE.hookChatRequest(cl)) {
+                    throw new IllegalStateException("chat request constructors were not hooked");
+                }
+            });
             ensureOptionalHooksForEnabledFeatures(cl);
             installBestEffortHook("attachment.expert-history-image-preserver",
                     () -> HookAttachmentPipeline.INSTANCE.installExpertHistoryImagePreserver(cl),
