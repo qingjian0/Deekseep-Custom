@@ -1614,33 +1614,27 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             installHookStep("attachment.native-image-preview-boundary", () -> HookAttachmentPipeline.INSTANCE.hookNativeImagePreviewBoundary(hookLoader));
 
             if (HostCompat.isV236() && BuildInfo.PROTECTED_BUILD
-                    && BuildInfo.LOCAL_API_INCLUDED
-                    && V236_LOCAL_API_HOOKS_INSTALLED.compareAndSet(false, true)) {
-                HookRegistrationScope previous = beginHookRegistrationScope(
-                        "account.v236.local-api-routing");
-                try {
-                    hookLegacyLocalApiAccountRouting(hookLoader);
-                } catch (Throwable error) {
-                    V236_LOCAL_API_HOOKS_INSTALLED.set(false);
-                    log("code249 Local API credential hook bootstrap failed: "
-                            + safeThrowableMessage(error));
-                } finally {
-                    endHookRegistrationScope(previous);
-                }
+                    && BuildInfo.LOCAL_API_INCLUDED) {
+                installBestEffortHook("account.v236.local-api-routing", () -> {
+                    if (!V236_LOCAL_API_HOOKS_INSTALLED.compareAndSet(false, true)) return;
+                    try {
+                        hookLegacyLocalApiAccountRouting(hookLoader);
+                    } catch (Throwable error) {
+                        V236_LOCAL_API_HOOKS_INSTALLED.set(false);
+                        throw error;
+                    }
+                }, "code249 Local API credential hook bootstrap failed: ");
             } else if (HostCompat.isV241()
-                    && BuildInfo.PROTECTED_BUILD && BuildInfo.LOCAL_API_INCLUDED
-                    && LOCAL_API_HOOKS_INSTALLED.compareAndSet(false, true)) {
-                HookRegistrationScope previous = beginHookRegistrationScope(
-                        "account.v241.local-api-routing");
-                try {
-                    HookAccountLoginSecurity.INSTANCE.hookLocalApiAccountRouting(hookLoader);
-                } catch (Throwable error) {
-                    LOCAL_API_HOOKS_INSTALLED.set(false);
-                    log("Local API credential hook bootstrap failed: "
-                            + safeThrowableMessage(error));
-                } finally {
-                    endHookRegistrationScope(previous);
-                }
+                    && BuildInfo.PROTECTED_BUILD && BuildInfo.LOCAL_API_INCLUDED) {
+                installBestEffortHook("account.v241.local-api-routing", () -> {
+                    if (!LOCAL_API_HOOKS_INSTALLED.compareAndSet(false, true)) return;
+                    try {
+                        HookAccountLoginSecurity.INSTANCE.hookLocalApiAccountRouting(hookLoader);
+                    } catch (Throwable error) {
+                        LOCAL_API_HOOKS_INSTALLED.set(false);
+                        throw error;
+                    }
+                }, "Local API credential hook bootstrap failed: ");
             }
             installHookStep("account.native-fake-mute", () -> HookAccountLoginSecurity.INSTANCE.hookNativeFakeMute(hookLoader));
             installHookStep("account.training-opt-out", () -> HookAccountLoginSecurity.INSTANCE.hookTrainingOptOutControl(hookLoader));
