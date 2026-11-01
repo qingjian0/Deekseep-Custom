@@ -822,6 +822,9 @@ final class HookChatPipeline {
                                 return chain.proceed(originalArgs);
                             }
                         } catch (Throwable t) {
+                            // Fatal VM/control-flow errors must never fall through to fail-open request handling.
+                            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+                            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
                             HookLogOverlay.event("ERROR", "Request rewrite failed",
                                     "reason=" + Main.safeThrowableMessage(t));
                             Main.log("inject err: " + t);
