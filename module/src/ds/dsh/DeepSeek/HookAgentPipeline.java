@@ -3584,6 +3584,8 @@ final class HookAgentPipeline {
             Class<?> outcomeType = HostCompat.isV241()
                     ? HostRemap.load(cl, "xw0") : HostCompat.load(cl, "bu0");
             int installed = 0;
+            int sessionHooks = 0;
+            int outcomeHooks = 0;
             for (Method method : sessionType.getDeclaredMethods()) {
                 Class<?>[] types = method.getParameterTypes();
                 boolean singleApply = HostCompat.isV241()
