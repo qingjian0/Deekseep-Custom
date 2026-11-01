@@ -294,7 +294,10 @@ final class HookAttachmentPipeline {
             });
             Main.log("hooked local editor image URI resolver");
         } catch (Throwable t) {
-            Main.log("hook local editor image URI resolver failed: " + t);
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw new IllegalStateException(
+                    "local editor image URI hook installation failed", t);
         }
     }
 
