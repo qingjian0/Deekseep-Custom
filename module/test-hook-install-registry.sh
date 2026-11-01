@@ -38,6 +38,7 @@ grep -Fq 'login entry password hook installation failed' "$ACCOUNT_PIPELINE"
 grep -Fq 'candidate password login capture hook installation failed' "$ACCOUNT_PIPELINE"
 grep -Fq 'quick-registration captcha hook installation failed' "$ACCOUNT_PIPELINE"
 grep -Fq 'region override hook unavailable for all mapped host classes' "$ACCOUNT_PIPELINE"
+grep -Fq 'Local API keepalive receiver hook installation failed' "$ACCOUNT_PIPELINE"
 test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$ACCOUNT_PIPELINE")" -ge 5
 test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$ACCOUNT_PIPELINE")" -ge 2
 grep -Fq 'if (uploadRouteError instanceof VirtualMachineError)' "$ACCOUNT_PIPELINE"
