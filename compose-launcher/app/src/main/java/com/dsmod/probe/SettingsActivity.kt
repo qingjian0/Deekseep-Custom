@@ -16,6 +16,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
@@ -152,7 +154,7 @@ class SettingsActivity : ComponentActivity() {
     private val main = Handler(Looper.getMainLooper())
 
     // ---- Compose-observed state owned by the activity -----------------------------------------
-    private var refreshTick by mutableIntStateOf(0)
+    private lateinit var statusViewModel: LauncherStatusViewModel
     private var bridgeStatus by mutableStateOf(BridgeStatus.IDLE)
     private var configFiles by mutableStateOf<Map<String, ByteArray>>(emptyMap())
     private var busyMessage by mutableStateOf<String?>(null)
@@ -173,6 +175,7 @@ class SettingsActivity : ComponentActivity() {
         // Every pre-UI step is optional: a failure here must never keep the launcher from opening.
         runCatching { enableEdgeToEdge() }.onFailure { Log.w(TAG, "edge-to-edge", it) }
         runCatching { UiLanguage.refreshSystem(this) }.onFailure { Log.w(TAG, "language", it) }
+        statusViewModel = ViewModelProvider(this)[LauncherStatusViewModel::class.java]
         try {
             setContent {
                 YunSeekTheme {
@@ -190,33 +193,13 @@ class SettingsActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        refreshTick++
+        statusViewModel.refresh()
     }
 
     private fun tr(zh: String, en: String): String =
         runCatching { UiLanguage.text(this, zh, en) }.getOrDefault(zh)
 
     // ---- Environment ----------------------------------------------------------------------------
-
-    private data class HostInfo(val label: String, val supported: Boolean, val installed: Boolean)
-
-    @Suppress("DEPRECATION")
-    private fun hostInfo(): HostInfo = runCatching {
-        val info = packageManager.getPackageInfo(TARGET_PACKAGE, 0)
-        val code = if (Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
-        when (code) {
-            287L -> HostInfo("国内版 2.7.1 (287)", true, true)
-            289L -> HostInfo("国内版 2.7.2 (289)", true, true)
-            290L -> HostInfo("国际版 2.7.2 (290)", true, true)
-            else -> HostInfo("不支持的版本 ${info.versionName} ($code)", false, true)
-        }
-    }.getOrDefault(HostInfo("未安装 DeepSeek", false, false))
-
-    private fun isActive(): Boolean {
-        val framework = runCatching { XposedActivationProvider.isFrameworkConnected() }.getOrDefault(false)
-        val target = runCatching { XposedActivationProvider.isTargetRecentlyActive(this) }.getOrDefault(false)
-        return framework || target
-    }
 
     private val appVersionLine: String
         get() = "$APP_NAME ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
@@ -422,7 +405,7 @@ class SettingsActivity : ComponentActivity() {
             .put("app", APP_NAME)
             .put("app_version", BuildConfig.VERSION_NAME)
             .put("app_version_code", BuildConfig.VERSION_CODE)
-            .put("deepseek", hostInfo().label)
+            .put("deepseek", statusViewModel.state.value.host.label)
             .put("created_at", System.currentTimeMillis())
             .put("contains_module_settings", settingsJson != null)
             .put("contents", contents)
@@ -564,6 +547,7 @@ class SettingsActivity : ComponentActivity() {
         var tab by rememberSaveable { mutableIntStateOf(0) }
         var route by rememberSaveable { mutableStateOf<String?>(null) }
         var licenseOpen by remember { mutableStateOf(false) }
+        val statusState by statusViewModel.state.collectAsStateWithLifecycle()
 
         BackHandler(enabled = route != null || tab != 0) {
             if (route != null) route = null else tab = 0
@@ -634,9 +618,9 @@ class SettingsActivity : ComponentActivity() {
                     label = "screen",
                 ) { s ->
                     when {
-                        s == "tab:0" -> HomeScreen(onOpen = { route = it }, statusContent = { StatusCard(0) })
+                        s == "tab:0" -> HomeScreen(onOpen = { route = it }, statusContent = { StatusCard(0, statusState) })
                         s == "tab:1" -> FeaturesScreen(onOpen = { route = it }, onOpenDeepSeekSettings = { openDeepSeekSettings() })
-                        s == "tab:2" -> SettingsScreen(onOpen = { route = it }, onOpenAbout = { route = ROUTE_ABOUT }, onOpenDeepSeekSettings = { openDeepSeekSettings() }, onRefreshStatus = { refreshTick++; toast("已刷新") }, appVersionLine = appVersionLine, repositoryUrl = REPOSITORY, onOpenUrl = { openUrl(it) })
+                        s == "tab:2" -> SettingsScreen(onOpen = { route = it }, onOpenAbout = { route = ROUTE_ABOUT }, onOpenDeepSeekSettings = { openDeepSeekSettings() }, onRefreshStatus = { statusViewModel.refresh(); toast("已刷新") }, appVersionLine = appVersionLine, repositoryUrl = REPOSITORY, onOpenUrl = { openUrl(it) })
                         s == ROUTE_ABOUT -> AboutScreen(onLicense = { licenseOpen = true }, appName = APP_NAME, appVersionLine = appVersionLine, repositoryUrl = REPOSITORY, onOpenUrl = { openUrl(it) })
                         s == LauncherCatalog.DATA_ID -> DataScreen()
                         s == LauncherCatalog.HELP_ID -> HelpScreen(onAbout = { route = ROUTE_ABOUT }, onOpenDeepSeekSettings = { openDeepSeekSettings() })
@@ -666,10 +650,9 @@ class SettingsActivity : ComponentActivity() {
     }
 
             @Composable
-    private fun StatusCard(index: Int) {
-        val tick = refreshTick
-        val active = remember(tick) { isActive() }
-        val host = remember(tick) { hostInfo() }
+    private fun StatusCard(index: Int, status: LauncherStatusUiState) {
+        val host = status.host
+        val active = status.isActive
         val lines = buildList {
             add(appVersionLine)
             add("DeepSeek：${host.label}")
@@ -681,68 +664,8 @@ class SettingsActivity : ComponentActivity() {
             title = if (active) "模块已激活" else "模块未激活",
             lines = lines,
             modifier = Modifier.staggeredEntrance(index),
-            onClick = { refreshTick++ },
+            onClick = { statusViewModel.refresh() },
         )
-    }
-
-                            @Composable
-    private fun CategoryScreen(category: FeatureCategory) {
-        LaunchedEffect(category.id) {
-            if (category.keys.isNotEmpty() && bridgeStatus != BridgeStatus.LOADING) loadConfig()
-        }
-        PageColumn {
-            CategoryHeader(category, 0)
-            OpenInDeepSeekButton(Modifier.staggeredEntrance(1)) { openDeepSeekSettings() }
-            NoteCard(
-                "在启动器中修改的设置会写入 DeepSeek 内的模块配置，需强制停止并重新打开 DeepSeek 后生效。",
-                Modifier.staggeredEntrance(2),
-                icon = Icons.Filled.Info,
-            )
-            if (category.note.isNotEmpty()) {
-                NoteCard(category.note, Modifier.staggeredEntrance(3), icon = Icons.Filled.Lock)
-            }
-            if (category.keys.isNotEmpty()) {
-                Row(
-                    Modifier.fillMaxWidth().staggeredEntrance(3),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    SectionHeader("当前设置", Modifier.weight(1f))
-                    TextButton(onClick = { loadConfig() }, enabled = bridgeStatus != BridgeStatus.LOADING) {
-                        Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("刷新")
-                    }
-                }
-                AnimatedContent(
-                    targetState = bridgeStatus,
-                    transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(160)) },
-                    label = "bridge",
-                ) { status ->
-                    when (status) {
-                        BridgeStatus.IDLE, BridgeStatus.LOADING -> Box(
-                            Modifier.fillMaxWidth().padding(24.dp),
-                            contentAlignment = Alignment.Center,
-                        ) { CircularProgressIndicator() }
-                        BridgeStatus.UNAVAILABLE -> NoteCard(
-                            "无法读取设置：DeepSeek 未响应。请先打开一次 DeepSeek（确认模块已在 LSPosed 中启用并勾选 DeepSeek），" +
-                                "返回此页后点\u201c刷新\u201d。也可以直接点击上方按钮在 DeepSeek 中修改。",
-                            icon = Icons.Filled.Info,
-                        )
-                        BridgeStatus.READY -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            val files = configFiles
-                            category.keys.forEach { key -> ConfigKeyRow(key, files[key.path]) }
-                            if (category.keys.any { it.kind == ConfigKind.FLAG }) {
-                                NoteCard(
-                                    "开关类设置在启动器中只读：配置桥只能写入文件、无法删除开关文件，" +
-                                        "且部分开关需要在 DeepSeek 内确认风险提示。请在 DeepSeek 中切换。",
-                                    icon = Icons.Filled.Lock,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 
     @Composable
