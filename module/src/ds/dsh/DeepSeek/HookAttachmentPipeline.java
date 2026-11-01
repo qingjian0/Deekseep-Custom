@@ -595,8 +595,16 @@ final class HookAttachmentPipeline {
                 });
                 m++;
             }
+            if (n == 0 || m == 0) {
+                throw new NoSuchMethodException(
+                        "sf5 expert constructor/render hooks were incomplete: ctor=" + n + " render=" + m);
+            }
             Main.log("hooked sf5.b() x" + m + " (expert gate catch)");
-        } catch (Throwable t) { Main.log("hookExpertUnlock failed: " + t); }
+        } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw new IllegalStateException("expert unlock hook installation failed", t);
+        }
     }
 
     // 上传门禁 y91.a(Object,uz1)：事件对象里携带被 UI 消费的真实 sf5。在判空前扫描 arg0 的字段找到 sf5，
@@ -633,8 +641,13 @@ final class HookAttachmentPipeline {
                 });
                 n++;
             }
+            if (n == 0) throw new NoSuchMethodException("y91.a(Object,...) expert upload gate");
             Main.log("installed expert upload gate on y91.a x" + n);
-        } catch (Throwable t) { Main.log("installExpertUploadGate failed: " + t); }
+        } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw new IllegalStateException("expert upload gate hook installation failed", t);
+        }
     }
 
     // 每个 sf5(模型配置)构造后回调：俘获可用模板 + 给 expert 回填 + 事后 back-fill
@@ -871,9 +884,12 @@ final class HookAttachmentPipeline {
                 });
                 installed++;
             }
+            if (installed == 0) throw new NoSuchMethodException("sb1 session page constructor");
             Main.log("installed local API session visibility filter sb1 x" + installed);
         } catch (Throwable t) {
-            Main.log("f9 failed: " + t);
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw new IllegalStateException("local API session visibility hook installation failed", t);
         }
     }
 
