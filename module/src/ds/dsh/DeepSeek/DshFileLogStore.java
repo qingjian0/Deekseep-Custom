@@ -145,9 +145,15 @@ final class DshFileLogStore {
         if (current != null) {
             int pendingState = queryPending(resolver, current);
             if (pendingState < 0) return false;
-            // Recover a row left pending by a process death or a failed earlier append.
-            // Publish it before rotation so a later append cannot leave it permanently hidden.
-            if (pendingState == 1 && !publishMediaStore(resolver, current)) return false;
+            // A pending row was never successfully committed as a complete log file. It may
+            // contain a truncated write if the process died during OutputStream.write(), so
+            // never publish or append to it. Discard it and start a fresh row instead.
+            if (pendingState == 1) {
+                if (resolver.delete(current, null, null) <= 0) return false;
+                current = null;
+            }
+        }
+        if (current != null) {
             currentSize = querySize(resolver, current);
             if (currentSize < 0L) return false;
             if (currentSize + bytes.length > MAX_FILE_BYTES) {
