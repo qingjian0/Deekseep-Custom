@@ -79,6 +79,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.Member;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
@@ -572,6 +573,20 @@ final class HookChatPipeline {
 
     // ── ChatFullCompletionRequest 系统提示词注入 ─────────────────────
 
+    // The request installer can fail after registering some constructors. Keep successful
+    // registrations across retries so a later attempt only adds the missing constructors.
+    private static final Set<Member> CHAT_REQUEST_INSTALLED_MEMBERS =
+            Collections.newSetFromMap(new ConcurrentHashMap<Member, Boolean>());
+
+    private static boolean hookChatRequestOnce(Member member, Hooker hooker) throws Throwable {
+        synchronized (CHAT_REQUEST_INSTALLED_MEMBERS) {
+            if (CHAT_REQUEST_INSTALLED_MEMBERS.contains(member)) return false;
+            Main.MODULE.hook(member).intercept(hooker);
+            CHAT_REQUEST_INSTALLED_MEMBERS.add(member);
+            return true;
+        }
+    }
+
     boolean hookChatRequest(ClassLoader cl) {
         try {
             // 2.4.1 moved the real completion request to az0. Keep this explicit because
@@ -595,7 +610,7 @@ final class HookChatPipeline {
                 // Never hook kotlinx serialization/copy construction. It is not a send boundary
                 // and modifying it corrupts host request restoration state.
                 if (isSynthetic) continue;
-                Main.MODULE.hook(ctor).intercept(new Hooker() {
+                hookChatRequestOnce(ctor, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         try {
                             if (!isSynthetic) consumeArmedCrashTestAtSend();
