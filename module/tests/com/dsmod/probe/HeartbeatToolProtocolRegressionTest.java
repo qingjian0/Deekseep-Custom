@@ -822,12 +822,14 @@ public final class HeartbeatToolProtocolRegressionTest {
                         && prompt.contains("180 分钟")
                         && prompt.contains("\"scope\":\"conversation-1234\""),
                 "default heartbeat system prompt omitted the local tool contract");
-        require(prompt.contains("严格使用单步 Agent 循环")
-                        && prompt.contains("{\"call\":")
-                        && prompt.contains("每一轮回复最多只能调用一个工具")
-                        && prompt.contains("控制块结束后必须立即停止输出")
-                        && !prompt.contains("{\"calls\":["),
-                "default heartbeat prompt still permits multi-tool batches");
+        require(prompt.contains("每轮最多可调用四个彼此独立的工具")
+                        && prompt.contains("{\\"call\\":")
+                        && prompt.contains("两个到四个独立工具使用 calls 数组")
+                        && prompt.contains("批次结果会以 results 数组返回")
+                        && prompt.contains("控制块必须是纯 JSON")
+                        && prompt.contains("写完这一组后必须立刻写结束标记并结束本轮回复"),
+                "default heartbeat prompt omitted the bounded multi-tool batch contract");
+-tool batches");
         require(prompt.contains("坐标统一为 0 到 1000")
                         && prompt.contains("不会在同一轮把像素返回给你")
                         && prompt.contains("不得假装已经看见截图内容")
