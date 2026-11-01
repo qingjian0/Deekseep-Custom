@@ -109,6 +109,7 @@ test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$ATTACHMENT_PIPELI
 test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$ATTACHMENT_PIPELINE")" -ge 3
 
 CHAT_PIPELINE="$MODULE_DIR/src/ds/dsh/DeepSeek/HookChatPipeline.java"
+grep -Fq "boolean hookChatRequest(ClassLoader cl) throws Throwable" "$CHAT_PIPELINE"
 grep -Fq "Fatal VM/control-flow errors must never fall through to fail-open request handling." "$CHAT_PIPELINE"
 grep -Fq "if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;" "$CHAT_PIPELINE"
 grep -Fq "if (t instanceof ThreadDeath) throw (ThreadDeath) t;" "$CHAT_PIPELINE"
