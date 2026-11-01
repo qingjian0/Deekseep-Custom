@@ -18,9 +18,11 @@ object AccountValidationPolicy {
     private const val DEFAULT_RETRY_MS = 2_500L
     private const val MAX_INLINE_RETRY_MS = 10_000L
 
+    private fun javaTrim(value: String): String = value.trim { it <= ' ' }
+
     @JvmStatic
     fun userAgent(version: String?, sdkInt: Int): String {
-        val value = version?.trim().orEmpty().ifEmpty { DEFAULT_VERSION }
+        val value = version?.let(::javaTrim).orEmpty().ifEmpty { DEFAULT_VERSION }
         return "DeepSeek/$value Android/${maxOf(1, sdkInt)}"
     }
 
@@ -41,8 +43,8 @@ object AccountValidationPolicy {
         rangersId: String?,
         timezoneOffsetSeconds: Int
     ): Map<String, String> {
-        val normalizedVersion = version?.trim().orEmpty().ifEmpty { DEFAULT_VERSION }
-        val normalizedLocale = locale?.trim().orEmpty().ifEmpty { DEFAULT_LOCALE }
+        val normalizedVersion = version?.let(::javaTrim).orEmpty().ifEmpty { DEFAULT_VERSION }
+        val normalizedLocale = locale?.let(::javaTrim).orEmpty().ifEmpty { DEFAULT_LOCALE }
         return LinkedHashMap<String, String>().apply {
             put("Accept", "application/json")
             put("User-Agent", userAgent(version, sdkInt))
@@ -53,7 +55,7 @@ object AccountValidationPolicy {
             put("x-client-version", normalizedVersion)
             put("x-client-locale", normalizedLocale)
             put("x-client-timezone-offset", timezoneOffsetSeconds.toString())
-            rangersId?.trim()?.takeIf { it.isNotEmpty() }?.let { put("x-rangers-id", it) }
+            rangersId?.let(::javaTrim)?.takeIf { it.isNotEmpty() }?.let { put("x-rangers-id", it) }
         }
     }
 
@@ -65,9 +67,9 @@ object AccountValidationPolicy {
 
     @JvmStatic
     fun retryDelayMillis(retryAfter: String?): Long {
-        if (retryAfter.isNullOrBlank()) return DEFAULT_RETRY_MS
+        if (retryAfter == null || javaTrim(retryAfter).isEmpty()) return DEFAULT_RETRY_MS
         return try {
-            val seconds = retryAfter.trim().toLong()
+            val seconds = javaTrim(retryAfter).toLong()
             if (seconds < 0L || seconds > MAX_INLINE_RETRY_MS / 1_000L) {
                 -1L
             } else {
