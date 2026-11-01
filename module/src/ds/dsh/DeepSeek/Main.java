@@ -792,15 +792,19 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     public static synchronized void srvLog(String msg) {
         if (z8.shouldSuppressGeneralMessage(msg)) return;
         if (isLocalApiExecutionLogContext() && !z8.isError(msg)) return;
-        DshLog.info("Server", sanitizeDiagnosticPayload(msg));
-        try { Main m = MODULE; if (m != null) m.log(Log.INFO, TAG, "SRV " + sanitizeDiagnosticPayload(msg)); } catch (Throwable ignored) {}
+        // Preserve diagnostic structure first, then apply the common credential/path
+        // redactor before either Framework Log or the structured logging pipeline.
+        String safe = DshLog.sanitizeForStorage(sanitizeDiagnosticPayload(msg));
+        try { Main m = MODULE; if (m != null) m.log(Log.INFO, TAG, "SRV " + safe); } catch (Throwable ignored) {}
+        DshLog.info("Server", safe);
     }
 
     // 视觉中继诊断统一进入 DshLog；原始 Hook Trace 仍由独立的显式开关控制。
     public static synchronized void extLog(String msg) {
         if (z8.shouldSuppressGeneralMessage(msg)) return;
         if (isLocalApiExecutionLogContext() && !z8.isError(msg)) return;
-        String safe = sanitizeVisionDiagnostic(msg);
+        // Keep vision-specific payload filtering and apply the shared final redactor once.
+        String safe = DshLog.sanitizeForStorage(sanitizeVisionDiagnostic(msg));
         try { Main m = MODULE; if (m != null) m.log(Log.INFO, TAG, safe); } catch (Throwable ignored) {}
         DshLog.info("Vision", safe);
     }
