@@ -105,11 +105,11 @@ The Gradle launcher currently declares AGP 9.3.0, Kotlin Compose plugin 2.4.10, 
 
 - Added the standalone `module-kotlin-runtime` Gradle JVM project using Kotlin 2.4.10 and JVM 1.8 bytecode.
 - Migrated two pure-JVM runtime units from Java to Kotlin: `FeatureHookInstallRegistry` and `TargetProcessGuard`. Their Java-facing names, nested `Admission`/`State` enums, static `admit` entry point, installer SAM, status fields and method calls remain compatible with `Main.java` and the existing Java regression harness.
-- Legacy and Universal build scripts now compile the shared runtime JAR, include the resolved Kotlin standard library in javac/D8 inputs, and package all generated `classes*.dex` files.
+- Legacy and Universal build scripts now compile the shared runtime JAR and Kotlin stdlib, invoke standalone R8/D8 9.1.29 (minimum documented compatibility for Kotlin 2.4 metadata), and package all generated `classes*.dex` files. Compose Launcher overrides AGP's embedded R8 with the same version.
 - The Compose Launcher source set includes the same runtime Kotlin source root through AGP 9 `kotlin.directories`.
 - The registry and process-admission JVM test runners build the Kotlin runtime artifact and run the existing Java regressions against it; the Android-dependent thinking test also includes the runtime JAR/stdlib on its classpath.
 - Gradle 9.8.2 bootstrap is shared by the runtime tests, Legacy/Universal builds and launcher Open build.
-- Validation gate: the first Kotlin runtime CI attempt exposed a Java 21/Kotlin 1.8 target mismatch; the runtime module now explicitly aligns Java and Kotlin output to 1.8. A later JVM CI run passed both Kotlin runtime regression scripts. The Android artifact matrix has not yet completed successfully. Expand the runtime incrementally; do not migrate host-reflection logic until both distribution paths prove the runtime classes and stdlib are present in APK DEX output.
+- Validation gate: the first Kotlin runtime CI attempt exposed a Java 21/Kotlin 1.8 target mismatch; the runtime module now explicitly aligns both outputs to 1.8. A later JVM CI run passed the registry and process-admission runtime regressions. One Legacy APK was emitted before its workflow was cancelled, but its DEX step reported Kotlin 2.4 metadata parser warnings with SDK D8 9.0.32. The current branch pins R8/D8 9.1.29 for all APK paths; a successful Android matrix is still required before considering the distribution integration validated.
 
 ### P3 — Compose launcher decomposition (in progress)
 
