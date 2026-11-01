@@ -603,14 +603,18 @@ public final class HeartbeatToolProtocolRegressionTest {
                 "compact ask_user schema or object options were not normalized");
 
         AgentToolConfig.Snapshot defaults = AgentToolConfig.defaults();
+        java.util.Set<String> expectedDefaultTools =
+                new java.util.HashSet<String>(AgentToolConfig.tools());
+        expectedDefaultTools.remove(HeartbeatToolProtocol.TOOL_CLIPBOARD);
         require(defaults.enabled
                         && defaults.promptStrength
                         == AgentToolConfig.PROMPT_STRENGTH_BASIC
                         && AgentToolConfig.PERMISSION_ALL.equals(
                         defaults.permission)
-                        && defaults.enabledTools.containsAll(
-                        AgentToolConfig.tools()),
-                "Agent defaults are not enabled/all-allowed with every tool on");
+                        && defaults.enabledTools.equals(expectedDefaultTools)
+                        && !defaults.enabledTools.contains(
+                        HeartbeatToolProtocol.TOOL_CLIPBOARD),
+                "Agent defaults must enable every non-sensitive tool and keep clipboard opt-in");
         AgentToolConfig.Snapshot roundTrip = AgentToolConfig.decode(
                 AgentToolConfig.encode(defaults
                         .withBackend(AgentToolConfig.BACKEND_ROOT)
