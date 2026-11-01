@@ -126,6 +126,50 @@ public final class LegacyXposedModuleRegressionTest {
                 "API " + api + " fail-open invocation did not preserve the original arguments");
 
         runFailureIsolationTests(method, api);
+        runScopedRegistrationRetryTest(method, api);
+    }
+
+    private static void registerScopedRetryHook(Module module, Method method) {
+        String previous = module.beginHookRegistrationScope("test.retryable.feature");
+        try {
+            module.hook(method).intercept(new LegacyXposedModule.Hooker() {
+                @Override public Object intercept(LegacyXposedModule.Chain chain)
+                        throws Throwable {
+                    return chain.proceed() + ":scoped";
+                }
+            });
+        } finally {
+            module.endHookRegistrationScope(previous);
+        }
+    }
+
+    private static void runScopedRegistrationRetryTest(final Method method, int api)
+            throws Throwable {
+        XposedBridge.resetTestState();
+        XposedBridge.originalMethodInvokerForTest =
+                new XposedBridge.OriginalMethodInvoker() {
+                    @Override public Object invoke(Member member, Object receiver,
+                                                   Object[] invokeArgs) throws Throwable {
+                        return ((Method) member).invoke(receiver, invokeArgs);
+                    }
+                };
+        Module module = new Module();
+        registerScopedRetryHook(module, method);
+        registerScopedRetryHook(module, method);
+        check(XposedBridge.hookCountForTest == 1,
+                "API " + api + " retry duplicated the underlying Xposed callback");
+
+        XC_MethodHook.MethodHookParam param = new XC_MethodHook.MethodHookParam();
+        param.method = method;
+        Target target = new Target();
+        param.thisObject = target;
+        param.args = new Object[] {"safe", "original"};
+        XposedBridge.callbackForTest.dispatchBeforeForTest(param);
+        check("safe:original:scoped".equals(param.getResult()),
+                "API " + api + " retry duplicated or lost the scoped interceptor: "
+                        + param.getResult());
+        check(target.joinCalls == 1,
+                "API " + api + " retry must invoke the original exactly once");
     }
 
     private static void runFailureIsolationTests(final Method method, int api) throws Throwable {
