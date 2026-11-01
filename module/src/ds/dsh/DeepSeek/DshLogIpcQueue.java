@@ -1,22 +1,23 @@
 package ds.dsh.DeepSeek;
 
 import android.content.Context;
+import android.os.Bundle;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * Bounded asynchronous ingress for log records received by the module process.
- *
- * <p>ContentProvider.call() runs on a Binder thread. It must enqueue only; disk I/O is performed
- * by this single writer thread so a hooked host thread is never made to wait for file access.</p>
- */
+/** Bounded asynchronous ingress and single-writer for authenticated host log records. */
 final class DshLogIpcQueue {
     private static final int CAPACITY = 512;
     private static final AtomicInteger THREAD_IDS = new AtomicInteger();
+    private static final AtomicLong PRIVATE_WRITES = new AtomicLong();
+    private static final AtomicLong PRIVATE_FAILURES = new AtomicLong();
+    private static final AtomicLong PUBLIC_WRITES = new AtomicLong();
+    private static final AtomicLong PUBLIC_FAILURES = new AtomicLong();
     private static final ThreadPoolExecutor WRITER = new ThreadPoolExecutor(
             1, 1, 0L, TimeUnit.MILLISECONDS,
             new ArrayBlockingQueue<>(CAPACITY),
@@ -40,13 +41,31 @@ final class DshLogIpcQueue {
         try {
             WRITER.execute(new Runnable() {
                 @Override public void run() {
-                    DshFileLogStore.appendPrivate(safeContext, category, line);
+                    if (DshFileLogStore.appendPrivate(safeContext, category, line)) {
+                        PRIVATE_WRITES.incrementAndGet();
+                    } else {
+                        PRIVATE_FAILURES.incrementAndGet();
+                    }
+                    if (DshFileLogStore.appendPublic(safeContext, category, line)) {
+                        PUBLIC_WRITES.incrementAndGet();
+                    } else {
+                        PUBLIC_FAILURES.incrementAndGet();
+                    }
                 }
             });
             return true;
         } catch (java.util.concurrent.RejectedExecutionException full) {
             return false;
         }
+    }
+
+    static void putStatus(Bundle result) {
+        result.putLong("private_writes", PRIVATE_WRITES.get());
+        result.putLong("private_failures", PRIVATE_FAILURES.get());
+        result.putLong("public_writes", PUBLIC_WRITES.get());
+        result.putLong("public_failures", PUBLIC_FAILURES.get());
+        result.putInt("queue_depth", WRITER.getQueue().size());
+        result.putInt("queue_capacity", CAPACITY);
     }
 
     static boolean isAllowedCategory(String category) {
