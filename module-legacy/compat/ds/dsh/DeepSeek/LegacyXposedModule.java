@@ -268,7 +268,12 @@ abstract class LegacyXposedModule {
             }
             HookRegistrationScope scope = hookRegistrationScope.get();
             String registrationKey = scope == null ? null : scope.nextKey(member, hooker);
-            if (registrationKey != null && scopedRegistrations.contains(registrationKey)) return;
+            if (registrationKey != null && scopedRegistrations.contains(registrationKey)) {
+                // Replaying a completed occurrence in a fresh retry scope must still advance
+                // that scope's ordinal; otherwise a later same-class occurrence aliases it.
+                scope.commitKey(member, hooker);
+                return;
+            }
             hookers.add(hooker);
             if (registered) {
                 if (registrationKey != null) {
