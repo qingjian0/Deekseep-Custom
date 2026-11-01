@@ -9,10 +9,10 @@
  * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
  */
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
-import com.dsmod.probe.LegacyXposedModule.Chain;
-import com.dsmod.probe.LegacyXposedModule.Hooker;
+import ds.dsh.DeepSeek.LegacyXposedModule.Chain;
+import ds.dsh.DeepSeek.LegacyXposedModule.Hooker;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;

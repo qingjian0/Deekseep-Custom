@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import android.app.Activity;
 
@@ -10,8 +10,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import com.dsmod.probe.LegacyXposedModule.Chain;
-import com.dsmod.probe.LegacyXposedModule.Hooker;
+import ds.dsh.DeepSeek.LegacyXposedModule.Chain;
+import ds.dsh.DeepSeek.LegacyXposedModule.Hooker;
 
 /** Captures the live Compose NavController through exact, independent host adapters. */
 final class HostNavigationBridge {
