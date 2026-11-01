@@ -50,6 +50,7 @@ internal class LauncherConfigViewModel(application: Application) : AndroidViewMo
     }
 
     suspend fun writeConfigValue(path: String, value: String): Boolean {
+        mutableState.value = mutableState.value.copy(errorMessage = null)
         val bytes = value.toByteArray(Charsets.UTF_8)
         val payload = withContext(Dispatchers.Default) {
             repository.buildConfigJson(mapOf(path to bytes))
@@ -72,6 +73,7 @@ internal class LauncherConfigViewModel(application: Application) : AndroidViewMo
     }
 
     suspend fun importConfig(json: String): Boolean {
+        mutableState.value = mutableState.value.copy(errorMessage = null)
         val reply = withContext(Dispatchers.IO) {
             repository.request(ModuleConfigBridge.MODE_IMPORT, json)
         }
