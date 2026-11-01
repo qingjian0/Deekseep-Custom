@@ -95,6 +95,7 @@ This remains a staged migration. Do not rewrite `HookChatPipeline` or move host 
 
 - Added `ConversationRelayHttpPolicy.kt` to the standalone Kotlin runtime. It owns only deterministic response rules: exact HTTP 200 success classification, 200-character error-body truncation, and the legacy `HTTP <code>[: body]` message format.
 - Added `ConversationRelayHttpPolicyTest.kt` covering status values below/above 200, redirects, 2xx other than 200, 4xx/5xx, null/empty bodies, and 199/200/201-character truncation boundaries.
+- Extended the regression case to preserve Java UTF-16 substring behavior at a surrogate-pair boundary and to prove error-body whitespace is not trimmed.
 - The Java `z17.fetchModels` and `z17.relay` adapters now call the Kotlin policy. Request construction, Android `org.json` serialization/parsing, `HttpURLConnection`, streams, and SSE readers remain in Java.
 - No request method, endpoint, header, timeout, payload key, provider routing, or host Hook behavior was changed.
 - Local validation: standalone Kotlin 1.9 compilation and policy smoke assertions passed; a Java caller compiled and ran against the Kotlin static facade. This is a focused source-copy harness, not the repository Gradle/JUnit suite or Android build.
