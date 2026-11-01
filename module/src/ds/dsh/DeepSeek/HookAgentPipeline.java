@@ -337,6 +337,8 @@ final class HookAgentPipeline {
             Collections.newSetFromMap(new ConcurrentHashMap<Member, Boolean>());
     private static final Set<Member> HEARTBEAT_PIPELINE_HOOKED_MEMBERS =
             Collections.newSetFromMap(new ConcurrentHashMap<Member, Boolean>());
+    private static final ConcurrentHashMap<String, Set<Member>> AGENT_FEATURE_HOOKED_MEMBERS =
+            new ConcurrentHashMap<>();
 
     private static boolean hookAgentToolOnce(Member member, Hooker hooker) throws Throwable {
         synchronized (AGENT_TOOL_INSTALLED_HOOKS) {
@@ -344,6 +346,20 @@ final class HookAgentPipeline {
             Main.MODULE.hook(member).intercept(hooker);
             AGENT_TOOL_INSTALLED_HOOKS.add(member);
             return true;
+        }
+    }
+
+    private static void hookAgentFeatureMember(
+            String feature, Member member, Hooker hooker) throws Throwable {
+        synchronized (AGENT_FEATURE_HOOKED_MEMBERS) {
+            Set<Member> installed = AGENT_FEATURE_HOOKED_MEMBERS.get(feature);
+            if (installed == null) {
+                installed = new HashSet<>();
+                AGENT_FEATURE_HOOKED_MEMBERS.put(feature, installed);
+            }
+            if (installed.contains(member)) return;
+            Main.MODULE.hook(member).intercept(hooker);
+            installed.add(member);
         }
     }
 
@@ -2182,7 +2198,7 @@ final class HookAgentPipeline {
                         || !Modifier.isStatic(method.getModifiers())
                         || types.length != (v271 ? 14 : 13)
                         || types[0] != responseFragment) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookAgentFeatureMember("hookHeartbeatFragmentRenderBoundary", method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         sanitizeHeartbeatFragmentAtRenderBoundary(chain.getArg(0));
                         return chain.proceed();
@@ -2213,7 +2229,7 @@ final class HookAgentPipeline {
             for (Method method : markdownInput.getDeclaredMethods()) {
                 if (!"r".equals(HostRemap.name(method))
                         || method.getParameterTypes().length != 2) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookAgentFeatureMember("hookHeartbeatMarkdownInputBoundary", method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object lambda = chain.getThisObject();
                         Object variant = Main.readHostField(lambda, "a");
@@ -2284,7 +2300,7 @@ final class HookAgentPipeline {
                         && method.getReturnType() == void.class
                         && types.length == 5;
                 if (!legacyParser && !modernParser && !modernRenderer) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookAgentFeatureMember("hookHeartbeatNativeMarkdownParser", method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object raw = chain.getArg(0);
                         if (!(raw instanceof String)) return chain.proceed();
@@ -2385,7 +2401,7 @@ final class HookAgentPipeline {
                         && types[13] == styleClass
                         && types[15] == int.class && types[16] == int.class
                         && types[17] == int.class) {
-                    Main.MODULE.hook(method).intercept(new Hooker() {
+                    hookAgentFeatureMember("hookHeartbeatToolStatusStyle", method, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             Object raw = chain.getArg(0);
                             if (!(raw instanceof String)) {
@@ -2455,7 +2471,7 @@ final class HookAgentPipeline {
                 }
                 final Constructor<?> annotatedTextConstructor =
                         findAnnotatedTextConstructor(types[0]);
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookAgentFeatureMember("hookHeartbeatToolStatusStyle", method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object raw = chain.getArg(0);
                         if (!(raw instanceof CharSequence)) return chain.proceed();
@@ -2579,7 +2595,7 @@ final class HookAgentPipeline {
                 }
                 final Constructor<?> annotatedTextConstructor =
                         findAnnotatedTextConstructor(types[0]);
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookAgentFeatureMember("hookHeartbeatToolStatusBasicText", method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object raw = chain.getArg(0);
                         if (!(raw instanceof CharSequence)) return chain.proceed();
@@ -3507,7 +3523,7 @@ final class HookAgentPipeline {
                 if (!visibleThreadMethod.equals(HostRemap.name(method))
                         || method.getParameterTypes().length != 0
                         || !List.class.isAssignableFrom(method.getReturnType())) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookAgentFeatureMember("hookProactiveVisibleThreadFilter", method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object result = chain.proceed();
                         if (!(result instanceof List)) return result;
@@ -3594,7 +3610,7 @@ final class HookAgentPipeline {
                         : "u".equals(HostRemap.name(method));
                 if (singleApply
                         && messageType.isAssignableFrom(types[0])) {
-                    Main.MODULE.hook(method).intercept(new Hooker() {
+                    hookAgentFeatureMember("hookNativeUiHeartbeatCompletion", method, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             Object result = chain.proceed();
                             maybeCompleteNativeUiHeartbeat(
@@ -3606,7 +3622,7 @@ final class HookAgentPipeline {
                 } else if (finalMerge && types.length == 2
                         && types[0] == sessionType
                         && List.class.isAssignableFrom(types[1])) {
-                    Main.MODULE.hook(method).intercept(new Hooker() {
+                    hookAgentFeatureMember("hookNativeUiHeartbeatCompletion", method, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             Object result = chain.proceed();
                             Object session = chain.getArg(0);
@@ -3629,7 +3645,7 @@ final class HookAgentPipeline {
                 if (!outcomeMethod.equals(HostRemap.name(method))
                         || types.length != 2
                         || types[0] != outcomeType) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookAgentFeatureMember("hookNativeUiHeartbeatCompletion", method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object viewModel = chain.getThisObject();
                         Object session = Main.invokeNoArg(viewModel,
