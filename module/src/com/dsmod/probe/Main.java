@@ -1561,7 +1561,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     void installHookStep(String id, FeatureHookInstallRegistry.Installer installer)
             throws Throwable {
         FEATURE_HOOK_INSTALL_REGISTRY.install(id, () -> {
-            String previous = beginHookRegistrationScope(id);
+            HookRegistrationScope previous = beginHookRegistrationScope(id);
             try {
                 installer.install();
             } finally {
