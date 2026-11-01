@@ -97,20 +97,11 @@ final class ThemeColorConfig {
     }
 
     static int parseColor(String text, int fallback) {
-        if (text == null) return fallback;
-        String s = text.trim();
-        if (s.startsWith("#")) s = s.substring(1);
-        try {
-            if (s.length() == 6) return (int) (0xFF000000L | Long.parseLong(s, 16));
-            if (s.length() == 8) return (int) Long.parseLong(s, 16);
-        } catch (Throwable ignored) {
-        }
-        return fallback;
+        return ThemeColorPolicy.parseColor(text, fallback);
     }
 
     private static String validDirection(String direction) {
-        if (VERTICAL.equals(direction) || DIAGONAL_DOWN.equals(direction)
-                || DIAGONAL_UP.equals(direction)) return direction;
-        return HORIZONTAL;
+        return ThemeColorPolicy.validDirection(
+                direction, HORIZONTAL, VERTICAL, DIAGONAL_DOWN, DIAGONAL_UP);
     }
 }
