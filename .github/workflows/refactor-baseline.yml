@@ -11,7 +11,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: refactor-baseline-${{ github.ref }}
+  # Unique per run: GitHub otherwise retains only one pending run per group.
+  group: refactor-baseline-${{ github.ref }}-${{ github.run_id }}
   # Keep full regression/build evidence; rapid pushes must not cancel an active validation run.
   cancel-in-progress: false
 
@@ -72,6 +73,9 @@ jobs:
         run: bash module/test-target-process-guard.sh
 
   android-build-matrix:
+    # Full Android builds run on demand or when a Draft PR becomes ready for review.
+    # Pushes during active development still run the fast JVM/source regression job.
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.draft == false)
     name: Android artifact compilation
     runs-on: ubuntu-latest
     timeout-minutes: 60
