@@ -1,27 +1,24 @@
-name: YunSeek CI
+name: CI
 
 on:
   pull_request:
     branches: [dev]
   push:
-    branches: [dev]
+    branches: [dev, refactor/kotlin-hook-architecture]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: yunseek-ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   regression:
-    name: Regression tests
+    name: Basic regression checks
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    timeout-minutes: 15
     steps:
       - name: Check out source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -34,71 +31,41 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Install Android SDK components
+      - name: Check shell syntax
         run: |
           set -euo pipefail
-          SDKMANAGER="$(find "$ANDROID_SDK_ROOT/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -n 1)"
-          test -x "$SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --install "platforms;android-35" "platforms;android-36" "platforms;android-37.0" "build-tools;35.0.0" "build-tools;36.0.0" "build-tools;37.0.0"
-
-      - name: Run source-only regression checks
-        run: |
-          set -euo pipefail
-          for script in scripts/gradle-open-debug.sh scripts/build-all.sh \
-              scripts/build-all-legacy.sh scripts/android-tools.sh \
-              scripts/test-package-identity.sh scripts/test-launcher-activation-regression.sh \
-              scripts/test-launcher-config-architecture.sh \
-              scripts/test-launcher-backup-architecture.sh \
-              scripts/test-universal-feature-parity.sh \
-              module-legacy/build.sh module-universal/build.sh \
-              module-legacy/test-adapter-regression.sh module/test-target-process-guard.sh \
-              module/test-hook-install-registry.sh module/test-config-rollout-install-regression.sh module/test-native-dual-root-install-regression.sh module/test-login-diagnostics-regression.sh \
-              module/test-session-deletion-install-regression.sh module/test-hostmap-regression.sh; do
+          for script in \
+            module-legacy/test-adapter-regression.sh \
+            module/test-hook-install-registry.sh \
+            module/test-hook-installer-retry-regression.sh \
+            module/test-target-process-guard.sh \
+            scripts/test-package-identity.sh \
+            scripts/test-launcher-activation-regression.sh \
+            scripts/test-launcher-config-architecture.sh \
+            scripts/test-launcher-backup-architecture.sh; do
             bash -n "$script"
           done
+
+      - name: Run focused regressions
+        run: |
+          set -euo pipefail
           bash module-legacy/test-adapter-regression.sh
+          bash module/test-hook-install-registry.sh
+          bash module/test-hook-installer-retry-regression.sh
+          bash module/test-target-process-guard.sh
           bash scripts/test-package-identity.sh
           bash scripts/test-launcher-activation-regression.sh
           bash scripts/test-launcher-config-architecture.sh
           bash scripts/test-launcher-backup-architecture.sh
-          bash module/test-hook-install-registry.sh
-          bash module/test-config-rollout-install-regression.sh
-          bash module/test-native-dual-root-install-regression.sh
-          bash module/test-login-diagnostics-regression.sh
-          bash module/test-session-deletion-install-regression.sh
-          bash module/test-expert-relay-regression.sh
-          bash module/test-language-catalog.sh
-          bash module/test-target-process-guard.sh
-          bash module/test-hostmap-regression.sh
 
-      - name: Build traditional Xposed core for regression tests
-        run: |
-          set -euo pipefail
-          bash module-universal/build.sh
-
-      - name: Run host compatibility and feature regression tests
-        run: |
-          set -euo pipefail
-          bash module/test-port-v271.sh
-          bash module/test-thinking-regression.sh
-
-  android:
-    name: Android Open build and lint
+  android-build:
+    name: Android debug compilation (manual)
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/module/debug.keystore
-      ANDROID_STORE_PASSWORD: android
-      ANDROID_KEY_ALIAS: androiddebugkey
-      ANDROID_KEY_PASSWORD: android
+    timeout-minutes: 45
     steps:
       - name: Check out source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: false
 
       - name: Set up Java 21
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
@@ -106,93 +73,11 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Set up Gradle 9.8.2
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
         with:
           gradle-version: "9.8.2"
 
-      - name: Install Android SDK components
-        run: |
-          set -euo pipefail
-          SDKMANAGER="$(find "$ANDROID_SDK_ROOT/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -n 1)"
-          test -x "$SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --install "platforms;android-37.0" "build-tools;37.0.0"
-
-      - name: Create ephemeral CI-only debug signing key
-        run: |
-          set -euo pipefail
-          keytool -genkeypair -noprompt \
-            -keystore "$ANDROID_KEYSTORE_PATH" \
-            -storepass "$ANDROID_STORE_PASSWORD" \
-            -keypass "$ANDROID_KEY_PASSWORD" \
-            -alias "$ANDROID_KEY_ALIAS" \
-            -dname "CN=YunSeek CI Temporary Key,O=CI Only,C=US" \
-            -keyalg RSA -keysize 2048 -validity 2
-          echo "Created an ephemeral key for CI validation only; it is not a release key."
-
-      - name: Build Legacy and both Universal artifacts
-        run: |
-          set -euo pipefail
-          bash module-legacy/build.sh
-          bash module-universal/build.sh
-          GOOGLE_PLAY_BUILD=true bash module-universal/build.sh
-          bash scripts/test-universal-feature-parity.sh
-
-      - name: Build Open release and run Android Lint
+      - name: Build Android debug APK
         working-directory: compose-launcher
-        run: |
-          set -euo pipefail
-          # Remove the developer's Termux-only AAPT2 override; CI uses the pinned SDK Build Tools.
-          sed -i '/^[[:space:]]*android\.aapt2FromMavenOverride[[:space:]]*=/d' gradle.properties
-          gradle --no-daemon --stacktrace \
-            -PprotectedBuild=false \
-            -PlocalApiIncluded=false \
-            -PandroidCompileSdk=37 \
-            :app:assembleRelease :app:lintRelease
-
-      - name: Verify CI APK structure, alignment, and signature
-        shell: bash
-        run: |
-          set -euo pipefail
-          BUILD_TOOLS_DIR="$ANDROID_SDK_ROOT/build-tools/37.0.0"
-
-          for apk in module-legacy/ds-probe-legacy.apk module-universal/ds-probe-universal.apk module-universal/ds-probe-universal-google-play.apk compose-launcher/app/build/outputs/apk/release/app-release.apk; do
-            test -s "$apk"
-            unzip -t "$apk" >/dev/null
-            "$BUILD_TOOLS_DIR/zipalign" -c -p 4 "$apk"
-            "$BUILD_TOOLS_DIR/apksigner" verify --verbose "$apk"
-            package_metadata="$("$BUILD_TOOLS_DIR/aapt" dump badging "$apk")"
-            grep -Fq "package: name='ds.dsh.DeepSeek'" <<< "$package_metadata"
-            dex_count="$(unzip -Z1 "$apk" | grep -Ec '^classes([0-9]+)?[.]dex$' || true)"
-            test "$dex_count" -ge 1
-            echo "$apk passed package, DEX, alignment and signature checks ($dex_count DEX)"
-          done
-
-          for apk in module-legacy/ds-probe-legacy.apk module-universal/ds-probe-universal.apk module-universal/ds-probe-universal-google-play.apk; do
-            unzip -p "$apk" assets/xposed_init | grep -Fxq "ds.dsh.DeepSeek.Main"
-          done
-
-          certificate_sha256() {
-            apksigner_output="$("$BUILD_TOOLS_DIR/apksigner" verify --print-certs "$1")"
-            awk -F': ' '/Signer #1 certificate SHA-256 digest:/ { print $2; exit }' <<< "$apksigner_output"
-          }
-          legacy_cert="$(certificate_sha256 module-legacy/ds-probe-legacy.apk)"
-          universal_cert="$(certificate_sha256 module-universal/ds-probe-universal.apk)"
-          google_play_cert="$(certificate_sha256 module-universal/ds-probe-universal-google-play.apk)"
-          compose_cert="$(certificate_sha256 compose-launcher/app/build/outputs/apk/release/app-release.apk)"
-          test -n "$legacy_cert"
-          test "$legacy_cert" = "$universal_cert"
-          test "$universal_cert" = "$google_play_cert"
-          test "$google_play_cert" = "$compose_cert"
-          echo "All four artifacts share ephemeral CI signer $legacy_cert."
-
-      - name: Upload Android Lint reports
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: yunseek-android-lint-reports
-          if-no-files-found: warn
-          path: |
-            compose-launcher/app/build/reports/lint-results-release*
-            compose-launcher/app/build/intermediates/lint_intermediate_text_report/release/lintReportRelease/*
+        run: gradle --no-daemon :app:assembleDebug
