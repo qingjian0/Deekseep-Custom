@@ -1197,6 +1197,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     if (hostApplicationContext == null) {
                         hostApplicationContext = app;
                     }
+                    DshRemoteFileLogSink.install(app);
                     if ((!BuildInfo.PROTECTED_BUILD || CloudPromptClient.hasValidLicense(app))
                             && !FEATURE_HOOKS_INSTALLED.get()) {
                         log("lifecycle bootstrap: license verified, installing feature hooks");
@@ -1504,6 +1505,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 if (app != null) {
                     earlyCtx = app;
                     hostApplicationContext = app;
+                    DshRemoteFileLogSink.install(app);
                 }
             } catch (Throwable ignored) {}
         }
@@ -2006,6 +2008,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         try {
             curAct = new WeakReference<>(act);
             hostApplicationContext = act.getApplicationContext();
+            DshRemoteFileLogSink.install(hostApplicationContext);
             if (!isDeepSeekMainActivity(act)) return;
 
             // 模块使用凭证门禁：未通过认证前不注入任何功能
