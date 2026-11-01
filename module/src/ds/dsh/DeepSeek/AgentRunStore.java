@@ -77,16 +77,11 @@ final class AgentRunStore {
         }
 
         boolean hasPendingResult() {
-            return outboxId.length() > 0 && event.length() > 0
-                    && !STATE_CANCELLED.equals(state)
-                    && !STATE_COMPLETED.equals(state)
-                    && !STATE_FAILED.equals(state);
+            return AgentRunStatePolicy.hasPendingResult(outboxId, event, state);
         }
 
         boolean isFinished() {
-            return STATE_COMPLETED.equals(state)
-                    || STATE_FAILED.equals(state)
-                    || STATE_CANCELLED.equals(state);
+            return AgentRunStatePolicy.isFinished(state);
         }
 
         JSONObject toJson() {
@@ -118,7 +113,7 @@ final class AgentRunStore {
             out.scope = clean(json.optString("scope", ""), 2048);
             out.callId = clean(json.optString("call_id", ""), 128);
             out.tool = clean(json.optString("tool", ""), 64);
-            out.state = cleanState(json.optString("state", STATE_EXECUTING));
+            out.state = AgentRunStatePolicy.cleanState(json.optString("state", STATE_EXECUTING));
             out.detail = clean(json.optString("detail", ""), 1200);
             out.event = cleanEvent(json.optString("event", ""));
             out.resultSuccess = json.optBoolean("result_success", false);
@@ -547,15 +542,6 @@ final class AgentRunStore {
             if (record != null && outboxId.equals(record.outboxId)) return record;
         }
         return null;
-    }
-
-    private static String cleanState(String value) {
-        String state = value == null ? "" : value.trim().toLowerCase(Locale.US);
-        if (STATE_WAITING_USER.equals(state) || STATE_RESULT_READY.equals(state)
-                || STATE_DELIVERING.equals(state) || STATE_WAITING_CHAT.equals(state)
-                || STATE_COMPLETED.equals(state) || STATE_FAILED.equals(state)
-                || STATE_CANCELLED.equals(state)) return state;
-        return STATE_EXECUTING;
     }
 
     private static String clean(String value, int max) {
