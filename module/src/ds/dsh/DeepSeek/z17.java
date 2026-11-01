@@ -138,10 +138,9 @@ final class z17 {
                 conn.setRequestProperty(header.getKey(), header.getValue());
             }
             int code = conn.getResponseCode();
-            if (code != 200) {
+            if (!ConversationRelayHttpPolicy.isSuccessfulStatus(code)) {
                 String body = readStream(conn.getErrorStream());
-                throw new java.io.IOException("HTTP " + code
-                        + (body.length() == 0 ? "" : ": " + body.substring(0, Math.min(200, body.length()))));
+                throw new java.io.IOException(ConversationRelayHttpPolicy.formatHttpError(code, body));
             }
             String body = readStream(conn.getInputStream());
             JSONObject json = new JSONObject(body);
@@ -205,12 +204,10 @@ final class z17 {
                 out.close();
             }
             int code = conn.getResponseCode();
-            if (code != 200) {
+            if (!ConversationRelayHttpPolicy.isSuccessfulStatus(code)) {
                 String errBody = readStream(conn.getErrorStream());
                 conn.disconnect();
-                return new RelayResult("HTTP " + code
-                        + (errBody.length() == 0 ? ""
-                        : ": " + errBody.substring(0, Math.min(200, errBody.length()))));
+                return new RelayResult(ConversationRelayHttpPolicy.formatHttpError(code, errBody));
             }
             return anthropic ? parseAnthropicStream(conn) : parseOpenAIStream(conn);
         } catch (Throwable t) {
