@@ -16,6 +16,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CancellationException
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -228,17 +229,27 @@ class SettingsActivity : ComponentActivity() {
 
     private fun loadConfig() {
         lifecycleScope.launch {
-            runCatching { configViewModel.loadConfig() }
-                .onFailure { Log.w(TAG, "config refresh failed", it) }
+            try {
+                configViewModel.loadConfig()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.w(TAG, "config refresh failed", error)
+            }
         }
     }
 
     /** Writes one setting through the ViewModel-owned authenticated IPC repository. */
     private fun writeConfigValue(path: String, value: String, onDone: (Boolean) -> Unit) {
         lifecycleScope.launch {
-            val success = runCatching {
+            val success = try {
                 configViewModel.writeConfigValue(path, value)
-            }.getOrDefault(false)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.w(TAG, "config write failed", error)
+                false
+            }
             if (success) {
                 toast("已写入。请强制停止并重新打开 DeepSeek 后生效")
             } else {
@@ -274,7 +285,14 @@ class SettingsActivity : ComponentActivity() {
     private fun exportData(uri: Uri, zip: Boolean) {
         busyMessage = "正在读取模块设置…"
         lifecycleScope.launch {
-            val json = runCatching { configViewModel.loadConfig() }.getOrNull()
+            val json = try {
+                configViewModel.loadConfig()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.w(TAG, "config export read failed", error)
+                null
+            }
             if (!zip) {
                 if (json == null) {
                     busyMessage = null
@@ -444,9 +462,14 @@ class SettingsActivity : ComponentActivity() {
         }
         busyMessage = "正在写入 DeepSeek…"
         lifecycleScope.launch {
-            val success = runCatching {
+            val success = try {
                 configViewModel.importConfig(settings)
-            }.getOrDefault(false)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.w(TAG, "config import failed", error)
+                false
+            }
             busyMessage = null
             if (success) {
                 toast("导入完成。请强制停止并重新打开 DeepSeek 后生效")
