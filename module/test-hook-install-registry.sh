@@ -107,6 +107,9 @@ test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$ATTACHMENT_PIPELI
 test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$ATTACHMENT_PIPELINE")" -ge 3
 
 CHAT_PIPELINE="$MODULE_DIR/src/ds/dsh/DeepSeek/HookChatPipeline.java"
+grep -Fq "Fatal VM/control-flow errors must never fall through to fail-open request handling." "$CHAT_PIPELINE"
+grep -Fq "if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;" "$CHAT_PIPELINE"
+grep -Fq "if (t instanceof ThreadDeath) throw (ThreadDeath) t;" "$CHAT_PIPELINE"
 grep -Fq 'hookSafetyRetraction installation failed' "$CHAT_PIPELINE"
 grep -Fq 'server capture hook installation failed' "$CHAT_PIPELINE"
 grep -Fq 'content-filter apply hook installation failed' "$CHAT_PIPELINE"
