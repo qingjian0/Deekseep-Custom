@@ -29,6 +29,8 @@ jobs:
           java-version: "21"
       - name: Run legacy Xposed adapter regression
         run: bash module-legacy/test-adapter-regression.sh
+      - name: Verify Android package identity contract
+        run: bash scripts/test-package-identity.sh
       - name: Run expert relay regression
         run: bash module/test-expert-relay-regression.sh
       - name: Run feature hook registry regression
