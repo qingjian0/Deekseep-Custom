@@ -41,6 +41,7 @@ class AccountValidationPolicyTest {
         assertEquals("zh_CN", withoutDeviceId["x-client-locale"])
         assertFalse(withoutDeviceId.containsKey("x-rangers-id"))
         assertNull(withoutDeviceId["x-auth-token"])
+        assertEquals("Bearer null", AccountValidationPolicy.headers(null, null, 0, null, null, 0)["Authorization"])
     }
 
     @Test
