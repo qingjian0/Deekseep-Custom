@@ -39,32 +39,32 @@ final class DshFileLogStore {
     /** Reads a bounded chronological tail across the active crash log and its rotations. */
     static String readPrivateCrashTail(Context context, int requestedMaxBytes) {
         synchronized (PRIVATE_LOCK) {
-        if (context == null) return "";
-        int maxBytes = Math.max(1, Math.min(requestedMaxBytes, 512 * 1024));
-        File directory = context.getFilesDir();
-        File[] files = {
+            if (context == null) return "";
+            int maxBytes = Math.max(1, Math.min(requestedMaxBytes, 512 * 1024));
+            File directory = context.getFilesDir();
+            File[] files = {
                 new File(directory, "crash.log.3"),
                 new File(directory, "crash.log.2"),
                 new File(directory, "crash.log.1"),
                 new File(directory, "crash.log")
-        };
-        ByteArrayOutputStream combined = new ByteArrayOutputStream(maxBytes);
-        for (File file : files) {
-            if (!file.isFile() || file.length() <= 0L) continue;
-            byte[] chunk = readFileTail(file, maxBytes);
-            if (chunk.length == 0) continue;
-            try {
-                combined.write(chunk);
-                byte[] all = combined.toByteArray();
-                if (all.length > maxBytes) {
-                    int offset = all.length - maxBytes;
-                    while (offset < all.length && all[offset] != '\n') offset++;
-                    if (offset < all.length) offset++;
-                    combined.reset();
+            };
+            ByteArrayOutputStream combined = new ByteArrayOutputStream(maxBytes);
+            for (File file : files) {
+                if (!file.isFile() || file.length() <= 0L) continue;
+                byte[] chunk = readFileTail(file, maxBytes);
+                if (chunk.length == 0) continue;
+                try {
+                        combined.write(chunk);
+                    byte[] all = combined.toByteArray();
+                    if (all.length > maxBytes) {
+                        int offset = all.length - maxBytes;
+                        while (offset < all.length && all[offset] != '\n') offset++;
+                        if (offset < all.length) offset++;
+                        combined.reset();
                     combined.write(all, offset, all.length - offset);
-                }
-            } catch (Throwable ignored) {
-                return new String(combined.toByteArray(), StandardCharsets.UTF_8);
+                    }
+                } catch (Throwable ignored) {
+                        return new String(combined.toByteArray(), StandardCharsets.UTF_8);
             }
         }
         return new String(combined.toByteArray(), StandardCharsets.UTF_8);
@@ -90,23 +90,23 @@ final class DshFileLogStore {
     /** Writes Download/ds through MediaStore on Q+, with the legacy permission path on P-. */
     static boolean appendPublic(Context context, String category, String line) {
         synchronized (PUBLIC_LOCK) {
-        if (context == null || !isAllowedCategory(category) || line == null) return false;
-        String safeLine = sanitize(line);
-        if (safeLine == null) return false;
-        byte[] bytes = (safeLine + "\n").getBytes(StandardCharsets.UTF_8);
-        try {
-            if (Build.VERSION.SDK_INT >= 29) {
-                return appendMediaStore(context.getContentResolver(), category, bytes);
-            }
+            if (context == null || !isAllowedCategory(category) || line == null) return false;
+            String safeLine = sanitize(line);
+            if (safeLine == null) return false;
+            byte[] bytes = (safeLine + "\n").getBytes(StandardCharsets.UTF_8);
+            try {
+                    if (Build.VERSION.SDK_INT >= 29) {
+                    return appendMediaStore(context.getContentResolver(), category, bytes);
+                    }
             if (Build.VERSION.SDK_INT >= 23
-                    && context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    != PackageManager.PERMISSION_GRANTED) {
-                return false;
+                            && context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                            != PackageManager.PERMISSION_GRANTED) {
+                        return false;
             }
-            File downloads = Environment.getExternalStoragePublicDirectory(
+                File downloads = Environment.getExternalStoragePublicDirectory(
                     Environment.DIRECTORY_DOWNLOADS);
-            return appendFile(new File(downloads, PUBLIC_DIRECTORY), category + ".log", safeLine);
-        } catch (Throwable ignored) {
+                return appendFile(new File(downloads, PUBLIC_DIRECTORY), category + ".log", safeLine);
+            } catch (Throwable ignored) {
             return false;
         }
         }
