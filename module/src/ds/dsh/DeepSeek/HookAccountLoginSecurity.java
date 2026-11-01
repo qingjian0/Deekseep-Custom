@@ -1360,9 +1360,10 @@ Main.log("[RISK] Android ID spoof installed");
                 
                         try { code = Main.readHostField(status, "a"); } catch (Throwable ignored) {}
 
+                        Object message = null;
+                        try { message = Main.readHostField(status, "b"); } catch (Throwable ignored) {}
                         Main.log("[LOGIN_RISK] gms sign-in status code=" + code
-                                + " message_present=" + (Main.readHostField(status, "b") != null));
-                                + " msg=" + message);
+                                + " message_present=" + (message != null));
                         return chain.proceed();
                     }
                 });
@@ -1396,8 +1397,7 @@ Main.log("[RISK] Android ID spoof installed");
                             return result;
                         } catch (Throwable error) {
                             Main.log("[LOGIN_RISK] google http failed type="
-                                    + HostRemap.simpleName(error.getClass()) + ": "
-                                    + String.valueOf(error.getMessage()));
+                                    + HostRemap.simpleName(error.getClass()));
                             throw error;
                         }
                     }
@@ -1507,6 +1507,10 @@ Main.log("[RISK] Android ID spoof installed");
         }
         Main.log("[LOGIN_RISK] biz-code logger installed kinds="
                 + bizCodeKindsInstalled + "/8");
+        if (bizCodeKindsInstalled == 0 && optionalFailure == null) {
+            optionalFailure = new NoSuchMethodException("no login biz-code diagnostic targets matched");
+        }
+        if (optionalFailure != null) throw optionalFailure;
     }
 
     private static Throwable appendOptionalHookFailure(Throwable previous, Throwable next) {
