@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 public final class AutoContinuePolicyRegressionTest {
     public static void main(String[] args) {
