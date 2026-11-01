@@ -28,8 +28,8 @@ final class DshFileLogStore {
                 return false;
             }
             File target = new File(directory, category + ".log");
-            String boundedLine = line.length() > MAX_LINE_CHARS
-                    ? line.substring(0, MAX_LINE_CHARS) : line;
+            String boundedLine = sanitize(line);
+            if (boundedLine == null) return false;
             byte[] bytes = (boundedLine + "\n").getBytes(StandardCharsets.UTF_8);
             if (target.exists() && target.length() + bytes.length > MAX_FILE_BYTES
                     && !rotate(target)) {
@@ -58,6 +58,19 @@ final class DshFileLogStore {
         }
         File firstBackup = new File(parent, target.getName() + ".1");
         return !target.exists() || target.renameTo(firstBackup);
+    }
+
+    private static String sanitize(String value) {
+        String result = value.replace('\\n', ' ').replace('\\r', ' ');
+        result = result.replaceAll(
+                "(?i)(\\\\bauthorization\\\\b\\\\s*[:=]\\\\s*)(?:[A-Za-z][A-Za-z0-9_-]*\\\\s+)?[^\\\\s,;]+",
+                "$1[redacted]");
+        result = result.replaceAll("(?i)(\\\\bbearer\\\\s+)[^\\\\s,;]+", "$1[redacted]");
+        result = result.replaceAll(
+                "(?i)(\\\\b(?:x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password|cookie|client_secret)\\\\b\\\\s*[\\\\"']?\\\\s*[:=]\\\\s*[\\\\"']?)[^\\\\s\\\\"',;}]+",
+                "$1[redacted]");
+        result = result.replaceAll("(?i)/(?:data|storage)/[^\\\\s,;]+", "[private-path]");
+        return result.length() > MAX_LINE_CHARS ? result.substring(0, MAX_LINE_CHARS) : result;
     }
 
     private static boolean isAllowedCategory(String category) {
