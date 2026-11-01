@@ -7,7 +7,6 @@ import org.json.JSONTokener;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -287,16 +286,10 @@ final class AccountCredentialCodec {
     }
 
     private static String safeName(String raw) {
-        if (raw == null) return "";
-        String clean = raw.trim().replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "_");
-        clean = clean.replaceAll("[. ]+$", "");
-        if (clean.length() > 40) clean = clean.substring(0, 40);
-        return clean;
+        return AccountCredentialTextPolicy.safeFileNamePart(raw);
     }
 
     private static String shortId(String id) {
-        if (id == null) return "未知账号";
-        String value = id.trim().toLowerCase(Locale.US);
-        return value.length() > 8 ? value.substring(0, 8) : value;
+        return AccountCredentialTextPolicy.shortId(id);
     }
 }
