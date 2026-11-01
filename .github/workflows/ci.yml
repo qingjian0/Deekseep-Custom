@@ -51,6 +51,8 @@ jobs:
               module/test-hostmap-regression.sh; do
             bash -n "$script"
           done
+          GRADLE_BIN="$(bash scripts/gradle-bootstrap.sh)"
+          "$GRADLE_BIN" --no-daemon --stacktrace -p module-kotlin-runtime test
           bash scripts/test-package-identity.sh
           bash module-legacy/test-adapter-regression.sh
           bash module-legacy/build.sh
