@@ -51,7 +51,7 @@ jobs:
               scripts/test-launcher-config-architecture.sh scripts/test-universal-feature-parity.sh \
               module-legacy/build.sh module-universal/build.sh \
               module-legacy/test-adapter-regression.sh module/test-target-process-guard.sh \
-              module/test-hook-install-registry.sh module/test-login-diagnostics-regression.sh \
+              module/test-hook-install-registry.sh module/test-config-rollout-install-regression.sh module/test-login-diagnostics-regression.sh \
               module/test-session-deletion-install-regression.sh module/test-hostmap-regression.sh; do
             bash -n "$script"
           done
@@ -60,6 +60,7 @@ jobs:
           bash scripts/test-launcher-activation-regression.sh
           bash scripts/test-launcher-config-architecture.sh
           bash module/test-hook-install-registry.sh
+          bash module/test-config-rollout-install-regression.sh
           bash module/test-login-diagnostics-regression.sh
           bash module/test-session-deletion-install-regression.sh
           bash module/test-expert-relay-regression.sh
