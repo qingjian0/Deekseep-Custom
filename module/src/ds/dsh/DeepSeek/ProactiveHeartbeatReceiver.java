@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import android.app.AlarmManager;
 import android.app.Notification;
@@ -28,21 +28,21 @@ import java.util.Map;
  */
 public final class ProactiveHeartbeatReceiver extends BroadcastReceiver {
     static final String ACTION_CONFIG =
-            "com.dsmod.probe.action.CONFIGURE_PROACTIVE_HEARTBEAT";
+            "ds.dsh.DeepSeek.action.CONFIGURE_PROACTIVE_HEARTBEAT";
     static final String ACTION_ALARM =
-            "com.dsmod.probe.action.PROACTIVE_HEARTBEAT_ALARM";
+            "ds.dsh.DeepSeek.action.PROACTIVE_HEARTBEAT_ALARM";
     static final String ACTION_REQUEST =
-            "com.dsmod.probe.action.PROACTIVE_HEARTBEAT_REQUEST";
+            "ds.dsh.DeepSeek.action.PROACTIVE_HEARTBEAT_REQUEST";
     static final String ACTION_RESPONSE =
-            "com.dsmod.probe.action.PROACTIVE_HEARTBEAT_RESPONSE";
+            "ds.dsh.DeepSeek.action.PROACTIVE_HEARTBEAT_RESPONSE";
     static final String ACTION_REPLY_READY =
-            "com.dsmod.probe.action.DEEPSEEK_REPLY_READY";
+            "ds.dsh.DeepSeek.action.DEEPSEEK_REPLY_READY";
     static final String ACTION_TASK_CONFIG =
-            "com.dsmod.probe.action.CONFIGURE_PROACTIVE_TASK";
+            "ds.dsh.DeepSeek.action.CONFIGURE_PROACTIVE_TASK";
     static final String ACTION_TASK_CANCEL =
-            "com.dsmod.probe.action.CANCEL_PROACTIVE_TASK";
+            "ds.dsh.DeepSeek.action.CANCEL_PROACTIVE_TASK";
     static final String ACTION_TASK_ALARM =
-            "com.dsmod.probe.action.PROACTIVE_TASK_ALARM";
+            "ds.dsh.DeepSeek.action.PROACTIVE_TASK_ALARM";
     static final String EXTRA_TOKEN = "deekseep_proactive_token";
     static final String EXTRA_ENABLED = "enabled";
     static final String EXTRA_REQUEST_ID = "request_id";

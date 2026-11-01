@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import android.content.Context;
 import android.os.Binder;
@@ -17,7 +17,7 @@ import android.util.Log;
  * against {@code com.deepseek.chat}; merely obtaining the Binder grants no access.</p>
  */
 final class PublicTunnelBinderBridge {
-    static final String DESCRIPTOR = "com.dsmod.probe.IPublicTunnelBridge";
+    static final String DESCRIPTOR = "ds.dsh.DeepSeek.IPublicTunnelBridge";
     static final int TRANSACTION_STATUS = IBinder.FIRST_CALL_TRANSACTION;
     static final int TRANSACTION_CONFIGURE = IBinder.FIRST_CALL_TRANSACTION + 1;
     static final int TRANSACTION_SET_REQUESTED = IBinder.FIRST_CALL_TRANSACTION + 2;

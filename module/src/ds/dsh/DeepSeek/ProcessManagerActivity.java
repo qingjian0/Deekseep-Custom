@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -35,7 +35,7 @@ import java.util.List;
 public final class ProcessManagerActivity extends Activity {
     private static final String LOG_TAG = "DeekseepProcess";
     private static final String HOST = "com.deepseek.chat";
-    private static final String MODULE = "com.dsmod.probe";
+    private static final String MODULE = "ds.dsh.DeepSeek";
     private static final int OUTPUT_LIMIT = 128 * 1024;
 
     private final Handler main = new Handler(Looper.getMainLooper());
