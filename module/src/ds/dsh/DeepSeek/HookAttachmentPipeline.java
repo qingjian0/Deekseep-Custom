@@ -933,6 +933,7 @@ final class HookAttachmentPipeline {
         int repoCount = 0;
         int ctorCount = 0;
         int writeCount = 0;
+        Throwable repositoryFailure = null;
         for (String legacyRepoName : new String[]{"gm8", "fm8"}) {
             String repoName = HostCompat.name(legacyRepoName);
             try {
@@ -1000,9 +1001,20 @@ final class HookAttachmentPipeline {
                     });
                     writeCount++;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable error) {
+                if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+                if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+                if (repositoryFailure == null) repositoryFailure = error;
+                else repositoryFailure.addSuppressed(error);
+            }
         }
         Main.log("installed history repositories=" + repoCount + " ctor=" + ctorCount + " write=" + writeCount);
+        if (repoCount == 0 || repositoryFailure != null) {
+            throw new IllegalStateException(
+                    "history repository hooks were only partially installed: repos="
+                            + repoCount + " ctor=" + ctorCount + " write=" + writeCount,
+                    repositoryFailure);
+        }
 
         try {
             Class<?> pw0 = HostCompat.load(cl, "pw0");
@@ -1057,9 +1069,12 @@ final class HookAttachmentPipeline {
                 });
                 n++;
             }
+            if (n == 0) throw new NoSuchMethodException("pw0 history response constructors");
             Main.log("installed online history bridge pw0 ctor x" + n);
         } catch (Throwable t) {
-            Main.log("installExpertHistoryImagePreserver pw0 failed: " + t);
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw new IllegalStateException("online history bridge hook installation failed", t);
         }
     }
 
