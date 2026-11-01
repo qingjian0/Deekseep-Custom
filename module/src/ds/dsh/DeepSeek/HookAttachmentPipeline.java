@@ -192,8 +192,9 @@ final class HookAttachmentPipeline {
     static volatile ClassLoader IMAGE_HOST_CL;
 
     /** Opens generated-file links inside the current DeepSeek Activity instead of a browser. */
-    void hookModelFileLinks() {
+    void hookModelFileLinks() throws Throwable {
         int hooked = 0;
+        Throwable installFailure = null;
         try {
             Method startActivity = HostRemap.method(Activity.class, "startActivity", Intent.class);
             startActivity.setAccessible(true);
@@ -213,6 +214,7 @@ final class HookAttachmentPipeline {
             hooked++;
         } catch (Throwable error) {
             Main.log("model file Activity link hook unavailable: " + Main.safeThrowableMessage(error));
+            installFailure = error;
         }
         try {
             Method startActivity = HostRemap.method(ContextWrapper.class, 
@@ -235,7 +237,13 @@ final class HookAttachmentPipeline {
         } catch (Throwable error) {
             Main.log("model file ContextWrapper link hook unavailable: "
                     + Main.safeThrowableMessage(error));
+            if (installFailure == null) installFailure = error;
+            else installFailure.addSuppressed(error);
         }
+        if (hooked == 0) {
+            throw new NoSuchMethodException("Activity/ContextWrapper.startActivity(Intent) file-link hooks");
+        }
+        if (installFailure != null) throw installFailure;
         Main.log("model file native-message link hooks installed=" + hooked);
     }
 
