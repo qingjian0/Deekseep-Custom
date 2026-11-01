@@ -76,9 +76,13 @@ final class DshRemoteFileLogSink {
         try {
             Bundle result = resolver.call(PROVIDER_URI,
                     XposedActivationProvider.METHOD_WRITE_DSH_LOG, null, payload);
+            boolean crashPartial = result != null
+                    && result.containsKey("private_written")
+                    && result.containsKey("public_written")
+                    && result.getBoolean("private_written") != result.getBoolean("public_written");
             if (result == null || !result.getBoolean("accepted", false)
-                    || result.getBoolean("partial", false)) {
-                // A partially queued event is not a full dual-store success.
+                    || result.getBoolean("partial", false) || crashPartial) {
+                // Partial queue acceptance or a one-store crash write is not a dual-store success.
                 DROPPED_EVENTS.incrementAndGet();
             }
         } catch (Throwable failure) {
