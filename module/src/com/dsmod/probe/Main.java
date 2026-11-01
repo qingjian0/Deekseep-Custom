@@ -1575,6 +1575,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         try {
             installHookStep(id, installer);
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             FEATURE_HOOK_INSTALL_REGISTRY.markDegraded(id, error);
             log(logPrefix + safeThrowableMessage(error));
         }
@@ -1804,6 +1806,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             installHookStep("ui.settings-composable", () -> hookSettingsComposable(hookLoader));
         } catch (Throwable error) {
             FEATURE_HOOKS_INSTALLED.set(false);
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             log("installAllFeatureHooks failed: " + safeThrowableMessage(error));
         }
         if (!FEATURE_HOOK_INSTALL_REGISTRY.hasFailures()) {
