@@ -1,4 +1,13 @@
 pluginManagement {
+    // Resolve the Kotlin JVM plugin implementation directly from Maven Central.
+    // This avoids depending on the separate Gradle Plugin Portal marker artifact.
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == "org.jetbrains.kotlin.jvm") {
+                useModule("org.jetbrains.kotlin:kotlin-gradle-plugin:${requested.version}")
+            }
+        }
+    }
     repositories {
         google()
         mavenCentral()
