@@ -381,9 +381,10 @@ class SettingsActivity : ComponentActivity() {
             false
         }
         if (success) {
-            toast("导入完成。请强制停止并重新打开 DeepSeek 后生效")
+            toast("导入完成（启动器数据 $launcherRestored 项）。请强制停止并重新打开 DeepSeek 后生效")
         } else {
-            toast(configViewModel.state.value.errorMessage ?: "DeepSeek 未响应，请重试")
+            val reason = configViewModel.state.value.errorMessage ?: "DeepSeek 未响应，请重试"
+            toast("启动器数据已恢复 $launcherRestored 项，但模块设置导入失败：$reason")
         }
     }
 
