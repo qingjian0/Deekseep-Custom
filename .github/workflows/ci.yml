@@ -45,6 +45,11 @@ jobs:
       - name: Run source-only regression checks
         run: |
           set -euo pipefail
+          for script in scripts/gradle-open-debug.sh scripts/build-all.sh \
+              module-legacy/test-adapter-regression.sh module/test-target-process-guard.sh \
+              module/test-hostmap-regression.sh; do
+            bash -n "$script"
+          done
           bash module-legacy/test-adapter-regression.sh
           bash module/test-expert-relay-regression.sh
           bash module/test-language-catalog.sh
