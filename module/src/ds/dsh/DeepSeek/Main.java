@@ -1921,7 +1921,17 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     private final AtomicBoolean MODULE_INJECTED = new AtomicBoolean(false);
 
     public void performModuleInjection(Activity act, ClassLoader cl) {
-        if (!MODULE_INJECTED.compareAndSet(false, true)) return;
+        if (!MODULE_INJECTED.compareAndSet(false, true)) {
+            // Keep post-injection initialization one-shot, but retry incomplete hook groups on
+            // later Activity resumes. The registry skips installed groups and retries failures.
+            if (!FEATURE_HOOKS_INSTALLED.get()) {
+                installAllFeatureHooks(cl);
+            } else {
+                // Optional groups may become enabled after the initial injection.
+                ensureOptionalHooksForEnabledFeatures(cl);
+            }
+            return;
+        }
         try {
             installAllFeatureHooks(cl);
             ensureOptionalHooksForEnabledFeatures(cl);
