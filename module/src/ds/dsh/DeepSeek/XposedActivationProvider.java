@@ -179,11 +179,7 @@ public final class XposedActivationProvider extends ContentProvider {
         if ("crash".equals(category)) {
             return DshLogIpcQueue.writeCrashNow(context, line);
         }
-        boolean queued = DshLogIpcQueue.enqueue(context, category, line);
-        result.putBoolean("accepted", queued);
-        result.putBoolean("queued", queued);
-        if (!queued) result.putString("error", "log queue full");
-        return result;
+        return DshLogIpcQueue.enqueue(context, category, line);
     }
 
     private Bundle controlLocalAudio(Bundle extras) {
