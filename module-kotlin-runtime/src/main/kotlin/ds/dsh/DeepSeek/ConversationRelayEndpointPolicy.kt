@@ -18,12 +18,12 @@ object ConversationRelayEndpointPolicy {
 
     @JvmStatic
     fun normalizeFormat(format: String?): String =
-        if (FORMAT_ANTHROPIC == format?.trim()) FORMAT_ANTHROPIC else FORMAT_OPENAI
+        if (FORMAT_ANTHROPIC == format?.trim { it <= ' ' }) FORMAT_ANTHROPIC else FORMAT_OPENAI
 
     /** Trims whitespace and removes trailing slashes, preserving any configured path prefix. */
     @JvmStatic
     fun normalizeBaseUrl(baseUrl: String?): String {
-        var value = baseUrl?.trim().orEmpty()
+        var value = baseUrl?.trim { it <= ' ' }.orEmpty()
         while (value.endsWith("/")) value = value.dropLast(1)
         return value
     }
@@ -81,5 +81,5 @@ object ConversationRelayEndpointPolicy {
 
     @JvmStatic
     fun effectiveModel(configuredModel: String?): String =
-        configuredModel?.trim()?.takeIf { it.isNotEmpty() } ?: DEFAULT_MODEL
+        configuredModel?.trim { it <= ' ' }?.takeIf { it.isNotEmpty() } ?: DEFAULT_MODEL
 }
