@@ -1804,12 +1804,26 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             installHookStep("chat.final-message-merge", () -> HookChatPipeline.INSTANCE.hookFinalMessageMerge(hookLoader));
             installHookStep("chat.final-message-apply", () -> HookChatPipeline.INSTANCE.hookFinalMessageApply(hookLoader));
             if (!HostCompat.isV271()) installHookStep("attachment.expert-unlock", () -> HookAttachmentPipeline.INSTANCE.hookExpertUnlock(hookLoader));
-            if (!HostCompat.isV271()) installHookStep("host.v236.local-chat-quota", () -> hookV236LocalChatQuotaUnlock(hookLoader));
-            if (!HostCompat.isV271()) installHookStep("host.v241.local-chat-quota", () -> hookV241LocalChatQuotaUnlock(hookLoader));
-            installHookStep("host.v236.thinking-code-copy", () -> hookV236ThinkingCodeCopy(hookLoader));
-            installHookStep("host.v241.thinking-code-copy", () -> hookV241ThinkingCodeCopy(hookLoader));
-            installHookStep("host.v236.all-file-types", () -> hookV236AllFileTypes(hookLoader));
-            installHookStep("host.v241.all-file-types", () -> hookV241AllFileTypes(hookLoader));
+            if (HostCompat.isV236() && !HostCompat.isV271()) {
+                installHookStep("host.v236.local-chat-quota", () -> hookV236LocalChatQuotaUnlock(hookLoader));
+                installHookStep("host.v236.thinking-code-copy", () -> hookV236ThinkingCodeCopy(hookLoader));
+                installHookStep("host.v236.all-file-types", () -> hookV236AllFileTypes(hookLoader));
+            } else {
+                String reason = "code249 host hooks are not applicable to " + HostCompat.generationName();
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("host.v236.local-chat-quota", reason);
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("host.v236.thinking-code-copy", reason);
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("host.v236.all-file-types", reason);
+            }
+            if (HostCompat.isV241() && !HostCompat.isV271()) {
+                installHookStep("host.v241.local-chat-quota", () -> hookV241LocalChatQuotaUnlock(hookLoader));
+                installHookStep("host.v241.thinking-code-copy", () -> hookV241ThinkingCodeCopy(hookLoader));
+                installHookStep("host.v241.all-file-types", () -> hookV241AllFileTypes(hookLoader));
+            } else {
+                String reason = "code257 host hooks are not applicable to " + HostCompat.generationName();
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("host.v241.local-chat-quota", reason);
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("host.v241.thinking-code-copy", reason);
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("host.v241.all-file-types", reason);
+            }
             if (HARD_LINES_ENABLED && !HostCompat.isV271()) {
                 installHookStep("account.regional-login-unlock",
                         () -> HookAccountLoginSecurity.INSTANCE.hookRegionalLoginUnlock(hookLoader));
@@ -1864,18 +1878,49 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             installHookStep("attachment.local-editor-image-uris", () -> HookAttachmentPipeline.INSTANCE.hookLocalEditorImageUris(hookLoader));
             installHookStep("session.local-directory-merge", () -> HookSessionManagement.INSTANCE.hookLocalSessionDirectoryMerge(hookLoader));
             installHookStep("session.native-refresh", () -> HookSessionManagement.INSTANCE.hookLocalNativeSessionRefresh(hookLoader));
-            installHookStep("host.v236.live-session-publish", () -> hookV236LiveSessionPublish(hookLoader));
-            installHookStep("host.v241.live-session-publish", () -> hookV241LiveSessionPublish(hookLoader));
+            if (HostCompat.isV236() && BuildInfo.PROTECTED_BUILD && BuildInfo.LOCAL_API_INCLUDED) {
+                installHookStep("host.v236.live-session-publish", () -> hookV236LiveSessionPublish(hookLoader));
+                installHookStep("host.v236.feedback-delete-flow",
+                        () -> HookSessionManagement.INSTANCE.hookV236FeedbackDeletedFlow(hookLoader));
+            } else {
+                String reason = "code249 local-session hooks are not included for " + HostCompat.generationName();
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("host.v236.live-session-publish", reason);
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("host.v236.feedback-delete-flow", reason);
+            }
+            if (HostCompat.isV241() && BuildInfo.PROTECTED_BUILD && BuildInfo.LOCAL_API_INCLUDED) {
+                installHookStep("host.v241.live-session-publish", () -> hookV241LiveSessionPublish(hookLoader));
+                installHookStep("host.v241.feedback-delete-flow", () -> hookV241FeedbackDeletedFlow(hookLoader));
+            } else {
+                String reason = "code257 local-session hooks are not included for " + HostCompat.generationName();
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("host.v241.live-session-publish", reason);
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("host.v241.feedback-delete-flow", reason);
+            }
             installHookStep("session.remote-reload", () -> HookSessionManagement.INSTANCE.hookLocalSessionRemoteReload(hookLoader));
-            installHookStep("session.native-detail-request", () -> HookSessionManagement.INSTANCE.hookNativeDetailRequest(hookLoader));
+            if (HostCompat.isV230() && !HostCompat.isV234()) {
+                installHookStep("session.native-detail-request",
+                        () -> HookSessionManagement.INSTANCE.hookNativeDetailRequest(hookLoader));
+            } else {
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("session.native-detail-request",
+                        "native detail request adapter is only mapped for pre-2.3.4 hosts");
+            }
             installHookStep("session.local-delete-flow", () -> HookSessionManagement.INSTANCE.hookLocalSessionDeletedFlow(hookLoader));
-            installHookStep("session.local-delete-response", () -> HookSessionManagement.INSTANCE.hookLocalSessionDeletedResponse(hookLoader));
-            installHookStep("host.v236.feedback-delete-flow", () -> HookSessionManagement.INSTANCE.hookV236FeedbackDeletedFlow(hookLoader));
-            installHookStep("host.v241.feedback-delete-flow", () -> hookV241FeedbackDeletedFlow(hookLoader));
+            if (!HostCompat.isV241()) {
+                installHookStep("session.local-delete-response",
+                        () -> HookSessionManagement.INSTANCE.hookLocalSessionDeletedResponse(hookLoader));
+            } else {
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("session.local-delete-response",
+                        "code257 deletion response is handled by the integrated delete-flow adapter");
+            }
             installHookStep("session.active-chat-capture", () -> HookSessionManagement.INSTANCE.hookActiveChatSessionCapture(hookLoader));
             installHookStep("agent.visible-thread-filter", () -> HookAgentPipeline.INSTANCE.hookProactiveVisibleThreadFilter(hookLoader));
             installHookStep("ui.host-theme-color", () -> HookUiSurface.INSTANCE.hookHostThemeColor(hookLoader));
-            installHookStep("session.compose-visible-thread", () -> HookSessionManagement.INSTANCE.hookComposeVisibleThreadState(hookLoader));
+            if (HostCompat.isV230() && !HostCompat.isV234()) {
+                installHookStep("session.compose-visible-thread",
+                        () -> HookSessionManagement.INSTANCE.hookComposeVisibleThreadState(hookLoader));
+            } else {
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("session.compose-visible-thread",
+                        "legacy visible-thread Compose adapter is only mapped for pre-2.3.4 hosts");
+            }
             installHookStep("chat.s11-render-filter", () -> HookChatPipeline.INSTANCE.hookS11RenderFilter(hookLoader));
             if (HostCompat.isV230() && !HostCompat.isV234()) {
                 installHookStep("chat.cs1-render-filter",
