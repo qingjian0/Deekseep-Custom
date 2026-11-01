@@ -65,6 +65,30 @@ class DshLogTest {
     }
 
     @Test
+    fun redactsSensitiveThreadNameMetadataBeforeDispatch() {
+        val originalName = Thread.currentThread().name
+        val events = mutableListOf<DshLog.Event>()
+        val sink = DshLog.addSink { event -> events += event }
+        try {
+            Thread.currentThread().name =
+                "worker Authorization: Bearer thread-secret-123 Cookie: sid=cookie-secret-456 /data/user/0/private"
+            DshLog.info("ThreadTest", "safe message")
+
+            assertTrue(events.size == 1)
+            val safeThreadName = events.single().threadName
+            assertFalse(safeThreadName.contains("thread-secret-123"))
+            assertFalse(safeThreadName.contains("cookie-secret-456"))
+            assertFalse(safeThreadName.contains("/data/user/0"))
+            assertTrue(safeThreadName.contains("[redacted]"))
+            assertTrue(safeThreadName.contains("[private-path]"))
+            assertTrue(safeThreadName.length <= 48)
+        } finally {
+            Thread.currentThread().name = originalName
+            sink.close()
+        }
+    }
+
+    @Test
     fun boundsSanitizedMessageLength() {
         val safe = DshLog.sanitizeForStorage("x".repeat(2048))
         assertTrue(safe.length <= 512)
