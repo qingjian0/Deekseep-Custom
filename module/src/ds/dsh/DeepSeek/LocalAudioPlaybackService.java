@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -17,7 +17,7 @@ import java.io.File;
 
 /** Small foreground audio player used by the Agent music tool for files already on-device. */
 public final class LocalAudioPlaybackService extends Service {
-    static final String ACTION_CONTROL = "com.dsmod.probe.action.LOCAL_AUDIO_CONTROL";
+    static final String ACTION_CONTROL = "ds.dsh.DeepSeek.action.LOCAL_AUDIO_CONTROL";
     static final String EXTRA_TOKEN = "local_audio_control_token";
     static final String EXTRA_REQUEST_ID = "request_id";
     static final String EXTRA_ACTION = "action";

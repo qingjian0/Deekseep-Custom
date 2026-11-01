@@ -1,6 +1,6 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
-import com.dsmod.relay.ExpertRelayGate;
+import ds.dsh.DeepSeek.relay.ExpertRelayGate;
 
 import android.app.Activity;
 import android.app.Application;
@@ -110,8 +110,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
-import com.dsmod.probe.LegacyXposedModule.Chain;
-import com.dsmod.probe.LegacyXposedModule.Hooker;
+import ds.dsh.DeepSeek.LegacyXposedModule.Chain;
+import ds.dsh.DeepSeek.LegacyXposedModule.Hooker;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
 /** Shared hook core used by both domestic and Google Play universal APKs. */
@@ -121,7 +121,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     private static final String TARGET = "com.deepseek.chat";
 
-    static final String SELF = "com.dsmod.probe";
+    static final String SELF = "ds.dsh.DeepSeek";
 
     /** Exact-code257 passive Loader components live in the host; normal/legacy paths stay put. */
     static String runtimeComponentPackage() {

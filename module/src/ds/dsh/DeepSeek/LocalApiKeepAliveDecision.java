@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 /** Pure state decisions shared by the foreground-keeper bridge and its regression test. */
 final class LocalApiKeepAliveDecision {
