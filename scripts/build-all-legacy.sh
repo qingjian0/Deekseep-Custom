@@ -9,6 +9,10 @@ rm -rf "$DIST"
 mkdir -p "$DIST"
 
 echo
+echo "=== Building Legacy module (Java + shared Kotlin runtime) ==="
+(cd "$ROOT/module-legacy" && bash build.sh)
+
+echo
 echo "=== Building domestic Universal module ==="
 (cd "$ROOT/module-universal" && bash build.sh)
 
@@ -49,8 +53,10 @@ if [[ -z "$VERSION_NAME" ]]; then
     exit 1
 fi
 
+LEGACY_APK="$DIST/deekseep-legacy-$VERSION_NAME.apk"
 UNIVERSAL_APK="$DIST/deekseep-universal-$VERSION_NAME.apk"
 GOOGLE_PLAY_APK="$DIST/deekseep-google-play-universal-$VERSION_NAME.apk"
+cp "$ROOT/module-legacy/ds-probe-legacy.apk" "$LEGACY_APK"
 cp "$ROOT/module-universal/ds-probe-universal.apk" "$UNIVERSAL_APK"
 cp "$ROOT/module-universal/ds-probe-universal-google-play.apk" "$GOOGLE_PLAY_APK"
 
@@ -67,12 +73,14 @@ certificate_sha256() {
     signer_output="$("$APKSIGNER" verify --print-certs "$1")"
     awk -F': ' '/^Signer #1 certificate SHA-256 digest:/ { print $2; exit }' <<< "$signer_output"
 }
+legacy_cert="$(certificate_sha256 "$LEGACY_APK")"
 domestic_cert="$(certificate_sha256 "$UNIVERSAL_APK")"
 google_play_cert="$(certificate_sha256 "$GOOGLE_PLAY_APK")"
-test -n "$domestic_cert"
+test -n "$legacy_cert"
+test "$legacy_cert" = "$domestic_cert"
 test "$domestic_cert" = "$google_play_cert"
 
-for apk in "$UNIVERSAL_APK" "$GOOGLE_PLAY_APK"; do
+for apk in "$LEGACY_APK" "$UNIVERSAL_APK" "$GOOGLE_PLAY_APK"; do
     unzip -t "$apk" >/dev/null
     "$ZIPALIGN" -c -p 4 "$apk"
     "$APKSIGNER" verify --verbose "$apk"
