@@ -36,7 +36,7 @@ public final class XposedBridge {
         // native hook is installed. If native installation throws, the Member entry remains;
         // another hookMethod call sees it and does not retry native installation.
         if (memberForTest != null && memberForTest.equals(hookMethod)) {
-            return callback.new Unhook();
+            return callback.new Unhook(hookMethod);
         }
         memberForTest = hookMethod;
         callbackForTest = callback;
@@ -48,7 +48,7 @@ public final class XposedBridge {
             throw failure;
         }
         nativeHookInstalledForTest = true;
-        return callback.new Unhook();
+        return callback.new Unhook(hookMethod);
     }
 
     public static Object invokeOriginalMethod(Member method, Object thisObject, Object[] args)
