@@ -28,12 +28,17 @@ final class HostNavigationBridge {
         return HostCompat.isV236() || HostCompat.isV241();
     }
 
-    static synchronized void install(Main owner, ClassLoader loader) {
-        if (installed || owner == null || loader == null || !supportedBuild()) return;
+    static synchronized void install(Main owner, ClassLoader loader) throws Throwable {
+        if (installed) return;
+        if (owner == null) throw new IllegalStateException("navigation bridge owner is null");
+        if (loader == null) throw new IllegalStateException("navigation bridge class loader is null");
+        if (!supportedBuild()) throw new UnsupportedOperationException(
+                "navigation bridge is not verified for " + HostCompat.generationName());
         try {
             final String generation = HostCompat.generationName();
             final String controllerName = HostCompat.isV236() ? "vv5" : "p16";
             Class<?> controller = HostRemap.forName(controllerName, false, loader);
+            int installedConstructors = 0;
             for (Constructor<?> constructor : controller.getDeclaredConstructors()) {
                 constructor.setAccessible(true);
                 owner.hook(constructor).intercept(new Hooker() {
@@ -43,6 +48,10 @@ final class HostNavigationBridge {
                         return result;
                     }
                 });
+                installedConstructors++;
+            }
+            if (installedConstructors == 0) {
+                throw new NoSuchMethodException(controllerName + " navigation constructors");
             }
             hostLoader = loader;
             installed = true;
@@ -50,6 +59,7 @@ final class HostNavigationBridge {
                     + controllerName);
         } catch (Throwable error) {
             Main.log(HostCompat.generationName() + " navigation capture failed: " + error);
+            throw error;
         }
     }
 
