@@ -36,11 +36,17 @@ final class DshLogIpcQueue {
                 new ThreadPoolExecutor.AbortPolicy());
     }
 
-    static boolean enqueue(final Context context, final String category, final String line) {
+    static Bundle enqueue(final Context context, final String category, final String line) {
+        Bundle result = new Bundle();
         if (context == null || !isAllowedCategory(category) || line == null
                 || line.length() > 4096) {
             INGRESS_REJECTIONS.incrementAndGet();
-            return false;
+            result.putBoolean("accepted", false);
+            result.putBoolean("queued", false);
+            result.putBoolean("private_queued", false);
+            result.putBoolean("public_queued", false);
+            result.putString("error", "invalid log payload");
+            return result;
         }
         final Context appContext = context.getApplicationContext();
         final Context safeContext = appContext == null ? context : appContext;
@@ -66,8 +72,13 @@ final class DshLogIpcQueue {
             }
         });
         if (!privateQueued || !publicQueued) INGRESS_REJECTIONS.incrementAndGet();
-        // One durable destination is enough to accept the event; status exposes per-store failures.
-        return privateQueued || publicQueued;
+        result.putBoolean("accepted", privateQueued || publicQueued);
+        result.putBoolean("queued", privateQueued || publicQueued);
+        result.putBoolean("private_queued", privateQueued);
+        result.putBoolean("public_queued", publicQueued);
+        result.putBoolean("partial", privateQueued != publicQueued);
+        if (!privateQueued && !publicQueued) result.putString("error", "log queues full");
+        return result;
     }
 
     private static boolean submit(ThreadPoolExecutor writer, AtomicLong failures, Runnable task) {
