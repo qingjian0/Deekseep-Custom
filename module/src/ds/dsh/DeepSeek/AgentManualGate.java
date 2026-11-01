@@ -126,7 +126,6 @@ final class AgentManualGate {
                         new DialogInterface.OnClickListener() {
                             @Override public void onClick(DialogInterface d, int which) {
                                 AgentManualGateState.approve(key);
-                                AgentManualGateState.clearPending(key);
                             }
                         })
                 .setNeutralButton(UiLanguage.text(activity, "复制并稍后", "Copy, later"),
@@ -142,21 +141,18 @@ final class AgentManualGate {
                                             Toast.LENGTH_SHORT).show();
                                 } catch (Throwable ignored) {}
                                 AgentManualGateState.refuse(key);
-                                AgentManualGateState.clearPending(key);
                             }
                         })
                 .setNegativeButton(UiLanguage.text(activity, "稍后", "Later"),
                         new DialogInterface.OnClickListener() {
                             @Override public void onClick(DialogInterface d, int which) {
                                 AgentManualGateState.refuse(key);
-                                AgentManualGateState.clearPending(key);
                             }
                         })
                 .create();
         dialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
             @Override public void onCancel(DialogInterface d) {
                 AgentManualGateState.refuse(key);
-                AgentManualGateState.clearPending(key);
             }
         });
         dialog.show();
