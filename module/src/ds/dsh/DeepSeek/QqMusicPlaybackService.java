@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -18,7 +18,7 @@ import java.util.List;
 
 /** Executes a short QQ Music MediaSession request without opening a player Activity. */
 public final class QqMusicPlaybackService extends Service {
-    static final String ACTION_PLAY = "com.dsmod.probe.action.QQ_MUSIC_PLAY";
+    static final String ACTION_PLAY = "ds.dsh.DeepSeek.action.QQ_MUSIC_PLAY";
     static final String EXTRA_TOKEN = "qq_music_control_token";
     static final String EXTRA_REQUEST_ID = "request_id";
     static final String EXTRA_QUERY = "query";
