@@ -788,8 +788,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         DshLog.info("Main", safe);
     }
 
-    // 专门记录服务器返回内容的诊断日志：写 DeepSeek files 目录（root 可读），
-    // 尽力也写一份到外部存储，同时镜像到框架日志（可在管理器里导出）。
+    // 服务器诊断统一进入 DshLog，由宿主进程异步转发到模块私有与公共日志存储。
     public static synchronized void srvLog(String msg) {
         if (z8.shouldSuppressGeneralMessage(msg)) return;
         if (isLocalApiExecutionLogContext() && !z8.isError(msg)) return;
@@ -797,7 +796,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         try { Main m = MODULE; if (m != null) m.log(Log.INFO, TAG, "SRV " + sanitizeDiagnosticPayload(msg)); } catch (Throwable ignored) {}
     }
 
-    // 视觉中继诊断日志：私有目录直写为主，同时尽力镜像一份到公共目录。
+    // 视觉中继诊断统一进入 DshLog；原始 Hook Trace 仍由独立的显式开关控制。
     public static synchronized void extLog(String msg) {
         if (z8.shouldSuppressGeneralMessage(msg)) return;
         if (isLocalApiExecutionLogContext() && !z8.isError(msg)) return;
