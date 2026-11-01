@@ -61,4 +61,12 @@ Do not translate `HookChatPipeline.java` or `z17.java` wholesale. Preserve the e
 
 ## Current status
 
-This audit identifies safe migration seams and explicit non-migration boundaries. No production source was changed by this audit. The next implementation slice should be P2a (immutable relay contracts + endpoint policy + JVM regression tests), not a wholesale rewrite of the hook pipeline.
+### Implementation progress
+
+- **P2a completed in source:** added `ConversationRelayConfig` and `ConversationRelayEndpointPolicy` to the standalone Kotlin runtime; the existing Java `z17` facade delegates endpoint selection, provider headers, format normalization, model fallback and timeout constants to the Kotlin policy. File paths, JSON keys, provider routes, auth headers and timeout values remain unchanged.
+- Added JVM regression coverage for OpenAI/Anthropic endpoint and header contracts, model fallback, API-key redaction, and Java `String.trim()` compatibility (including NBSP behavior).
+- **P2b started:** added `ConversationRelaySsePolicy` and routed both existing Java SSE consumers through it. The policy intentionally preserves the legacy exact `data: ` prefix and Java-trim semantics rather than broadening SSE parsing behavior.
+- Local Kotlin/JVM smoke compilation and runtime assertions passed for the endpoint/config/SSE policy; a Java 8 static-call interop smoke test also passed. The full Gradle/JUnit task and GitHub Actions run have not yet reported green, so P2a is not considered CI-validated.
+- Remaining P2b work is provider payload/event classification and arbitrary chunk-boundary tests. Keep JSON decoding in the Android adapter until a deliberate dependency-free parser seam is designed.
+
+This remains a staged migration. Do not rewrite `HookChatPipeline` or move host reflection, Xposed callbacks, Flow identity, or HostRemap tables into the shared runtime.
