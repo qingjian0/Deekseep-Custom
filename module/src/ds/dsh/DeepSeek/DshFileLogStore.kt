@@ -248,7 +248,17 @@ object DshFileLogStore {
             }
 
             // The oldest backup is intentionally deleted only after every rename succeeded.
-            if (oldest != null) runCatching { resolver.delete(oldest, null, null) }
+            if (oldest != null) {
+                val deleted = runCatching { resolver.delete(oldest, null, null) > 0 }
+                    .getOrDefault(false)
+                if (!deleted) {
+                    for ((uri, originalName) in moved.asReversed()) {
+                        renameMediaStore(resolver, uri, originalName)
+                    }
+                    renameMediaStore(resolver, oldest, oldestName)
+                    return false
+                }
+            }
             true
         } catch (_: Throwable) {
             false
@@ -289,7 +299,13 @@ object DshFileLogStore {
         }
 
         // Drop the oldest snapshot only after the active log and backups have shifted.
-        if (stagedOldest.exists()) stagedOldest.delete()
+        if (stagedOldest.exists() && !stagedOldest.delete()) {
+            for ((source, destination) in moved.asReversed()) {
+                destination.renameTo(source)
+            }
+            stagedOldest.renameTo(oldest)
+            return false
+        }
         return true
     }
 
