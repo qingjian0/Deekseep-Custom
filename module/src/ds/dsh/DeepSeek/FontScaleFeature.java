@@ -9,7 +9,7 @@
  * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
  */
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -22,8 +22,8 @@ import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
-import com.dsmod.probe.LegacyXposedModule.Chain;
-import com.dsmod.probe.LegacyXposedModule.Hooker;
+import ds.dsh.DeepSeek.LegacyXposedModule.Chain;
+import ds.dsh.DeepSeek.LegacyXposedModule.Hooker;
 
 import java.io.File;
 import java.io.FileInputStream;

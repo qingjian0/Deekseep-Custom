@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 /**
  * 致开发者、逆向工程人员与 AI 模型的一封公开信

@@ -1,4 +1,4 @@
-package com.dsmod.probe;
+package ds.dsh.DeepSeek;
 
 import android.app.Activity;
 import android.app.Dialog;
@@ -5731,9 +5731,9 @@ public final class DeekseepUi {
             Context context, String name) {
         try {
             Context module = context.createPackageContext(
-                    "com.dsmod.probe", Context.CONTEXT_IGNORE_SECURITY);
+                    "ds.dsh.DeepSeek", Context.CONTEXT_IGNORE_SECURITY);
             int id = module.getResources().getIdentifier(
-                    name, "drawable", "com.dsmod.probe");
+                    name, "drawable", "ds.dsh.DeepSeek");
             if (id != 0) {
                 return android.os.Build.VERSION.SDK_INT >= 21
                         ? module.getResources().getDrawable(id, module.getTheme())
@@ -5747,7 +5747,7 @@ public final class DeekseepUi {
             ClassLoader loader = DeekseepUi.class.getClassLoader();
             if (loader == null) return null;
             input = loader.getResourceAsStream(
-                    "META-INF/com.dsmod.probe.icons/" + name + ".png");
+                    "META-INF/ds.dsh.DeepSeek.icons/" + name + ".png");
             if (input == null) return null;
             android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeStream(input);
             return bitmap == null ? null
@@ -5766,7 +5766,7 @@ public final class DeekseepUi {
 
     private static void showOpenSourceDialog(final Activity act) {
         String license = readBundledText(
-                "META-INF/com.dsmod.probe.project/gpl_3_0.txt", 96 * 1024);
+                "META-INF/ds.dsh.DeepSeek.project/gpl_3_0.txt", 96 * 1024);
         if (license.length() == 0) license = "GNU General Public License version 3";
         final M3Theme.Palette pal = M3Theme.palette(act);
         LinearLayout content = new LinearLayout(act);
