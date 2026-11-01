@@ -298,6 +298,57 @@ for method in \
   fi
 done
 
+# Chat feature installers use isolated Member sets and do not stack interceptors on retry.
+grep -Fq 'CHAT_FEATURE_HOOKED_MEMBERS' "$CHAT"
+chat_feature_helper="$(sed -n '/private static void hookChatFeatureMember/,/private static String combineSystemPrompts/p' "$CHAT")"
+grep -Fq 'synchronized (CHAT_FEATURE_HOOKED_MEMBERS)' <<<"$chat_feature_helper"
+grep -Fq 'installed.contains(member)' <<<"$chat_feature_helper"
+grep -Fq 'installed.add(member)' <<<"$chat_feature_helper"
+for method in \
+  hookContentFilterApply \
+  installMsgRebuildCapture \
+  hookStatusWrite \
+  hookTemplateProbe \
+  hookFinalMessageMerge \
+  hookFinalMessageApply \
+  hookS11RenderFilter \
+  hookCs1RenderFilter \
+  hookTransport \
+  installPowManagerCapture; do
+  body="$(sed -n "/void $method(/,/^    }/p" "$CHAT")"
+  if [ -z "$body" ]; then
+    body="$(sed -n "/private .* $method(/,/^    }/p" "$CHAT")"
+  fi
+  grep -Fq "hookChatFeatureMember(\"$method\"," <<<"$body"
+  if grep -Fq 'Main.MODULE.hook(' <<<"$body"; then
+    echo "$method bypasses chat retry-safe registration." >&2
+    exit 1
+  fi
+done
+
+# UI feature installers use isolated Member sets; settings navigation keeps its dedicated registrar.
+grep -Fq 'UI_FEATURE_HOOKED_MEMBERS' "$UI"
+ui_feature_helper="$(sed -n '/private static void hookUiFeatureMember/,/private static boolean hookSettingsNavigationOnce/p' "$UI")"
+grep -Fq 'synchronized (UI_FEATURE_HOOKED_MEMBERS)' <<<"$ui_feature_helper"
+grep -Fq 'installed.contains(member)' <<<"$ui_feature_helper"
+grep -Fq 'installed.add(member)' <<<"$ui_feature_helper"
+for method in \
+  hookNativeSettingsEntry \
+  prepareNativeSettingsDecoration \
+  maybeInstallAdaptedSettingsEntry \
+  hookAssistantAvatarPainter \
+  hookChatBubbleCustomization \
+  hookWelcomeWhaleMotion \
+  hookHomeGreeting \
+  hookNativeDualChatRoot; do
+  body="$(sed -n "/void $method(/,/^    }/p" "$UI")"
+  grep -Fq "hookUiFeatureMember(\"$method\"," <<<"$body"
+  if grep -Fq 'Main.MODULE.hook(' <<<"$body"; then
+    echo "$method bypasses UI retry-safe registration." >&2
+    exit 1
+  fi
+done
+
 # Session installers propagate installation failures to Main/Registry.
 session_src="$SRC/HookSessionManagement.java"
 for method in \
