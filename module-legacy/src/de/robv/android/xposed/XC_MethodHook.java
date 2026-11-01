@@ -36,7 +36,9 @@ public abstract class XC_MethodHook {
     }
 
     public class Unhook {
-        public Member getHookedMethod() { return null; }
+        private final Member hookedMethod;
+        Unhook(Member hookedMethod) { this.hookedMethod = hookedMethod; }
+        public Member getHookedMethod() { return hookedMethod; }
         public void unhook() {}
     }
 }
