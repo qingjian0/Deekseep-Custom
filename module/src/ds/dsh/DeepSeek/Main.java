@@ -9234,9 +9234,14 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     log("installed network payload capture via structural scan x1"); }
                 else log("structural transport scan found nothing");
             }
+            if (n == 0) throw new NoSuchMethodException("network payload transport hook was not installed");
             // 中继实现：collect 时机的 hook(见 registerRelayFlow)。返回值是 Object，不会被强转闪退。
             HookAttachmentPipeline.INSTANCE.installExpertFlowCollectHook(cl);
-        } catch (Throwable t) { log("installNetworkPayloadCapture failed: " + t); }
+        } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw new IllegalStateException("network payload capture installation failed", t);
+        }
     }
 
     // 运行时(app 进程内)扫描自身 dex，按结构签名 (rs0,Long)->非void 找 transport 方法。build 无关。
@@ -9288,20 +9293,49 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     // 3) 发送点捕获完整 List<fp> 及 tp.f() 当前会话模型。
     // 普通文件必须保留为 DeepSeek 原生附件；只有 is_image=true 的 fp 才进入视觉中继。
     private void installExpertImageFpCapture(final ClassLoader cl) {
+        Throwable firstFailure = null;
         if (HostCompat.isV234()) {
-            if (HostCompat.isGooglePlay()) {
-                HookAttachmentPipeline.INSTANCE.hookSendPointFps234(cl, "xx0");
-                HookAttachmentPipeline.INSTANCE.hookSendPointFps234(cl, "ix0");
-                HookAttachmentPipeline.INSTANCE.hookSendPointFps234(cl, "ox0");
-            } else {
-                HookAttachmentPipeline.INSTANCE.hookSendPointFps234(cl, "ew0");
-                HookAttachmentPipeline.INSTANCE.hookSendPointFps234(cl, "pv0");
-                HookAttachmentPipeline.INSTANCE.hookSendPointFps234(cl, "vv0");
+            String[] candidates = HostCompat.isGooglePlay()
+                    ? new String[]{"xx0", "ix0", "ox0"}
+                    : new String[]{"ew0", "pv0", "vv0"};
+            for (String candidate : candidates) {
+                try {
+                    HookAttachmentPipeline.INSTANCE.hookSendPointFps234(cl, candidate);
+                } catch (Throwable error) {
+                    if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+                    if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+                    if (firstFailure == null) firstFailure = error;
+                    else firstFailure.addSuppressed(error);
+                }
+            }
+            if (firstFailure != null) {
+                throw new IllegalStateException(
+                        "2.3.4 expert image send-point hooks were only partially installed",
+                        firstFailure);
             }
             return;
         }
-        HookAttachmentPipeline.INSTANCE.hookSendPointFps(cl, "fu0", true);
-        HookAttachmentPipeline.INSTANCE.hookSendPointFps(cl, "uu0", false);
+
+        try {
+            HookAttachmentPipeline.INSTANCE.hookSendPointFps(cl, "fu0", true);
+        } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            firstFailure = error;
+        }
+        try {
+            HookAttachmentPipeline.INSTANCE.hookSendPointFps(cl, "uu0", false);
+        } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            if (firstFailure == null) firstFailure = error;
+            else firstFailure.addSuppressed(error);
+        }
+        if (firstFailure != null) {
+            throw new IllegalStateException(
+                    "expert image send-point hooks were only partially installed",
+                    firstFailure);
+        }
     }
 
     public static Object invokeNoArg(Object target, String name) {
