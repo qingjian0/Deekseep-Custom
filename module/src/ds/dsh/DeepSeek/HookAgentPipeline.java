@@ -1754,6 +1754,15 @@ final class HookAgentPipeline {
         }
     }
 
+    private static void hookHeartbeatPipelineMember(Member member, Hooker hooker)
+            throws Throwable {
+        synchronized (HEARTBEAT_PIPELINE_HOOKED_MEMBERS) {
+            if (HEARTBEAT_PIPELINE_HOOKED_MEMBERS.contains(member)) return;
+            Main.MODULE.hook(member).intercept(hooker);
+            HEARTBEAT_PIPELINE_HOOKED_MEMBERS.add(member);
+        }
+    }
+
     void hookHeartbeatToolResponses(ClassLoader cl) throws Throwable {
         Throwable installFailure = null;
         int liveHooks = 0;
@@ -1944,15 +1953,6 @@ final class HookAgentPipeline {
      * concrete us2.e/i methods, but every nested fragment patch still reaches cj0.g before the
      * RESPONSE State and its Markdown cache are updated.
      */
-    private static void hookHeartbeatPipelineMember(Member member, Hooker hooker)
-            throws Throwable {
-        synchronized (HEARTBEAT_PIPELINE_HOOKED_MEMBERS) {
-            if (HEARTBEAT_PIPELINE_HOOKED_MEMBERS.contains(member)) return;
-            Main.MODULE.hook(member).intercept(hooker);
-            HEARTBEAT_PIPELINE_HOOKED_MEMBERS.add(member);
-        }
-    }
-
     void hookHeartbeatPatchDispatcher(ClassLoader cl) throws Throwable {
         if (!HostCompat.isV234()) return;
         final String dispatcherName = HostCompat.isV241() ? "jo0"
