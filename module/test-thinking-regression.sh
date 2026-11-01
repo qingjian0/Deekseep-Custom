@@ -66,6 +66,7 @@ javac -source 8 -target 8 -cp "$JSON_JAR:$ANDROID_JAR:$UNIVERSAL_CLASSES:build/c
     tests/ds/dsh/DeepSeek/GoogleLoginUnlockRegressionTest.java \
     tests/ds/dsh/DeepSeek/NativeApiPatchDecoderRegressionTest.java \
     tests/ds/dsh/DeepSeek/HostCompatRegressionTest.java \
+    tests/ds/dsh/DeepSeek/HostNavigationCatalogRegressionTest.java \
     tests/ds/dsh/DeepSeek/UiLanguagePolicyRegressionTest.java \
     tests/ds/dsh/DeepSeek/ChatAppearanceConfigRegressionTest.java \
     tests/ds/dsh/DeepSeek/ImageCutoutRegressionTest.java \
@@ -112,6 +113,7 @@ javac -source 8 -target 8 -cp "$JSON_JAR:$ANDROID_JAR:$UNIVERSAL_CLASSES:build/c
     src/ds/dsh/DeepSeek/GoogleLoginUnlock.java \
     src/ds/dsh/DeepSeek/ResponsePreserver.java \
     src/ds/dsh/DeepSeek/AgentRateLimiter.java \
+    src/ds/dsh/DeepSeek/HostNavigationCatalog.java \
     src/ds/dsh/DeepSeek/HostCompat.java \
     tests/tp.java \
     tests/h61.java \
@@ -164,6 +166,9 @@ java -cp "$TEST_CP" \
 
 java -cp "$TEST_CP" \
     ds.dsh.DeepSeek.HostCompatRegressionTest
+
+java -cp "$TEST_CP" \
+    ds.dsh.DeepSeek.HostNavigationCatalogRegressionTest
 
 java -cp "$TEST_CP" \
     ds.dsh.DeepSeek.UiLanguagePolicyRegressionTest

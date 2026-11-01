@@ -1,0 +1,86 @@
+package ds.dsh.DeepSeek
+
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.io.InputStream
+import java.nio.charset.StandardCharsets
+import java.util.ArrayList
+import java.util.Collections
+import java.util.LinkedHashSet
+import java.util.regex.Pattern
+
+/**
+ * Pure parser and allow-list policy for independently verified host navigation routes.
+ *
+ * This object deliberately contains no Android, reflection, Hook, or host-version dependencies.
+ */
+object HostNavigationPolicy {
+    private const val MAX_DEX_BYTES = 48 * 1024 * 1024
+    private val ROUTE = Pattern.compile(
+        "com\\\\.deepseek\\\\.chat\\\\.ui\\\\.pages\\\\.[A-Za-z0-9_.$]{1,160}(?:Route|Graph)"
+    )
+
+    @JvmStatic
+    @Throws(IOException::class)
+    fun extractRoutes(input: InputStream?): List<String> {
+        if (input == null) return Collections.emptyList()
+        val bytes = ByteArrayOutputStream(512 * 1024)
+        val buffer = ByteArray(32 * 1024)
+        var total = 0
+        while (true) {
+            val read = input.read(buffer)
+            if (read < 0) break
+            total += read
+            if (total > MAX_DEX_BYTES) throw IOException("DEX exceeds navigation scan limit")
+            bytes.write(buffer, 0, read)
+        }
+        val raw = String(bytes.toByteArray(), StandardCharsets.ISO_8859_1)
+        val unique = LinkedHashSet<String>()
+        val matcher = ROUTE.matcher(raw)
+        while (matcher.find()) unique.add(matcher.group())
+        val out = ArrayList(unique)
+        Collections.sort(out)
+        return out
+    }
+
+    @JvmStatic
+    fun policy(route: String?): String {
+        if (route == null) return "blocked"
+        if (route.endsWith("AccountDeletionRoute")) return "confirm"
+        if (route.contains("AuthNestedGraph") || route.endsWith("WelcomeRoute")) return "internal"
+        if (route.endsWith("AgeScreenRoute") || route.endsWith("MobileRebindRoute")
+            || route.endsWith("MobileVerificationRoute") || route.endsWith("ResetPasswordRoute")
+            || route.endsWith("WebViewRoute") || route.endsWith("TableRoute")) {
+            return "parameters"
+        }
+        if (route.endsWith("ChatRoute") || route.endsWith("SettingsNestedGraph")
+            || route.endsWith("SettingsRoute") || route.endsWith("AccountManagementRoute")
+            || route.endsWith("DataControlsSettingsRoute") || route.endsWith("FontSizeRoute")
+            || route.endsWith("MinorModeBirthdayModifyRoute")
+            || route.endsWith("ShareLinksManagementRoute")
+            || route.endsWith("TermsOfServiceRoute")) return "direct"
+        return "internal"
+    }
+
+    @JvmStatic
+    fun title(route: String?): String {
+        if (route == null) return "未知页面"
+        if (route.endsWith("ChatRoute")) return "聊天主页"
+        if (route.endsWith("SettingsNestedGraph") || route.endsWith("SettingsRoute")) return "设置"
+        if (route.endsWith("AccountManagementRoute")) return "账号管理"
+        if (route.endsWith("AccountDeletionRoute")) return "删除账号"
+        if (route.endsWith("DataControlsSettingsRoute")) return "数据控制"
+        if (route.endsWith("FontSizeRoute")) return "字体大小"
+        if (route.endsWith("MinorModeBirthdayModifyRoute")) return "生日/未成年人模式"
+        if (route.endsWith("ShareLinksManagementRoute")) return "分享链接管理"
+        if (route.endsWith("TermsOfServiceRoute")) return "用户协议与隐私"
+        if (route.endsWith("PasswordLoginRoute")) return "密码登录"
+        if (route.endsWith("RegisterRoute")) return "注册"
+        if (route.endsWith("SmsLoginRoute")) return "短信登录"
+        if (route.endsWith("WelcomeRoute")) return "欢迎页"
+        if (route.endsWith("WebViewRoute")) return "网页页面"
+        if (route.endsWith("TableRoute")) return "表格预览"
+        val dot = route.lastIndexOf('.')
+        return if (dot >= 0) route.substring(dot + 1) else route
+    }
+}
