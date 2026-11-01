@@ -124,8 +124,9 @@ public final class DeekseepUi {
         if (embedded) Main.setEnabled(true);
         TextView importButton = activePromptImportButton;
         if (importButton != null) {
-            importButton.setText(embedded
-                    ? "已开启其他功能，请先关闭后再使用" : "导入提示词");
+            importButton.setText(UiLanguage.text(act,
+                    embedded ? "已开启其他功能，请先关闭后再使用" : "导入提示词",
+                    embedded ? "Other features are enabled; turn them off first" : "Import prompt"));
             importButton.setEnabled(!embedded);
             importButton.setAlpha(embedded ? 0.45f : 1f);
         }
@@ -172,12 +173,15 @@ public final class DeekseepUi {
                 internal = false;
                 new android.app.AlertDialog.Builder(act)
                         .setTitle("专家模式上传图片文件（无用）")
-                        .setMessage("目前 DeepSeek 已移除专家模式，因此该功能暂时无效。"
-                                + "仅建议为旧版方案保留配置，是否仍要继续开启？")
+                        .setMessage(UiLanguage.text(act,
+                                "目前 DeepSeek 已移除专家模式，因此该功能暂时无效。仅建议为旧版方案保留配置，是否仍要继续开启？",
+                                "DeepSeek has removed Expert mode, so this feature is temporarily unavailable. Keep this setting only for legacy routing. Continue enabling it?"))
                         .setNegativeButton("取消", null)
-                        .setPositiveButton("继续开启", (dialog, which) -> {
+                        .setPositiveButton(UiLanguage.text(act, "继续开启", "Continue enabling"), (dialog, which) -> {
                             if (!Main.setExpertRelayEnabled(true)) {
-                                Toast.makeText(act, "设置保存失败", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(act, UiLanguage.text(act,
+                                        "设置保存失败", "Could not save settings"),
+                                        Toast.LENGTH_SHORT).show();
                                 return;
                             }
                             internal = true;
@@ -1102,8 +1106,13 @@ public final class DeekseepUi {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         TextView multiDesc = new TextView(act);
-        multiDesc.setText(HostCompat.isV271()
-                ? "DeepSeek 2.7.1 已自带：侧栏长按会话即可批量选择、删除、置顶" : "长按会话进入多选");
+        multiDesc.setText(UiLanguage.text(act,
+                HostCompat.isV271()
+                        ? "DeepSeek 2.7.1 已自带：侧栏长按会话即可批量选择、删除、置顶"
+                        : "长按会话进入多选",
+                HostCompat.isV271()
+                        ? "DeepSeek 2.7.1 already supports multi-select, delete, and pin by long-pressing chats in the sidebar"
+                        : "Long-press a chat to enter multi-select"));
         multiDesc.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         multiDesc.setTextColor(subColor);
         LinearLayout.LayoutParams mdlp = new LinearLayout.LayoutParams(
@@ -1263,13 +1272,15 @@ public final class DeekseepUi {
         LinearLayout rawLabels = new LinearLayout(act);
         rawLabels.setOrientation(LinearLayout.VERTICAL);
         TextView rawTitle = new TextView(act);
-        rawTitle.setText("高频原始 Hook 日志");
+        rawTitle.setText(UiLanguage.text(act, "高频原始 Hook 日志", "High-volume raw Hook logs"));
         rawTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
         rawTitle.setTypeface(Typeface.DEFAULT_BOLD);
         rawTitle.setTextColor(textColor);
         rawLabels.addView(rawTitle);
         TextView rawWarning = new TextView(act);
-        rawWarning.setText("无脱敏且日志量很大：可能记录消息正文、Hook 参数、返回值、文件路径、账号信息与凭据。");
+        rawWarning.setText(UiLanguage.text(act,
+                "无脱敏且日志量很大：可能记录消息正文、Hook 参数、返回值、文件路径、账号信息与凭据。",
+                "Unredacted high-volume logs may capture message contents, Hook arguments and return values, file paths, account information, and credentials."));
         rawWarning.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         rawWarning.setTextColor(dark ? 0xFFFF8A8A : 0xFFC63C3C);
         rawWarning.setLineSpacing(dp(act, 2), 1f);
@@ -1295,24 +1306,31 @@ public final class DeekseepUi {
                 if (changingRaw[0]) return;
                 if (!checked) {
                     Main.setRawHookTraceEnabled(false);
-                    Toast.makeText(act, "高频原始 Hook 日志已关闭", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(act, UiLanguage.text(act,
+                            "高频原始 Hook 日志已关闭", "High-volume raw Hook logging is off"),
+                            Toast.LENGTH_SHORT).show();
                     return;
                 }
                 changingRaw[0] = true;
                 button.setChecked(false);
                 changingRaw[0] = false;
                 new android.app.AlertDialog.Builder(act)
-                        .setTitle("启用无脱敏日志？")
-                        .setMessage("此功能会高频记录每个模块 Hook 的进入、参数、返回值、异常和耗时，并同步记录模块动作。内容完全不脱敏，可能包含聊天正文、账号、Token、Cookie、文件路径等敏感信息。\n\n日志仅自动保存在 DeepSeek 私有目录，单卷上限 64 MB、保留两卷。调试结束后请立即关闭并清理。")
+                        .setTitle(UiLanguage.text(act, "启用无脱敏日志？", "Enable unredacted logs?"))
+                        .setMessage(UiLanguage.text(act,
+                                "此功能会高频记录每个模块 Hook 的进入、参数、返回值、异常和耗时，并同步记录模块动作。内容完全不脱敏，可能包含聊天正文、账号、Token、Cookie、文件路径等敏感信息。\n\n日志仅自动保存在 DeepSeek 私有目录，单卷上限 64 MB、保留两卷。调试结束后请立即关闭并清理。",
+                                "This feature records every module Hook entry, arguments, return values, exceptions, durations, and module actions at high frequency. Content is not redacted and may include chat messages, accounts, tokens, cookies, file paths, and other sensitive information.\n\nLogs are stored automatically in DeepSeek's private directory, with a 64 MB per-volume limit and two retained volumes. Turn this off and clear logs immediately after debugging."))
                         .setNegativeButton("取消", null)
-                        .setPositiveButton("理解风险并启用", (dialog, which) -> {
+                        .setPositiveButton(UiLanguage.text(act, "理解风险并启用", "I understand the risk and enable"), (dialog, which) -> {
                             boolean saved = Main.setRawHookTraceEnabled(true);
                             changingRaw[0] = true;
                             rawSwitch.setChecked(saved);
                             changingRaw[0] = false;
-                            Toast.makeText(act, saved
-                                    ? "已启用；重启 DeepSeek 后可记录启动阶段 Hook"
-                                    : "启用失败：无法写入私有目录", Toast.LENGTH_LONG).show();
+                            Toast.makeText(act, UiLanguage.text(act,
+                                    saved ? "已启用；重启 DeepSeek 后可记录启动阶段 Hook"
+                                            : "启用失败：无法写入私有目录",
+                                    saved ? "Enabled; restart DeepSeek to record startup-stage Hooks"
+                                            : "Could not enable: unable to write to the private directory"),
+                                    Toast.LENGTH_LONG).show();
                         }).show();
             }
         });
@@ -1325,12 +1343,18 @@ public final class DeekseepUi {
                 textColor, subColor, new View.OnClickListener() {
                     @Override public void onClick(View view) {
                         new android.app.AlertDialog.Builder(act)
-                                .setTitle("清理高频原始日志？")
-                                .setMessage("将删除当前卷和上一卷。已导出的 ZIP 不受影响。")
+                                .setTitle(UiLanguage.text(act, "清理高频原始日志？", "Clear high-volume raw logs?"))
+                                .setMessage(UiLanguage.text(act,
+                                        "将删除当前卷和上一卷。已导出的 ZIP 不受影响。",
+                                        "This deletes the current and previous log volumes. Exported ZIP files are unaffected."))
                                 .setNegativeButton("取消", null)
-                                .setPositiveButton("清理", (dialog, which) -> Toast.makeText(act,
-                                        Main.clearRawHookTrace() ? "日志已清理" : "清理失败",
-                                        Toast.LENGTH_SHORT).show()).show();
+                                .setPositiveButton(UiLanguage.text(act, "清理", "Clear"), (dialog, which) -> {
+                                    boolean cleared = Main.clearRawHookTrace();
+                                    Toast.makeText(act, UiLanguage.text(act,
+                                            cleared ? "日志已清理" : "清理失败",
+                                            cleared ? "Logs cleared" : "Could not clear logs"),
+                                            Toast.LENGTH_SHORT).show();
+                                }).show();
                     }
                 }));
 
@@ -1435,7 +1459,9 @@ public final class DeekseepUi {
                     @Override public void onClick(View view) {
                         String json = ModuleConfigBridge.exportConfigJson();
                         if (json == null) {
-                            Toast.makeText(act, "导出失败：无法读取配置", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(act, UiLanguage.text(act,
+                                    "导出失败：无法读取配置", "Export failed: could not read configuration"),
+                                    Toast.LENGTH_SHORT).show();
                             return;
                         }
                         try {
@@ -1444,7 +1470,9 @@ public final class DeekseepUi {
                                             android.os.Environment.DIRECTORY_DOWNLOADS),
                                     "Deekseep");
                             if (!dir.isDirectory() && !dir.mkdirs()) {
-                                Toast.makeText(act, "导出失败：无法创建目录", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(act, UiLanguage.text(act,
+                                        "导出失败：无法创建目录", "Export failed: could not create directory"),
+                                        Toast.LENGTH_SHORT).show();
                                 return;
                             }
                             java.io.File file = new java.io.File(dir, "deekseep-config.json");
@@ -1452,10 +1480,13 @@ public final class DeekseepUi {
                             out.write(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
                             out.flush();
                             out.close();
-                            Toast.makeText(act, "配置已导出：" + file.getAbsolutePath(),
-                                    Toast.LENGTH_LONG).show();
+                            Toast.makeText(act, UiLanguage.format(act,
+                                    "配置已导出：%s", "Configuration exported: %s",
+                                    file.getAbsolutePath()), Toast.LENGTH_LONG).show();
                         } catch (Throwable t) {
-                            Toast.makeText(act, "导出失败：" + HostRemap.simpleName(t.getClass()),
+                            Toast.makeText(act, UiLanguage.format(act,
+                                    "导出失败：%s", "Export failed: %s",
+                                    HostRemap.simpleName(t.getClass())),
                                     Toast.LENGTH_SHORT).show();
                         }
                     }
@@ -1473,8 +1504,9 @@ public final class DeekseepUi {
                                     "Deekseep");
                             java.io.File file = new java.io.File(dir, "deekseep-config.json");
                             if (!file.isFile()) {
-                                Toast.makeText(act,
+                                Toast.makeText(act, UiLanguage.text(act,
                                         "未找到 Download/Deekseep/deekseep-config.json",
+                                        "Could not find Download/Deekseep/deekseep-config.json"),
                                         Toast.LENGTH_LONG).show();
                                 return;
                             }
@@ -1488,11 +1520,14 @@ public final class DeekseepUi {
                                     java.nio.charset.StandardCharsets.UTF_8);
                             String result = ModuleConfigBridge.importConfigJson(json);
                             Toast.makeText(act, "ok".equals(result)
-                                            ? "配置已导入，重启 DeepSeek 后生效"
-                                            : "导入失败：" + result,
+                                            ? UiLanguage.text(act, "配置已导入，重启 DeepSeek 后生效",
+                                                    "Configuration imported; restart DeepSeek to apply")
+                                            : UiLanguage.format(act, "导入失败：%s", "Import failed: %s", result),
                                     Toast.LENGTH_LONG).show();
                         } catch (Throwable t) {
-                            Toast.makeText(act, "导入失败：" + HostRemap.simpleName(t.getClass()),
+                            Toast.makeText(act, UiLanguage.format(act,
+                                    "导入失败：%s", "Import failed: %s",
+                                    HostRemap.simpleName(t.getClass())),
                                     Toast.LENGTH_SHORT).show();
                         }
                     }
@@ -2755,13 +2790,15 @@ public final class DeekseepUi {
             LinearLayout floatingLabels = new LinearLayout(act);
             floatingLabels.setOrientation(LinearLayout.VERTICAL);
             TextView floatingTitle = new TextView(act);
-            floatingTitle.setText("小窗保活");
+            floatingTitle.setText(UiLanguage.text(act, "小窗保活", "Floating-window keep-alive"));
             floatingTitle.setTextColor(textColor);
             floatingTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
             floatingTitle.setTypeface(Typeface.DEFAULT_BOLD);
             floatingLabels.addView(floatingTitle);
             TextView floatingDescription = new TextView(act);
-            floatingDescription.setText("在屏幕边缘显示 DeepSeek 图标；点击可查看实时数据并直接修改 Key、端口、格式与 HTTPS");
+            floatingDescription.setText(UiLanguage.text(act,
+                    "在屏幕边缘显示 DeepSeek 图标；点击可查看实时数据并直接修改 Key、端口、格式与 HTTPS",
+                    "Show a DeepSeek icon at the screen edge; tap it to view live data and edit the API key, port, format, and HTTPS settings."));
             floatingDescription.setTextColor(subColor);
             floatingDescription.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
             floatingLabels.addView(floatingDescription);
@@ -2855,13 +2892,15 @@ public final class DeekseepUi {
                             button.setChecked(false);
                             internal = false;
                             new android.app.AlertDialog.Builder(act)
-                                    .setTitle("使用老版方案")
-                                    .setMessage("目前 DeepSeek 已移除专家模式。老版方案仍会请求旧的"
-                                            + "快速、专家和识图路由，可能失效。是否继续开启？")
+                                    .setTitle(UiLanguage.text(act, "使用老版方案", "Use legacy routing"))
+                                    .setMessage(UiLanguage.text(act,
+                                            "目前 DeepSeek 已移除专家模式。老版方案仍会请求旧的快速、专家和识图路由，可能失效。是否继续开启？",
+                                            "DeepSeek has removed Expert mode. Legacy routing still requests the old Fast, Expert, and image-recognition routes, which may no longer work. Continue enabling it?"))
                                     .setNegativeButton("取消", null)
-                                    .setPositiveButton("继续开启", (dialog, which) -> {
+                                    .setPositiveButton(UiLanguage.text(act, "继续开启", "Continue enabling"), (dialog, which) -> {
                                         if (!Main.setLocalApiLegacyModelRouteEnabled(true)) {
-                                            Toast.makeText(act, "老版方案保存失败",
+                                            Toast.makeText(act, UiLanguage.text(act,
+                                                    "老版方案保存失败", "Could not save legacy routing"),
                                                     Toast.LENGTH_SHORT).show();
                                             return;
                                         }
@@ -3354,7 +3393,7 @@ public final class DeekseepUi {
         bar.addView(back, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, dp(act, 40)));
         TextView title = new TextView(act);
-        title.setText("对话转接");
+        title.setText(UiLanguage.text(act, "对话转接", "Chat relay"));
         title.setTextColor(textColor);
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
         title.setTypeface(Typeface.DEFAULT_BOLD);
@@ -3390,7 +3429,7 @@ public final class DeekseepUi {
         enableRow.setGravity(Gravity.CENTER_VERTICAL);
         enableRow.setPadding(dp(act, 16), dp(act, 10), dp(act, 12), dp(act, 16));
         TextView enableLabel = new TextView(act);
-        enableLabel.setText("启用对话转接");
+        enableLabel.setText(UiLanguage.text(act, "启用对话转接", "Enable chat relay"));
         enableLabel.setTextColor(textColor);
         enableLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
         enableLabel.setTypeface(Typeface.DEFAULT_BOLD);
@@ -3501,11 +3540,15 @@ public final class DeekseepUi {
                     reverting = true;
                     button.setChecked(false);
                     reverting = false;
-                    feedback.setText("请先配置 API Key、URL 和模型再启用");
+                    feedback.setText(UiLanguage.text(act,
+                            "请先配置 API Key、URL 和模型再启用",
+                            "Configure the API key, URL, and model before enabling."));
                     return;
                 }
                 z17.setEnabled(checked);
-                feedback.setText(checked ? "对话转接已启用" : "对话转接已关闭");
+                feedback.setText(UiLanguage.text(act,
+                        checked ? "对话转接已启用" : "对话转接已关闭",
+                        checked ? "Chat relay enabled" : "Chat relay disabled"));
             }
         });
         saveBtn.setOnClickListener(new View.OnClickListener() {
@@ -3518,12 +3561,12 @@ public final class DeekseepUi {
                     return;
                 }
                 z17.save(k, format[0], u, m);
-                feedback.setText("配置已保存");
+                feedback.setText(UiLanguage.text(act, "配置已保存", "Configuration saved"));
             }
         });
         fetchBtn.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
-                feedback.setText("正在获取模型列表…");
+                feedback.setText(UiLanguage.text(act, "正在获取模型列表…", "Fetching model list…"));
                 new Thread(new Runnable() {
                     @Override public void run() {
                         try {
@@ -3533,11 +3576,11 @@ public final class DeekseepUi {
                             act.runOnUiThread(new Runnable() {
                                 @Override public void run() {
                                     if (models.isEmpty()) {
-                                        feedback.setText("没有获取到模型");
+                                        feedback.setText(UiLanguage.text(act, "没有获取到模型", "No models were returned"));
                                     } else {
                                         String[] arr = models.toArray(new String[0]);
                                         new android.app.AlertDialog.Builder(act)
-                                                .setTitle("选择模型")
+                                                .setTitle(UiLanguage.text(act, "选择模型", "Select model"))
                                                 .setItems(arr,
                                                         new android.content.DialogInterface
                                                                 .OnClickListener() {
@@ -3549,7 +3592,8 @@ public final class DeekseepUi {
                                                         })
                                                 .setNegativeButton("取消", null)
                                                 .show();
-                                        feedback.setText("已获取 " + models.size() + " 个模型");
+                                        feedback.setText(UiLanguage.format(act,
+                                                "已获取 %d 个模型", "%d models retrieved", models.size()));
                                     }
                                 }
                             });
@@ -3558,7 +3602,8 @@ public final class DeekseepUi {
                                     ? HostRemap.simpleName(e.getClass()) : e.getMessage();
                             act.runOnUiThread(new Runnable() {
                                 @Override public void run() {
-                                    feedback.setText("获取失败：" + msg);
+                                    feedback.setText(UiLanguage.format(act,
+                                            "获取失败：%s", "Failed to fetch: %s", msg));
                                 }
                             });
                         }
@@ -3831,8 +3876,9 @@ public final class DeekseepUi {
         panel.addView(title);
 
         TextView warning = new TextView(act);
-        warning.setText("服务绑定本机与局域网地址。API 密钥等同 DeepSeek 调用权限；仅在可信网络使用，"
-                + "不要公开或转发。DeepSeek 被彻底退出后服务会随进程停止。");
+        warning.setText(UiLanguage.text(act,
+                "服务绑定本机与局域网地址。API 密钥等同 DeepSeek 调用权限；仅在可信网络使用，不要公开或转发。DeepSeek 被彻底退出后服务会随进程停止。",
+                "The service binds to localhost and LAN addresses. The API key grants DeepSeek API access; use it only on trusted networks and never publish or forward it. The service stops when DeepSeek fully exits."));
         warning.setTextColor(subColor);
         warning.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         LinearLayout.LayoutParams warningLp = new LinearLayout.LayoutParams(
@@ -4185,10 +4231,10 @@ public final class DeekseepUi {
         panel.addView(feedback);
 
         final android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(act)
-                .setTitle("对话代理配置")
+                .setTitle(UiLanguage.text(act, "对话代理配置", "Chat relay configuration"))
                 .setView(panel)
                 .setPositiveButton("保存", null)
-                .setNeutralButton("获取模型列表", null)
+                .setNeutralButton(UiLanguage.text(act, "获取模型列表", "Fetch model list"), null)
                 .setNegativeButton("取消", null)
                 .create();
         dialog.setOnShowListener(new android.content.DialogInterface.OnShowListener() {
@@ -4213,7 +4259,7 @@ public final class DeekseepUi {
                         android.content.DialogInterface.BUTTON_NEUTRAL);
                 fetch.setOnClickListener(new View.OnClickListener() {
                     @Override public void onClick(View v) {
-                        feedback.setText("正在获取模型列表…");
+                        feedback.setText(UiLanguage.text(act, "正在获取模型列表…", "Fetching model list…"));
                         new Thread(new Runnable() {
                             @Override public void run() {
                                 try {
@@ -4223,11 +4269,11 @@ public final class DeekseepUi {
                                     act.runOnUiThread(new Runnable() {
                                         @Override public void run() {
                                             if (models.isEmpty()) {
-                                                feedback.setText("没有获取到模型");
+                                                feedback.setText(UiLanguage.text(act, "没有获取到模型", "No models were returned"));
                                             } else {
                                                 String[] arr = models.toArray(new String[0]);
                                                 new android.app.AlertDialog.Builder(act)
-                                                        .setTitle("选择模型")
+                                                        .setTitle(UiLanguage.text(act, "选择模型", "Select model"))
                                                         .setItems(arr,
                                                                 new android.content.DialogInterface
                                                                         .OnClickListener() {
@@ -4239,7 +4285,8 @@ public final class DeekseepUi {
                                                                 })
                                                         .setNegativeButton("取消", null)
                                                         .show();
-                                                feedback.setText("已获取 " + models.size() + " 个模型");
+                                                feedback.setText(UiLanguage.format(act,
+                                                "已获取 %d 个模型", "%d models retrieved", models.size()));
                                             }
                                         }
                                     });
@@ -4248,7 +4295,8 @@ public final class DeekseepUi {
                                             ? HostRemap.simpleName(e.getClass()) : e.getMessage();
                                     act.runOnUiThread(new Runnable() {
                                         @Override public void run() {
-                                            feedback.setText("获取失败：" + msg);
+                                            feedback.setText(UiLanguage.format(act,
+                                            "获取失败：%s", "Failed to fetch: %s", msg));
                                         }
                                     });
                                 }
@@ -5463,7 +5511,7 @@ public final class DeekseepUi {
         LinearLayout splitRow = new LinearLayout(act);
         splitRow.setGravity(Gravity.CENTER_VERTICAL);
         TextView splitLabel = new TextView(act);
-        splitLabel.setText("分轮注入");
+        splitLabel.setText(UiLanguage.text(act, "分轮注入", "Split prompt injection by turns"));
         splitLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
         splitLabel.setTextColor(textColor);
         splitRow.addView(splitLabel, new LinearLayout.LayoutParams(
@@ -5483,7 +5531,7 @@ public final class DeekseepUi {
         final LinearLayout pickerSection = new LinearLayout(act);
         pickerSection.setOrientation(LinearLayout.VERTICAL);
         TextView intervalLabel = new TextView(act);
-        intervalLabel.setText("隔几轮注入");
+        intervalLabel.setText(UiLanguage.text(act, "隔几轮注入", "Inject every N turns"));
         intervalLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         intervalLabel.setTextColor(subColor);
         intervalLabel.setGravity(Gravity.CENTER);
@@ -5543,7 +5591,7 @@ public final class DeekseepUi {
         frame.addView(input, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         new android.app.AlertDialog.Builder(act)
-                .setTitle("自定义间隔轮数（1–30）")
+                .setTitle(UiLanguage.text(act, "自定义间隔轮数（1–30）", "Custom interval (1–30 turns)"))
                 .setView(frame)
                 .setNegativeButton("取消", null)
                 .setPositiveButton("保存", (dialog, which) -> {
@@ -5551,13 +5599,16 @@ public final class DeekseepUi {
                     try { value = Integer.parseInt(input.getText().toString().trim()); }
                     catch (Throwable ignored) { value = 0; }
                     if (value < 1 || value > 30) {
-                        Toast.makeText(act, "请输入 1 到 30", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(act, UiLanguage.text(act, "请输入 1 到 30", "Enter a value from 1 to 30"),
+                                Toast.LENGTH_SHORT).show();
                         return;
                     }
                     boolean ok = Main.setPromptInjectionInterval(value);
                     if (ok && picker != null) picker.setValue(value);
-                    if (ok && suffix != null) suffix.setText("轮");
-                    Toast.makeText(act, ok ? "间隔轮数已保存" : "保存失败",
+                    if (ok && suffix != null) suffix.setText(UiLanguage.text(act, "轮", "turns"));
+                    Toast.makeText(act, UiLanguage.text(act,
+                            ok ? "间隔轮数已保存" : "保存失败",
+                            ok ? "Turn interval saved" : "Could not save settings"),
                             Toast.LENGTH_SHORT).show();
                 })
                 .show();
@@ -6111,9 +6162,11 @@ public final class DeekseepUi {
         shakeLabels.setOrientation(LinearLayout.VERTICAL);
         shakeLabels.addView(labelText(act, "陀螺仪背景", 15, text, true));
         final TextView shakeStateLabel = labelText(act,
-                ChatAppearance.load().shakeParallaxEnabled
-                        ? "已开启 · 点按进入专属设置"
-                        : "已关闭 · 点按进入专属设置",
+                UiLanguage.text(act,
+                        ChatAppearance.load().shakeParallaxEnabled
+                                ? "已开启 · 点按进入专属设置" : "已关闭 · 点按进入专属设置",
+                        ChatAppearance.load().shakeParallaxEnabled
+                                ? "Enabled · tap for dedicated settings" : "Disabled · tap for dedicated settings"),
                 12, sub, false);
         shakeLabels.addView(shakeStateLabel);
         shakeRow.addView(shakeLabels, new LinearLayout.LayoutParams(
@@ -6145,9 +6198,9 @@ public final class DeekseepUi {
                                 "已关闭 · 点按进入专属设置");
                     }
                 }
-                shakeStateLabel.setText(checked
-                        ? "已开启 · 点按进入专属设置"
-                        : "已关闭 · 点按进入专属设置");
+                shakeStateLabel.setText(UiLanguage.text(act,
+                        checked ? "已开启 · 点按进入专属设置" : "已关闭 · 点按进入专属设置",
+                        checked ? "Enabled · tap for dedicated settings" : "Disabled · tap for dedicated settings"));
             }
         });
         shakeRow.addView(shake);
@@ -6166,9 +6219,9 @@ public final class DeekseepUi {
                                     spatialToggleRef[0].setChecked(false);
                                 }
                                 spatialToggleSync[0] = false;
-                                shakeStateLabel.setText(enabled
-                                        ? "已开启 · 点按进入专属设置"
-                                        : "已关闭 · 点按进入专属设置");
+                                shakeStateLabel.setText(UiLanguage.text(act,
+                                        enabled ? "已开启 · 点按进入专属设置" : "已关闭 · 点按进入专属设置",
+                                        enabled ? "Enabled · tap for dedicated settings" : "Disabled · tap for dedicated settings"));
                                 if (enabled && spatialStateRef[0] != null) {
                                     spatialStateRef[0].setText(
                                             "已关闭 · 点按进入专属设置");
@@ -6190,9 +6243,11 @@ public final class DeekseepUi {
                 act, "空间动效（实验）", 15, text, true));
         final TextView spatialStateLabel = labelText(
                 act,
-                ChatAppearance.load().spatialDepthEnabled
-                        ? "已开启 · 点按进入专属设置"
-                        : "已关闭 · 点按进入专属设置",
+                UiLanguage.text(act,
+                        ChatAppearance.load().spatialDepthEnabled
+                                ? "已开启 · 点按进入专属设置" : "已关闭 · 点按进入专属设置",
+                        ChatAppearance.load().spatialDepthEnabled
+                                ? "Enabled · tap for dedicated settings" : "Disabled · tap for dedicated settings"),
                 12, sub, false);
         spatialStateRef[0] = spatialStateLabel;
         spatialLabels.addView(spatialStateLabel);
@@ -6239,9 +6294,9 @@ public final class DeekseepUi {
                                 spatial.setChecked(enabled);
                                 if (enabled) shake.setChecked(false);
                                 spatialToggleSync[0] = false;
-                                spatialStateLabel.setText(enabled
-                                        ? "已开启 · 点按进入专属设置"
-                                        : "已关闭 · 点按进入专属设置");
+                                spatialStateLabel.setText(UiLanguage.text(act,
+                                        enabled ? "已开启 · 点按进入专属设置" : "已关闭 · 点按进入专属设置",
+                                        enabled ? "Enabled · tap for dedicated settings" : "Disabled · tap for dedicated settings"));
                             }
                         });
             }

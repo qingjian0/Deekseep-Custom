@@ -120,9 +120,14 @@ final class ThemeColorUi {
         save.setOnClickListener(v -> {
             first.commit(); second.commit();
             if (ThemeColorConfig.save(draft)) {
-                Toast.makeText(a, "主题色已保存，返回后重新进入页面生效", Toast.LENGTH_SHORT).show();
+                Toast.makeText(a, UiLanguage.text(a,
+                        "主题色已保存，返回后重新进入页面生效",
+                        "Theme colors saved; leave and reopen this page to apply"),
+                        Toast.LENGTH_SHORT).show();
                 dialog.dismiss();
-            } else Toast.makeText(a, "主题色保存失败", Toast.LENGTH_SHORT).show();
+            } else Toast.makeText(a, UiLanguage.text(a,
+                    "主题色保存失败", "Could not save theme colors"),
+                    Toast.LENGTH_SHORT).show();
         });
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
         dialog.setContentView(root);
@@ -239,6 +244,6 @@ final class ThemeColorUi {
     private static String directionName(String d){if(ThemeColorConfig.VERTICAL.equals(d))return "上下";if(ThemeColorConfig.DIAGONAL_DOWN.equals(d))return "左上 ↘";if(ThemeColorConfig.DIAGONAL_UP.equals(d))return "右上 ↙";if(ThemeColorConfig.HORIZONTAL.equals(d))return "左右";return "无";}
     private static LinearLayout settingRow(Activity a,int color){LinearLayout r=new LinearLayout(a);r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(dp(a,14),dp(a,12),dp(a,10),dp(a,12));r.setBackground(round(color,dp(a,16)));return r;}
     private static LinearLayout copy(Activity a,String title,String desc,int ink,int muted){LinearLayout l=new LinearLayout(a);l.setOrientation(LinearLayout.VERTICAL);TextView t=text(a,title,ink,16,Gravity.START);t.setTypeface(null,1);l.addView(t);if(desc.length()>0){TextView d=text(a,desc,muted,12,Gravity.START);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.topMargin=dp(a,3);l.addView(d,lp);}return l;}
-    private static TextView text(Activity a,String s,int color,float size,int gravity){TextView v=new TextView(a);v.setText(s);v.setTextColor(color);v.setTextSize(TypedValue.COMPLEX_UNIT_SP,size);v.setGravity(gravity);return v;}
+    private static TextView text(Activity a,String s,int color,float size,int gravity){TextView v=new TextView(a);v.setText(UiLanguage.dynamic(a,s));v.setTextColor(color);v.setTextSize(TypedValue.COMPLEX_UNIT_SP,size);v.setGravity(gravity);return v;}
     private static GradientDrawable round(int color,float radius){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(radius);return d;}
 }

@@ -2043,6 +2043,20 @@ final class UiLanguageCatalog {
         addExact("云端授权校验失败，请重新打开社区完成授权", "Cloud authorization check failed. Reopen the community page to complete authorization.");
         addExact("云端请求失败，请稍后重试", "Cloud request failed. Please try again later.");
 
+        addExact("使用两种主题颜色", "Use two theme colors");
+        addExact("双色渐变", "Two-color gradient");
+        addExact("启用主题色", "Enable theme colors");
+        addExact("应用到 DeepSeek 原生界面", "Apply to the native DeepSeek interface");
+        addExact("渐变方向", "Gradient direction");
+        addExact("主题色保存失败", "Could not save theme colors");
+        addExact("主题色已保存，返回后重新进入页面生效", "Theme colors saved; leave and reopen this page to apply");
+        addExact("主题颜色", "Theme color");
+        addExact("保存并应用", "Save and apply");
+        addExact("上下", "Vertical");
+        addExact("左上 ↘", "Top-left ↘");
+        addExact("右上 ↙", "Top-right ↙");
+        addExact("左右", "Horizontal");
+
         Collections.sort(FRAGMENTS, new Comparator<Entry>() {
             @Override public int compare(Entry left, Entry right) {
                 return right.zh.length() - left.zh.length();

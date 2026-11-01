@@ -268,9 +268,10 @@ final class AccountUi {
             if (accounts.size() > 4) {
                 listCard.addView(makeDivider(act, div));
                 TextView expandBtn = new TextView(act);
-                expandBtn.setText(expanded
-                        ? "收起  " + (accounts.size() - 4) + " 个账号"
-                        : "展开全部 " + accounts.size() + " 个账号");
+                expandBtn.setText(UiLanguage.format(act,
+                        expanded ? "收起 %d 个账号" : "展开全部 %d 个账号",
+                        expanded ? "Collapse %d accounts" : "Expand all %d accounts",
+                        expanded ? accounts.size() - 4 : accounts.size()));
                 expandBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
                 expandBtn.setTextColor(DeekseepUi.BRAND);
                 expandBtn.setTypeface(Typeface.DEFAULT_BOLD);
@@ -290,8 +291,9 @@ final class AccountUi {
         content.addView(listCard, cardLp(act, accounts.isEmpty() ? 0 : dp(act, 12)));
 
         TextView hint = new TextView(act);
-        hint.setText("长按账号进入批量操作。校验会读取当前用户接口确认账号状态；导入支持一个文件中的多个账号，"
-                + "导出文件含明文登录凭证，请妥善保管。");
+        hint.setText(UiLanguage.text(act,
+                "长按账号进入批量操作。校验会读取当前用户接口确认账号状态；导入支持一个文件中的多个账号，导出文件含明文登录凭证，请妥善保管。",
+                "Long-press an account for batch actions. Validation checks account status through the current-user endpoint; importing supports multiple accounts in one file. Exported files contain plaintext sign-in credentials; keep them secure."));
         hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         hint.setTextColor(sub);
         LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(
@@ -328,9 +330,13 @@ final class AccountUi {
         final View fade = collapsedFade.get();
         expanded = opening;
         control.setEnabled(false);
-        control.setText(opening ? "收起  " + (accountCount - 4) + " 个账号"
-                : "展开全部 " + accountCount + " 个账号");
-        control.setContentDescription(opening ? "收起账号列表" : "展开账号列表");
+        control.setText(UiLanguage.format(act,
+                opening ? "收起 %d 个账号" : "展开全部 %d 个账号",
+                opening ? "Collapse %d accounts" : "Expand all %d accounts",
+                opening ? accountCount - 4 : accountCount));
+        control.setContentDescription(UiLanguage.text(act,
+                opening ? "收起账号列表" : "展开账号列表",
+                opening ? "Collapse account list" : "Expand account list"));
         ValueAnimator animator = ValueAnimator.ofInt(from, to);
         animator.setDuration(opening ? 220 : 180);
         animator.setInterpolator(new AccelerateDecelerateInterpolator());
@@ -369,7 +375,8 @@ final class AccountUi {
         overview.setOrientation(LinearLayout.VERTICAL);
         overview.setPadding(dp(act, 2), dp(act, 10), dp(act, 2), dp(act, 4));
         TextView count = new TextView(act);
-        count.setText("已保存 " + accounts.size() + " 个账号");
+        count.setText(UiLanguage.format(act,
+                "已保存 %d 个账号", "Saved %d accounts", accounts.size()));
         count.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
         count.setTypeface(Typeface.DEFAULT_BOLD);
         count.setTextColor(text);
@@ -649,7 +656,9 @@ final class AccountUi {
             if (tb.getChildCount() > 1 && tb.getChildAt(1) instanceof TextView) {
                 TextView selectAll = (TextView) tb.getChildAt(1);
                 int total = AccountManager.accountsForUi(act.getClassLoader()).size();
-                selectAll.setText(total > 0 && multiSelect.size() == total ? "取消全选" : "全选");
+                selectAll.setText(UiLanguage.text(act,
+                        total > 0 && multiSelect.size() == total ? "取消全选" : "全选",
+                        total > 0 && multiSelect.size() == total ? "Deselect all" : "Select all"));
             }
         }
     }
@@ -868,7 +877,9 @@ final class AccountUi {
                         : android.text.method.PasswordTransformationMethod.getInstance());
                 password.setSelection(Math.max(0, Math.min(cursor, password.length())));
                 passwordEye.setAlpha(visible ? 1f : 0.68f);
-                passwordEye.setContentDescription(visible ? "隐藏密码" : "显示密码");
+                passwordEye.setContentDescription(UiLanguage.text(act,
+                        visible ? "隐藏密码" : "显示密码",
+                        visible ? "Hide password" : "Show password"));
             }
         });
         panel.addView(passwordFrame, passwordLp);
