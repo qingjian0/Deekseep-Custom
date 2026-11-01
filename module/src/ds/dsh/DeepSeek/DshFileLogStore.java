@@ -17,7 +17,6 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
 final class DshFileLogStore {
-    private static final String DIRECTORY_NAME = "dsh-logs";
     private static final String PUBLIC_DIRECTORY = "ds";
     private static final long MAX_FILE_BYTES = 2L * 1024L * 1024L;
     private static final int BACKUP_COUNT = 3;
@@ -25,12 +24,13 @@ final class DshFileLogStore {
 
     private DshFileLogStore() {}
 
+    /** Must run in the module application's process so filesDir belongs to ds.dsh.DeepSeek. */
     static synchronized boolean appendPrivate(Context context, String category, String line) {
         if (context == null || !isAllowedCategory(category) || line == null) return false;
-        File directory = new File(context.getFilesDir(), DIRECTORY_NAME);
-        return appendFile(directory, category + ".log", line);
+        return appendFile(context.getFilesDir(), category + ".log", line);
     }
 
+    /** Writes Download/ds through MediaStore on Q+, with the legacy permission path on P-. */
     static synchronized boolean appendPublic(Context context, String category, String line) {
         if (context == null || !isAllowedCategory(category) || line == null) return false;
         String safeLine = sanitize(line);
@@ -90,18 +90,25 @@ final class DshFileLogStore {
                 current = null;
             }
         }
-        if (current == null) {
+        boolean created = current == null;
+        if (created) {
             ContentValues values = new ContentValues();
             values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
             values.put(MediaStore.MediaColumns.MIME_TYPE, "text/plain");
             values.put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath);
+            values.put(MediaStore.MediaColumns.IS_PENDING, 1);
             current = resolver.insert(collection, values);
             if (current == null) return false;
         }
-        try (OutputStream output = resolver.openOutputStream(current, "wa")) {
+        try (OutputStream output = resolver.openOutputStream(current, created ? "w" : "wa")) {
             if (output == null) return false;
             output.write(bytes);
             output.flush();
+        }
+        if (created) {
+            ContentValues publish = new ContentValues();
+            publish.put(MediaStore.MediaColumns.IS_PENDING, 0);
+            if (resolver.update(current, publish, null, null) <= 0) return false;
         }
         return true;
     }
@@ -114,10 +121,9 @@ final class DshFileLogStore {
         try (Cursor cursor = resolver.query(collection, projection, selection,
                 new String[] { name, relativePath }, null)) {
             if (cursor != null && cursor.moveToFirst()) {
-                return Uri.withAppendedPath(collection,
-                        Long.toString(cursor.getLong(0)));
+                return Uri.withAppendedPath(collection, Long.toString(cursor.getLong(0)));
             }
-        } catch (Throwable ignored) {}
+        }
         return null;
     }
 
@@ -170,7 +176,16 @@ final class DshFileLogStore {
     }
 
     private static String sanitize(String value) {
-        return DshLog.sanitizeForStorage(value);
+        String result = value.replace('\n', ' ').replace('\r', ' ');
+        result = result.replaceAll(
+                "(?i)(\\bauthorization\\b\\s*[:=]\\s*)(?:[A-Za-z][A-Za-z0-9_-]*\\s+)?[^\\s,;]+",
+                "$1[redacted]");
+        result = result.replaceAll("(?i)(\\bbearer\\s+)[^\\s,;]+", "$1[redacted]");
+        result = result.replaceAll(
+                "(?i)(\\b(?:x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password|cookie|client_secret)\\b\\s*[:=]\\s*)[^\\s,;]+",
+                "$1[redacted]");
+        result = result.replaceAll("(?i)/(?:data|storage)/[^\\s,;]+", "[private-path]");
+        return result.length() > MAX_LINE_CHARS ? result.substring(0, MAX_LINE_CHARS) : result;
     }
 
     private static boolean isAllowedCategory(String category) {
