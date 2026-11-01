@@ -7052,69 +7052,107 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         if (cl == null) return;
         // None of the optional render/agent/appearance hooks were re-verified on 2.7.1.
         if (HostCompat.isV271Limited()) return;
-        if (HookUiSurface.isWelcomeWhaleMotionEnabled()
-                && WHALE_HOOKS_INSTALLED.compareAndSet(false, true)) {
-            HookUiSurface.INSTANCE.hookWelcomeWhaleMotion(cl);
+
+        if (HookUiSurface.isWelcomeWhaleMotionEnabled()) {
+            installBestEffortHook("optional.ui.welcome-whale-motion", () -> {
+                if (!WHALE_HOOKS_INSTALLED.compareAndSet(false, true)) return;
+                try {
+                    HookUiSurface.INSTANCE.hookWelcomeWhaleMotion(cl);
+                } catch (Throwable error) {
+                    WHALE_HOOKS_INSTALLED.set(false);
+                    throw error;
+                }
+            }, "welcome-whale motion hook installation failed: ");
         }
-        if (isTextWaveEnabled()
-                && TEXT_WAVE_HOOKS_INSTALLED.compareAndSet(false, true)) {
-            HookUiSurface.INSTANCE.hookTextWaveMotion(cl);
+
+        if (isTextWaveEnabled()) {
+            installBestEffortHook("optional.ui.text-wave-motion", () -> {
+                if (!TEXT_WAVE_HOOKS_INSTALLED.compareAndSet(false, true)) return;
+                try {
+                    HookUiSurface.INSTANCE.hookTextWaveMotion(cl);
+                } catch (Throwable error) {
+                    TEXT_WAVE_HOOKS_INSTALLED.set(false);
+                    throw error;
+                }
+            }, "text-wave motion hook installation failed: ");
         }
-        if ((AgentToolConfig.enabledFast() || isDualChatEnabled())
-                && AGENT_RENDER_HOOKS_INSTALLED.compareAndSet(false, true)) {
-            HookAgentPipeline.INSTANCE.hookHeartbeatToolResponses(cl);
-            HookAgentPipeline.INSTANCE.hookHeartbeatPatchDispatcher(cl);
-            HookAgentPipeline.INSTANCE.hookTrackedHeartbeatStateWrites(cl);
-            HookAgentPipeline.INSTANCE.hookHeartbeatFragmentRenderBoundary(cl);
-            HookAgentPipeline.INSTANCE.hookHeartbeatMarkdownInputBoundary(cl);
-            HookAgentPipeline.INSTANCE.hookHeartbeatNativeMarkdownParser(cl);
-            HookAgentPipeline.INSTANCE.hookAgentToolLogRoundedRect(cl);
-            HookAttachmentPipeline.INSTANCE.hookNativeModelFileCards(cl);
-            HookAgentPipeline.INSTANCE.hookHeartbeatToolStatusStyle(
-                    cl, HostCompat.name("i68"), HostCompat.name("h78"));
-            HookAgentPipeline.INSTANCE.hookHeartbeatToolStatusBasicText(
-                    cl, HostCompat.isV241() ? "ox1" : HostCompat.name("yg8"),
-                    HostCompat.isV241() ? "e" : HostCompat.method("yg8", "b"),
-                    HostCompat.name("h78"));
-            HookAttachmentPipeline.INSTANCE.hookModelFileLinks();
+
+        if (AgentToolConfig.enabledFast() || isDualChatEnabled()) {
+            installBestEffortHook("optional.agent.render-pipeline", () -> {
+                if (!AGENT_RENDER_HOOKS_INSTALLED.compareAndSet(false, true)) return;
+                try {
+                    HookAgentPipeline.INSTANCE.hookHeartbeatToolResponses(cl);
+                    HookAgentPipeline.INSTANCE.hookHeartbeatPatchDispatcher(cl);
+                    HookAgentPipeline.INSTANCE.hookTrackedHeartbeatStateWrites(cl);
+                    HookAgentPipeline.INSTANCE.hookHeartbeatFragmentRenderBoundary(cl);
+                    HookAgentPipeline.INSTANCE.hookHeartbeatMarkdownInputBoundary(cl);
+                    HookAgentPipeline.INSTANCE.hookHeartbeatNativeMarkdownParser(cl);
+                    HookAgentPipeline.INSTANCE.hookAgentToolLogRoundedRect(cl);
+                    HookAttachmentPipeline.INSTANCE.hookNativeModelFileCards(cl);
+                    HookAgentPipeline.INSTANCE.hookHeartbeatToolStatusStyle(
+                            cl, HostCompat.name("i68"), HostCompat.name("h78"));
+                    HookAgentPipeline.INSTANCE.hookHeartbeatToolStatusBasicText(
+                            cl, HostCompat.isV241() ? "ox1" : HostCompat.name("yg8"),
+                            HostCompat.isV241() ? "e" : HostCompat.method("yg8", "b"),
+                            HostCompat.name("h78"));
+                    HookAttachmentPipeline.INSTANCE.hookModelFileLinks();
+                } catch (Throwable error) {
+                    AGENT_RENDER_HOOKS_INSTALLED.set(false);
+                    throw error;
+                }
+            }, "Agent render hook installation failed: ");
         }
-        if ((ChatAppearance.hasEnabledRuntimeEffects() || InputGlassStyle.anyEnabled())
-                && APPEARANCE_HOOKS_INSTALLED.compareAndSet(false, true)) {
-            final boolean targetGooglePlay = HostCompat.isGooglePlay();
-            try {
-                HookUiSurface.INSTANCE.hookChatBubbleCustomization(cl, targetGooglePlay);
-            } catch (Throwable channelError) {
-                if (HostCompat.isV234()) {
-                    log("hookChatBubbleCustomization wiring failed: " + channelError);
-                } else {
-                    try { HookUiSurface.INSTANCE.hookChatBubbleCustomization(cl, !targetGooglePlay); }
-                    catch (Throwable alternateError) {
-                        log("hookChatBubbleCustomization wiring failed: " + alternateError);
+
+        if (ChatAppearance.hasEnabledRuntimeEffects() || InputGlassStyle.anyEnabled()) {
+            installBestEffortHook("optional.ui.appearance-effects", () -> {
+                if (!APPEARANCE_HOOKS_INSTALLED.compareAndSet(false, true)) return;
+                final boolean targetGooglePlay = HostCompat.isGooglePlay();
+                Throwable appearanceFailure = null;
+                try {
+                    HookUiSurface.INSTANCE.hookChatBubbleCustomization(cl, targetGooglePlay);
+                } catch (Throwable channelError) {
+                    if (HostCompat.isV234()) {
+                        appearanceFailure = channelError;
+                    } else {
+                        try {
+                            HookUiSurface.INSTANCE.hookChatBubbleCustomization(cl, !targetGooglePlay);
+                        } catch (Throwable alternateError) {
+                            appearanceFailure = alternateError;
+                        }
                     }
                 }
-            }
-            try { HookUiSurface.INSTANCE.hookAssistantAvatarPainter(cl); }
-            catch (Throwable error) {
-                log("hookAssistantAvatarPainter wiring failed: " + error);
-            }
+                try {
+                    HookUiSurface.INSTANCE.hookAssistantAvatarPainter(cl);
+                } catch (Throwable avatarError) {
+                    if (appearanceFailure == null) appearanceFailure = avatarError;
+                    else appearanceFailure.addSuppressed(avatarError);
+                }
+                if (appearanceFailure != null) {
+                    APPEARANCE_HOOKS_INSTALLED.set(false);
+                    throw new IllegalStateException(
+                            "appearance hook group was only partially installed",
+                            appearanceFailure);
+                }
+            }, "appearance hook installation failed: ");
         }
-        // Install the credential bridge whenever this build contains the Local API.  Tying the
+
+        // Install the credential bridge whenever this build contains the Local API. Tying the
         // hook to a marker-file read made persisted installations timing-dependent: the first
         // optional-hook pass can run before the protected gateway has reconciled its settings,
         // and the listener then starts without the account-specific Authorization replacement.
-        // The two hooks are inert unless z18 binds a request-scoped Route, so installing them
-        // eagerly has no effect on ordinary DeepSeek traffic.
+        // The hooks are inert unless z18 binds a request-scoped Route.
         if (HostCompat.isV241()
-                && BuildInfo.PROTECTED_BUILD && BuildInfo.LOCAL_API_INCLUDED
-                && LOCAL_API_HOOKS_INSTALLED.compareAndSet(false, true)) {
-            try {
-                log("activating Local API credential hooks on demand");
-                HookAccountLoginSecurity.INSTANCE.hookLocalApiAccountRouting(cl);
-            } catch (Throwable error) {
-                LOCAL_API_HOOKS_INSTALLED.set(false);
-                log("Local API credential hook activation failed: "
-                        + safeThrowableMessage(error));
-            }
+                && BuildInfo.PROTECTED_BUILD && BuildInfo.LOCAL_API_INCLUDED) {
+            installBestEffortHook("optional.local-api-credential-routing", () -> {
+                if (!LOCAL_API_HOOKS_INSTALLED.compareAndSet(false, true)) return;
+                try {
+                    log("activating Local API credential hooks on demand");
+                    HookAccountLoginSecurity.INSTANCE.hookLocalApiAccountRouting(cl);
+                } catch (Throwable error) {
+                    LOCAL_API_HOOKS_INSTALLED.set(false);
+                    throw error;
+                }
+            }, "Local API credential hook activation failed: ");
         }
     }
 
