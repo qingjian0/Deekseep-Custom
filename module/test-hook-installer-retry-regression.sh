@@ -75,6 +75,44 @@ grep -Fq 'if (generationInstalled == 0)' <<<"$fake_mute"
 grep -Fq 'if (generationInstalled > 0)' <<<"$fake_mute"
 grep -Fq 'throw failure;' <<<"$fake_mute"
 grep -Fq 'if (lastFailure != null) throw lastFailure;' <<<"$fake_mute"
+# Session installers propagate installation failures to Main/Registry.
+session_src="$SRC/HookSessionManagement.java"
+for method in \
+  hookLocalSessionDirectoryMerge \
+  hookLocalNativeSessionRefresh \
+  hookLocalSessionRemoteReload \
+  hookLocalSessionDeletedFlow \
+  hookLocalSessionDeletedResponse \
+  hookActiveChatSessionCapture \
+  hookHistoryLoadDiagnostics \
+  hookNativeSessionNavigator; do
+  grep -Fq "void $method(" "$session_src"
+done
+for marker in \
+  'hookLocalSessionDirectoryMerge failed:' \
+  'hookLocalNativeSessionRefresh failed:' \
+  'hookLocalSessionRemoteReload failed:' \
+  'hookLocalSessionDeletedFlow failed:' \
+  'hookLocalSessionDeletedResponse failed:' \
+  'hook active chat session capture failed:' \
+  'hook history-load diagnostics failed:' \
+  'hookNativeSessionNavigator failed:'; do
+  grep -Fq "$marker" "$session_src"
+done
+
+# Lazy native click callbacks must not be marked complete after partial installation;
+# successful Members remain tracked so a later callback retries only the failed ones.
+click_body="$(sed -n '/private void hookNativeSessionClickCallback(/,/static List copyListForHook/p' "$session_src")"
+grep -Fq 'if (registered != null && registered.contains(method)) continue;' <<<"$click_body"
+grep -Fq 'if (complete)' <<<"$click_body"
+grep -Fq 'NATIVE_CLICK_HOOKED_CLASSES.add(callbackClass);' <<<"$click_body"
+grep -Fq 'complete = false;' <<<"$click_body"
+grep -Fq 'NATIVE_CLICK_INSTALLING_CLASSES.remove(callbackClass);' <<<"$click_body"
+if grep -Fq 'NATIVE_CLICK_HOOKED_CLASSES.add(callbackClass);' <<<"$(sed -n '/} catch (Throwable error) {/,/} finally {/p' <<<"$click_body")"; then
+  echo "Session click callback may be marked installed on its failure path." >&2
+  exit 1
+fi
+
 # Main's install wrapper must preserve failure visibility instead of silently swallowing it.
 install_body="$(sed -n '/private Throwable runHookInstallStep/,/void installHookStep/p' "$MAIN")"
 grep -Fq 'FEATURE_HOOK_INSTALL_REGISTRY.install(id' <<<"$install_body"
