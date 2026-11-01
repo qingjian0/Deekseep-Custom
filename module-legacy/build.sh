@@ -66,7 +66,7 @@ find compat -name '*.java' >> "$OUT/sources.txt"
 find src/de -name '*.java' >> "$OUT/sources.txt"
 find "$OUT/generated-src" -name '*.java' >> "$OUT/sources.txt"
 
-if ! javac -source 8 -target 8 \
+if ! javac --release 8 \
     -cp "$ANDROID_JAR:$ANDROIDX_PATH_PARSER_JAR:$KOTLIN_RUNTIME_JAR:$KOTLIN_STDLIB_JAR" \
     -d "$OUT/classes" @"$OUT/sources.txt" 2> "$OUT/javac.err"; then
   cat "$OUT/javac.err"
