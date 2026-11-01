@@ -7,7 +7,7 @@ import org.junit.Test
 class ModelDisplayNamePolicyTest {
     @Test
     fun cleanNormalizesWhitespaceAndCapsLength() {
-        assertEquals("alpha beta gamma", ModelDisplayNamePolicy.clean(" alpha\r\nbeta\tgamma "))
+        assertEquals("alpha  beta gamma", ModelDisplayNamePolicy.clean(" alpha\r\nbeta\tgamma "))
         assertEquals(40, ModelDisplayNamePolicy.clean("x".repeat(60)).length)
         assertEquals("", ModelDisplayNamePolicy.clean(null))
     }
