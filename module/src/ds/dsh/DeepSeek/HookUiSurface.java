@@ -3862,7 +3862,7 @@ final class HookUiSurface {
         if (installFailure != null) throw installFailure;
     }
 
-    private int hookNavStateMethod(Class<?> nav, String name) {
+    private int hookNavStateMethod(Class<?> nav, String name) throws Throwable {
         int count = 0;
         for (Method m : nav.getDeclaredMethods()) {
             if (!HostRemap.name(m).equals(name)) continue;
