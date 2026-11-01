@@ -44,7 +44,7 @@ internal class LauncherBackupRepository {
                 entryCount++
                 require(entryCount <= MAX_ENTRIES) { "备份文件包含过多条目" }
                 if (!entry.isDirectory) {
-                    val name = entry.name.replace('\\\\', '/')
+                    val name = entry.name.replace('\\', '/')
                     val target = when {
                         name == ZIP_SETTINGS -> "settings"
                         name.startsWith(ZIP_LAUNCHER_FILES) -> "files"
@@ -200,7 +200,7 @@ internal class LauncherBackupRepository {
     }
 
     private fun safeRelativePath(path: String): String {
-        val normalized = path.replace('\\\\', '/')
+        val normalized = path.replace('\\', '/')
         require(normalized.isNotBlank() && !normalized.startsWith('/')) { "备份路径无效" }
         val segments = normalized.split('/')
         require(segments.none { it.isBlank() || it == "." || it == ".." }) { "备份路径无效" }
