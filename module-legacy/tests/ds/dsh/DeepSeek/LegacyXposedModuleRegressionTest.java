@@ -129,6 +129,7 @@ public final class LegacyXposedModuleRegressionTest {
         runScopedRegistrationRetryTest(method, api);
         runScopedRegistrationErrorRetryTest(method, api);
         runScopedRegistrationMultiplicityTest(method, api);
+        runNestedRegistrationScopeRestoreTest(method, api);
     }
 
     private static void registerScopedRetryHook(Module module, Method method) {
@@ -259,6 +260,63 @@ public final class LegacyXposedModuleRegressionTest {
                 "API " + api + " same-class hooks must invoke the original exactly once");
         check(XposedBridge.hookCountForTest == 1,
                 "API " + api + " retry must not duplicate the underlying Xposed callback");
+    }
+
+    private static void registerNestedScopeSequence(Module module, Method method) {
+        LegacyXposedModule.HookRegistrationScope outer =
+                module.beginHookRegistrationScope("test.nested.outer");
+        try {
+            registerScopedLabel(module, method, ":outer-first");
+            LegacyXposedModule.HookRegistrationScope inner =
+                    module.beginHookRegistrationScope("test.nested.inner");
+            try {
+                registerScopedLabel(module, method, ":inner");
+            } finally {
+                module.endHookRegistrationScope(inner);
+            }
+            // Ending the inner scope must restore the original outer occurrence counter.
+            registerScopedLabel(module, method, ":outer-second");
+        } finally {
+            module.endHookRegistrationScope(outer);
+        }
+    }
+
+    private static void registerScopedLabel(Module module, Method method, final String suffix) {
+        module.hook(method).intercept(new LegacyXposedModule.Hooker() {
+            @Override public Object intercept(LegacyXposedModule.Chain chain) throws Throwable {
+                return chain.proceed() + suffix;
+            }
+        });
+    }
+
+    private static void runNestedRegistrationScopeRestoreTest(final Method method, int api)
+            throws Throwable {
+        XposedBridge.resetTestState();
+        XposedBridge.originalMethodInvokerForTest = new XposedBridge.OriginalMethodInvoker() {
+            @Override public Object invoke(Member member, Object receiver,
+                                           Object[] invokeArgs) throws Throwable {
+                return ((Method) member).invoke(receiver, invokeArgs);
+            }
+        };
+        Module module = new Module();
+        registerNestedScopeSequence(module, method);
+        registerNestedScopeSequence(module, method);
+
+        XC_MethodHook.MethodHookParam param = new XC_MethodHook.MethodHookParam();
+        param.method = method;
+        Target target = new Target();
+        param.thisObject = target;
+        param.args = new Object[] {"safe", "original"};
+        XposedBridge.callbackForTest.dispatchBeforeForTest(param);
+
+        check(!param.hasThrowable(), "API " + api + " nested registration scope failed");
+        check("safe:original:outer-second:inner:outer-first".equals(param.getResult()),
+                "API " + api + " nested scope restore duplicated or lost registrations: "
+                        + param.getResult());
+        check(target.joinCalls == 1,
+                "API " + api + " nested scopes must invoke the original exactly once");
+        check(XposedBridge.hookCountForTest == 1,
+                "API " + api + " nested scopes duplicated the underlying Xposed callback");
     }
 
     private static void runFailureIsolationTests(final Method method, int api) throws Throwable {
