@@ -127,6 +127,7 @@ final class HookAttachmentPipeline {
 
     private static final Set<Constructor<?>> IMAGE_CREDENTIAL_BRIDGE_HOOKED = new HashSet<>();
     private static final Set<Member> HISTORY_PRESERVER_HOOKED_MEMBERS = new HashSet<>();
+    private static final Set<Member> ATTACHMENT_PIPELINE_HOOKED_MEMBERS = new HashSet<>();
 
     // 专家模式解锁：俘获任意"已启用"模型的真 feature 模板，回填给 expert
     private static volatile Object tplThink;
@@ -202,7 +203,7 @@ final class HookAttachmentPipeline {
         try {
             Method startActivity = HostRemap.method(Activity.class, "startActivity", Intent.class);
             startActivity.setAccessible(true);
-            Main.MODULE.hook(startActivity).intercept(new Hooker() {
+            hookAttachmentMember(startActivity, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Object owner = chain.getThisObject();
                     Object argument = chain.getArg(0);
@@ -224,7 +225,7 @@ final class HookAttachmentPipeline {
             Method startActivity = HostRemap.method(ContextWrapper.class, 
                     "startActivity", Intent.class);
             startActivity.setAccessible(true);
-            Main.MODULE.hook(startActivity).intercept(new Hooker() {
+            hookAttachmentMember(startActivity, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Object owner = chain.getThisObject();
                     Object argument = chain.getArg(0);
@@ -332,7 +333,7 @@ final class HookAttachmentPipeline {
             Method[] boundaries = new Method[]{getText, getString, getFormatted};
             for (Method boundary : boundaries) {
                 boundary.setAccessible(true);
-                Main.MODULE.hook(boundary).intercept(new Hooker() {
+                hookAttachmentMember(boundary, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object idValue = chain.getArg(0);
                         int id = idValue instanceof Number
@@ -381,7 +382,7 @@ final class HookAttachmentPipeline {
                 }
                 if (!Modifier.isStatic(method.getModifiers()) || method.getReturnType() != void.class
                         || uriCount < 2 || composerIndex < 0 || p.length < 10) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookAttachmentMember(method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Activity activity = Main.MODULE.curAct.get();
                         if (activity != null) ChatAppearance.onNativeImagePreviewRendered(activity);
@@ -776,6 +777,15 @@ Main.log("installExpertUploadGate failed: " + t);
     private static volatile boolean imageApiCaptureLogged;
 
     private static volatile boolean imageComposerCaptureLogged;
+
+    private static void hookAttachmentMember(Member member, Hooker hooker)
+            throws Throwable {
+        synchronized (ATTACHMENT_PIPELINE_HOOKED_MEMBERS) {
+            if (ATTACHMENT_PIPELINE_HOOKED_MEMBERS.contains(member)) return;
+            Main.MODULE.hook(member).intercept(hooker);
+            ATTACHMENT_PIPELINE_HOOKED_MEMBERS.add(member);
+        }
+    }
 
     private static boolean hookImageCredentialBridgeConstructor(
             Constructor<?> constructor, Hooker hooker) throws Throwable {
