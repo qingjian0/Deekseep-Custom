@@ -62,7 +62,9 @@ final class DshLogIpcQueue {
                 }
             }
         });
-        return privateQueued && publicQueued;
+        if (!privateQueued || !publicQueued) INGRESS_REJECTIONS.incrementAndGet();
+        // One durable destination is enough to accept the event; status exposes per-store failures.
+        return privateQueued || publicQueued;
     }
 
     private static boolean submit(ThreadPoolExecutor writer, AtomicLong failures, Runnable task) {
