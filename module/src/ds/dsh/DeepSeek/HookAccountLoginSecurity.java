@@ -899,6 +899,7 @@ final class HookAccountLoginSecurity {
             return;
         }
         int primaryHooks = 0;
+        Throwable partialFailure = null;
         try {
             Class<?> sm = HostRemap.forName("com.ishumei.smantifraud.SmAntiFraud", false, cl);
             for (final Method method : sm.getDeclaredMethods()) {
@@ -943,7 +944,10 @@ final class HookAccountLoginSecurity {
             // but every detector returns "clean" and the box JSON carries the synthetic smid, so
             // the risk cloud sees a fresh, root-free device instead of a vanished upload.
             try { installSmsdkForge(cl); }
-            catch (Throwable t) { Main.log("[RISK] SMSDK forge failed: " + Main.safeThrowableMessage(t)); }
+            catch (Throwable t) {
+                Main.log("[RISK] SMSDK forge failed: " + Main.safeThrowableMessage(t));
+                partialFailure = t;
+            }
             // The SDK also persists its real device id in a private store. The login header
             // builder can read that store directly (not only through getDeviceId), so force the
             // two known store getters to return the synthetic id as well.
@@ -965,7 +969,11 @@ final class HookAccountLoginSecurity {
                     });
                     try { Main.MODULE.deoptimize(method); } catch (Throwable ignored) {}
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable storeError) {
+                Main.log("[RISK] smid store hooks unavailable: " + Main.safeThrowableMessage(storeError));
+                if (partialFailure == null) partialFailure = storeError;
+                else partialFailure.addSuppressed(storeError);
+            }
             try {
                 Class<?> detector = HostRemap.forName(
                         "com.ishumei.smantifraud.l1111l111111Il", false, cl);
@@ -1002,7 +1010,11 @@ final class HookAccountLoginSecurity {
                         try { Main.MODULE.deoptimize(method); } catch (Throwable ignored) {}
                     }
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable detectorError) {
+                Main.log("[RISK] detector hooks unavailable: " + Main.safeThrowableMessage(detectorError));
+                if (partialFailure == null) partialFailure = detectorError;
+                else partialFailure.addSuppressed(detectorError);
+            }
             Main.log("[RISK] SmAntiFraud neutralizer installed");
             // Hook android_id so the device fingerprint sent to the server is synthetic.
             // DeepSeek reads Settings.Secure.getString("android_id") in bm2.b() and ki9.<init>
@@ -1011,7 +1023,10 @@ final class HookAccountLoginSecurity {
                 hookAndroidIdSpoof(cl);
             } catch (Throwable t) {
                 Main.log("[RISK] Android ID spoof failed: " + Main.safeThrowableMessage(t));
+                if (partialFailure == null) partialFailure = t;
+                else partialFailure.addSuppressed(t);
             }
+            if (partialFailure != null) throw partialFailure;
         } catch (Throwable t) {
             Main.log("[RISK] SmAntiFraud neutralizer unavailable: " + Main.safeThrowableMessage(t));
             throw t;
