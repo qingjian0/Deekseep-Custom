@@ -160,7 +160,10 @@ final class DshFileLogStore {
                 + MediaStore.MediaColumns.RELATIVE_PATH + "=?";
         try (Cursor cursor = resolver.query(collection, projection, selection,
                 new String[] { name, relativePath }, null)) {
-            if (cursor != null && cursor.moveToFirst()) {
+            if (cursor == null) {
+                throw new IllegalStateException("MediaStore query returned no cursor");
+            }
+            if (cursor.moveToFirst()) {
                 return Uri.withAppendedPath(collection, Long.toString(cursor.getLong(0)));
             }
         }
