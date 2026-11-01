@@ -5,7 +5,9 @@ import java.lang.reflect.Method;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Constructor;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -25,6 +27,24 @@ abstract class LegacyXposedModule {
 
     private final ConcurrentHashMap<Member, HookTarget> targets =
             new ConcurrentHashMap<Member, HookTarget>();
+
+    // A stable installer scope lets a retried feature add only the registrations that did not
+    // complete in its previous attempt. Unscoped callers keep the historical append behavior.
+    private final ThreadLocal<String> hookRegistrationScope = new ThreadLocal<String>();
+
+    final String beginHookRegistrationScope(String scope) {
+        String previous = hookRegistrationScope.get();
+        if (scope == null || scope.trim().isEmpty()) {
+            throw new IllegalArgumentException("hook registration scope must not be blank");
+        }
+        hookRegistrationScope.set(scope);
+        return previous;
+    }
+
+    final void endHookRegistrationScope(String previous) {
+        if (previous == null) hookRegistrationScope.remove();
+        else hookRegistrationScope.set(previous);
+    }
 
     interface Hooker {
         Object intercept(Chain chain) throws Throwable;
@@ -204,15 +224,23 @@ abstract class LegacyXposedModule {
         private final Member member;
         private final CopyOnWriteArrayList<Hooker> hookers =
                 new CopyOnWriteArrayList<Hooker>();
+        private final Set<String> scopedRegistrations = new HashSet<String>();
         private boolean registered;
 
         HookTarget(Member member) { this.member = member; }
 
         synchronized void intercept(final Hooker hooker) {
             if (hooker == null) throw new NullPointerException("hooker");
+            String scope = hookRegistrationScope.get();
+            String registrationKey = scope == null ? null
+                    : scope + "#" + hooker.getClass().getName();
+            if (registrationKey != null && scopedRegistrations.contains(registrationKey)) return;
             hookers.add(hooker);
-            if (registered) return;
             try {
+                if (registered) {
+                    if (registrationKey != null) scopedRegistrations.add(registrationKey);
+                    return;
+                }
                 // Run after ordinary before callbacks, then publish our result so their matching
                 // after callbacks still execute. A highest-priority replacement would silently
                 // suppress every other module hooked to the same host member.
@@ -244,6 +272,7 @@ abstract class LegacyXposedModule {
                     }
                 });
                 registered = true;
+                if (registrationKey != null) scopedRegistrations.add(registrationKey);
                 RawHookTrace.registered(member);
                 JavaPluginRuntimeBridge.registered(member);
             } catch (RuntimeException error) {
