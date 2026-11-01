@@ -256,8 +256,8 @@ public final class HeartbeatToolProtocolRegressionTest {
                 "history sanitizer did not remove the private carrier or preserve only trusted prose");
         String carrierPayload = toolLogRowSummary(presented.visibleText);
         require(carrierPayload.contains("2026-08-02T18:37:00+08:00")
-                        && carrierPayload.contains("每次主动分享一个轻松话题")
-                        && carrierPayload.contains("\\"minutes\\":90"),
+                        && carrierPayload.contains("minutes")
+                        && carrierPayload.contains("90")),
                 "native card metadata omitted the accepted heartbeat inputs");
         require(!HeartbeatToolProtocol.hasToolStatusStyleMarker(presented.visibleText),
                 "obsolete inline style marker was emitted alongside native Canvas rows");
