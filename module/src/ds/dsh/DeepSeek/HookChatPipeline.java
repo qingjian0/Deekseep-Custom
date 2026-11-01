@@ -949,12 +949,12 @@ final class HookChatPipeline {
                 });
                 n++;
             }
-            Main.log("hooked kb7 constructors x" + n + " (clear_response guard)");
-        } catch (Throwable t) {
             if (n == 0) {
                 throw new NoSuchMethodException("hookSafetyRetraction matched no hook targets");
             }
-            Main.log("hookSafetyRetraction failed: " + t);
+            Main.log("hooked kb7 constructors x" + n + " (clear_response guard)");
+        } catch (Throwable t) {
+Main.log("hookSafetyRetraction failed: " + t);
             throw t;
         }
     }
@@ -1003,12 +1003,12 @@ final class HookChatPipeline {
                 });
                 n++;
             }
-            Main.log("installed server capture on lv7 x" + n);
-        } catch (Throwable t) {
             if (n == 0) {
                 throw new NoSuchMethodException("installServerCapture matched no hook targets");
             }
-            Main.log("installServerCapture failed: " + t);
+            Main.log("installed server capture on lv7 x" + n);
+        } catch (Throwable t) {
+Main.log("installServerCapture failed: " + t);
             throw t;
         }
     }
@@ -1207,12 +1207,12 @@ final class HookChatPipeline {
                 });
                 n++;
             }
-            Main.log("hooked mv.i x" + n + " (content-filter guard)");
-        } catch (Throwable t) {
             if (n == 0) {
                 throw new NoSuchMethodException("hookContentFilterApply matched no hook targets");
             }
-            Main.log("hookContentFilterApply failed: " + t);
+            Main.log("hooked mv.i x" + n + " (content-filter guard)");
+        } catch (Throwable t) {
+Main.log("hookContentFilterApply failed: " + t);
             throw t;
         }
     }
@@ -1290,12 +1290,12 @@ final class HookChatPipeline {
                 });
                 n++;
             }
-            Main.log("installed msg-rebuild capture on vv7.e x" + n);
-        } catch (Throwable t) {
             if (n == 0) {
                 throw new NoSuchMethodException("installMsgRebuildCapture matched no hook targets");
             }
-            Main.log("installMsgRebuildCapture failed: " + t);
+            Main.log("installed msg-rebuild capture on vv7.e x" + n);
+        } catch (Throwable t) {
+Main.log("installMsgRebuildCapture failed: " + t);
             throw t;
         }
     }
@@ -1382,12 +1382,12 @@ final class HookChatPipeline {
                 });
                 n++;
             }
-            Main.log("hooked mv.S/R x" + n + " (status-write guard)");
-        } catch (Throwable t) {
             if (n == 0) {
                 throw new NoSuchMethodException("hookStatusWrite matched no hook targets");
             }
-            Main.log("hookStatusWrite failed: " + t);
+            Main.log("hooked mv.S/R x" + n + " (status-write guard)");
+        } catch (Throwable t) {
+Main.log("hookStatusWrite failed: " + t);
             throw t;
         }
     }
@@ -1636,12 +1636,12 @@ final class HookChatPipeline {
                 });
                 n++;
             }
-            Main.log("hooked h83.h x" + n + " (template probe)");
-        } catch (Throwable t) {
             if (n == 0) {
                 throw new NoSuchMethodException("hookTemplateProbe matched no hook targets");
             }
-            Main.log("hookTemplateProbe failed: " + t);
+            Main.log("hooked h83.h x" + n + " (template probe)");
+        } catch (Throwable t) {
+Main.log("hookTemplateProbe failed: " + t);
             throw t;
         }
     }
@@ -1735,12 +1735,12 @@ final class HookChatPipeline {
                 });
                 n++;
             }
-            Main.log("hooked tp.u x" + n + " (final-merge guard)");
-        } catch (Throwable t) {
             if (n == 0) {
                 throw new NoSuchMethodException("hookFinalMessageMerge matched no hook targets");
             }
-            Main.log("hookFinalMessageMerge failed: " + t);
+            Main.log("hooked tp.u x" + n + " (final-merge guard)");
+        } catch (Throwable t) {
+Main.log("hookFinalMessageMerge failed: " + t);
             throw t;
         }
     }
@@ -1822,12 +1822,12 @@ final class HookChatPipeline {
                 });
                 n++;
             }
-            Main.log("hooked tp.q/p/a x" + n + " (final-apply guard)");
-        } catch (Throwable t) {
             if (n == 0) {
                 throw new NoSuchMethodException("hookFinalMessageApply matched no hook targets");
             }
-            Main.log("hookFinalMessageApply failed: " + t);
+            Main.log("hooked tp.q/p/a x" + n + " (final-apply guard)");
+        } catch (Throwable t) {
+Main.log("hookFinalMessageApply failed: " + t);
             throw t;
         }
     }
@@ -2061,12 +2061,12 @@ final class HookChatPipeline {
                 });
                 installed++;
             }
-            Main.log("installed s11 render filter x" + installed);
-        } catch (Throwable error) {
             if (installed == 0) {
                 throw new NoSuchMethodException("hookS11RenderFilter matched no hook targets");
             }
-            Main.log("hook s11 render filter failed: " + error);
+            Main.log("installed s11 render filter x" + installed);
+        } catch (Throwable error) {
+Main.log("hook s11 render filter failed: " + error);
             throw error;
         }
     }
@@ -2126,12 +2126,12 @@ final class HookChatPipeline {
                 });
                 installed++;
             }
-            Main.log("installed cs1.m attachment filter x" + installed);
-        } catch (Throwable error) {
             if (installed == 0) {
                 throw new NoSuchMethodException("hookCs1RenderFilter matched no hook targets");
             }
-            Main.log("hook cs1.m attachment filter failed: " + error);
+            Main.log("installed cs1.m attachment filter x" + installed);
+        } catch (Throwable error) {
+Main.log("hook cs1.m attachment filter failed: " + error);
             throw error;
         }
     }
@@ -2274,12 +2274,12 @@ final class HookChatPipeline {
                     n++;
                 }
             }
-            Main.log("installed pow manager capture on q71 x" + n);
-        } catch (Throwable t) {
             if (n == 0) {
                 throw new NoSuchMethodException("installPowManagerCapture matched no hook targets");
             }
-            Main.log("installPowManagerCapture failed: " + t);
+            Main.log("installed pow manager capture on q71 x" + n);
+        } catch (Throwable t) {
+Main.log("installPowManagerCapture failed: " + t);
             throw t;
         }
     }
