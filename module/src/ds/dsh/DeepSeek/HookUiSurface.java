@@ -477,7 +477,7 @@ final class HookUiSurface {
                     headerContent, false, -2075140913);
 
             root.setAccessible(true);
-            Main.MODULE.hook(root).intercept(new Hooker() {
+            hookUiFeatureMember("hookNativeSettingsEntry", root, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Boolean previousRoot = NATIVE_SETTINGS_ROOT.get();
                     Boolean previousInserted = NATIVE_SETTINGS_ROW_INSERTED.get();
@@ -495,7 +495,7 @@ final class HookUiSurface {
             });
 
             header.setAccessible(true);
-            Main.MODULE.hook(header).intercept(new Hooker() {
+            hookUiFeatureMember("hookNativeSettingsEntry", header, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     if (nativeSettingsRowHooked && isNativeSettingsEntryEnabled()
                             && Boolean.TRUE.equals(NATIVE_SETTINGS_ROOT.get())
@@ -668,7 +668,7 @@ final class HookUiSurface {
             Method rowSurface = findStaticMethod(componentOwner, "a", 4);
             deoptimizeBubbleMethod(rowSurface);
             deoptimizeBubbleMethod(background);
-            Main.MODULE.hook(background).intercept(new Hooker() {
+            hookUiFeatureMember("prepareNativeSettingsDecoration", background, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     if (!Boolean.TRUE.equals(NATIVE_SETTINGS_ROW_INSERTING.get())) {
                         return chain.proceed();
@@ -753,7 +753,7 @@ final class HookUiSurface {
                 ADAPTED_SETTINGS_ENTRY_HOOKED.set(false);
                 return;
             }
-            Main.MODULE.hook(method).intercept(new Hooker() {
+            hookUiFeatureMember("maybeInstallAdaptedSettingsEntry", method, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Object event = null;
                     try { event = chain.getArg(0); } catch (Throwable ignored) {}
@@ -843,7 +843,7 @@ final class HookUiSurface {
         }
         filterSetter.setAccessible(true);
         Main.MODULE.deoptimize(filterSetter);
-        Main.MODULE.hook(filterSetter).intercept(new Hooker() {
+        hookUiFeatureMember("hookAssistantAvatarPainter", filterSetter, new Hooker() {
             @Override public Object intercept(Chain chain) throws Throwable {
                 // Material Icon applies its semantic blue tint through Painter.applyColorFilter.
                 // The custom avatar is a real image, so keep its original colours; every other
@@ -874,7 +874,7 @@ final class HookUiSurface {
             }
             alphaSetter.setAccessible(true);
             Main.MODULE.deoptimize(alphaSetter);
-            Main.MODULE.hook(alphaSetter).intercept(new Hooker() {
+            hookUiFeatureMember("hookAssistantAvatarPainter", alphaSetter, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     if (isAssistantAvatarPainter(chain.getThisObject())) return Boolean.TRUE;
                     return chain.proceed();
@@ -901,7 +901,7 @@ final class HookUiSurface {
         Main.MODULE.deoptimize(loader);
         final String painterClassName = painterType;
         final String metadataClassName = metadataType;
-        Main.MODULE.hook(loader).intercept(new Hooker() {
+        hookUiFeatureMember("hookAssistantAvatarPainter", loader, new Hooker() {
             @Override public Object intercept(Chain chain) throws Throwable {
                 Object id = chain.getArg(0);
                 // R.drawable.assistant_message_avatar is stable across all supported hosts.
@@ -1057,7 +1057,7 @@ final class HookUiSurface {
             Main.log("bubble restart deopt skipped: " + t);
         }
 
-        Main.MODULE.hook(userBubble).intercept(new Hooker() {
+        hookUiFeatureMember("hookChatBubbleCustomization", userBubble, new Hooker() {
             @Override public Object intercept(Chain chain) throws Throwable {
                 ChatAppearance.BubbleStyle style =
                         ChatAppearance.bubbleStyleForRender(true);
@@ -1125,7 +1125,7 @@ final class HookUiSurface {
         // The assistant has no native bubble. Its outer response composable also owns the
         // copy/like/dislike row, so that container is only used to scope discovery of the real
         // body node; it must never be painted as a bubble itself.
-        Main.MODULE.hook(assistantBody).intercept(new Hooker() {
+        hookUiFeatureMember("hookChatBubbleCustomization", assistantBody, new Hooker() {
             @Override public Object intercept(Chain chain) throws Throwable {
                 ChatAppearance.BubbleStyle style =
                         ChatAppearance.bubbleStyleForRender(false);
@@ -1146,7 +1146,7 @@ final class HookUiSurface {
         });
 
         if (assistantContentBox != null) {
-            Main.MODULE.hook(assistantContentBox).intercept(new Hooker() {
+            hookUiFeatureMember("hookChatBubbleCustomization", assistantContentBox, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     BubbleRenderContext context = BUBBLE_RENDER_CONTEXT.get();
                     if (context == null || context.user
@@ -1161,7 +1161,7 @@ final class HookUiSurface {
             });
         }
 
-        Main.MODULE.hook(inputContainer).intercept(new Hooker() {
+        hookUiFeatureMember("hookChatBubbleCustomization", inputContainer, new Hooker() {
             @Override public Object intercept(Chain chain) throws Throwable {
                 boolean glass = ChatAppearance.glassEnabledForRender();
                 LiquidGlassEngine.SurfaceHandle surface = null;
@@ -1189,7 +1189,7 @@ final class HookUiSurface {
             }
         });
 
-        Main.MODULE.hook(conversationSearch).intercept(new Hooker() {
+        hookUiFeatureMember("hookChatBubbleCustomization", conversationSearch, new Hooker() {
             @Override public Object intercept(Chain chain) throws Throwable {
                 if (!ChatAppearance.glassEnabledForRender()) {
                     return chain.proceed();
@@ -1206,7 +1206,7 @@ final class HookUiSurface {
             }
         });
 
-        Main.MODULE.hook(modeItem).intercept(new Hooker() {
+        hookUiFeatureMember("hookChatBubbleCustomization", modeItem, new Hooker() {
             @Override public Object intercept(Chain chain) throws Throwable {
                 if (!ChatAppearance.glassEnabledForRender()) {
                     return chain.proceed();
@@ -1241,7 +1241,7 @@ final class HookUiSurface {
         // p35.e/ds5.t ignores its nullable Modifier argument and constructs the actual clickable
         // item with i39.S/av9.k0. Decorate that returned Modifier: it is below both text passes,
         // follows Compose scrolling, and supplies the exact bounds to the refracting layer.
-        Main.MODULE.hook(modeContainer).intercept(new Hooker() {
+        hookUiFeatureMember("hookChatBubbleCustomization", modeContainer, new Hooker() {
             @Override public Object intercept(Chain chain) throws Throwable {
                 ModeGlassContext context = MODE_GLASS_CONTEXT.get();
                 if (context == null || context.modifierApplied) {
@@ -1257,7 +1257,7 @@ final class HookUiSurface {
             }
         });
 
-        Main.MODULE.hook(attachmentItem).intercept(new Hooker() {
+        hookUiFeatureMember("hookChatBubbleCustomization", attachmentItem, new Hooker() {
             @Override public Object intercept(Chain chain) throws Throwable {
                 if (!ChatAppearance.glassEnabledForRender()) {
                     return chain.proceed();
@@ -2858,7 +2858,7 @@ final class HookUiSurface {
             if (resourceLoader == null) throw new NoSuchMethodException(
                     loaderOwner + "." + loaderMethod + " drawable loader");
             resourceLoader.setAccessible(true);
-            Main.MODULE.hook(resourceLoader).intercept(new Hooker() {
+            hookUiFeatureMember("hookWelcomeWhaleMotion", resourceLoader, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     List<Object> args = chain.getArgs();
                     boolean whale = args != null && !args.isEmpty()
@@ -2891,7 +2891,7 @@ final class HookUiSurface {
                     .getMethod("b", Object.class);
             invalidateScope.setAccessible(true);
             welcomeWhaleScopeInvalidate = invalidateScope;
-            Main.MODULE.hook(endRestartGroup).intercept(new Hooker() {
+            hookUiFeatureMember("hookWelcomeWhaleMotion", endRestartGroup, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Object scope = chain.proceed();
                     Object composer = chain.getThisObject();
@@ -2941,7 +2941,7 @@ final class HookUiSurface {
             final Method translate = HostRemap.method(canvasClass, "n", float.class, float.class);
             final Method restore = HostRemap.method(canvasClass, "o");
             final AtomicBoolean drawErrorLogged = new AtomicBoolean(false);
-            Main.MODULE.hook(painterDraw).intercept(new Hooker() {
+            hookUiFeatureMember("hookWelcomeWhaleMotion", painterDraw, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Object painter = chain.getThisObject();
                     if (!isWelcomeWhaleMotionEnabled()
@@ -3293,14 +3293,14 @@ final class HookUiSurface {
             plainString.setAccessible(true);
             deoptimizeBubbleMethod(formattedString);
             deoptimizeBubbleMethod(plainString);
-            Main.MODULE.hook(formattedString).intercept(new Hooker() {
+            hookUiFeatureMember("hookHomeGreeting", formattedString, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     String greeting = homeGreetingForResource(chain.getArg(0));
                     if (greeting != null) return greeting;
                     return displayNameFor(chain.proceed());
                 }
             });
-            Main.MODULE.hook(plainString).intercept(new Hooker() {
+            hookUiFeatureMember("hookHomeGreeting", plainString, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     String greeting = homeGreetingForResource(chain.getArg(0));
                     if (greeting != null) return greeting;
@@ -3316,13 +3316,13 @@ final class HookUiSurface {
                     "getString", int.class, Object[].class);
             resourcesPlain.setAccessible(true);
             resourcesFormatted.setAccessible(true);
-            Main.MODULE.hook(resourcesPlain).intercept(new Hooker() {
+            hookUiFeatureMember("hookHomeGreeting", resourcesPlain, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     String greeting = homeGreetingForResource(chain.getArg(0));
                     return greeting != null ? greeting : chain.proceed();
                 }
             });
-            Main.MODULE.hook(resourcesFormatted).intercept(new Hooker() {
+            hookUiFeatureMember("hookHomeGreeting", resourcesFormatted, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     String greeting = homeGreetingForResource(chain.getArg(0));
                     return greeting != null ? greeting : chain.proceed();
@@ -3345,7 +3345,7 @@ final class HookUiSurface {
             if (composeText == null) throw new NoSuchMethodException(
                     composeTextOwnerName + ".b/18");
             deoptimizeBubbleMethod(composeText);
-            Main.MODULE.hook(composeText).intercept(new Hooker() {
+            hookUiFeatureMember("hookHomeGreeting", composeText, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Object current = chain.getArg(0);
                     String greeting = current instanceof String
@@ -3450,7 +3450,7 @@ final class HookUiSurface {
             for (Method method : compose.getDeclaredMethods()) {
                 if (!"setContent".equals(HostRemap.name(method))
                         || method.getParameterTypes().length != 1) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookUiFeatureMember("hookNativeDualChatRoot", method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         try {
                             Object owner = chain.getThisObject();
@@ -3791,6 +3791,22 @@ final class HookUiSurface {
     // fails, the enclosing feature step may retry; never stack interceptors on prior targets.
     private static final Set<Member> SETTINGS_NAV_INSTALLED_MEMBERS =
             Collections.newSetFromMap(new ConcurrentHashMap<Member, Boolean>());
+    private static final ConcurrentHashMap<String, Set<Member>> UI_FEATURE_HOOKED_MEMBERS =
+            new ConcurrentHashMap<>();
+
+    private static void hookUiFeatureMember(
+            String feature, Member member, Hooker hooker) throws Throwable {
+        synchronized (UI_FEATURE_HOOKED_MEMBERS) {
+            Set<Member> installed = UI_FEATURE_HOOKED_MEMBERS.get(feature);
+            if (installed == null) {
+                installed = new HashSet<>();
+                UI_FEATURE_HOOKED_MEMBERS.put(feature, installed);
+            }
+            if (installed.contains(member)) return;
+            Main.MODULE.hook(member).intercept(hooker);
+            installed.add(member);
+        }
+    }
 
     private static boolean hookSettingsNavigationOnce(Member member, Hooker hooker)
             throws Throwable {
