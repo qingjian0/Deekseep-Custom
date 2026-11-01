@@ -1591,7 +1591,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             // 2.7.1/code287: only the re-verified whitelist is installed. See HostV271.
             log("installAllFeatureHooks: 2.7.1 whitelist");
             HostV271.installFeatureHooks(hookLoader);
-            FEATURE_HOOKS_INSTALLED.set(!FEATURE_HOOK_INSTALL_REGISTRY.hasFailures());
+            FEATURE_HOOKS_INSTALLED.set(!FEATURE_HOOK_INSTALL_REGISTRY.hasRequiredFailures());
             return;
         }
         log("installAllFeatureHooks: installing all feature hooks (authorized)");
@@ -1810,7 +1810,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             log("installAllFeatureHooks failed: " + safeThrowableMessage(error));
         }
-        if (!FEATURE_HOOK_INSTALL_REGISTRY.hasFailures()) {
+        if (!FEATURE_HOOK_INSTALL_REGISTRY.hasRequiredFailures()) {
             FEATURE_HOOKS_INSTALLED.set(true);
         } else {
             FEATURE_HOOKS_INSTALLED.set(false);
