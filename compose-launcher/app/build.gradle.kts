@@ -158,22 +158,22 @@ val trimMaterialIcons = tasks.register("trimMaterialIcons") {
 val stagedModuleSources = layout.buildDirectory.dir("generated/moduleSources")
 val stageModuleSources = tasks.register<Sync>("stageModuleSources") {
     from(moduleSourceRoot) {
-        exclude("com/dsmod/probe/SettingsActivity.java")
-        exclude("com/dsmod/probe/BuildInfo.java")
-        exclude("com/dsmod/probe/internal/**")
+        exclude("ds/dsh/DeepSeek/SettingsActivity.java")
+        exclude("ds/dsh/DeepSeek/BuildInfo.java")
+        exclude("ds/dsh/DeepSeek/internal/**")
         // CloudPromptClient contains the Closed service URL, request protocol and Android
         // Keystore grant implementation.  Open builds receive only the inert compile-time
         // compatibility shell emitted by prepare-development-inputs.sh; the real client must
         // never be staged into an Open artifact.
         if (!protectedDistribution) {
-            exclude("com/dsmod/probe/CloudPromptClient.java")
+            exclude("ds/dsh/DeepSeek/CloudPromptClient.java")
             // Community UI requires the real CloudPromptClient; Open builds ship a no-op stub.
-            exclude("com/dsmod/probe/CommunityUi.java")
+            exclude("ds/dsh/DeepSeek/CommunityUi.java")
             // Open has no loader admission, anti-root, or anti-Frida policy.
-            exclude("com/dsmod/probe/LoaderSecurityGuard.java")
-            exclude("com/dsmod/probe/z16.java")
-            exclude("com/dsmod/probe/RuntimeProofPartA.java")
-            exclude("com/dsmod/probe/RuntimeProofPartB.java")
+            exclude("ds/dsh/DeepSeek/LoaderSecurityGuard.java")
+            exclude("ds/dsh/DeepSeek/z16.java")
+            exclude("ds/dsh/DeepSeek/RuntimeProofPartA.java")
+            exclude("ds/dsh/DeepSeek/RuntimeProofPartB.java")
         }
     }
     into(stagedModuleSources)
@@ -228,10 +228,10 @@ val stagedRuntimeResources = layout.buildDirectory.dir("generated/runtimeResourc
 val stageRuntimeResources = tasks.register<Sync>("stageRuntimeResources") {
     from("$moduleResourceRoot/drawable-nodpi") {
         include("ic_category_*.png")
-        into("META-INF/com.dsmod.probe.icons")
+        into("META-INF/ds.dsh.DeepSeek.icons")
     }
     from("../../third_party/shizuku/rish_shizuku.dex") {
-        into("META-INF/com.dsmod.probe.agent")
+        into("META-INF/ds.dsh.DeepSeek.agent")
         // Java-resource merging drops dot-prefixed files; use a normal archive entry here.
         rename { "rish_shizuku_rt.dat" }
     }
@@ -244,11 +244,11 @@ val stageRuntimeResources = tasks.register<Sync>("stageRuntimeResources") {
 
 
 android {
-    namespace = "com.dsmod.probe"
+    namespace = "ds.dsh.DeepSeek"
     compileSdk = providers.gradleProperty("androidCompileSdk").orElse("37").get().toInt()
 
     defaultConfig {
-        applicationId = "com.dsmod.probe"
+        applicationId = "ds.dsh.DeepSeek"
         minSdk = 24
         targetSdk = 34
         versionCode = 37
