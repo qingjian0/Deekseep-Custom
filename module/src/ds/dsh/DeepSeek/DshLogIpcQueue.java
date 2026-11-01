@@ -7,7 +7,6 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /** Bounded asynchronous ingress and single-writer for authenticated host log records. */
@@ -17,6 +16,7 @@ final class DshLogIpcQueue {
     private static final AtomicLong PRIVATE_FAILURES = new AtomicLong();
     private static final AtomicLong PUBLIC_WRITES = new AtomicLong();
     private static final AtomicLong PUBLIC_FAILURES = new AtomicLong();
+    private static final AtomicLong INGRESS_REJECTIONS = new AtomicLong();
     private static final ThreadPoolExecutor PRIVATE_WRITER = newWriter("private");
     private static final ThreadPoolExecutor PUBLIC_WRITER = newWriter("public");
 
@@ -38,7 +38,10 @@ final class DshLogIpcQueue {
 
     static boolean enqueue(final Context context, final String category, final String line) {
         if (context == null || !isAllowedCategory(category) || line == null
-                || line.length() > 4096) return false;
+                || line.length() > 4096) {
+            INGRESS_REJECTIONS.incrementAndGet();
+            return false;
+        }
         final Context appContext = context.getApplicationContext();
         final Context safeContext = appContext == null ? context : appContext;
 
