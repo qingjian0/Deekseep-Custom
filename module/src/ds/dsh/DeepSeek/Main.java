@@ -1616,22 +1616,30 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             if (HostCompat.isV236() && BuildInfo.PROTECTED_BUILD
                     && BuildInfo.LOCAL_API_INCLUDED
                     && V236_LOCAL_API_HOOKS_INSTALLED.compareAndSet(false, true)) {
+                HookRegistrationScope previous = beginHookRegistrationScope(
+                        "account.v236.local-api-routing");
                 try {
                     hookLegacyLocalApiAccountRouting(hookLoader);
                 } catch (Throwable error) {
                     V236_LOCAL_API_HOOKS_INSTALLED.set(false);
                     log("code249 Local API credential hook bootstrap failed: "
                             + safeThrowableMessage(error));
+                } finally {
+                    endHookRegistrationScope(previous);
                 }
             } else if (HostCompat.isV241()
                     && BuildInfo.PROTECTED_BUILD && BuildInfo.LOCAL_API_INCLUDED
                     && LOCAL_API_HOOKS_INSTALLED.compareAndSet(false, true)) {
+                HookRegistrationScope previous = beginHookRegistrationScope(
+                        "account.v241.local-api-routing");
                 try {
                     HookAccountLoginSecurity.INSTANCE.hookLocalApiAccountRouting(hookLoader);
                 } catch (Throwable error) {
                     LOCAL_API_HOOKS_INSTALLED.set(false);
                     log("Local API credential hook bootstrap failed: "
                             + safeThrowableMessage(error));
+                } finally {
+                    endHookRegistrationScope(previous);
                 }
             }
             installHookStep("account.native-fake-mute", () -> HookAccountLoginSecurity.INSTANCE.hookNativeFakeMute(hookLoader));
