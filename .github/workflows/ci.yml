@@ -40,7 +40,7 @@ jobs:
           SDKMANAGER="$(find "$ANDROID_SDK_ROOT/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -n 1)"
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --install "platforms;android-35" "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0"
+          "$SDKMANAGER" --install "platforms;android-35" "platforms;android-36" "platforms;android-37.0" "build-tools;35.0.0" "build-tools;36.0.0" "build-tools;37.0.0"
 
       - name: Run source-only regression checks
         run: |
@@ -101,7 +101,7 @@ jobs:
           SDKMANAGER="$(find "$ANDROID_SDK_ROOT/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -n 1)"
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0"
+          "$SDKMANAGER" --install "platforms;android-37.0" "build-tools;37.0.0"
 
       - name: Create ephemeral CI-only debug signing key
         run: |
@@ -124,7 +124,7 @@ jobs:
           gradle --no-daemon --stacktrace \
             -PprotectedBuild=false \
             -PlocalApiIncluded=false \
-            -PandroidCompileSdk=36 \
+            -PandroidCompileSdk=37 \
             :app:assembleRelease :app:lintRelease
 
       - name: Verify CI APK structure, alignment, and signature
@@ -135,8 +135,8 @@ jobs:
           unzip -t "$APK" >/dev/null
           unzip -Z1 "$APK" | grep -Fxq "AndroidManifest.xml"
           unzip -Z1 "$APK" | grep -E '^classes([0-9]+)?[.]dex$' >/dev/null
-          "$ANDROID_SDK_ROOT/build-tools/36.0.0/zipalign" -c -p 4 "$APK"
-          "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose "$APK"
+          "$ANDROID_SDK_ROOT/build-tools/37.0.0/zipalign" -c -p 4 "$APK"
+          "$ANDROID_SDK_ROOT/build-tools/37.0.0/apksigner" verify --verbose "$APK"
           echo "Open release APK passed structural, alignment, and CI-key signature checks."
 
       - name: Upload Android Lint reports
