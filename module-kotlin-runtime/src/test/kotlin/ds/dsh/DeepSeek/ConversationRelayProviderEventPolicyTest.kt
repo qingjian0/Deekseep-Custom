@@ -28,19 +28,19 @@ class ConversationRelayProviderEventPolicyTest {
     fun routesAnthropicBlockStartWithoutAcceptingUnknownEvents() {
         val policy = ConversationRelayProviderEventPolicy
         assertEquals(
-            policy.OutputChannel.REASONING,
+            ConversationRelayProviderEventPolicy.OutputChannel.REASONING,
             policy.anthropicStartChannel("content_block_start", "thinking"),
         )
         assertEquals(
-            policy.OutputChannel.CONTENT,
+            ConversationRelayProviderEventPolicy.OutputChannel.CONTENT,
             policy.anthropicStartChannel("content_block_start", "text"),
         )
         assertEquals(
-            policy.OutputChannel.IGNORE,
+            ConversationRelayProviderEventPolicy.OutputChannel.IGNORE,
             policy.anthropicStartChannel("message_start", "thinking"),
         )
         assertEquals(
-            policy.OutputChannel.IGNORE,
+            ConversationRelayProviderEventPolicy.OutputChannel.IGNORE,
             policy.anthropicStartChannel("content_block_start", "tool_use"),
         )
     }
@@ -49,19 +49,19 @@ class ConversationRelayProviderEventPolicyTest {
     fun routesAnthropicDeltaWithoutCrossingChannels() {
         val policy = ConversationRelayProviderEventPolicy
         assertEquals(
-            policy.OutputChannel.REASONING,
+            ConversationRelayProviderEventPolicy.OutputChannel.REASONING,
             policy.anthropicDeltaChannel("content_block_delta", "thinking_delta"),
         )
         assertEquals(
-            policy.OutputChannel.CONTENT,
+            ConversationRelayProviderEventPolicy.OutputChannel.CONTENT,
             policy.anthropicDeltaChannel("content_block_delta", "text_delta"),
         )
         assertEquals(
-            policy.OutputChannel.IGNORE,
+            ConversationRelayProviderEventPolicy.OutputChannel.IGNORE,
             policy.anthropicDeltaChannel("content_block_delta", "input_json_delta"),
         )
         assertEquals(
-            policy.OutputChannel.IGNORE,
+            ConversationRelayProviderEventPolicy.OutputChannel.IGNORE,
             policy.anthropicDeltaChannel("content_block_start", "text_delta"),
         )
     }
