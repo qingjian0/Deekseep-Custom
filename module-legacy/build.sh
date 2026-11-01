@@ -4,6 +4,16 @@ cd "$(dirname "$0")"
 
 source ../scripts/android-tools.sh
 source ../scripts/androidx-path-parser.sh
+
+ROOT_DIR="$(cd .. && pwd)"
+RUNTIME_DIR="$ROOT_DIR/module-kotlin-runtime"
+GRADLE_BIN="$(bash "$ROOT_DIR/scripts/gradle-bootstrap.sh")"
+"$GRADLE_BIN" --no-daemon --stacktrace -p "$RUNTIME_DIR" jar stageRuntimeClasspath
+KOTLIN_RUNTIME_JAR="$RUNTIME_DIR/build/libs/dsh-kotlin-runtime-0.1.0.jar"
+KOTLIN_STDLIB_JAR="$(find "$RUNTIME_DIR/build/runtime-classpath" -maxdepth 1 \
+  -type f -name 'kotlin-stdlib-*.jar' -print | sort -V | tail -n 1)"
+test -s "$KOTLIN_RUNTIME_JAR"
+test -s "$KOTLIN_STDLIB_JAR"
 OUT=build
 rm -rf "$OUT"
 mkdir -p "$OUT/classes" "$OUT/dex" "$OUT/generated-src/com/dsmod/probe"
@@ -53,19 +63,20 @@ find src/de -name '*.java' >> "$OUT/sources.txt"
 find "$OUT/generated-src" -name '*.java' >> "$OUT/sources.txt"
 
 if ! javac -source 8 -target 8 \
-    -cp "$ANDROID_JAR:$ANDROIDX_PATH_PARSER_JAR" \
+    -cp "$ANDROID_JAR:$ANDROIDX_PATH_PARSER_JAR:$KOTLIN_RUNTIME_JAR:$KOTLIN_STDLIB_JAR" \
     -d "$OUT/classes" @"$OUT/sources.txt" 2> "$OUT/javac.err"; then
   cat "$OUT/javac.err"
   exit 1
 fi
 MODCLASSES=$(find "$OUT/classes/com/dsmod" -name '*.class')
 $D8 --min-api 24 --output "$OUT/dex" $MODCLASSES \
+  "$KOTLIN_RUNTIME_JAR" "$KOTLIN_STDLIB_JAR" \
   "$ANDROIDX_PATH_PARSER_JAR" --lib "$ANDROID_JAR"
 $AAPT2 compile --dir res -o "$OUT/res.zip"
 $AAPT2 link -o "$OUT/base.apk" -I "$ANDROID_JAR" \
   --manifest AndroidManifest.xml -R "$OUT/res.zip" --auto-add-overlay
 cp "$OUT/base.apk" "$OUT/unsigned.apk"
-( cd "$OUT/dex" && zip -q ../unsigned.apk classes.dex )
+( cd "$OUT/dex" && zip -q ../unsigned.apk classes*.dex )
 mkdir -p "$OUT/xstage/assets"
 cp assets/xposed_init "$OUT/xstage/assets/xposed_init"
 ( cd "$OUT/xstage" && zip -q -9 -r ../unsigned.apk assets )
