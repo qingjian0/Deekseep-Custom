@@ -77,7 +77,7 @@ final class DeepSeekCacheCleaner {
     static Result clean(File cacheRoot, int ageDays, long now) {
         Result total = new Result();
         if (cacheRoot == null || !cacheRoot.isDirectory()) return total;
-        long cutoff = now - Math.max(1, ageDays) * DAY_MS;
+        long cutoff = DeepSeekCacheCleanerPolicy.cutoff(now, ageDays);
         try {
             File canonicalRoot = cacheRoot.getCanonicalFile();
             for (String name : VERIFIED_CACHE_DIRS) {
@@ -104,7 +104,7 @@ final class DeepSeekCacheCleaner {
                 return;
             }
             long modified = file.lastModified();
-            if (!file.isFile() || modified <= 0L || modified >= cutoff) return;
+            if (!DeepSeekCacheCleanerPolicy.shouldDelete(file.isFile(), modified, cutoff)) return;
             long size = file.length();
             if (file.delete()) { result.files++; result.bytes += Math.max(0L, size); }
         } catch (Throwable ignored) {}
