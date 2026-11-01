@@ -701,17 +701,18 @@ final class AgentToolConfig {
     }
 
     private static String cleanBackend(String value) {
-        if (BACKEND_ROOT.equals(value) || BACKEND_SHIZUKU.equals(value)) return value;
-        return BACKEND_IN_APP;
+        return AgentToolConfigPolicy.backend(
+                value, BACKEND_IN_APP, BACKEND_ROOT, BACKEND_SHIZUKU);
     }
 
     private static String cleanPermission(String value) {
-        return PERMISSION_EXECUTE.equals(value) ? PERMISSION_EXECUTE : PERMISSION_ALL;
+        return AgentToolConfigPolicy.permission(
+                value, PERMISSION_EXECUTE, PERMISSION_ALL);
     }
 
     private static int cleanPromptStrength(int value) {
-        if (value <= PROMPT_STRENGTH_BASIC) return PROMPT_STRENGTH_BASIC;
-        if (value >= PROMPT_STRENGTH_IMMERSIVE) return PROMPT_STRENGTH_IMMERSIVE;
-        return PROMPT_STRENGTH_ENHANCED;
+        return AgentToolConfigPolicy.promptStrength(
+                value, PROMPT_STRENGTH_BASIC,
+                PROMPT_STRENGTH_ENHANCED, PROMPT_STRENGTH_IMMERSIVE);
     }
 }
