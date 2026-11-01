@@ -789,17 +789,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         try { Main m = MODULE; if (m != null) m.log(Log.INFO, TAG, msg); } catch (Throwable ignored) {}
         try { HookLogOverlay.onLog(msg); } catch (Throwable ignored) {}
         try { RawHookTrace.module(msg); } catch (Throwable ignored) {}
-        String line = TS.format(new Date()) + "  " + msg + "\n";
-        try {
-            FileWriter w = new FileWriter(LOG_PATH, true);
-            w.write(line);
-            w.close();
-        } catch (Throwable ignored) {}
-        try {
-            FileWriter w = new FileWriter(EXT_MAIN_LOG, true);
-            w.write(line);
-            w.close();
-        } catch (Throwable ignored) {}
+        DshLog.info("Main", msg);
     }
 
     // 专门记录服务器返回内容的诊断日志：写 DeepSeek files 目录（root 可读），
@@ -807,17 +797,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     public static synchronized void srvLog(String msg) {
         if (z8.shouldSuppressGeneralMessage(msg)) return;
         if (isLocalApiExecutionLogContext() && !z8.isError(msg)) return;
-        String line = TS.format(new Date()) + "  " + msg + "\n";
-        try {
-            FileWriter w = new FileWriter(SRV_LOG_PATH, true);
-            w.write(line);
-            w.close();
-        } catch (Throwable ignored) {}
-        try {
-            FileWriter w = new FileWriter(SRV_LOG_EXT, true);
-            w.write(line);
-            w.close();
-        } catch (Throwable ignored) {}
+        DshLog.info("Server", msg);
         try { Main m = MODULE; if (m != null) m.log(Log.INFO, TAG, "SRV " + msg); } catch (Throwable ignored) {}
     }
 
@@ -826,17 +806,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         if (z8.shouldSuppressGeneralMessage(msg)) return;
         if (isLocalApiExecutionLogContext() && !z8.isError(msg)) return;
         try { Main m = MODULE; if (m != null) m.log(Log.INFO, TAG, msg); } catch (Throwable ignored) {}
-        String line = TS.format(new Date()) + "  " + msg + "\n";
-        try {
-            FileWriter w = new FileWriter(RELAY_LOG_PATH, true);
-            w.write(line);
-            w.close();
-        } catch (Throwable ignored) {}
-        try {
-            FileWriter w = new FileWriter(EXT_VISION_LOG, true);
-            w.write(line);
-            w.close();
-        } catch (Throwable ignored) {}
+        DshLog.info("Vision", msg);
     }
 
     private static volatile boolean crashHandlerInstalled = false;
@@ -849,10 +819,24 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
                 @Override public void uncaughtException(Thread t, Throwable e) {
                     try {
-                        String line = TS.format(new Date()) + "  UNCAUGHT thread=" + t.getName()
-                                + "\n" + android.util.Log.getStackTraceString(e) + "\n";
-                        try { FileWriter w = new FileWriter(EXT_CRASH_LOG, true); w.write(line); w.close(); } catch (Throwable ignored) {}
-                        try { FileWriter w = new FileWriter("/data/data/com.deepseek.chat/files/dsprobe_crash.log", true); w.write(line); w.close(); } catch (Throwable ignored) {}
+                        StringBuilder safeTrace = new StringBuilder("UNCAUGHT thread=")
+                                .append(t.getName());
+                        Throwable current = e;
+                        int causes = 0;
+                        while (current != null && causes++ < 8) {
+                            safeTrace.append(" cause=").append(current.getClass().getName());
+                            StackTraceElement[] frames = current.getStackTrace();
+                            int limit = Math.min(frames == null ? 0 : frames.length, 24);
+                            for (int index = 0; index < limit; index++) {
+                                StackTraceElement frame = frames[index];
+                                safeTrace.append(" at=").append(frame.getClassName())
+                                        .append("#").append(frame.getMethodName())
+                                        .append("(").append(frame.getFileName())
+                                        .append(":").append(frame.getLineNumber()).append(")");
+                            }
+                            current = current.getCause();
+                        }
+                        DshLog.error("Crash", safeTrace.toString(), e);
                     } catch (Throwable ignored) {}
                     if (prev != null) prev.uncaughtException(t, e);
                 }
@@ -1127,8 +1111,6 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 return;
             }
         }
-        // Clear before early compatibility hooks so their installation diagnostics survive.
-        try { new FileWriter(LOG_PATH, false).close(); } catch (Throwable ignored) {}
         HookLogOverlay.resetSession();
         HostCompat.initialize(cl);
         if (!HostCompat.isV271Limited()) {
@@ -1171,11 +1153,6 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         // 用于诊断“上传图片点发送直接闪退”这类无 root/无 logcat 场景的崩溃。
         installCrashHandler();
 
-        // 服务器返回诊断日志：每次应用启动清空重记（与主日志一致）
-        if (isSrvLog()) {
-            try { new FileWriter(SRV_LOG_PATH, false).close(); } catch (Throwable ignored) {}
-            try { new FileWriter(SRV_LOG_EXT, false).close(); } catch (Throwable ignored) {}
-        }
         log("module loaded (universal), package=" + pkg
                 + ", hostGeneration=" + HostCompat.generationName());
 
