@@ -12,6 +12,7 @@ public final class FeatureHookInstallRegistryRegression {
         testSkippedEntryIsTerminal();
         testConcurrentCallersDoNotDoubleInstall();
         testFailureIsRethrownAndRecorded();
+        testFatalFailureIsRethrown();
         System.out.println("FeatureHookInstallRegistry regression: PASS");
     }
 
@@ -118,6 +119,18 @@ public final class FeatureHookInstallRegistryRegression {
         }
         assertState(registry, "failed.feature", FeatureHookInstallRegistry.State.FAILED, 1);
         assertTrue(registry.hasFailures(), "failed registry must be unhealthy");
+    }
+
+    private static void testFatalFailureIsRethrown() throws Throwable {
+        FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
+        ThreadDeath fatal = new ThreadDeath();
+        try {
+            registry.install("fatal.feature", () -> { throw fatal; });
+            throw new AssertionError("fatal failure was not propagated");
+        } catch (ThreadDeath actual) {
+            if (actual != fatal) throw new AssertionError("fatal failure identity changed");
+        }
+        assertState(registry, "fatal.feature", FeatureHookInstallRegistry.State.FAILED, 1);
     }
 
     private static void assertState(FeatureHookInstallRegistry registry, String id,
