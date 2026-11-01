@@ -802,59 +802,86 @@ Main.log("installExpertUploadGate failed: " + t);
         Throwable installFailure = null;
         try {
             Class<?> apiClass = HostCompat.load(cl, "pv0");
+            int ownerInstalled = 0;
             for (Constructor<?> ctor : apiClass.getDeclaredConstructors()) {
-                hookImageCredentialBridgeConstructor(ctor, new Hooker() {
-                    @Override public Object intercept(Chain chain) throws Throwable {
-                        Object result = chain.proceed();
-                        IMAGE_FILE_API = chain.getThisObject();
-                        IMAGE_HOST_CL = cl;
-                        if (!imageApiCaptureLogged) {
-                            imageApiCaptureLogged = true;
-                            Main.log("captured file api pv0="
-                                    + HostRemap.className(chain.getThisObject().getClass()));
+                try {
+                    hookImageCredentialBridgeConstructor(ctor, new Hooker() {
+                        @Override public Object intercept(Chain chain) throws Throwable {
+                            Object result = chain.proceed();
+                            IMAGE_FILE_API = chain.getThisObject();
+                            IMAGE_HOST_CL = cl;
+                            if (!imageApiCaptureLogged) {
+                                imageApiCaptureLogged = true;
+                                Main.log("captured file api pv0="
+                                        + HostRemap.className(chain.getThisObject().getClass()));
+                            }
+                            return result;
                         }
-                        return result;
-                    }
-                });
-                installed++;
+                    });
+                    ownerInstalled++;
+                    installed++;
+                } catch (Throwable error) {
+                    if (installFailure == null) installFailure = error;
+                    else installFailure.addSuppressed(error);
+                }
             }
-        } catch (Throwable t) {
-            Main.log("capture pv0 failed: " + Main.safeThrowableMessage(t));
-            installFailure = t;
+            if (ownerInstalled == 0) {
+                NoSuchMethodException missing = new NoSuchMethodException(
+                        "pv0 image credential bridge constructors");
+                if (installFailure == null) installFailure = missing;
+                else installFailure.addSuppressed(missing);
+            }
+        } catch (Throwable error) {
+            Main.log("capture pv0 failed: " + Main.safeThrowableMessage(error));
+            if (installFailure == null) installFailure = error;
+            else installFailure.addSuppressed(error);
         }
 
         // Fallback capture path; retain successful constructor registrations across retries.
         try {
             Class<?> composerClass = HostCompat.load(cl, "k31");
+            int ownerInstalled = 0;
             for (Constructor<?> ctor : composerClass.getDeclaredConstructors()) {
-                hookImageCredentialBridgeConstructor(ctor, new Hooker() {
-                    @Override public Object intercept(Chain chain) throws Throwable {
-                        Object result = chain.proceed();
-                        try {
-                            IMAGE_COMPOSER = chain.getThisObject();
-                            Object repository = Main.readHostField(chain.getThisObject(), "c");
-                            Object api = Main.readHostField(repository, "d");
-                            if (api != null) {
-                                IMAGE_FILE_API = api;
-                                IMAGE_HOST_CL = cl;
-                            }
-                            if (!imageComposerCaptureLogged) {
-                                imageComposerCaptureLogged = true;
-                                Main.log("captured composer k31="
-                                        + HostRemap.className(chain.getThisObject().getClass())
-                                        + " api=" + (api == null ? "null"
-                                        : HostRemap.className(api.getClass())));
-                            }
-                        } catch (Throwable ignored) {}
-                        return result;
-                    }
-                });
-                installed++;
+                try {
+                    hookImageCredentialBridgeConstructor(ctor, new Hooker() {
+                        @Override public Object intercept(Chain chain) throws Throwable {
+                            Object result = chain.proceed();
+                            try {
+                                IMAGE_COMPOSER = chain.getThisObject();
+                                Object repository = Main.readHostField(chain.getThisObject(), "c");
+                                Object api = Main.readHostField(repository, "d");
+                                if (api != null) {
+                                    IMAGE_FILE_API = api;
+                                    IMAGE_HOST_CL = cl;
+                                }
+                                if (!imageComposerCaptureLogged) {
+                                    imageComposerCaptureLogged = true;
+                                    Main.log("captured composer k31="
+                                            + HostRemap.className(chain.getThisObject().getClass())
+                                            + " api=" + (api == null ? "null"
+                                            : HostRemap.className(api.getClass())));
+                                }
+                            } catch (Throwable ignored) {}
+                            return result;
+                        }
+                    });
+                    ownerInstalled++;
+                    installed++;
+                } catch (Throwable error) {
+                    if (installFailure == null) installFailure = error;
+                    else installFailure.addSuppressed(error);
+                }
             }
-        } catch (Throwable t) {
-            Main.log("capture k31 file api failed: " + Main.safeThrowableMessage(t));
-            if (installFailure == null) installFailure = t;
-            else installFailure.addSuppressed(t);
+            if (ownerInstalled == 0) {
+                NoSuchMethodException missing = new NoSuchMethodException(
+                        "k31 image credential bridge constructors");
+                if (installFailure == null) installFailure = missing;
+                else installFailure.addSuppressed(missing);
+            }
+        } catch (Throwable error) {
+            Main.log("capture k31 file api failed: " + Main.safeThrowableMessage(error));
+            if (installFailure == null) installFailure = error;
+            else installFailure.addSuppressed(error);
         }
         if (installed == 0) {
             if (installFailure != null) throw installFailure;
