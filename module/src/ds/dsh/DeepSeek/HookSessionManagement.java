@@ -2340,7 +2340,7 @@ final class HookSessionManagement {
      * result.a -> error.a -> integer code. Hook that stable shape instead of channel-specific
      * obfuscated names so local editor conversations cannot be mistaken for cloud deletions.
      */
-    private void hookV234LocalSessionDeletedFlow(final ClassLoader cl) {
+    private void hookV234LocalSessionDeletedFlow(final ClassLoader cl) throws Throwable {
         try {
             Class<?> viewModelType = HostCompat.load(cl, "za1");
             int installed = 0;
@@ -2382,10 +2382,14 @@ final class HookSessionManagement {
                 });
                 installed++;
             }
+            if (installed == 0) {
+                throw new NoSuchMethodException("za1.M 2.3.4 local session deletion guard");
+            }
             Main.log("installed 2.3.4 editor-local deletion guard "
                     + HostRemap.simpleName(viewModelType) + ".M x" + installed);
         } catch (Throwable t) {
             Main.log("hookV234LocalSessionDeletedFlow failed: " + t);
+            throw t;
         }
     }
 
@@ -2395,7 +2399,7 @@ final class HookSessionManagement {
      * alone is not a reliable deletion boundary. The presenter is the last common point before
      * both the "conversation deleted" toast and tg3.g(sessionId) removal are executed.
      */
-    private void hookV234LocalSessionDeletionPresenter(final ClassLoader cl) {
+    private void hookV234LocalSessionDeletionPresenter(final ClassLoader cl) throws Throwable {
         try {
             Class<?> presenter = HostRemap.forName(HostCompat.isV241()
                     ? "wv0" : HostCompat.isGooglePlay() ? "cw0" : "ju0", false, cl);
@@ -2443,10 +2447,14 @@ final class HookSessionManagement {
                 });
                 installed++;
             }
+            if (installed == 0) {
+                throw new NoSuchMethodException("2.3.4 local session deletion presenter target");
+            }
             Main.log("installed 2.3.4 deletion presenter guard "
                     + HostRemap.simpleName(presenter) + ".a x" + installed);
         } catch (Throwable t) {
             Main.log("hookV234LocalSessionDeletionPresenter failed: " + t);
+            throw t;
         }
     }
 
