@@ -52,6 +52,7 @@ public final class XposedActivationProvider extends ContentProvider {
     private static final long TARGET_FRESH_MS = 7L * 24L * 60L * 60L * 1000L;
     private static final String TAG = "DeekseepActivation";
 
+    private static final Object FRAMEWORK_BINDER_LOCK = new Object();
     private static volatile IBinder frameworkBinder;
     private static volatile Runnable stateListener;
 
@@ -364,13 +365,25 @@ public final class XposedActivationProvider extends ContentProvider {
                 result.putBoolean("accepted", false);
                 return result;
             }
-            frameworkBinder = binder;
-            binder.linkToDeath(new IBinder.DeathRecipient() {
+            final IBinder.DeathRecipient deathRecipient = new IBinder.DeathRecipient() {
                 @Override public void binderDied() {
-                    if (frameworkBinder == binder) frameworkBinder = null;
+                    synchronized (FRAMEWORK_BINDER_LOCK) {
+                        if (frameworkBinder == binder) frameworkBinder = null;
+                    }
                     notifyStateChanged();
                 }
-            }, 0);
+            };
+            // Register death monitoring before publishing the remote reference. The shared
+            // lock closes the race where binderDied() fires between the liveness check and
+            // assignment, leaving a dead Binder cached indefinitely.
+            synchronized (FRAMEWORK_BINDER_LOCK) {
+                binder.linkToDeath(deathRecipient, 0);
+                if (!binder.isBinderAlive()) {
+                    result.putBoolean("accepted", false);
+                    return result;
+                }
+                frameworkBinder = binder;
+            }
             Context context = getContext();
             if (context != null) {
                 prefs(context).edit().putLong(KEY_FRAMEWORK_AT,
