@@ -53,7 +53,7 @@ final class DshFileLogStore {
                 byte[] all = combined.toByteArray();
                 if (all.length > maxBytes) {
                     int offset = all.length - maxBytes;
-                    while (offset < all.length && all[offset] != '\\n') offset++;
+                    while (offset < all.length && all[offset] != '\n') offset++;
                     if (offset < all.length) offset++;
                     combined.reset();
                     combined.write(all, offset, all.length - offset);
@@ -70,7 +70,7 @@ final class DshFileLogStore {
             long start = Math.max(0L, input.length() - maxBytes);
             input.seek(start);
             if (start > 0L) {
-                while (input.getFilePointer() < input.length() && input.read() != '\\n') { }
+                while (input.getFilePointer() < input.length() && input.read() != '\n') { }
             }
             int remaining = (int) Math.min(maxBytes, input.length() - input.getFilePointer());
             byte[] bytes = new byte[remaining];
