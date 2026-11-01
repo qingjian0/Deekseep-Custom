@@ -1634,9 +1634,26 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("agent.tool-log.rounded-rect",
                         "agent tool-log Canvas renderer is only verified for host 2.3.6 and 2.4.1");
             }
-            if (!HostCompat.isV271()) installHookStep("remote.feature-flags", () -> RemoteFeatureFlags.install(this, hookLoader));
-            installHookStep("config.attachment-guide-rollout", () -> HookConfigRollout.INSTANCE.hookAttachmentGuidePromptRollout(hookLoader));
-            installHookStep("config.home-welcome-rollout", () -> HookConfigRollout.INSTANCE.hookHomeWelcomeRollout(hookLoader));
+            if (!HostCompat.isV271()) {
+                installHookStep("remote.feature-flags", () -> RemoteFeatureFlags.install(this, hookLoader));
+            } else {
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("remote.feature-flags",
+                        "feature flag manager is not required by the 2.7.1 whitelist");
+            }
+            if (HostCompat.isV234()) {
+                installHookStep("config.attachment-guide-rollout",
+                        () -> HookConfigRollout.INSTANCE.hookAttachmentGuidePromptRollout(hookLoader));
+            } else {
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("config.attachment-guide-rollout",
+                        "attachment guide rollout is only mapped for host 2.3.4 and newer");
+            }
+            if (HostCompat.isV236() || HostCompat.isV241()) {
+                installHookStep("config.home-welcome-rollout",
+                        () -> HookConfigRollout.INSTANCE.hookHomeWelcomeRollout(hookLoader));
+            } else {
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("config.home-welcome-rollout",
+                        "home welcome rollout is only verified for host 2.3.6 and 2.4.1");
+            }
             installHookStep("ui.native-dual-chat-root", () -> HookUiSurface.INSTANCE.hookNativeDualChatRoot(hookLoader));
             if (HostCompat.isV234()) {
                 installHookStep("attachment.native-image-preview-boundary",
@@ -1670,7 +1687,13 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             installHookStep("account.native-fake-mute", () -> HookAccountLoginSecurity.INSTANCE.hookNativeFakeMute(hookLoader));
             installHookStep("account.training-opt-out", () -> HookAccountLoginSecurity.INSTANCE.hookTrainingOptOutControl(hookLoader));
             installHookStep("config.hot-update-dialog", () -> HookConfigRollout.INSTANCE.hookHotUpdateDialog(hookLoader));
-            installHookStep("config.remote-hot-updates", () -> HookConfigRollout.INSTANCE.hookRemoteConfigHotUpdates(hookLoader));
+            if (HostCompat.isV236() || HostCompat.isV241()) {
+                installHookStep("config.remote-hot-updates",
+                        () -> HookConfigRollout.INSTANCE.hookRemoteConfigHotUpdates(hookLoader));
+            } else {
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("config.remote-hot-updates",
+                        "remote hot-update blocker is only mapped for host 2.3.6 and 2.4.1");
+            }
             if (!HostCompat.isV271()) installHookStep("account.candidate-login-errors", () -> HookAccountLoginSecurity.INSTANCE.hookCandidateLoginErrorMessages());
             installHookStep("account.fa-compat-hook", () -> HookAccountLoginSecurity.INSTANCE.fa(hookLoader));
             installHookStep("bootstrap.restore-local-editor-images",
@@ -1777,11 +1800,27 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             installHookStep("host.v241.thinking-code-copy", () -> hookV241ThinkingCodeCopy(hookLoader));
             installHookStep("host.v236.all-file-types", () -> hookV236AllFileTypes(hookLoader));
             installHookStep("host.v241.all-file-types", () -> hookV241AllFileTypes(hookLoader));
-            if (!HostCompat.isV271()) installHookStep("account.regional-login-unlock", () -> HookAccountLoginSecurity.INSTANCE.hookRegionalLoginUnlock(hookLoader));
-            if (!HostCompat.isV271()) installHookStep("account.login-entry-password-unlock", () -> HookAccountLoginSecurity.INSTANCE.hookLoginEntryPasswordUnlock(hookLoader));
-            if (!HostCompat.isV271()) installHookStep("account.region-override", () -> HookAccountLoginSecurity.INSTANCE.hookRegionOverride(hookLoader));
-            if (!HostCompat.isV271()) installHookStep("account.password-login-capture", () -> HookAccountLoginSecurity.INSTANCE.hookCandidatePasswordLoginCapture(hookLoader));
-            if (!HostCompat.isV271()) installHookStep("account.registration-captcha-callbacks", () -> HookAccountLoginSecurity.INSTANCE.hookCandidateRegistrationCaptchaCallbacks(hookLoader));
+            if (HARD_LINES_ENABLED && !HostCompat.isV271()) {
+                installHookStep("account.regional-login-unlock",
+                        () -> HookAccountLoginSecurity.INSTANCE.hookRegionalLoginUnlock(hookLoader));
+                installHookStep("account.login-entry-password-unlock",
+                        () -> HookAccountLoginSecurity.INSTANCE.hookLoginEntryPasswordUnlock(hookLoader));
+                installHookStep("account.region-override",
+                        () -> HookAccountLoginSecurity.INSTANCE.hookRegionOverride(hookLoader));
+                installHookStep("account.password-login-capture",
+                        () -> HookAccountLoginSecurity.INSTANCE.hookCandidatePasswordLoginCapture(hookLoader));
+                installHookStep("account.registration-captcha-callbacks",
+                        () -> HookAccountLoginSecurity.INSTANCE.hookCandidateRegistrationCaptchaCallbacks(hookLoader));
+            } else {
+                String reason = HARD_LINES_ENABLED
+                        ? "account hard-line hooks are not verified for host 2.7.1"
+                        : "account hard-line hooks are compile-time disabled by policy";
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("account.regional-login-unlock", reason);
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("account.login-entry-password-unlock", reason);
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("account.region-override", reason);
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("account.password-login-capture", reason);
+                FEATURE_HOOK_INSTALL_REGISTRY.markSkipped("account.registration-captcha-callbacks", reason);
+            }
             if (!HostCompat.isV271()) installBestEffortHook("account.risk-sdk-neutralizer",
                     () -> HookAccountLoginSecurity.INSTANCE.installRiskSdkNeutralizer(hookLoader),
                     "installRiskSdkNeutralizer wiring failed: ");
