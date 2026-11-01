@@ -112,10 +112,7 @@ jobs:
             unzip -t "$apk" >/dev/null
             "$BUILD_TOOLS_DIR/zipalign" -c -v 4 "$apk" >/dev/null
             "$BUILD_TOOLS_DIR/apksigner" verify --verbose "$apk" >/dev/null
-            dex_count="$(unzip -Z1 "$apk" | grep -Ec '^classes([0-9]+)?\.dex            test "$dex_count" -ge 1
-            echo "$apk contains $dex_count DEX file(s)"
-          done
- || true)"
+            dex_count="$(unzip -Z1 "$apk" | grep -Ec '^classes([0-9]+)?\.dex$' || true)"
             test "$dex_count" -ge 1
             echo "$apk contains $dex_count DEX file(s)"
           done
