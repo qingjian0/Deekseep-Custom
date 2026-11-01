@@ -563,12 +563,12 @@ final class HookAttachmentPipeline {
                 });
                 m++;
             }
-            Main.log("hooked sf5.b() x" + m + " (expert gate catch)");
-        } catch (Throwable t) {
             if (n == 0 || m == 0) {
                 throw new NoSuchMethodException("hookExpertUnlock matched no hook targets");
             }
-            Main.log("hookExpertUnlock failed: " + t);
+            Main.log("hooked sf5.b() x" + m + " (expert gate catch)");
+        } catch (Throwable t) {
+Main.log("hookExpertUnlock failed: " + t);
             throw t;
         }
     }
@@ -607,12 +607,12 @@ final class HookAttachmentPipeline {
                 });
                 n++;
             }
-            Main.log("installed expert upload gate on y91.a x" + n);
-        } catch (Throwable t) {
             if (n == 0) {
                 throw new NoSuchMethodException("installExpertUploadGate matched no hook targets");
             }
-            Main.log("installExpertUploadGate failed: " + t);
+            Main.log("installed expert upload gate on y91.a x" + n);
+        } catch (Throwable t) {
+Main.log("installExpertUploadGate failed: " + t);
             throw t;
         }
     }
@@ -854,12 +854,12 @@ final class HookAttachmentPipeline {
                 });
                 installed++;
             }
-            Main.log("installed local API session visibility filter sb1 x" + installed);
-        } catch (Throwable t) {
             if (installed == 0) {
                 throw new NoSuchMethodException("f9 matched no hook targets");
             }
-            Main.log("f9 failed: " + t);
+            Main.log("installed local API session visibility filter sb1 x" + installed);
+        } catch (Throwable t) {
+Main.log("f9 failed: " + t);
             throw t;
         }
     }
