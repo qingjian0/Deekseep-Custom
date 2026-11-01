@@ -120,6 +120,8 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 final class HookAccountLoginSecurity {
     private static final Set<Member> LOGIN_RISK_HOOKED_MEMBERS = new HashSet<>();
     private static final Set<Member> LOCAL_API_ROUTING_HOOKED_MEMBERS = new HashSet<>();
+    private static final ConcurrentHashMap<String, Set<Member>> LOGIN_FEATURE_HOOKED_MEMBERS =
+            new ConcurrentHashMap<>();
 
     static final HookAccountLoginSecurity INSTANCE = new HookAccountLoginSecurity();
 
@@ -337,7 +339,7 @@ final class HookAccountLoginSecurity {
                             return unit;
                         }
                     }) : null;
-            Main.MODULE.hook(method).intercept(new Hooker() {
+            hookLoginFeatureMember("hookTrainingOptOutControl", method, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     if (!Main.isDataOptOutEnforced()) return chain.proceed();
                     Object[] args = chain.getArgs().toArray();
@@ -398,7 +400,7 @@ final class HookAccountLoginSecurity {
                     if (found < 0) continue;
                     method.setAccessible(true);
                     final int index = found;
-                    Main.MODULE.hook(method).intercept(new Hooker() {
+                    hookLoginFeatureMember("hookNativeFakeMute", method, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             if (!isFakeMuteEnabled()) return chain.proceed();
                             Object[] args = chain.getArgs().toArray(new Object[0]);
@@ -563,7 +565,7 @@ final class HookAccountLoginSecurity {
             for (Constructor<?> ctor : stateType.getDeclaredConstructors()) {
                 final int listIndex = findAssignableParameter(ctor.getParameterTypes(), List.class);
                 if (listIndex < 0) continue;
-                Main.MODULE.hook(ctor).intercept(new Hooker() {
+                hookLoginFeatureMember("hookRegionalLoginUnlock", ctor, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         return proceedWithRegionalLoginOptions(chain, listIndex, googleOption,
                                 wechatOption, mobileOption, optionType);
@@ -580,7 +582,7 @@ final class HookAccountLoginSecurity {
                         || method.getReturnType() != stateType) continue;
                 final int listIndex = findAssignableParameter(method.getParameterTypes(), List.class);
                 if (listIndex < 0) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookLoginFeatureMember("hookRegionalLoginUnlock", method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         return proceedWithRegionalLoginOptions(chain, listIndex, googleOption,
                                 wechatOption, mobileOption, optionType);
@@ -618,7 +620,7 @@ final class HookAccountLoginSecurity {
             for (Constructor<?> ctor : stateType.getDeclaredConstructors()) {
                 final int listIndex = findAssignableParameter(ctor.getParameterTypes(), List.class);
                 if (listIndex < 0) continue;
-                Main.MODULE.hook(ctor).intercept(new Hooker() {
+                hookLoginFeatureMember("hookLoginEntryPasswordUnlock", ctor, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object[] args = chain.getArgs().toArray();
                         List<?> list = args[listIndex] instanceof List
@@ -683,7 +685,7 @@ final class HookAccountLoginSecurity {
         try {
             Method getString = android.content.res.Resources.class
                     .getDeclaredMethod("getString", int.class);
-            Main.MODULE.hook(getString).intercept(new Hooker() {
+            hookLoginFeatureMember("hookCandidateLoginErrorMessages", getString, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Object result = chain.proceed();
                     if (candidateLoginCallback == null
@@ -737,7 +739,7 @@ final class HookAccountLoginSecurity {
             final Class<?> user = HostCompat.load(cl, "tw");
             final Method apply = HostRemap.declaredMethod(manager, "h", user);
             apply.setAccessible(true);
-            Main.MODULE.hook(apply).intercept(new Hooker() {
+            hookLoginFeatureMember("hookCandidatePasswordLoginCapture", apply, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     boolean registrationCapture =
                             AccountRegistrationBridge.hasCredentialCapturePending();
@@ -798,7 +800,7 @@ final class HookAccountLoginSecurity {
                 if (!("notifySuccess".equals(name) || "notifyClose".equals(name)
                         || "notifyWebLoadError".equals(name))) continue;
                 method.setAccessible(true);
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookLoginFeatureMember("hookCandidateRegistrationCaptchaCallbacks", method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object view = chain.getThisObject();
                         Object result = chain.proceed();
@@ -836,7 +838,7 @@ final class HookAccountLoginSecurity {
                             Integer.class, String.class, int.class)
                     : HostRemap.declaredMethod(analytics, "r", String.class, boolean.class);
             verificationResult.setAccessible(true);
-            Main.MODULE.hook(verificationResult).intercept(new Hooker() {
+            hookLoginFeatureMember("hookCandidateRegistrationCaptchaCallbacks", verificationResult, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Object result = chain.proceed();
                     AccountRegistrationBridge.codeRequestResult(
@@ -878,7 +880,7 @@ final class HookAccountLoginSecurity {
                 // d() -> password_login / phone format: force false (email format)
                 try {
                     Method d = HostRemap.declaredMethod(cls, "d");
-                    Main.MODULE.hook(d).intercept(new Hooker() {
+                    hookLoginFeatureMember("hookRegionOverride", d, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             return Boolean.FALSE;
                         }
@@ -923,7 +925,7 @@ final class HookAccountLoginSecurity {
                 Class<?>[] params = method.getParameterTypes();
                 if ("getDeviceId".equals(name) && params.length == 0
                         && method.getReturnType() == String.class) {
-                    Main.MODULE.hook(method).intercept(new Hooker() {
+                    hookLoginFeatureMember("installRiskSdkNeutralizer", method, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             String smid = riskNeutralizedSmid();
                             Main.log("[RISK] getDeviceId -> synthetic smid len=" + smid.length());
@@ -934,7 +936,7 @@ final class HookAccountLoginSecurity {
                     try { Main.MODULE.deoptimize(method); } catch (Throwable ignored) {}
                 } else if ("getVData".equals(name) && params.length == 0
                         && method.getReturnType() == String.class) {
-                    Main.MODULE.hook(method).intercept(new Hooker() {
+                    hookLoginFeatureMember("installRiskSdkNeutralizer", method, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             return riskNeutralizedSmid();
                         }
@@ -943,7 +945,7 @@ final class HookAccountLoginSecurity {
                     try { Main.MODULE.deoptimize(method); } catch (Throwable ignored) {}
                 } else if (("startDetector".equals(name) || "stopDetector".equals(name))
                         && params.length == 1) {
-                    Main.MODULE.hook(method).intercept(new Hooker() {
+                    hookLoginFeatureMember("installRiskSdkNeutralizer", method, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             return null;
                         }
@@ -976,7 +978,7 @@ final class HookAccountLoginSecurity {
                     String name = HostRemap.name(method);
                     if (!"l111l11111Il".equals(name)
                             && !"l1111l111111Il".equals(name)) continue;
-                    Main.MODULE.hook(method).intercept(new Hooker() {
+                    hookLoginFeatureMember("installRiskSdkNeutralizer", method, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             Main.log("[RISK] smid store getter neutralized");
                             return riskNeutralizedSmid();
@@ -996,28 +998,28 @@ final class HookAccountLoginSecurity {
                     if (!java.lang.reflect.Modifier.isStatic(method.getModifiers())) continue;
                     final Class<?> rt = method.getReturnType();
                     if (rt == boolean.class) {
-                        Main.MODULE.hook(method).intercept(new Hooker() {
+                        hookLoginFeatureMember("installRiskSdkNeutralizer", method, new Hooker() {
                             @Override public Object intercept(Chain chain) throws Throwable {
                                 return Boolean.FALSE;
                             }
                         });
                         try { Main.MODULE.deoptimize(method); } catch (Throwable ignored) {}
                     } else if (rt == String.class) {
-                        Main.MODULE.hook(method).intercept(new Hooker() {
+                        hookLoginFeatureMember("installRiskSdkNeutralizer", method, new Hooker() {
                             @Override public Object intercept(Chain chain) throws Throwable {
                                 return "";
                             }
                         });
                         try { Main.MODULE.deoptimize(method); } catch (Throwable ignored) {}
                     } else if (rt == int.class) {
-                        Main.MODULE.hook(method).intercept(new Hooker() {
+                        hookLoginFeatureMember("installRiskSdkNeutralizer", method, new Hooker() {
                             @Override public Object intercept(Chain chain) throws Throwable {
                                 return Integer.valueOf(0);
                             }
                         });
                         try { Main.MODULE.deoptimize(method); } catch (Throwable ignored) {}
                     } else if (rt == long.class) {
-                        Main.MODULE.hook(method).intercept(new Hooker() {
+                        hookLoginFeatureMember("installRiskSdkNeutralizer", method, new Hooker() {
                             @Override public Object intercept(Chain chain) throws Throwable {
                                 return Long.valueOf(0L);
                             }
@@ -1074,7 +1076,7 @@ final class HookAccountLoginSecurity {
                 String name = HostRemap.name(method);
                 if ("ma".equals(name) && method.getParameterTypes().length == 0
                         && method.getReturnType() == boolean.class) {
-                    Main.MODULE.hook(method).intercept(new Hooker() {
+                    hookLoginFeatureMember("installSmsdkForge", method, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             Main.log("[RISK] SMSDK.ma() root detector -> false");
                             return Boolean.FALSE;
@@ -1083,7 +1085,7 @@ final class HookAccountLoginSecurity {
                     try { Main.MODULE.deoptimize(method); } catch (Throwable ignored) {}
                 } else if ("ma2".equals(name) && method.getParameterTypes().length == 0
                         && method.getReturnType() == int.class) {
-                    Main.MODULE.hook(method).intercept(new Hooker() {
+                    hookLoginFeatureMember("installSmsdkForge", method, new Hooker() {
                         @Override public Object intercept(Chain chain) throws Throwable {
                             Main.log("[RISK] SMSDK.ma2() risk score -> 0");
                             return Integer.valueOf(0);
@@ -1098,7 +1100,7 @@ final class HookAccountLoginSecurity {
                 if (!"v3".equals(HostRemap.name(method))
                         || !java.lang.reflect.Modifier.isStatic(method.getModifiers())
                         || method.getParameterTypes().length != 5) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookLoginFeatureMember("installSmsdkForge", method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object raw = chain.getArg(1);
                         String forged = forgeSmsdkBoxJson(raw);
@@ -1188,7 +1190,7 @@ final class HookAccountLoginSecurity {
             Class<?> settingsSecure = android.provider.Settings.Secure.class;
             Method getString = HostRemap.declaredMethod(settingsSecure, 
                     "getString", android.content.ContentResolver.class, String.class);
-            Main.MODULE.hook(getString).intercept(new Hooker() {
+            hookLoginFeatureMember("forgeSmsdkBoxJson", getString, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Object key = chain.getArg(1);
                     if ("android_id".equals(key)) {
@@ -1224,7 +1226,7 @@ Main.log("[RISK] Android ID spoof installed");
         try {
             Class<?> sp = Class.forName("android.content.SharedPreferences");
             Method getString = HostRemap.declaredMethod(sp, "getString", String.class, String.class);
-            Main.MODULE.hook(getString).intercept(new Hooker() {
+            hookLoginFeatureMember("forgeSmsdkBoxJson", getString, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Object key = chain.getArg(0);
                     for (String oaidKey : OAID_KEYS) {
@@ -1256,7 +1258,7 @@ Main.log("[RISK] Android ID spoof installed");
                 final Method getString = HostRemap.declaredMethod(owner, 
                         "getString", String.class, String.class);
                 getString.setAccessible(true);
-                Main.MODULE.hook(getString).intercept(new Hooker() {
+                hookLoginFeatureMember("forgeSmsdkBoxJson", getString, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object key = chain.getArg(0);
                         for (String oaidKey : OAID_KEYS) {
@@ -1282,7 +1284,7 @@ Main.log("[RISK] Android ID spoof installed");
                 if (method.getReturnType() != void.class
                         || java.lang.reflect.Modifier.isStatic(method.getModifiers())
                         || method.getParameterTypes().length < 1) continue;
-                Main.MODULE.hook(method).intercept(new Hooker() {
+                hookLoginFeatureMember("forgeSmsdkBoxJson", method, new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         return null;
                     }
@@ -1339,6 +1341,20 @@ Main.log("[RISK] Android ID spoof installed");
             if (LOGIN_RISK_HOOKED_MEMBERS.contains(member)) return;
             Main.MODULE.hook(member).intercept(hooker);
             LOGIN_RISK_HOOKED_MEMBERS.add(member);
+        }
+    }
+
+    private static void hookLoginFeatureMember(
+            String feature, Member member, Hooker hooker) throws Throwable {
+        synchronized (LOGIN_FEATURE_HOOKED_MEMBERS) {
+            Set<Member> installed = LOGIN_FEATURE_HOOKED_MEMBERS.get(feature);
+            if (installed == null) {
+                installed = new HashSet<>();
+                LOGIN_FEATURE_HOOKED_MEMBERS.put(feature, installed);
+            }
+            if (installed.contains(member)) return;
+            Main.MODULE.hook(member).intercept(hooker);
+            installed.add(member);
         }
     }
 
@@ -1653,7 +1669,7 @@ Main.log("[RISK] Android ID spoof installed");
             Method onReceive = HostRemap.declaredMethod(receiverClass, 
                     "onReceive", Context.class, Intent.class);
             onReceive.setAccessible(true);
-            Main.MODULE.hook(onReceive).intercept(new Hooker() {
+            hookLoginFeatureMember("forgeSmsdkBoxJson", onReceive, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Intent intent = chain.getArg(1) instanceof Intent
                             ? (Intent) chain.getArg(1) : null;
@@ -3757,7 +3773,7 @@ Main.log("[RISK] Android ID spoof installed");
         for (Constructor<?> constructor : uploadCoroutine.getDeclaredConstructors()) {
             Class<?>[] p = constructor.getParameterTypes();
             if (p.length == 0 || p[p.length - 1] != int.class) continue;
-            Main.MODULE.hook(constructor).intercept(new Hooker() {
+            hookLoginFeatureMember("forgeSmsdkBoxJson", constructor, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     Object result = chain.proceed();
                     java.util.List<Object> args = chain.getArgs();
@@ -3778,7 +3794,7 @@ Main.log("[RISK] Android ID spoof installed");
             boolean propagates = "w".equals(HostRemap.name(method)) && p.length == 2;
             boolean resumesUpload = "y".equals(HostRemap.name(method)) && p.length == 1;
             if (!propagates && !resumesUpload) continue;
-            Main.MODULE.hook(method).intercept(new Hooker() {
+            hookLoginFeatureMember("forgeSmsdkBoxJson", method, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     z12.Route route = V241_LOCAL_API_ROUTED_UPLOAD_COROUTINES.get(
                             chain.getThisObject());
@@ -3811,7 +3827,7 @@ Main.log("[RISK] Android ID spoof installed");
         for (Method method : multipartUpload.getDeclaredMethods()) {
             Class<?>[] p = method.getParameterTypes();
             if (!"y".equals(HostRemap.name(method)) || p.length != 1) continue;
-            Main.MODULE.hook(method).intercept(new Hooker() {
+            hookLoginFeatureMember("forgeSmsdkBoxJson", method, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     z12.Route route = V241_ACTIVE_ROUTED_CONTEXT_UPLOAD;
                     Object fileDescriptor = Main.readHostField(chain.getThisObject(), "j");
@@ -3846,7 +3862,7 @@ Main.log("[RISK] Android ID spoof installed");
         for (Method method : filePowCoroutine.getDeclaredMethods()) {
             Class<?>[] p = method.getParameterTypes();
             if (!"y".equals(HostRemap.name(method)) || p.length != 1) continue;
-            Main.MODULE.hook(method).intercept(new Hooker() {
+            hookLoginFeatureMember("forgeSmsdkBoxJson", method, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     z12.Route route = V241_ACTIVE_ROUTED_CONTEXT_UPLOAD;
                     Object rawDiscriminator = Main.readHostField(chain.getThisObject(), "e");
@@ -3878,7 +3894,7 @@ Main.log("[RISK] Android ID spoof installed");
             Class<?>[] p = method.getParameterTypes();
             if (!"a".equals(HostRemap.name(method)) || p.length != 2
                     || !"ag3".equals(p[0].getName())) continue;
-            Main.MODULE.hook(method).intercept(new Hooker() {
+            hookLoginFeatureMember("forgeSmsdkBoxJson", method, new Hooker() {
                 @Override public Object intercept(Chain chain) throws Throwable {
                     z12.Route route = V241_ACTIVE_ROUTED_CONTEXT_UPLOAD;
                     if (route == null) return chain.proceed();
