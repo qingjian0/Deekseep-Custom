@@ -1710,11 +1710,13 @@ final class HookAgentPipeline {
                 || (value >= 'A' && value <= 'F');
     }
 
-    void hookHeartbeatToolResponses(ClassLoader cl) {
+    void hookHeartbeatToolResponses(ClassLoader cl) throws Throwable {
+        Throwable installFailure = null;
         int liveHooks = 0;
         int staticHooks = 0;
         String[] liveClasses = new String[]{"fo2", "ho2"};
         for (String legacyClassName : liveClasses) {
+            int ownerHooksBefore = liveHooks;
             final boolean executeTools = "fo2".equals(legacyClassName);
             String className = HostCompat.name(legacyClassName);
             final String appendMethod =
@@ -1797,10 +1799,19 @@ final class HookAgentPipeline {
             } catch (Throwable t) {
                 Main.log("heartbeat live response hook unavailable for "
                         + className + ": " + t);
+                if (installFailure == null) installFailure = t;
+                else installFailure.addSuppressed(t);
+            }
+            if (liveHooks == ownerHooksBefore) {
+                NoSuchMethodException missing = new NoSuchMethodException(
+                        className + " heartbeat live response targets");
+                if (installFailure == null) installFailure = missing;
+                else installFailure.addSuppressed(missing);
             }
         }
         String[] staticClasses = new String[]{"at7", "ht7"};
         for (String legacyClassName : staticClasses) {
+            int ownerHooksBefore = staticHooks;
             final boolean renderToolRows = "at7".equals(legacyClassName);
             String className = HostCompat.name(legacyClassName);
             try {
@@ -1866,7 +1877,19 @@ final class HookAgentPipeline {
             } catch (Throwable t) {
                 Main.log("heartbeat static response hook unavailable for "
                         + className + ": " + t);
+                if (installFailure == null) installFailure = t;
+                else installFailure.addSuppressed(t);
             }
+            if (staticHooks == ownerHooksBefore) {
+                NoSuchMethodException missing = new NoSuchMethodException(
+                        className + " heartbeat static response targets");
+                if (installFailure == null) installFailure = missing;
+                else installFailure.addSuppressed(missing);
+            }
+        }
+        if (installFailure != null) throw installFailure;
+        if (liveHooks == 0 || staticHooks == 0) {
+            throw new NoSuchMethodException("heartbeat live/static response hook targets");
         }
         Main.log("heartbeat hidden-tool response hooks live=" + liveHooks
                 + " static=" + staticHooks);
@@ -1877,7 +1900,7 @@ final class HookAgentPipeline {
      * concrete us2.e/i methods, but every nested fragment patch still reaches cj0.g before the
      * RESPONSE State and its Markdown cache are updated.
      */
-    void hookHeartbeatPatchDispatcher(ClassLoader cl) {
+    void hookHeartbeatPatchDispatcher(ClassLoader cl) throws Throwable {
         if (!HostCompat.isV234()) return;
         final String dispatcherName = HostCompat.isV241() ? "jo0"
                 : HostCompat.isGooglePlay() ? "pi0" : "cj0";
@@ -1964,10 +1987,14 @@ final class HookAgentPipeline {
                 });
                 installed++;
             }
+            if (installed == 0) {
+                throw new NoSuchMethodException("hookHeartbeatPatchDispatcher matched no hook targets");
+            }
             Main.log("heartbeat JSON Patch dispatcher hooks=" + installed
                     + " owner=" + dispatcherName + "." + dispatcherMethod);
         } catch (Throwable error) {
             Main.log("heartbeat JSON Patch dispatcher hook unavailable: " + error);
+            throw error;
         }
     }
 
@@ -1989,7 +2016,7 @@ final class HookAgentPipeline {
      * patch method, but the channel-specific StateFlow emission remains the single point before
      * the Markdown AST is built and cached (c38 on mainland, b78 on Google Play).
      */
-    void hookTrackedHeartbeatStateWrites(ClassLoader cl) {
+    void hookTrackedHeartbeatStateWrites(ClassLoader cl) throws Throwable {
         if (!HostCompat.isV234()) return;
         final String stateOwner = HostCompat.isV241() ? "rb8"
                 : HostCompat.isV236() ? "i38"
@@ -2082,10 +2109,14 @@ final class HookAgentPipeline {
                 });
                 installed++;
             }
+            if (installed == 0) {
+                throw new NoSuchMethodException("hookTrackedHeartbeatStateWrites matched no hook targets");
+            }
             Main.log("heartbeat tracked RESPONSE state hooks=" + installed
                     + " owner=" + stateOwner);
         } catch (Throwable error) {
             Main.log("heartbeat tracked RESPONSE state hook unavailable: " + error);
+            throw error;
         }
     }
 
@@ -2094,7 +2125,7 @@ final class HookAgentPipeline {
      * State can outlive both the mutable message reducer and the final persisted e48 object, so
      * it is the reliable screen-facing boundary for incremental control-block suppression.
      */
-    void hookHeartbeatFragmentRenderBoundary(ClassLoader cl) {
+    void hookHeartbeatFragmentRenderBoundary(ClassLoader cl) throws Throwable {
         if (!HostCompat.isV234()) return;
         // 2.7.1: ch2.d -> u73.c with one extra int at index 2 (audited alias ch2r).
         final boolean v271 = HostCompat.isV271();
@@ -2122,15 +2153,19 @@ final class HookAgentPipeline {
                 });
                 installed++;
             }
+            if (installed == 0) {
+                throw new NoSuchMethodException("hookHeartbeatFragmentRenderBoundary matched no hook targets");
+            }
             Main.log("heartbeat fragment screen monitor hooks=" + installed
                     + " renderer=" + rendererName + "." + renderMethod);
         } catch (Throwable error) {
             Main.log("heartbeat fragment screen monitor unavailable: " + error);
+            throw error;
         }
     }
 
     /** Intercepts the lambda that reads RESPONSE State immediately before Markdown parsing. */
-    void hookHeartbeatMarkdownInputBoundary(ClassLoader cl) {
+    void hookHeartbeatMarkdownInputBoundary(ClassLoader cl) throws Throwable {
         if (!HostCompat.isV234()) return;
         try {
             String markdownInputOwner = HostCompat.isV241() ? "ah5"
@@ -2161,10 +2196,14 @@ final class HookAgentPipeline {
                 });
                 installed++;
             }
+            if (installed == 0) {
+                throw new NoSuchMethodException("hookHeartbeatMarkdownInputBoundary matched no hook targets");
+            }
             Main.log("heartbeat Markdown input hooks=" + installed
                     + " renderer=" + markdownInputOwner + ".r");
         } catch (Throwable error) {
             Main.log("heartbeat Markdown input hook unavailable: " + error);
+            throw error;
         }
     }
 
@@ -2177,7 +2216,7 @@ final class HookAgentPipeline {
      * a stateless privacy boundary on every parse, independent of fragment identity, cache
      * lifetime, process restarts, or which earlier hook ART happened to inline.</p>
      */
-    void hookHeartbeatNativeMarkdownParser(ClassLoader cl) {
+    void hookHeartbeatNativeMarkdownParser(ClassLoader cl) throws Throwable {
         final String ownerName;
         if (HostCompat.isV234()) {
             ownerName = HostCompat.isV241() ? "dh5"
@@ -2234,11 +2273,15 @@ final class HookAgentPipeline {
                 });
                 if (modernRenderer) rendererHooks++; else parserHooks++;
             }
+            if (parserHooks + rendererHooks == 0) {
+                throw new NoSuchMethodException(ownerName + " heartbeat Markdown parser/renderer targets");
+            }
             Main.log("heartbeat native Markdown privacy hooks parser=" + parserHooks
                     + " renderer=" + rendererHooks + " owner=" + ownerName);
         } catch (Throwable error) {
             Main.log("heartbeat native Markdown privacy hook unavailable owner="
                     + ownerName + ": " + error);
+            throw error;
         }
     }
 
@@ -2290,7 +2333,7 @@ final class HookAgentPipeline {
     }
 
     void hookHeartbeatToolStatusStyle(
-            ClassLoader cl, String rendererClassName, String styleClassName) {
+            ClassLoader cl, String rendererClassName, String styleClassName) throws Throwable {
         try {
             Class<?> renderer = HostRemap.load(cl, rendererClassName);
             Class<?> styleClass = HostRemap.load(cl, styleClassName);
@@ -2426,12 +2469,16 @@ final class HookAgentPipeline {
                 });
                 annotatedHooks++;
             }
+            if (stringHooks + annotatedHooks == 0) {
+                throw new NoSuchMethodException(rendererClassName + " heartbeat tool status composables");
+            }
             Main.log("heartbeat tool status Compose hooks string=" + stringHooks
                     + " annotated=" + annotatedHooks
                     + " renderer=" + rendererClassName);
         } catch (Throwable t) {
             Main.log("heartbeat tool status renderer unavailable "
                     + rendererClassName + ": " + t);
+            throw t;
         }
     }
 
@@ -2475,7 +2522,7 @@ final class HookAgentPipeline {
 
     void hookHeartbeatToolStatusBasicText(
             ClassLoader cl, String rendererClassName, String methodName,
-            String styleClassName) {
+            String styleClassName) throws Throwable {
         try {
             Class<?> renderer = HostRemap.load(cl, rendererClassName);
             Class<?> styleClass = HostRemap.load(cl, styleClassName);
@@ -2548,11 +2595,15 @@ final class HookAgentPipeline {
                 });
                 hooked++;
             }
+            if (hooked == 0) {
+                throw new NoSuchMethodException("hookHeartbeatToolStatusBasicText matched no hook targets");
+            }
             Main.log("heartbeat tool status BasicText hooks=" + hooked
                     + " renderer=" + rendererClassName + "." + methodName);
         } catch (Throwable t) {
             Main.log("heartbeat tool status BasicText renderer unavailable "
                     + rendererClassName + "." + methodName + ": " + t);
+            throw t;
         }
     }
 
