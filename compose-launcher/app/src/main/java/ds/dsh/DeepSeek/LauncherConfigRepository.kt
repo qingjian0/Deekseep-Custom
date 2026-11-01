@@ -67,15 +67,19 @@ internal class LauncherConfigRepository(context: Context) {
 
     fun parseConfigFiles(json: String): Map<String, ByteArray> {
         val root = JSONObject(json)
-        val files = root.optJSONArray("files") ?: return emptyMap()
+        require(root.optString("format") == CONFIG_FORMAT) { "Invalid config format" }
+        val files = root.optJSONArray("files")
+            ?: throw IllegalArgumentException("Config payload has no files array")
         val result = LinkedHashMap<String, ByteArray>()
         for (index in 0 until files.length()) {
-            val entry = files.optJSONObject(index) ?: continue
+            val entry = files.optJSONObject(index)
+                ?: throw IllegalArgumentException("Config entry is not an object")
             val path = entry.optString("path", "")
-            if (path.isEmpty()) continue
-            result[path] = runCatching {
-                Base64.decode(entry.optString("data", ""), Base64.DEFAULT)
-            }.getOrDefault(ByteArray(0))
+            require(path.isNotBlank()) { "Config entry has no path" }
+            val encoded = entry.optString("data", "")
+            val bytes = Base64.decode(encoded, Base64.DEFAULT)
+            require(bytes.size <= MAX_CONFIG_FILE_BYTES) { "Config entry exceeds size limit" }
+            require(result.put(path, bytes) == null) { "Config contains a duplicate path" }
         }
         return result
     }
@@ -119,6 +123,8 @@ internal class LauncherConfigRepository(context: Context) {
     }
 
     private companion object {
+        const val CONFIG_FORMAT = "deekseep-config"
+        const val MAX_CONFIG_FILE_BYTES = 96 * 1024
         const val BRIDGE_TIMEOUT_MS = 4000L
         const val RESULT_TIMEOUT = -2
     }
