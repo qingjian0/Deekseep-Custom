@@ -28,3 +28,18 @@ tasks.register<Sync>("stageRuntimeClasspath") {
     from(configurations.runtimeClasspath)
     into(layout.buildDirectory.dir("runtime-classpath"))
 }
+
+val r8Tool = configurations.create("r8Tool") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+}
+
+dependencies {
+    add(r8Tool.name, "com.android.tools:r8:9.1.29")
+}
+
+tasks.register<Copy>("stageR8Tool") {
+    from(r8Tool)
+    into(layout.buildDirectory.dir("r8-tool"))
+    rename { "r8-9.1.29.jar" }
+}
