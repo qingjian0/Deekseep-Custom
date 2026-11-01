@@ -1106,16 +1106,14 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         final ClassLoader cl = param.classLoader;
         final String pkg = param.packageName;
 
-        // The embedded coexistence build uses a suffixed application id for cold-start
-        // validation. It runs the same DeepSeek classes, so allow it through the hook bootstrap;
-        // production remains com.deepseek.chat and keeps the existing storage contract.
-        if (!TARGET.equals(pkg) && !"com.deepseek.chat.embedded".equals(pkg)) return;
-        final String currentPid = String.valueOf(android.os.Process.myPid());
-        if (currentPid.equals(System.getProperty("deekseep.module.injected.pid"))) {
-            log("handleLoadPackage: Deekseep already loaded in pid " + currentPid + ", skipping duplicate injection");
+        TargetProcessGuard.Admission admission = TargetProcessGuard.admit(
+                pkg, String.valueOf(android.os.Process.myPid()));
+        if (admission == TargetProcessGuard.Admission.NOT_TARGET) return;
+        if (admission == TargetProcessGuard.Admission.DUPLICATE_PROCESS) {
+            log("handleLoadPackage: Deekseep already loaded in pid "
+                    + android.os.Process.myPid() + ", skipping duplicate injection");
             return;
         }
-        System.setProperty("deekseep.module.injected.pid", currentPid);
         // Loader/embedding/anti-tamper admission is a Closed-edition feature.  Open builds must
         // remain usable with ordinary Xposed/compatible loaders and must not perform anti-root or
         // anti-Frida checks or terminate the host process.

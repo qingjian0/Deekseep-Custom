@@ -30,6 +30,8 @@
 - Legacy Xposed adapter 回归；
 - Expert Relay gate 回归；
 - UI 语言目录检查；
+- 目标宿主进程准入 / 重复注入 JVM 回归；
+- 287/289/290 HostRemap 表完整性与解析回归；
 - 构建传统 Xposed universal 核心；
 - Host V271 与 thinking/feature 回归；
 - Open Release Gradle 构建；
@@ -52,6 +54,16 @@ CI 使用临时生成的测试签名密钥。该密钥仅用于验证 APK 可签
 - 存储/导入导出：空数据、损坏数据、超大数据、路径穿越、旧版本迁移和恢复。
 - 构建脚本/Workflow：在干净环境验证目标任务、产物结构、退出码和权限边界。
 - Release：APK 完整性、zipalign、签名证书指纹、校验和及安装验证。
+
+## 3.2 Legacy Xposed adapter 异常隔离
+
+`test-adapter-regression.sh` 的 API 82–102 矩阵还应验证：可选拦截器在原方法执行前失败时继续调用原方法且仅调用一次；原方法执行后拦截器失败时保留原始返回值且不重复调用；必需拦截器失败继续暴露；嵌套必需失败不能被外层可选拦截器吞掉；原方法自身异常保持原始异常契约；`VirtualMachineError` / `ThreadDeath` 不被吞掉。
+
+## 3.1 进程准入与宿主映射回归
+
+- `test-target-process-guard.sh`：验证无关包名拒绝、正式宿主包名准入、重复 PID 抑制及嵌入式共存包名兼容。
+- `test-hostmap-regression.sh`：检查 287/289/290 映射表 GZIP 完整性和记录结构，并在独立 JVM 进程中调用真实 `HostRemap.activate(code)` 验证解析、激活状态和类映射数量。
+- 这两项属于 JVM/映射层回归，不等同于真实 DeepSeek 进程中的 Hook 验证；287/289/290 真机验证仍需分别记录。
 
 ## 4. Hook 测试原则
 

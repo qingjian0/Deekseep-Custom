@@ -44,6 +44,7 @@ AI 必须区分：
 - before/after/replace Hook 必须说明对原方法执行的影响；避免无意改变原始返回值、异常和副作用。
 - 共享状态必须考虑重复初始化、并发安装、部分失败和重入。
 - 可选 Hook 失败时允许宿主继续运行，但必须留下可定位的诊断信息；关键 Hook 失败不能伪装为整体成功。
+- `LegacyXposedModule.Hooker.isRequired()` 默认返回 `false`：默认按可选 Hook 处理，单个拦截器异常时跳过该拦截器并保留原方法结果；真正影响宿主关键链路的 Hook 必须显式覆盖为 `true`，其失败应向上暴露。`VirtualMachineError` 和 `ThreadDeath` 不得被 fail-open 吞掉。
 - 修改安装状态、安装锁或重试逻辑时，验证首次成功、重复调用、中途异常、部分成功后重试和并发调用。
 
 ## 5. 安全与隐私规则

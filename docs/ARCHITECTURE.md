@@ -16,7 +16,7 @@ YunSeek 是作用于 DeepSeek Android 客户端（`com.deepseek.chat`）的 LSPo
 
 | 路径 | 当前职责 | 修改注意事项 |
 |---|---|---|
-| `module/src/` | Java Hook 核心及功能实现 | 修改前追踪入口、调用链和宿主版本条件 |
+| `module/src/` | Java Hook 核心及功能实现（含独立的 `TargetProcessGuard`） | 修改前追踪入口、调用链和宿主版本条件 |
 | `module/hostmap/` | 宿主版本符号映射 | 不可猜测映射；记录来源并验证 |
 | `module-legacy/` | 旧模块与兼容代码/清单 | 不可假设与当前主构建完全等价 |
 | `module-universal/` | 通用/旧构建资源及载荷路径 | 先确认目标构建是否实际引用 |
@@ -50,7 +50,11 @@ YunSeek 是作用于 DeepSeek Android 客户端（`com.deepseek.chat`）的 LSPo
 - 导出组件、Provider、Receiver、Binder 和跨进程通信均属于安全敏感面。
 - Open/Protected 等构建变体必须保持源代码、载荷、签名与发布边界，不得意外混装。
 
-## 6. 架构变更要求
+## 6. Main.java 渐进式拆分
+
+`Main.java` 仍承担较多入口、生命周期和功能协调职责。拆分必须以可独立验证的职责边界为单位，不允许仅按行数或方法数量机械拆分。当前已将目标包名准入和同进程重复注入抑制提取到 `TargetProcessGuard`，并提供纯 JVM 回归测试。后续拆分边界、顺序和验收条件见 [MAIN_DECOMPOSITION.md](MAIN_DECOMPOSITION.md)。
+
+## 7. 架构变更要求
 
 任何跨模块重构必须先提供：
 1. 现状调用图或关键调用链；
