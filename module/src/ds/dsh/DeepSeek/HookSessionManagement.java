@@ -2353,10 +2353,13 @@ final class HookSessionManagement {
                 });
                 installed++;
             }
+            if (installed == 0) throw new NoSuchMethodException("2.3.4 za1.M deletion callback");
             Main.log("installed 2.3.4 editor-local deletion guard "
                     + HostRemap.simpleName(viewModelType) + ".M x" + installed);
         } catch (Throwable t) {
-            Main.log("hookV234LocalSessionDeletedFlow failed: " + t);
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw new IllegalStateException("2.3.4 local deletion-flow hook installation failed", t);
         }
     }
 
@@ -2414,10 +2417,13 @@ final class HookSessionManagement {
                 });
                 installed++;
             }
+            if (installed == 0) throw new NoSuchMethodException("2.3.4 deletion presenter a");
             Main.log("installed 2.3.4 deletion presenter guard "
                     + HostRemap.simpleName(presenter) + ".a x" + installed);
         } catch (Throwable t) {
-            Main.log("hookV234LocalSessionDeletionPresenter failed: " + t);
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+            throw new IllegalStateException("2.3.4 deletion presenter hook installation failed", t);
         }
     }
 
