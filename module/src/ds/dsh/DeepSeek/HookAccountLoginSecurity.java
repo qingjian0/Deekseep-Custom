@@ -311,8 +311,8 @@ final class HookAccountLoginSecurity {
         try {
             Method method = HostCompat.trainingControlMethod(loader);
             if (method == null) {
-                Main.log("native training control not found for " + HostCompat.generationName());
-                return;
+                throw new NoSuchMethodException(
+                        "native training control not found for " + HostCompat.generationName());
             }
             final Class<?> callbackType = method.getParameterTypes()[1];
             final Object unit = kotlinUnit(loader);
@@ -345,7 +345,12 @@ final class HookAccountLoginSecurity {
             });
             Main.log("native training opt-out control hooked: " + method);
         } catch (Throwable error) {
-            Main.log("hook native training opt-out control failed: " + error);
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            Main.log("hook native training opt-out control failed: "
+                    + Main.safeThrowableMessage(error));
+            throw new IllegalStateException(
+                    "native training opt-out hook installation failed", error);
         }
     }
 
@@ -407,9 +412,15 @@ final class HookAccountLoginSecurity {
                 Main.log("native fake mute renderer hooked model=" + HostRemap.className(muteType)
                         + " owner=" + HostRemap.className(renderer));
                 break;
-            } catch (Throwable ignored) {}
+            } catch (Throwable error) {
+                if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+                if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            }
         }
-        if (installed == 0) Main.log("native fake mute renderer unavailable for host");
+        if (installed == 0) {
+            throw new IllegalStateException(
+                    "native fake mute renderer discovery returned no installable methods");
+        }
     }
 
     static boolean isGoogleLoginUnlock() {
@@ -699,8 +710,12 @@ final class HookAccountLoginSecurity {
             });
             Main.log("candidate password-login error mapper hooked");
         } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
             Main.log("candidate password-login error mapper unavailable: "
                     + Main.safeThrowableMessage(error));
+            throw new IllegalStateException(
+                    "candidate password-login error mapper hook installation failed", error);
         }
     }
 
