@@ -68,7 +68,12 @@ jobs:
           fi
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --install "platforms;android-37" "build-tools;36.0.0"
+          "$SDKMANAGER" --install "platforms;android-37.0" "build-tools;36.0.0"
+          # AGP 9.3 resolves compileSdk=37 as android-37; SDK Manager installs the
+          # versioned stable platform directory as android-37.0.
+          if [ ! -e "$ANDROID_SDK_ROOT/platforms/android-37" ]; then
+            ln -s android-37.0 "$ANDROID_SDK_ROOT/platforms/android-37"
+          fi
       - name: Assemble Open debug APK
         working-directory: compose-launcher
         run: |
