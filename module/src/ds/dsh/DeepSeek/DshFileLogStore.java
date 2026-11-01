@@ -43,10 +43,10 @@ final class DshFileLogStore {
             int maxBytes = Math.max(1, Math.min(requestedMaxBytes, 512 * 1024));
             File directory = context.getFilesDir();
             File[] files = {
-                new File(directory, "crash.log.3"),
-                new File(directory, "crash.log.2"),
-                new File(directory, "crash.log.1"),
-                new File(directory, "crash.log")
+                    new File(directory, "crash.log.3"),
+                    new File(directory, "crash.log.2"),
+                    new File(directory, "crash.log.1"),
+                    new File(directory, "crash.log")
             };
             ByteArrayOutputStream combined = new ByteArrayOutputStream(maxBytes);
             for (File file : files) {
@@ -54,20 +54,20 @@ final class DshFileLogStore {
                 byte[] chunk = readFileTail(file, maxBytes);
                 if (chunk.length == 0) continue;
                 try {
-                        combined.write(chunk);
+                    combined.write(chunk);
                     byte[] all = combined.toByteArray();
                     if (all.length > maxBytes) {
                         int offset = all.length - maxBytes;
                         while (offset < all.length && all[offset] != '\n') offset++;
                         if (offset < all.length) offset++;
                         combined.reset();
-                    combined.write(all, offset, all.length - offset);
+                        combined.write(all, offset, all.length - offset);
                     }
                 } catch (Throwable ignored) {
-                        return new String(combined.toByteArray(), StandardCharsets.UTF_8);
+                    return new String(combined.toByteArray(), StandardCharsets.UTF_8);
+                }
             }
-        }
-        return new String(combined.toByteArray(), StandardCharsets.UTF_8);
+            return new String(combined.toByteArray(), StandardCharsets.UTF_8);
         }
     }
 
@@ -95,20 +95,20 @@ final class DshFileLogStore {
             if (safeLine == null) return false;
             byte[] bytes = (safeLine + "\n").getBytes(StandardCharsets.UTF_8);
             try {
-                    if (Build.VERSION.SDK_INT >= 29) {
+                if (Build.VERSION.SDK_INT >= 29) {
                     return appendMediaStore(context.getContentResolver(), category, bytes);
-                    }
-            if (Build.VERSION.SDK_INT >= 23
-                            && context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                            != PackageManager.PERMISSION_GRANTED) {
-                        return false;
-            }
+                }
+                if (Build.VERSION.SDK_INT >= 23
+                        && context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                        != PackageManager.PERMISSION_GRANTED) {
+                    return false;
+                }
                 File downloads = Environment.getExternalStoragePublicDirectory(
-                    Environment.DIRECTORY_DOWNLOADS);
+                        Environment.DIRECTORY_DOWNLOADS);
                 return appendFile(new File(downloads, PUBLIC_DIRECTORY), category + ".log", safeLine);
             } catch (Throwable ignored) {
-            return false;
-        }
+                return false;
+            }
         }
     }
 
