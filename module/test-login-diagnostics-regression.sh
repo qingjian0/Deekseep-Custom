@@ -22,5 +22,15 @@ fi
 
 grep -Fq 'if (next instanceof VirtualMachineError)' "$SOURCE"
 grep -Fq 'if (next instanceof ThreadDeath)' "$SOURCE"
+# Hook installation failures must reach FeatureHookInstallRegistry instead of being logged and swallowed.
+REGIONAL_LOGIN="$(sed -n '/void hookRegionalLoginUnlock/,/Injects the password\/email login option/p' "$SOURCE")"
+LOGIN_ENTRY="$(sed -n '/void hookLoginEntryPasswordUnlock/,/interface CandidateLoginCallback/p' "$SOURCE")"
+grep -Fq 'void hookRegionalLoginUnlock(final ClassLoader cl) throws Throwable' <<<"$REGIONAL_LOGIN"
+grep -Fq 'hookRegionalLoginUnlock failed:' <<<"$REGIONAL_LOGIN"
+grep -Fq 'throw t;' <<<"$REGIONAL_LOGIN"
+grep -Fq 'void hookLoginEntryPasswordUnlock(final ClassLoader cl) throws Throwable' <<<"$LOGIN_ENTRY"
+grep -Fq 'hookLoginEntryPasswordUnlock failed:' <<<"$LOGIN_ENTRY"
+grep -Fq 'throw t;' <<<"$LOGIN_ENTRY"
+
 
 echo "Login diagnostics privacy and install-failure regression: PASS"
