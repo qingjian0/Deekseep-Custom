@@ -58,17 +58,30 @@ for apk in "${APKS[@]}"; do
         rm -f "$dex_strings"
         exit 1
     }
+    for runtime_class in FeatureHookInstallRegistry TargetProcessGuard; do
+        grep -Fq -- "Lds/dsh/DeepSeek/${runtime_class};" "$dex_strings" || {
+            echo "FAIL: $(basename "$apk") is missing Kotlin runtime class ${runtime_class}" >&2
+            rm -f "$dex_strings"
+            exit 1
+        }
+    done
     grep -Fq -- 'Lds/dsh/DeepSeek/BuildInfo;' "$dex_strings" || {
         echo "FAIL: $(basename "$apk") is missing generated BuildInfo" >&2
         rm -f "$dex_strings"
         exit 1
     }
-    if grep -Eq 'io/github/libxposed|META-INF/xposed/java_init[.]list' "$dex_strings"; then
-        echo "FAIL: $(basename "$apk") contains a modern-only Xposed entry" >&2
+    if grep -Eq 'io/github/libxposed' "$dex_strings"; then
+        echo "FAIL: $(basename "$apk") contains modern libxposed runtime references" >&2
         rm -f "$dex_strings"
         exit 1
     fi
     rm -f "$dex_strings"
+
+    apk_entries="$(unzip -Z1 "$apk")"
+    if grep -Fxq 'META-INF/xposed/java_init.list' <<< "$apk_entries"; then
+        echo "FAIL: $(basename "$apk") contains a modern-only Xposed entry" >&2
+        exit 1
+    fi
 
     package_metadata="$("$AAPT" dump badging "$apk")"
     grep -Fq "package: name='ds.dsh.DeepSeek'" <<< "$package_metadata" || {
