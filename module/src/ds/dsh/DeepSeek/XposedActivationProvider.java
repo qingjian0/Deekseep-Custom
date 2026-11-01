@@ -37,6 +37,7 @@ public final class XposedActivationProvider extends ContentProvider {
     static final String METHOD_GET_QQ_MUSIC_STATUS = "GetQqMusicStatus";
     static final String METHOD_CONTROL_LOCAL_AUDIO = "ControlLocalAudio";
     static final String METHOD_GET_LOCAL_AUDIO_STATUS = "GetLocalAudioStatus";
+    static final String METHOD_WRITE_DSH_LOG = "WriteDshLog";
 
     private static final String METHOD_SEND_BINDER = "SendBinder";
     private static final String SERVICE_DESCRIPTOR = "io.github.libxposed.service.IXposedService";
@@ -101,7 +102,33 @@ public final class XposedActivationProvider extends ContentProvider {
         if (METHOD_GET_LOCAL_AUDIO_STATUS.equals(method)) {
             return LocalAudioPlaybackService.status(arg);
         }
+        if (METHOD_WRITE_DSH_LOG.equals(method)) {
+            return writeDshLog(extras);
+        }
         return null;
+    }
+
+
+    private Bundle writeDshLog(Bundle extras) {
+        Bundle result = new Bundle();
+        Context context = getContext();
+        int callingUid = Binder.getCallingUid();
+        if (context == null || !uidOwnsPackage(context, callingUid, TARGET_PACKAGE)) {
+            result.putBoolean("accepted", false);
+            result.putString("error", "caller is not DeepSeek");
+            return result;
+        }
+        String category = extras == null ? "" : extras.getString("category", "");
+        String line = extras == null ? null : extras.getString("line");
+        if (line == null || line.length() > 4096) {
+            result.putBoolean("accepted", false);
+            result.putString("error", "invalid log payload");
+            return result;
+        }
+        boolean written = DshFileLogStore.appendPrivate(context, category, line);
+        result.putBoolean("accepted", written);
+        if (!written) result.putString("error", "private log write failed");
+        return result;
     }
 
     private Bundle controlLocalAudio(Bundle extras) {
