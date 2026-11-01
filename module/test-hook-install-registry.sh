@@ -9,7 +9,7 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 
 # Source-level contracts for the Android-only IPC/storage path. These checks complement
 # JVM regressions; they do not replace an Android Gradle build or device verification.
-QUEUE_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/DshLogIpcQueue.java"
+QUEUE_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/DshLogIpcQueue.kt"
 PROVIDER_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/XposedActivationProvider.java"
 REMOTE_SINK_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/DshRemoteFileLogSink.java"
 STORE_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/DshFileLogStore.java"
@@ -17,6 +17,9 @@ SETTINGS_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/SettingsActivity.java"
 LEGACY_MANIFEST="$ROOT_DIR/module-legacy/AndroidManifest.xml"
 UNIVERSAL_MANIFEST="$ROOT_DIR/module-universal/AndroidManifest.xml"
 
+grep -Fq 'object DshLogIpcQueue' "$QUEUE_SOURCE"
+grep -Fq '@JvmStatic' "$QUEUE_SOURCE"
+grep -Fq 'fun enqueue(context: Context?, category: String?, line: String?): Bundle' "$QUEUE_SOURCE"
 grep -Fq 'private_queued' "$QUEUE_SOURCE"
 grep -Fq 'public_queued' "$QUEUE_SOURCE"
 grep -Fq 'partial' "$QUEUE_SOURCE"
