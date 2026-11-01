@@ -124,7 +124,7 @@ public final class DeekseepUi {
         if (embedded) Main.setEnabled(true);
         TextView importButton = activePromptImportButton;
         if (importButton != null) {
-            importButton.setText(UiLanguage.text(act,
+            importButton.setText(UiLanguage.text(importButton.getContext(),
                     embedded ? "已开启其他功能，请先关闭后再使用" : "导入提示词",
                     embedded ? "Other features are enabled; turn them off first" : "Import prompt"));
             importButton.setEnabled(!embedded);

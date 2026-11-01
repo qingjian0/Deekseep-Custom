@@ -1756,7 +1756,7 @@ final class ChatAppearance {
         if (Build.VERSION.SDK_INT >= 31) DepthApi31.apply(image, enabled);
     }
 
-    @androidx.annotation.RequiresApi(31)
+    @android.annotation.TargetApi(31)
     private static final class DepthApi31 {
         static void apply(ImageView image, boolean enabled) {
             if (!enabled) {

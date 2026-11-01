@@ -1502,14 +1502,14 @@ final class LiquidGlassEngine {
         }
     }
 
-    @androidx.annotation.RequiresApi(29)
+    @android.annotation.TargetApi(29)
     private static final class Api29 {
         static int thermalStatus(PowerManager manager) {
             return manager.getCurrentThermalStatus();
         }
     }
 
-    @androidx.annotation.RequiresApi(33)
+    @android.annotation.TargetApi(33)
     private static final class Api33 {
         private static final String SHADER_BALANCED =
                 "uniform shader backdrop;\n"

@@ -210,7 +210,7 @@ final class CrashDiagnosticsUi {
         return out.toString().trim();
     }
 
-    @androidx.annotation.RequiresApi(30)
+    @android.annotation.TargetApi(30)
     private static void appendSystemExitHistory(Context context, StringBuilder out) {
         try {
             ActivityManager manager = (ActivityManager) context.getSystemService(
