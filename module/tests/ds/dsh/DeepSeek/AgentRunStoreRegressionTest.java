@@ -153,6 +153,66 @@ public final class AgentRunStoreRegressionTest {
                 new File(corruptLedger.getAbsolutePath() + ".tmp").delete();
             }
 
+            // A failed mutation must not publish an uncommitted in-memory state.
+            File parent = File.createTempFile("deekseep-agent-mutation", ".dir");
+            if (!parent.delete() || !parent.mkdir()) {
+                throw new AssertionError("could not prepare mutation test directory");
+            }
+            File durableFile = new File(parent, "runs.json");
+            File backup = new File(parent.getAbsolutePath() + "-backup");
+            try {
+                AgentRunStore.Store mutationStore = new AgentRunStore.Store(durableFile);
+                HeartbeatToolProtocol.ToolCall mutationCall = call(
+                        "call-mutation-failure", HeartbeatToolProtocol.TOOL_SHELL,
+                        "scope-mutation");
+                String mutationOutbox = mutationStore.queueResult(
+                        mutationCall, true, "[[durable-before-failure]]", "ready");
+                check(mutationOutbox.length() > 0,
+                        "could not establish a durable mutation fixture");
+                check(parent.renameTo(backup),
+                        "could not move durable fixture directory");
+                write(parent, "block parent directory");
+                check(!mutationStore.markDelivering(mutationOutbox, 1),
+                        "markDelivering reported success without a durable write");
+                AgentRunStore.Record inMemoryAfterFailure =
+                        mutationStore.findOutbox(mutationOutbox);
+                check(inMemoryAfterFailure != null
+                                && AgentRunStore.STATE_RESULT_READY.equals(
+                                inMemoryAfterFailure.state),
+                        "failed mutation leaked uncommitted state into the cache");
+                AgentRunStore.Store restoredStore = new AgentRunStore.Store(
+                        new File(backup, "runs.json"));
+                AgentRunStore.Record diskAfterFailure =
+                        restoredStore.findOutbox(mutationOutbox);
+                check(diskAfterFailure != null
+                                && AgentRunStore.STATE_RESULT_READY.equals(
+                                diskAfterFailure.state),
+                        "failed mutation changed the durable ledger");
+            } finally {
+                parent.delete();
+                File savedLedger = new File(backup, "runs.json");
+                savedLedger.delete();
+                new File(savedLedger.getAbsolutePath() + ".tmp").delete();
+                backup.delete();
+            }
+
+            File blockedQueueParent = File.createTempFile(
+                    "deekseep-agent-queue-blocked", ".tmp");
+            try {
+                AgentRunStore.Store queueStore = new AgentRunStore.Store(
+                        new File(blockedQueueParent, "runs.json"));
+                HeartbeatToolProtocol.ToolCall queueCall = call(
+                        "call-queue-write-failure", HeartbeatToolProtocol.TOOL_SHELL,
+                        "scope-queue");
+                check("".equals(queueStore.queueResult(
+                                queueCall, true, "[[not-durable]]", "disk unavailable")),
+                        "queueResult returned an outbox id without durable persistence");
+                check(queueStore.pending().isEmpty(),
+                        "failed queueResult leaked a pending result into memory");
+            } finally {
+                blockedQueueParent.delete();
+            }
+
             System.out.println("Agent run store regression tests passed");
         } finally {
             if (ledger.exists()) ledger.delete();

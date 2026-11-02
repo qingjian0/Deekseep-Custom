@@ -244,8 +244,8 @@ final class AgentRunStore {
             record.detail = clean(detail, 1200);
             record.updatedAt = now;
             record.deliveryAttempts = 0;
-            persist(records);
-            return record.outboxId;
+            String outboxId = record.outboxId;
+            return persist(records) ? outboxId : "";
         }
 
         synchronized void complete(
@@ -284,8 +284,7 @@ final class AgentRunStore {
             record.state = STATE_DELIVERING;
             record.deliveryAttempts = Math.max(record.deliveryAttempts, attempts);
             record.updatedAt = System.currentTimeMillis();
-            persist(records);
-            return true;
+            return persist(records);
         }
 
         synchronized void waitingForChat(String outboxId, String detail) {
@@ -336,7 +335,7 @@ final class AgentRunStore {
                 record.updatedAt = now;
                 expired++;
             }
-            if (expired > 0) persist(records);
+            if (expired > 0 && !persist(records)) return 0;
             return expired;
         }
 
@@ -349,8 +348,7 @@ final class AgentRunStore {
             record.state = STATE_CANCELLED;
             record.detail = "Result delivery cancelled by user";
             record.updatedAt = System.currentTimeMillis();
-            persist(records);
-            return true;
+            return persist(records);
         }
 
         synchronized int clearFinished() {
@@ -363,7 +361,7 @@ final class AgentRunStore {
                     cleared++;
                 }
             }
-            if (cleared > 0) persist(records);
+            if (cleared > 0 && !persist(records)) return 0;
             return cleared;
         }
 
@@ -386,9 +384,18 @@ final class AgentRunStore {
         }
 
         private ArrayList<Record> records() {
-            if (cached != null) return cached;
-            cached = readFile();
-            return cached;
+            if (cached == null) cached = readFile();
+            return copyRecords(cached);
+        }
+
+        private static ArrayList<Record> copyRecords(List<Record> source) {
+            ArrayList<Record> copy = new ArrayList<>();
+            if (source != null) {
+                for (Record record : source) {
+                    if (record != null) copy.add(record.copy());
+                }
+            }
+            return copy;
         }
 
         private ArrayList<Record> readFile() {
@@ -473,10 +480,12 @@ final class AgentRunStore {
                     // previous valid ledger if an unusual filesystem refuses the rename.
                     return false;
                 }
+                // Publish the new in-memory snapshot only after the durable rename succeeds.
+                cached = copyRecords(records);
+                loadFailed = false;
                 return true;
             } catch (Throwable ignored) {
-                // Callers that require durability fail closed; other mutations retain their
-                // in-memory state and may be persisted by a later mutation.
+                // The previous cached snapshot remains authoritative until a durable commit.
                 return false;
             } finally {
                 if (writer != null) try { writer.close(); } catch (Throwable ignored) {}
