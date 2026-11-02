@@ -305,11 +305,14 @@ final class z17 {
 
     private static String readStream(InputStream in) throws Exception {
         if (in == null) return "";
-        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
-        byte[] buf = new byte[1024];
-        int n;
-        while ((n = in.read(buf)) >= 0) if (n > 0) out.write(buf, 0, n);
-        in.close();
-        return new String(out.toByteArray(), StandardCharsets.UTF_8);
+        try (InputStream source = in;
+             java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
+            byte[] buf = new byte[1024];
+            int n;
+            while ((n = source.read(buf)) >= 0) {
+                if (n > 0) out.write(buf, 0, n);
+            }
+            return new String(out.toByteArray(), StandardCharsets.UTF_8);
+        }
     }
 }
