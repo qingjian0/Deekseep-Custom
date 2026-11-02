@@ -227,11 +227,9 @@ final class z17 {
                             java.util.Iterator<String> fields = delta.keys();
                             while (fields.hasNext()) {
                                 String field = fields.next();
-                                ConversationRelayProviderEventPolicy.OutputChannel channel =
-                                        accumulator.openAiChannel(field);
                                 String value = delta.optString(field, "");
                                 if (value.length() == 0) continue;
-                                accumulator.append(channel, value);
+                                accumulator.appendOpenAiDelta(field, value);
                             }
                         }
                     }
@@ -260,29 +258,17 @@ final class z17 {
                         JSONObject delta = event.optJSONObject("delta");
                         if (delta != null) {
                             String dt = delta.optString("type", "");
-                            ConversationRelayProviderEventPolicy.OutputChannel channel =
-                                    accumulator.anthropicDeltaChannel(type, dt);
-                            if (channel == ConversationRelayProviderEventPolicy.OutputChannel.REASONING) {
-                                String think = delta.optString("thinking", "");
-                                accumulator.append(channel, think);
-                            } else if (channel == ConversationRelayProviderEventPolicy.OutputChannel.CONTENT) {
-                                String text = delta.optString("text", "");
-                                accumulator.append(channel, text);
-                            }
+                            String think = delta.optString("thinking", "");
+                            String text = delta.optString("text", "");
+                            accumulator.appendAnthropicDelta(type, dt, think, text);
                         }
                     } else if ("content_block_start".equals(type)) {
                         JSONObject block = event.optJSONObject("content_block");
                         if (block != null) {
                             String bt = block.optString("type", "");
-                            ConversationRelayProviderEventPolicy.OutputChannel channel =
-                                    accumulator.anthropicStartChannel(type, bt);
-                            if (channel == ConversationRelayProviderEventPolicy.OutputChannel.REASONING) {
-                                String think = block.optString("thinking", "");
-                                accumulator.append(channel, think);
-                            } else if (channel == ConversationRelayProviderEventPolicy.OutputChannel.CONTENT) {
-                                String text = block.optString("text", "");
-                                accumulator.append(channel, text);
-                            }
+                            String think = block.optString("thinking", "");
+                            String text = block.optString("text", "");
+                            accumulator.appendAnthropicStart(type, bt, think, text);
                         }
                     }
                 } catch (Exception ignored) {}
