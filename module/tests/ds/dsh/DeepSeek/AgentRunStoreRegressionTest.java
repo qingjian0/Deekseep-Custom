@@ -40,6 +40,7 @@ public final class AgentRunStoreRegressionTest {
 
     public static void main(String[] args) throws Exception {
         File ledger = File.createTempFile("deekseep-agent-runs", ".json");
+        if (!ledger.delete()) throw new AssertionError("could not prepare a missing first-run ledger");
         try {
             AgentRunStore.Store store = new AgentRunStore.Store(ledger);
             HeartbeatToolProtocol.ToolCall first = call(
