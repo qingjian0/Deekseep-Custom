@@ -399,44 +399,49 @@ final class AgentMcpManager {
             return active.send(body, expectedId);
         }
         HttpURLConnection connection = (HttpURLConnection) new URL(config.url).openConnection();
-        connection.setRequestMethod("POST");
-        connection.setConnectTimeout(15000);
-        connection.setReadTimeout(120000);
-        connection.setDoOutput(true);
-        connection.setRequestProperty("Content-Type", "application/json");
-        connection.setRequestProperty("Accept", "application/json, text/event-stream");
-        connection.setRequestProperty("MCP-Protocol-Version", "2025-03-26");
-        if (includeSession && sessionId.length() > 0) {
-            connection.setRequestProperty("Mcp-Session-Id", sessionId);
-        }
-        for (Header header : config.headers) {
-            if (header.name.length() > 0 && header.value.length() > 0
-                    && !isReservedHeader(header.name)) {
-                connection.setRequestProperty(header.name, header.value);
+        try {
+            connection.setRequestMethod("POST");
+            connection.setConnectTimeout(15000);
+            connection.setReadTimeout(120000);
+            connection.setDoOutput(true);
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setRequestProperty("Accept", "application/json, text/event-stream");
+            connection.setRequestProperty("MCP-Protocol-Version", "2025-03-26");
+            if (includeSession && sessionId.length() > 0) {
+                connection.setRequestProperty("Mcp-Session-Id", sessionId);
             }
+            for (Header header : config.headers) {
+                if (header.name.length() > 0 && header.value.length() > 0
+                        && !isReservedHeader(header.name)) {
+                    connection.setRequestProperty(header.name, header.value);
+                }
+            }
+            byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
+            connection.setFixedLengthStreamingMode(bytes.length);
+            try (OutputStream output = connection.getOutputStream()) { output.write(bytes); }
+            int code = connection.getResponseCode();
+            String newSession = connection.getHeaderField("Mcp-Session-Id");
+            if (newSession != null && newSession.trim().length() > 0) sessionId = newSession.trim();
+            InputStream input = code >= 200 && code < 300
+                    ? connection.getInputStream() : connection.getErrorStream();
+            String response = readLimited(input, 1024 * 1024);
+            if (code == 202 && expectedId < 0L) return new JSONObject();
+            if (code < 200 || code >= 300) throw new Exception("HTTP " + code + ": " + trim(response, 400));
+            if (response.trim().length() == 0) return new JSONObject();
+            // Some otherwise-compatible Streamable HTTP servers acknowledge JSON-RPC
+            // notifications with a plain `OK` body and HTTP 200. Notifications have no id and no
+            // response payload by definition, so accept any successful non-JSON acknowledgement.
+            // Calls with an id remain strict: tools/list and tools/call must return JSON-RPC.
+            if (acceptsPlainNotificationAckV241(code, expectedId, response)) {
+                return new JSONObject();
+            }
+            String payload = response.trim().startsWith("{")
+                    ? response.trim() : extractSseJson(response, expectedId);
+            return new JSONObject(payload);
+        } finally {
+            // The request owns this connection; release it for success, HTTP errors and I/O failures.
+            connection.disconnect();
         }
-        byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
-        connection.setFixedLengthStreamingMode(bytes.length);
-        try (OutputStream output = connection.getOutputStream()) { output.write(bytes); }
-        int code = connection.getResponseCode();
-        String newSession = connection.getHeaderField("Mcp-Session-Id");
-        if (newSession != null && newSession.trim().length() > 0) sessionId = newSession.trim();
-        InputStream input = code >= 200 && code < 300
-                ? connection.getInputStream() : connection.getErrorStream();
-        String response = readLimited(input, 1024 * 1024);
-        if (code == 202 && expectedId < 0L) return new JSONObject();
-        if (code < 200 || code >= 300) throw new Exception("HTTP " + code + ": " + trim(response, 400));
-        if (response.trim().length() == 0) return new JSONObject();
-        // Some otherwise-compatible Streamable HTTP servers acknowledge JSON-RPC
-        // notifications with a plain `OK` body and HTTP 200. Notifications have no id and no
-        // response payload by definition, so accept any successful non-JSON acknowledgement.
-        // Calls with an id remain strict: tools/list and tools/call must return JSON-RPC.
-        if (acceptsPlainNotificationAckV241(code, expectedId, response)) {
-            return new JSONObject();
-        }
-        String payload = response.trim().startsWith("{")
-                ? response.trim() : extractSseJson(response, expectedId);
-        return new JSONObject(payload);
     }
 
     static boolean acceptsPlainNotificationAckV241(
