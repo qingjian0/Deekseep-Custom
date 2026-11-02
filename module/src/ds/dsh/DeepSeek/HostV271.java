@@ -138,6 +138,10 @@ final class HostV271 {
             });
             n++;
         }
+        if (n == 0) {
+            throw new NoSuchMethodException(
+                    "v271 history sanitizer constructors were not discovered");
+        }
         Main.log("v271 installed history sanitizer " + HISTORY_RESPONSE + " ctor x" + n);
     }
 
