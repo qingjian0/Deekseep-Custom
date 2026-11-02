@@ -169,3 +169,11 @@ This remains a staged migration. Do not rewrite `HookChatPipeline` or move host 
 - Compatibility review: no JSON key, provider event name, selected JSON value, event order, `RelayResult` shape, reader lifecycle, exception boundary, HTTP behavior, or Hook API was intentionally changed. `ConversationRelayProviderEventPolicy` remains the single classification authority.
 - This closes the production policy/accumulator seam, but does **not** claim that Android `org.json` decoding itself has been executed in a test. Malformed JSON, malformed nested object shapes, EOF/DONE handling, and connection cleanup still require an Android-capable integration test environment or the full CI build.
 - Validation status for this change: source and call-site review only so far. The repository Gradle/JUnit task, Android build, CI, live provider stream, and LSPosed device tests have not been run for this change.
+
+## P2d-1 first HookChatPipeline policy call-site migration (2026-11-02)
+
+- Reused the already-existing pure Kotlin `ResponsePreserverPolicy.containsFilterStatus` from the Java `HookChatPipeline.containsContentFilterState` helper.
+- Added JVM tests for exact legacy behavior: case-sensitive `CONTENT_FILTER` substring matching, marker in either status field, null/empty values, and unrelated/lowercase values.
+- The Java helper still receives the same two strings and returns the same boolean expression; only the implementation is delegated to the existing Kotlin policy. Reflection (`callStr`), host remapping, message objects, Hook callbacks, and response preservation lifecycle remain in Java and are unchanged.
+- This is a narrow policy call-site migration, not a HookChatPipeline port. No host API, callback order, prompt, response mutation, or Xposed behavior was changed.
+- Validation so far: Kotlin 1.9/JDK 21 source-copy smoke and Java/Kotlin static policy interoperability are planned after this commit batch; repository Gradle/JUnit, Legacy/Universal build, CI, and device validation remain unverified.
