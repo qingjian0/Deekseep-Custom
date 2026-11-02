@@ -69,7 +69,7 @@ final class z17 {
             } else if (flag.exists()) {
                 flag.delete();
             }
-        } catch (Throwable ignored) {}
+        } catch (Exception ignored) {}
     }
 
     private static synchronized JSONObject config() {
@@ -209,7 +209,7 @@ final class z17 {
                 return new RelayResult(ConversationRelayHttpPolicy.formatHttpError(code, errBody));
             }
             return anthropic ? parseAnthropicStream(conn) : parseOpenAIStream(conn);
-        } catch (Throwable t) {
+        } catch (Exception t) {
             String msg = t.getMessage();
             return new RelayResult(msg != null ? msg : HostRemap.simpleName(t.getClass()));
         } finally {
