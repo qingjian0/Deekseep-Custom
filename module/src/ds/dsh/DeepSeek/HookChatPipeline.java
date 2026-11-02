@@ -844,11 +844,7 @@ final class HookChatPipeline {
     }
 
     private static String combineSystemPrompts(String first, String second) {
-        String left = first == null ? "" : first.trim();
-        String right = second == null ? "" : second.trim();
-        if (left.length() == 0) return right;
-        if (right.length() == 0) return left;
-        return left + "\n\n" + right;
+        return PromptCompositionPolicy.combine(first, second);
     }
 
     private static String cachedAgentSystemPrompt(

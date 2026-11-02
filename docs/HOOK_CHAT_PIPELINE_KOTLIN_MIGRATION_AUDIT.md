@@ -192,3 +192,27 @@ This remains a staged migration. Do not rewrite `HookChatPipeline` or move host 
 - Extended `.github/workflows/refactor-baseline.yml` to run the existing `module/test-thinking-regression.sh` after the Universal APK build. That suite compiles and executes `ResponsePreserverRegressionTest` together with the broader Android-backed compatibility regression set, using the just-built Universal classes and Kotlin runtime artifacts.
 - This closes a CI coverage gap: the previous permissive workflow built both APK variants but did not execute the repository's existing response-preservation regression suite.
 - The workflow change itself has been committed; the new workflow run must complete before this expanded CI path can be called green. The earlier baseline workflow success did not include this newly added step.
+
+
+## P2c-9 provider JSON adapter integration seam (2026-11-02)
+
+- Extracted the existing OpenAI and Anthropic `org.json` event decoding from `z17` into the Android-side `ConversationRelayProviderJsonAdapter`. It forwards the same decoded field names and values to the existing Kotlin `ConversationRelayProviderStreamAdapter`.
+- Kept the legacy JSON keys, `optJSONArray`/`optJSONObject`/`optString` access pattern, OpenAI choice-zero selection, event-name matching, field iteration order, empty-value filtering, and per-event `catch (Exception)` isolation. SSE framing, `[DONE]` termination, EOF handling, reader closure, and connection disconnect remain in `z17` and are not changed by this extraction.
+- Added an Android-backed regression test using the repository's verified `org.json` dependency. It exercises real JSON decoding for OpenAI reasoning/content deltas and Anthropic block-start/delta events, ignores unsupported fields/events, verifies malformed JSON and malformed nested shapes remain fail-soft, and checks per-response accumulator isolation.
+- Added the test to `module/test-thinking-regression.sh`, which runs after the Universal APK build and compiles against the just-built Universal classes plus the shared Kotlin runtime.
+- Validation boundary: source-level compatibility review only until the new CI run completes. This test does not simulate a live HTTP connection; transport failure/disconnect and stream reader ownership remain covered by their separate JVM tests. No live provider or LSPosed device test is claimed.
+
+## P2d-4 prompt injection scheduling policy extraction (2026-11-02)
+
+- Added the pure Kotlin `PromptInjectionPolicy` for the existing default skip count, supported range (1–30), and one-based turn scheduling decision. `HookChatPipeline` delegates only those calculations.
+- The Java host adapter continues to own the per-conversation turn counters, pending-conversation-to-SID transfer, duplicate-turn suppression, last-decision cache, synchronization lock, bounded map cleanup, host-version checks, and edit/regenerate/resume exception. No host object, Hook callback, prompt text, or Agent contract moved.
+- Added JVM tests for default interval semantics, first-turn injection, configured cadence, and lower/upper clamping. During review, corrected the zero-value boundary assertion: zero normalizes to one skipped turn, so turn 2 is skipped (not injected).
+- Local Kotlin 1.9/JDK 21 source-copy smoke verified the boundary behavior. The repository Kotlin runtime Gradle/JUnit test is being exercised by the current branch CI; no result is claimed until that run completes.
+- This is a calculation-only extraction; it preserves the former `Math.max(1, Math.min(30, value))` and modulo scheduling semantics.
+
+## P2d-5 system-prompt fragment composition policy extraction (2026-11-02)
+
+- Added the pure Kotlin `PromptCompositionPolicy.combine` and delegated the existing Java `combineSystemPrompts` helper to it. The four existing call positions and their left-to-right composition order are unchanged.
+- Preserved Java `String.trim()` semantics explicitly with the Kotlin predicate `it <= ' '`; Kotlin's default `trim()` removes a broader Unicode whitespace set and would have changed prompt bytes for some inputs. The separator remains exactly two LF characters, and null/empty handling is unchanged.
+- Added JVM tests for null/empty inputs, leading/trailing ASCII whitespace, non-ASCII em-space preservation, internal line breaks, and exact separator behavior.
+- No prompt content, plugin/Agent contract, injection timing, or host Hook behavior is changed; only the pure two-string composition implementation is delegated.

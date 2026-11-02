@@ -218,22 +218,7 @@ final class z17 {
                 String data = ConversationRelaySsePolicy.dataPayload(line);
                 if (data == null) return true;
                 if (ConversationRelaySsePolicy.isOpenAiDone(data)) return false;
-                try {
-                    JSONObject chunk = new JSONObject(data);
-                    JSONArray choices = chunk.optJSONArray("choices");
-                    if (choices != null && choices.length() > 0) {
-                        JSONObject delta = choices.optJSONObject(0).optJSONObject("delta");
-                        if (delta != null) {
-                            java.util.Iterator<String> fields = delta.keys();
-                            while (fields.hasNext()) {
-                                String field = fields.next();
-                                String value = delta.optString(field, "");
-                                if (value.length() == 0) continue;
-                                accumulator.appendOpenAiDelta(field, value);
-                            }
-                        }
-                    }
-                } catch (Exception ignored) {}
+                ConversationRelayProviderJsonAdapter.appendOpenAiData(data, accumulator);
                 return true;
             });
         } finally {
@@ -251,27 +236,7 @@ final class z17 {
             ConversationRelaySseLineReader.readLines(reader, line -> {
                 String data = ConversationRelaySsePolicy.dataPayload(line);
                 if (data == null) return true;
-                try {
-                    JSONObject event = new JSONObject(data);
-                    String type = event.optString("type", "");
-                    if ("content_block_delta".equals(type)) {
-                        JSONObject delta = event.optJSONObject("delta");
-                        if (delta != null) {
-                            String dt = delta.optString("type", "");
-                            String think = delta.optString("thinking", "");
-                            String text = delta.optString("text", "");
-                            accumulator.appendAnthropicDelta(type, dt, think, text);
-                        }
-                    } else if ("content_block_start".equals(type)) {
-                        JSONObject block = event.optJSONObject("content_block");
-                        if (block != null) {
-                            String bt = block.optString("type", "");
-                            String think = block.optString("thinking", "");
-                            String text = block.optString("text", "");
-                            accumulator.appendAnthropicStart(type, bt, think, text);
-                        }
-                    }
-                } catch (Exception ignored) {}
+                ConversationRelayProviderJsonAdapter.appendAnthropicData(data, accumulator);
                 return true;
             });
         } finally {
