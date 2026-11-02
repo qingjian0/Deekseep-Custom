@@ -134,6 +134,7 @@ final class AgentRunUi {
             final int textColor, final int subColor,
             final Runnable rerender) {
         content.removeAllViews();
+        final boolean ledgerHealthy = AgentRunStore.isHealthy();
         final List<AgentRunStore.Record> records = AgentRunStore.snapshot();
         int active = 0;
         int pending = 0;
@@ -166,6 +167,18 @@ final class AgentRunUi {
                 dp(activity, 15), dp(activity, 12));
         explanation.setLineSpacing(dp(activity, 2), 1f);
         summary.addView(explanation);
+        if (!ledgerHealthy) {
+            TextView storageError = text(activity,
+                    UiLanguage.text(activity,
+                            "运行记录账本无法读取。为防止重复执行，恢复与回传操作已暂停；原始文件未被自动覆盖。",
+                            "The run ledger cannot be read. Recovery and delivery are paused to prevent "
+                                    + "repeated side effects; the original file has not been overwritten."),
+                    13, subColor, false);
+            storageError.setPadding(dp(activity, 15), dp(activity, 10),
+                    dp(activity, 15), dp(activity, 12));
+            storageError.setLineSpacing(dp(activity, 2), 1f);
+            summary.addView(storageError);
+        }
 
         LinearLayout actions = new LinearLayout(activity);
         actions.setOrientation(LinearLayout.HORIZONTAL);
@@ -174,15 +187,15 @@ final class AgentRunUi {
         TextView retryAll = action(activity,
                 UiLanguage.text(activity, "重试待回传", "Retry pending"),
                 dark, textColor);
-        retryAll.setEnabled(pending > 0);
-        retryAll.setAlpha(pending > 0 ? 1f : 0.42f);
+        retryAll.setEnabled(ledgerHealthy && pending > 0);
+        retryAll.setAlpha(ledgerHealthy && pending > 0 ? 1f : 0.42f);
         actions.addView(retryAll, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         TextView clear = action(activity,
                 UiLanguage.text(activity, "清除已结束", "Clear finished"),
                 dark, textColor);
-        clear.setEnabled(finished > 0);
-        clear.setAlpha(finished > 0 ? 1f : 0.42f);
+        clear.setEnabled(ledgerHealthy && finished > 0);
+        clear.setAlpha(ledgerHealthy && finished > 0 ? 1f : 0.42f);
         LinearLayout.LayoutParams clearParams = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         clearParams.leftMargin = dp(activity, 8);
@@ -216,9 +229,13 @@ final class AgentRunUi {
 
         if (records.isEmpty()) {
             TextView empty = text(activity,
-                    UiLanguage.text(activity,
-                            "还没有 Agent 工具运行记录",
-                            "There are no Agent tool runs yet"),
+                    ledgerHealthy
+                            ? UiLanguage.text(activity,
+                                    "还没有 Agent 工具运行记录",
+                                    "There are no Agent tool runs yet")
+                            : UiLanguage.text(activity,
+                                    "记录不可用，不能确认历史是否为空",
+                                    "Run history is unavailable; its contents cannot be verified"),
                     14, subColor, false);
             empty.setGravity(Gravity.CENTER);
             empty.setPadding(dp(activity, 16), dp(activity, 56),

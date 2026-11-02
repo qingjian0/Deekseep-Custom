@@ -43,6 +43,7 @@ public final class AgentRunStoreRegressionTest {
         if (!ledger.delete()) throw new AssertionError("could not prepare a missing first-run ledger");
         try {
             AgentRunStore.Store store = new AgentRunStore.Store(ledger);
+            check(store.isHealthy(), "missing first-run ledger must be healthy");
             HeartbeatToolProtocol.ToolCall first = call(
                     "call-1", HeartbeatToolProtocol.TOOL_ASK_USER, "scope-1");
             check(store.claim(first), "new call id was not durably claimed");
@@ -123,6 +124,8 @@ public final class AgentRunStoreRegressionTest {
                         "call-corrupt-ledger", HeartbeatToolProtocol.TOOL_SHELL, "scope-corrupt");
                 write(corruptLedger, "{broken");
                 AgentRunStore.Store corruptStore = new AgentRunStore.Store(corruptLedger);
+                check(!corruptStore.isHealthy(),
+                        "malformed ledger must be reported as unhealthy");
                 check(!corruptStore.claim(corruptCall),
                         "malformed ledger must block a new execution claim");
                 corruptStore.start(corruptCall);
@@ -148,6 +151,8 @@ public final class AgentRunStoreRegressionTest {
                 write(corruptLedger, "{\"version\":1,\"records\":[]}");
                 check(corruptStore.claim(corruptCall),
                         "store did not recover after a valid ledger was restored");
+                check(corruptStore.isHealthy(),
+                        "valid restored ledger must return to healthy state");
             } finally {
                 corruptLedger.delete();
                 new File(corruptLedger.getAbsolutePath() + ".tmp").delete();

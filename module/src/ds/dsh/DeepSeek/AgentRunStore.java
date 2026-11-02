@@ -253,6 +253,11 @@ final class AgentRunStore {
             updateCallState(call, STATE_COMPLETED, detail);
         }
 
+        synchronized boolean isHealthy() {
+            records();
+            return !loadFailed;
+        }
+
         synchronized List<Record> snapshot() {
             ArrayList<Record> out = new ArrayList<>();
             for (Record record : records()) {
@@ -538,6 +543,10 @@ final class AgentRunStore {
 
     static void complete(HeartbeatToolProtocol.ToolCall call, String detail) {
         DEFAULT.complete(call, detail);
+    }
+
+    static boolean isHealthy() {
+        return DEFAULT.isHealthy();
     }
 
     static List<Record> snapshot() {
