@@ -53,9 +53,13 @@ object ConversationRelayHttpTransport {
                 connection.setRequestProperty(name, value)
             }
             if (doOutput && body != null) {
-                connection.outputStream.use { output ->
+                val output = connection.outputStream
+                try {
                     output.write(body)
                     output.flush()
+                } finally {
+                    // Match the legacy Java adapter's explicit finally-close semantics.
+                    output.close()
                 }
             }
             return connection
