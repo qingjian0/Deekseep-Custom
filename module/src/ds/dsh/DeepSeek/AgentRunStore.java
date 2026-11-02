@@ -406,7 +406,7 @@ final class AgentRunStore {
 
         private void persist(ArrayList<Record> records) {
             trim(records);
-            if (file == null) return;
+            if (file == null) return false;
             File parent = file.getParentFile();
             File temporary = new File(file.getAbsolutePath() + ".tmp");
             OutputStreamWriter writer = null;

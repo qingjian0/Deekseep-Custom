@@ -77,6 +77,23 @@ public final class AgentRunStoreRegressionTest {
                     "finished run history was not cleared deterministically");
             check(!store.claim(first),
                     "clearing visible history deleted the durable execution claim");
+            // A failed durable claim must fail closed, otherwise a process restart can
+            // forget the claim and repeat a side effect.
+            File blockedParent = File.createTempFile("deekseep-agent-blocked", ".tmp");
+            try {
+                AgentRunStore.Store failingStore = new AgentRunStore.Store(
+                        new File(blockedParent, "runs.json"));
+                HeartbeatToolProtocol.ToolCall blocked = call(
+                        "call-disk-failure", HeartbeatToolProtocol.TOOL_SHELL, "scope-disk");
+                check(!failingStore.claim(blocked),
+                        "claim must fail when the ledger cannot be persisted");
+                failingStore.invalidateCacheForTest();
+                check(!failingStore.claim(blocked),
+                        "failed claim must not remain as an in-memory-only reservation");
+            } finally {
+                blockedParent.delete();
+            }
+
             System.out.println("Agent run store regression tests passed");
         } finally {
             if (ledger.exists()) ledger.delete();
