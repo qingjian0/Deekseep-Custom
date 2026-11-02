@@ -1,6 +1,7 @@
 package ds.dsh.DeepSeek;
 
 import android.graphics.Bitmap;
+import android.system.Os;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -175,8 +176,10 @@ final class SpatialLayerCache {
             } catch (Throwable ignored) {}
             output.close();
             output = null;
-            if (target.isFile() && !target.delete()) return false;
-            return temporary.renameTo(target);
+            // Same-directory rename atomically replaces an existing cache file. Keep the
+            // previous valid image intact unless the fully-written temporary file is ready.
+            Os.rename(temporary.getAbsolutePath(), target.getAbsolutePath());
+            return target.isFile();
         } catch (Throwable t) {
             Main.log("spatial cache write failed: " + t);
             return false;
@@ -186,7 +189,9 @@ final class SpatialLayerCache {
                     output.close();
                 } catch (Throwable ignored) {}
             }
-            if (temporary.isFile() && !target.isFile()) {
+            // rename consumes the temporary path on success; on every failure path,
+            // remove any partial file without touching the previous target.
+            if (temporary.exists()) {
                 try {
                     temporary.delete();
                 } catch (Throwable ignored) {}
