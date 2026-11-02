@@ -54,17 +54,19 @@ class ConversationRelaySseLineReaderTest {
 
     @Test
     fun propagatesReadFailureWithoutTakingReaderOwnership() {
+        var sourceClosed = false
         val source = object : Reader() {
             override fun read(buffer: CharArray, offset: Int, length: Int): Int =
                 throw IOException("read failed")
-            override fun close() {}
+            override fun close() {
+                sourceClosed = true
+            }
         }
-        val reader = BufferedReader(source)
         val failure = assertFailsWith<IOException> {
-            ConversationRelaySseLineReader.readLines(reader) { true }
+            ConversationRelaySseLineReader.readLines(BufferedReader(source)) { true }
         }
         assertEquals("read failed", failure.message)
-        assertFalse(reader.ready())
+        assertFalse(sourceClosed, "line reader must not take ownership of the reader")
     }
 
     @Test
