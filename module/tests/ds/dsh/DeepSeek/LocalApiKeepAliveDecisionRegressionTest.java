@@ -22,8 +22,8 @@ public final class LocalApiKeepAliveDecisionRegressionTest {
                         13_000L, 10_000L, true, true),
                 "the three-second boundary must not throttle");
         require(!LocalApiKeepAliveDecision.throttleSameDirection(
-                        12_000L, 10_000L, true, true),
-                "clock rollback must not throttle");
+                        9_000L, 10_000L, true, true),
+                "clock rollback (now before the previous launch) must not throttle");
         require(!LocalApiKeepAliveDecision.throttleSameDirection(
                         12_000L, 10_000L, true, false),
                 "direction changes must not throttle");
