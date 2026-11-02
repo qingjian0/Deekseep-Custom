@@ -27,7 +27,7 @@ public final class HostNavigationCatalogRegressionTest {
         List<String> routes = HostNavigationCatalog.extractRoutes(
                 new ByteArrayInputStream(source.getBytes(StandardCharsets.ISO_8859_1)));
         check(routes.equals(Arrays.asList(graph, chat, settings)),
-                "routes must be unique and sorted");
+                "routes must be unique and sorted; actual=" + routes);
     }
 
     private static void handlesNullInput() throws Exception {
