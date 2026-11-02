@@ -131,6 +131,7 @@ final class AgentMcpManager {
     private static volatile String sessionId = "";
     private static volatile String connectedKey = "";
     private static volatile LegacySseSession legacySse;
+    private static final Object SESSION_LOCK = new Object();
 
     private AgentMcpManager() {}
 
@@ -327,9 +328,13 @@ final class AgentMcpManager {
 
     private static Config connectAndSync(Config config) throws Exception {
         validate(config);
-        sessionId = "";
-        LegacySseSession oldSse = legacySse;
-        legacySse = null;
+        LegacySseSession oldSse;
+        synchronized (SESSION_LOCK) {
+            sessionId = "";
+            oldSse = legacySse;
+            legacySse = null;
+            connectedKey = "";
+        }
         if (oldSse != null) oldSse.close();
         LegacySseSession created = null;
         boolean success = false;
@@ -337,7 +342,7 @@ final class AgentMcpManager {
             if (TRANSPORT_SSE.equals(config.transport)) {
                 created = new LegacySseSession(config);
                 created.start();
-                synchronized (created) {
+                synchronized (SESSION_LOCK) {
                     if (created.closed) {
                         throw new Exception(created.failure.length() == 0
                                 ? "MCP SSE 已断开" : created.failure);
@@ -383,16 +388,12 @@ final class AgentMcpManager {
             }
             Config synced = new Config(config.enabled, config.name, config.url,
                     config.transport, config.headers, merged);
-            if (created == null) {
-                connectedKey = connectionKey(synced);
-            } else {
-                synchronized (created) {
-                    if (created.closed) {
-                        throw new Exception(created.failure.length() == 0
-                                ? "MCP SSE 已断开" : created.failure);
-                    }
-                    connectedKey = connectionKey(synced);
+            synchronized (SESSION_LOCK) {
+                if (created != null && created.closed) {
+                    throw new Exception(created.failure.length() == 0
+                            ? "MCP SSE 已断开" : created.failure);
                 }
+                connectedKey = connectionKey(synced);
             }
             success = true;
             return synced;
@@ -814,17 +815,17 @@ final class AgentMcpManager {
         }
 
         private void finish(String reason) {
-            synchronized (this) {
+            synchronized (SESSION_LOCK) {
                 if (reason != null && reason.length() > 0 && failure.length() == 0) {
                     failure = reason;
                 }
                 closed = true;
-            }
-            // Only invalidate this session's key. A late reader from an old session must
-            // never clear a newer session that has already replaced it.
-            if (legacySse == this) {
-                legacySse = null;
-                connectedKey = "";
+                // The global reference and key are changed under the same lock used when
+                // publishing a new session, so an old reader cannot clear a replacement.
+                if (legacySse == this) {
+                    legacySse = null;
+                    connectedKey = "";
+                }
             }
             endpointReady.countDown();
             String terminal = failure.length() == 0 ? "MCP SSE 已断开" : failure;
