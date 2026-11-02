@@ -5,8 +5,8 @@ import java.io.BufferedReader
 /**
  * Minimal line-reading seam for the legacy SSE parsers.
  *
- * It deliberately delegates framing to BufferedReader.readLine(), does not parse SSE fields,
- * and does not close the reader: the Java provider adapter retains stream ownership.
+ * It deliberately delegates framing to BufferedReader.readLine() and does not parse SSE fields.
+ * Reader closure is owned by ConversationRelayStreamLifecycle; the Java relay owns the connection.
  */
 object ConversationRelaySseLineReader {
     fun interface LineHandler {

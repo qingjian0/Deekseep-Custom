@@ -2,19 +2,18 @@ package ds.dsh.DeepSeek
 
 import java.io.BufferedReader
 import java.io.IOException
-import java.net.HttpURLConnection
 
 /**
- * Owns the response-side lifecycle for the legacy provider SSE adapters.
+ * Owns only the response reader lifecycle for the legacy provider SSE adapters.
  *
- * The Java adapter retains provider decoding and result construction. This seam only guarantees
- * the same cleanup contract for EOF, early termination, read failures, and handler failures.
+ * The Java relay adapter owns HttpURLConnection and disconnects it exactly once in its
+ * outer finally block. Keeping connection ownership outside this helper also covers failures
+ * while obtaining the response InputStream or constructing the reader.
  */
 object ConversationRelayStreamLifecycle {
     @JvmStatic
     fun readLinesAndClose(
         reader: BufferedReader,
-        connection: HttpURLConnection,
         handler: ConversationRelaySseLineReader.LineHandler,
     ) {
         try {
@@ -25,7 +24,6 @@ object ConversationRelayStreamLifecycle {
             } catch (_: IOException) {
                 // Preserve the legacy adapter's best-effort reader-close behavior.
             }
-            connection.disconnect()
         }
     }
 }

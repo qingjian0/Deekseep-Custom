@@ -197,7 +197,6 @@ final class z17 {
             int code = conn.getResponseCode();
             if (!ConversationRelayHttpPolicy.isSuccessfulStatus(code)) {
                 String errBody = readStream(conn.getErrorStream());
-                conn.disconnect();
                 return new RelayResult(ConversationRelayHttpPolicy.formatHttpError(code, errBody));
             }
             return anthropic ? parseAnthropicStream(conn) : parseOpenAIStream(conn);
