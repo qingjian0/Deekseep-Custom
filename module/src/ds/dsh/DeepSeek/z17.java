@@ -213,18 +213,13 @@ final class z17 {
         ConversationRelayProviderStreamAdapter accumulator = new ConversationRelayProviderStreamAdapter();
         BufferedReader reader = new BufferedReader(
                 new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
-        try {
-            ConversationRelaySseLineReader.readLines(reader, line -> {
-                String data = ConversationRelaySsePolicy.dataPayload(line);
-                if (data == null) return true;
-                if (ConversationRelaySsePolicy.isOpenAiDone(data)) return false;
-                ConversationRelayProviderJsonAdapter.appendOpenAiData(data, accumulator);
-                return true;
-            });
-        } finally {
-            try { reader.close(); } catch (java.io.IOException ignored) {}
-            conn.disconnect();
-        }
+        ConversationRelayStreamLifecycle.readLinesAndClose(reader, conn, line -> {
+            String data = ConversationRelaySsePolicy.dataPayload(line);
+            if (data == null) return true;
+            if (ConversationRelaySsePolicy.isOpenAiDone(data)) return false;
+            ConversationRelayProviderJsonAdapter.appendOpenAiData(data, accumulator);
+            return true;
+        });
         return new RelayResult(accumulator.reasoningText(), accumulator.contentText());
     }
 
@@ -232,17 +227,12 @@ final class z17 {
         ConversationRelayProviderStreamAdapter accumulator = new ConversationRelayProviderStreamAdapter();
         BufferedReader reader = new BufferedReader(
                 new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
-        try {
-            ConversationRelaySseLineReader.readLines(reader, line -> {
-                String data = ConversationRelaySsePolicy.dataPayload(line);
-                if (data == null) return true;
-                ConversationRelayProviderJsonAdapter.appendAnthropicData(data, accumulator);
-                return true;
-            });
-        } finally {
-            try { reader.close(); } catch (java.io.IOException ignored) {}
-            conn.disconnect();
-        }
+        ConversationRelayStreamLifecycle.readLinesAndClose(reader, conn, line -> {
+            String data = ConversationRelaySsePolicy.dataPayload(line);
+            if (data == null) return true;
+            ConversationRelayProviderJsonAdapter.appendAnthropicData(data, accumulator);
+            return true;
+        });
         return new RelayResult(accumulator.reasoningText(), accumulator.contentText());
     }
 
