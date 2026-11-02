@@ -6,11 +6,7 @@ import android.os.Build;
 
 /** Exact host identities for a thin base APK that passively loads the universal module APK. */
 final class RuntimeEmbeddingMode {
-    private static final String HOST = "com.deepseek.chat";
-    private static final String V236_VERSION_NAME = "2.3.6";
-    private static final long V236_VERSION_CODE = 249L;
-    private static final String V241_VERSION_NAME = "2.4.1";
-    private static final long V241_VERSION_CODE = 257L;
+    private static final String HOST = RuntimeEmbeddingPolicy.HOST_PACKAGE;
 
     private static volatile boolean passiveHostLoader;
 
@@ -56,21 +52,15 @@ final class RuntimeEmbeddingMode {
             }
             long code = Build.VERSION.SDK_INT >= 28
                     ? info.getLongVersionCode() : info.versionCode;
-            if (HostCompat.isV236()) {
-                boolean match = V236_VERSION_NAME.equals(info.versionName) && code == V236_VERSION_CODE;
-                if (!match) sLastFailureReason = "v236_mismatch:" + info.versionName + "/" + code;
-                return match;
+            String failure = RuntimeEmbeddingPolicy.failureReason(
+                    info.versionName, code,
+                    HostCompat.isV236(), HostCompat.isV241(),
+                    HostCompat.isGooglePlay(), HostCompat.isV250());
+            if (failure != null) {
+                sLastFailureReason = failure;
+                return false;
             }
-            if (HostCompat.isV241()) {
-                boolean match = V241_VERSION_NAME.equals(info.versionName) && code == V241_VERSION_CODE;
-                if (!match) sLastFailureReason = "v241_mismatch:" + info.versionName + "/" + code;
-                return match;
-            }
-            sLastFailureReason = "hostcompat_not_v236_nor_v241(isV241=" + HostCompat.isV241()
-                    + ",isV236=" + HostCompat.isV236()
-                    + ",isGP=" + HostCompat.isGooglePlay()
-                    + ",isV250=" + HostCompat.isV250() + ")";
-            return false;
+            return true;
         } catch (Throwable t) {
             sLastFailureReason = "exception:" + HostRemap.simpleName(t.getClass()) + ":" + t.getMessage();
             return false;
