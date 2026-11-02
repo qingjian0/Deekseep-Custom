@@ -125,3 +125,13 @@ This remains a staged migration. Do not rewrite `HookChatPipeline` or move host 
 - Reader cleanup now catches only `IOException`; connection disconnect remains in the existing `finally` path.
 - No endpoint, header, payload, timeout, status, error-message, provider-routing, or Hook callback behavior was changed for ordinary exceptions.
 - Validation: source-level diff review only; full Gradle/JUnit, Android build, and real provider/device tests remain unverified.
+
+
+## P2c-5 HTTP request setup seam (2026-11-02)
+
+- Added `ConversationRelayHttpTransport` to the standalone Kotlin runtime. It owns the shared `HttpURLConnection` request-setup sequence: URL opening through an injectable factory, method, connect/read timeouts, output mode, request headers, and optional request-body write/flush/close.
+- The production Java `z17.fetchModels` and `z17.relay` paths now call this transport. Existing endpoint and header policies still supply all values; GET model discovery remains bodyless, and POST relay writes the same UTF-8 JSON bytes before reading the response.
+- If request setup or body writing throws, the transport disconnects the partially initialized connection and rethrows the original failure. A cleanup failure is attached as suppressed rather than replacing the primary failure.
+- Added JVM tests using a fake `HttpURLConnection` for GET metadata/no body, POST metadata/headers/exact body bytes/output closure, and disconnect after a body-write failure.
+- Scope intentionally stops before response-code handling, error-stream decoding, JSON parsing, SSE reading, and response cleanup. Those remain in the Java Android adapter; the existing exact-200 policy, 200-character error formatting, UTF-8 stream ownership, provider parsing, and outer `finally` disconnect remain authoritative.
+- Local validation: Kotlin 1.9 compiled the production transport; a local fake-connection smoke harness passed GET/POST metadata, headers, exact body bytes, output close, and failure disconnect. The generated JVM class exposes Java-callable static overloads; a Java caller compiled against the default overload. This is not the repository Gradle/JUnit suite. Full Gradle/JUnit, Android build, CI, and real LSPosed/provider validation remain unverified.
