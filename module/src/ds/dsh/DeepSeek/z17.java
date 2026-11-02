@@ -121,7 +121,7 @@ final class z17 {
             if (f.exists()) f.delete();
             tmp.renameTo(f);
             cache = cfg;
-        } catch (Throwable ignored) {}
+        } catch (Exception ignored) {}
     }
 
     /** Fetches the model id list from {@code baseUrl}/v1/models using the configured API key. */
@@ -244,10 +244,10 @@ final class z17 {
                             }
                         }
                     }
-                } catch (Throwable ignored) {}
+                } catch (Exception ignored) {}
             }
         } finally {
-            try { reader.close(); } catch (Throwable ignored) {}
+            try { reader.close(); } catch (Exception ignored) {}
             conn.disconnect();
         }
         return new RelayResult(accumulator.reasoningText(), accumulator.contentText());
@@ -294,10 +294,10 @@ final class z17 {
                             }
                         }
                     }
-                } catch (Throwable ignored) {}
+                } catch (Exception ignored) {}
             }
         } finally {
-            try { reader.close(); } catch (Throwable ignored) {}
+            try { reader.close(); } catch (Exception ignored) {}
             conn.disconnect();
         }
         return new RelayResult(accumulator.reasoningText(), accumulator.contentText());
