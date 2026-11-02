@@ -145,6 +145,9 @@ final class AgentRunStore {
 
         private final File file;
         private ArrayList<Record> cached;
+        // A missing ledger is a valid first run; an unreadable or malformed ledger is not.
+        // Never replace uncertain execution history with an empty ledger.
+        private boolean loadFailed;
 
         Store(File file) {
             this.file = file;
@@ -154,6 +157,7 @@ final class AgentRunStore {
         synchronized boolean claim(HeartbeatToolProtocol.ToolCall call) {
             if (!valid(call)) return false;
             ArrayList<Record> records = records();
+            if (loadFailed) return false;
             String key = callKey(call.scope, call.id);
             if (findByKey(records, key) != null) return false;
             Record record = new Record();
@@ -178,6 +182,7 @@ final class AgentRunStore {
         synchronized void start(HeartbeatToolProtocol.ToolCall call) {
             if (!valid(call)) return;
             ArrayList<Record> records = records();
+            if (loadFailed) return;
             String key = callKey(call.scope, call.id);
             Record record = findByKey(records, key);
             long now = System.currentTimeMillis();
@@ -215,6 +220,7 @@ final class AgentRunStore {
                 String event, String detail) {
             if (!valid(call) || event == null || event.length() == 0) return "";
             ArrayList<Record> records = records();
+            if (loadFailed) return "";
             String key = callKey(call.scope, call.id);
             Record record = findByKey(records, key);
             if (record == null) {
@@ -272,6 +278,7 @@ final class AgentRunStore {
 
         synchronized boolean markDelivering(String outboxId, int attempts) {
             ArrayList<Record> records = records();
+            if (loadFailed) return false;
             Record record = findByOutbox(records, clean(outboxId, 180));
             if (record == null || !record.hasPendingResult()) return false;
             record.state = STATE_DELIVERING;
@@ -283,6 +290,7 @@ final class AgentRunStore {
 
         synchronized void waitingForChat(String outboxId, String detail) {
             ArrayList<Record> records = records();
+            if (loadFailed) return;
             Record record = findByOutbox(records, clean(outboxId, 180));
             if (record == null || !record.hasPendingResult()) return;
             record.state = STATE_WAITING_CHAT;
@@ -293,6 +301,7 @@ final class AgentRunStore {
 
         synchronized void delivered(String outboxId) {
             ArrayList<Record> records = records();
+            if (loadFailed) return;
             Record record = findByOutbox(records, clean(outboxId, 180));
             if (record == null) return;
             record.event = "";
@@ -310,6 +319,7 @@ final class AgentRunStore {
         synchronized int expirePendingBefore(long cutoff, String detail) {
             if (cutoff <= 0L) return 0;
             ArrayList<Record> records = records();
+            if (loadFailed) return 0;
             int expired = 0;
             long now = System.currentTimeMillis();
             for (Record record : records) {
@@ -332,6 +342,7 @@ final class AgentRunStore {
 
         synchronized boolean cancel(String outboxId) {
             ArrayList<Record> records = records();
+            if (loadFailed) return false;
             Record record = findByOutbox(records, clean(outboxId, 180));
             if (record == null || !record.hasPendingResult()) return false;
             record.event = "";
@@ -344,6 +355,7 @@ final class AgentRunStore {
 
         synchronized int clearFinished() {
             ArrayList<Record> records = records();
+            if (loadFailed) return 0;
             int cleared = 0;
             for (Record record : records) {
                 if (record.isFinished() && !record.hidden) {
@@ -357,12 +369,14 @@ final class AgentRunStore {
 
         synchronized void invalidateCacheForTest() {
             cached = null;
+            loadFailed = false;
         }
 
         private void updateCallState(
                 HeartbeatToolProtocol.ToolCall call, String state, String detail) {
             if (!valid(call)) return;
             ArrayList<Record> records = records();
+            if (loadFailed) return;
             Record record = findByKey(records, callKey(call.scope, call.id));
             if (record == null) return;
             record.state = state;
@@ -379,8 +393,19 @@ final class AgentRunStore {
 
         private ArrayList<Record> readFile() {
             ArrayList<Record> out = new ArrayList<>();
-            if (file == null || !file.isFile() || file.length() <= 0L
-                    || file.length() > MAX_FILE_BYTES) return out;
+            loadFailed = false;
+            if (file == null) {
+                loadFailed = true;
+                return out;
+            }
+            // A missing file is a valid first-run ledger. Existing files must parse completely;
+            // silently treating corruption as empty could repeat side effects.
+            if (!file.exists()) return out;
+            if (!file.isFile() || file.length() <= 0L
+                    || file.length() > MAX_FILE_BYTES) {
+                loadFailed = true;
+                return out;
+            }
             BufferedReader reader = null;
             try {
                 reader = new BufferedReader(new InputStreamReader(
@@ -390,22 +415,33 @@ final class AgentRunStore {
                 int count;
                 while ((count = reader.read(buffer)) >= 0) {
                     if (count > 0) text.append(buffer, 0, count);
-                    if (text.length() > MAX_FILE_BYTES) return new ArrayList<>();
+                    if (text.length() > MAX_FILE_BYTES) {
+                        loadFailed = true;
+                        return out;
+                    }
                 }
-                JSONArray records = new JSONObject(text.toString())
-                        .optJSONArray("records");
-                if (records == null) return out;
-                for (int i = 0; i < records.length() && out.size() < MAX_RECORDS; i++) {
-                    Record record = Record.fromJson(records.optJSONObject(i));
-                    if (record == null || findByKey(out, record.key) != null) continue;
+                JSONObject root = new JSONObject(text.toString());
+                if (root.optInt("version", -1) != 1) {
+                    throw new IllegalStateException("Unsupported Agent run ledger version");
+                }
+                JSONArray values = root.optJSONArray("records");
+                if (values == null || values.length() > MAX_RECORDS) {
+                    throw new IllegalStateException("Invalid Agent run ledger records");
+                }
+                for (int i = 0; i < values.length(); i++) {
+                    Record record = Record.fromJson(values.optJSONObject(i));
+                    if (record == null || findByKey(out, record.key) != null) {
+                        throw new IllegalStateException("Invalid Agent run ledger record");
+                    }
                     out.add(record);
                 }
             } catch (Throwable ignored) {
                 out.clear();
+                loadFailed = true;
             } finally {
                 if (reader != null) try { reader.close(); } catch (Throwable ignored) {}
             }
-            trim(out);
+            if (!loadFailed) trim(out);
             return out;
         }
 

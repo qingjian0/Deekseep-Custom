@@ -9,6 +9,27 @@ public final class AgentRunStoreRegressionTest {
         if (!value) throw new AssertionError(message);
     }
 
+    private static void write(File file, String value) throws Exception {
+        try (java.io.FileOutputStream output = new java.io.FileOutputStream(file, false)) {
+            output.write(value.getBytes("UTF-8"));
+            output.flush();
+            output.getFD().sync();
+        }
+    }
+
+    private static String read(File file) throws Exception {
+        byte[] bytes = new byte[(int) file.length()];
+        try (java.io.FileInputStream input = new java.io.FileInputStream(file)) {
+            int offset = 0;
+            while (offset < bytes.length) {
+                int count = input.read(bytes, offset, bytes.length - offset);
+                if (count < 0) break;
+                offset += count;
+            }
+            return new String(bytes, "UTF-8");
+        }
+    }
+
     private static HeartbeatToolProtocol.ToolCall call(
             String id, String tool, String scope) {
         return new HeartbeatToolProtocol.ToolCall(
@@ -92,6 +113,43 @@ public final class AgentRunStoreRegressionTest {
                         "failed claim must not remain as an in-memory-only reservation");
             } finally {
                 blockedParent.delete();
+            }
+
+            // A malformed or empty existing ledger must never be interpreted as empty history.
+            File corruptLedger = File.createTempFile("deekseep-agent-corrupt", ".json");
+            try {
+                HeartbeatToolProtocol.ToolCall corruptCall = call(
+                        "call-corrupt-ledger", HeartbeatToolProtocol.TOOL_SHELL, "scope-corrupt");
+                write(corruptLedger, "{broken");
+                AgentRunStore.Store corruptStore = new AgentRunStore.Store(corruptLedger);
+                check(!corruptStore.claim(corruptCall),
+                        "malformed ledger must block a new execution claim");
+                corruptStore.start(corruptCall);
+                check("".equals(corruptStore.queueResult(
+                                corruptCall, true, "[[must-not-overwrite]]", "blocked")),
+                        "malformed ledger must block outbox mutation");
+                check("{broken".equals(read(corruptLedger)),
+                        "mutation replaced the corrupt ledger instead of preserving it");
+
+                corruptStore.invalidateCacheForTest();
+                write(corruptLedger, "{\"version\":2,\"records\":[]}");
+                check(!corruptStore.claim(corruptCall),
+                        "unsupported ledger version must fail closed");
+                check("{\"version\":2,\"records\":[]}".equals(read(corruptLedger)),
+                        "unsupported ledger was overwritten");
+
+                corruptStore.invalidateCacheForTest();
+                write(corruptLedger, "");
+                check(!corruptStore.claim(corruptCall),
+                        "empty existing ledger must fail closed");
+
+                corruptStore.invalidateCacheForTest();
+                write(corruptLedger, "{\"version\":1,\"records\":[]}");
+                check(corruptStore.claim(corruptCall),
+                        "store did not recover after a valid ledger was restored");
+            } finally {
+                corruptLedger.delete();
+                new File(corruptLedger.getAbsolutePath() + ".tmp").delete();
             }
 
             System.out.println("Agent run store regression tests passed");
