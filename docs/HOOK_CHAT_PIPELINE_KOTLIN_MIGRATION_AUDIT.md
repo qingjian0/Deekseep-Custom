@@ -107,3 +107,12 @@ This remains a staged migration. Do not rewrite `HookChatPipeline` or move host 
 - Trimming explicitly matches Java `String.trim()` (characters <= U+0020), not Kotlin's broader default whitespace behavior. Deduplication remains case-sensitive.
 - `z17.fetchModels` still owns `org.json` parsing and preserves the existing malformed-array-element behavior; the policy does not add lenient JSON handling.
 - Local validation: Kotlin 1.9 source-copy smoke assertions and Java-to-Kotlin static-call interoperability both passed. Full Gradle/JUnit, Android build, and live model-discovery checks remain unverified.
+
+
+## P2c-3 response-body stream ownership (2026-11-02)
+
+- Added `ConversationRelayInputStreamReader` to the standalone Kotlin runtime. Its contract explicitly transfers ownership of a nullable input stream, returns an empty string for null, decodes UTF-8, and closes non-null streams on both success and read failure.
+- Added JVM tests for UTF-8 success + closure, read failure + closure, close failure propagation, and null input.
+- The Java `z17.readStream` compatibility adapter now delegates to the tested Kotlin helper. Existing callers, HTTP status handling, error formatting, JSON parsing, and connection `disconnect()` ownership remain unchanged.
+- This extraction does not move `HttpURLConnection`, request construction, SSE framing, or Android `org.json` decoding into the shared runtime.
+- Validation status: source and test files are committed; Gradle/JUnit execution and Android build have not yet been run for this commit. Do not mark CI green until an actual workflow run completes.
