@@ -393,7 +393,7 @@ final class HookChatPipeline {
     private static int readPromptInterval(String path) {
         try {
             int value = Integer.parseInt(Main.readSmallText(path).trim());
-            return Math.max(1, Math.min(30, value));
+            return PromptInjectionPolicy.normalizeSkippedTurns(value);
         } catch (Throwable ignored) {
             return 3;
         }
@@ -409,7 +409,6 @@ final class HookChatPipeline {
         // older hosts retain their established counter semantics byte-for-byte below.
         if (HostCompat.isV241() && parentMessageId != null) return true;
         int skippedTurns = configuredPromptInjectionInterval();
-        int period = skippedTurns + 1;
         String scope = conversationId == null || conversationId.length() == 0
                 ? "__pending_new_conversation__" : conversationId;
         String turnKey = scope + "|" + String.valueOf(parentMessageId);
@@ -433,7 +432,7 @@ final class HookChatPipeline {
             }
             int turn = PROMPT_TURN_COUNTS.containsKey(scope)
                     ? PROMPT_TURN_COUNTS.get(scope).intValue() + 1 : 1;
-            boolean inject = ((turn - 1) % period) == 0;
+            boolean inject = PromptInjectionPolicy.shouldInjectTurn(turn, skippedTurns);
             PROMPT_TURN_COUNTS.put(scope, Integer.valueOf(turn));
             PROMPT_LAST_TURN_KEYS.put(scope, turnKey);
             PROMPT_LAST_TURN_DECISIONS.put(scope, Boolean.valueOf(inject));
