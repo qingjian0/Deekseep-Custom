@@ -128,15 +128,15 @@ final class z17 {
     static List<String> fetchModels(String apiKey, String format, String baseUrl)
             throws Exception {
         String endpoint = ConversationRelayEndpointPolicy.modelsEndpoint(baseUrl);
-        HttpURLConnection conn = (HttpURLConnection) new URL(endpoint).openConnection();
+        HttpURLConnection conn = ConversationRelayHttpTransport.openRequest(
+                endpoint,
+                "GET",
+                ConversationRelayEndpointPolicy.MODEL_CONNECT_TIMEOUT_MILLIS,
+                ConversationRelayEndpointPolicy.MODEL_READ_TIMEOUT_MILLIS,
+                false,
+                ConversationRelayEndpointPolicy.modelDiscoveryHeaders(format, apiKey),
+                null);
         try {
-            conn.setRequestMethod("GET");
-            conn.setConnectTimeout(ConversationRelayEndpointPolicy.MODEL_CONNECT_TIMEOUT_MILLIS);
-            conn.setReadTimeout(ConversationRelayEndpointPolicy.MODEL_READ_TIMEOUT_MILLIS);
-            for (java.util.Map.Entry<String, String> header :
-                    ConversationRelayEndpointPolicy.modelDiscoveryHeaders(format, apiKey).entrySet()) {
-                conn.setRequestProperty(header.getKey(), header.getValue());
-            }
             int code = conn.getResponseCode();
             if (!ConversationRelayHttpPolicy.isSuccessfulStatus(code)) {
                 String body = readStream(conn.getErrorStream());
@@ -185,23 +185,15 @@ final class z17 {
             if (anthropic) root.put("max_tokens", 8192);
             String body = root.toString();
 
-            conn = (HttpURLConnection) new URL(endpoint).openConnection();
-            conn.setRequestMethod("POST");
-            conn.setConnectTimeout(ConversationRelayEndpointPolicy.CONNECT_TIMEOUT_MILLIS);
-            conn.setReadTimeout(ConversationRelayEndpointPolicy.STREAM_READ_TIMEOUT_MILLIS);
-            conn.setDoOutput(true);
-            for (java.util.Map.Entry<String, String> header :
+            conn = ConversationRelayHttpTransport.openRequest(
+                    endpoint,
+                    "POST",
+                    ConversationRelayEndpointPolicy.CONNECT_TIMEOUT_MILLIS,
+                    ConversationRelayEndpointPolicy.STREAM_READ_TIMEOUT_MILLIS,
+                    true,
                     ConversationRelayEndpointPolicy.requestHeaders(
-                            anthropic ? FORMAT_ANTHROPIC : FORMAT_OPENAI, key).entrySet()) {
-                conn.setRequestProperty(header.getKey(), header.getValue());
-            }
-            OutputStream out = conn.getOutputStream();
-            try {
-                out.write(body.getBytes(StandardCharsets.UTF_8));
-                out.flush();
-            } finally {
-                out.close();
-            }
+                            anthropic ? FORMAT_ANTHROPIC : FORMAT_OPENAI, key),
+                    body.getBytes(StandardCharsets.UTF_8));
             int code = conn.getResponseCode();
             if (!ConversationRelayHttpPolicy.isSuccessfulStatus(code)) {
                 String errBody = readStream(conn.getErrorStream());
