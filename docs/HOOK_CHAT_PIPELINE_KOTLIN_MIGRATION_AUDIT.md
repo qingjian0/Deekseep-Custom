@@ -115,4 +115,4 @@ This remains a staged migration. Do not rewrite `HookChatPipeline` or move host 
 - Added JVM tests for UTF-8 success + closure, read failure + closure, close failure propagation, and null input.
 - The Java `z17.readStream` compatibility adapter now delegates to the tested Kotlin helper. Existing callers, HTTP status handling, error formatting, JSON parsing, and connection `disconnect()` ownership remain unchanged.
 - This extraction does not move `HttpURLConnection`, request construction, SSE framing, or Android `org.json` decoding into the shared runtime.
-- Validation status: source and test files are committed; Gradle/JUnit execution and Android build have not yet been run for this commit. Do not mark CI green until an actual workflow run completes.
+- Local validation: Kotlin compiler smoke assertions passed for UTF-8 decoding, close-on-success, close-on-read-failure, close-failure propagation, and null input; a Java caller compiled and ran against the Kotlin `@JvmStatic` facade. This is a focused source-copy harness, not the repository Gradle/JUnit suite. Full Gradle/JUnit, Android build, and CI remain unverified.
