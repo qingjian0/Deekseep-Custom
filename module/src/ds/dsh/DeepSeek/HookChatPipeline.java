@@ -387,7 +387,7 @@ final class HookChatPipeline {
             promptIntervalV241 = readPromptInterval(PROMPT_INTERVAL_V241_FILE);
             return promptIntervalV241;
         }
-        return 3;
+        return PromptInjectionPolicy.DEFAULT_SKIPPED_TURNS;
     }
 
     private static int readPromptInterval(String path) {
@@ -395,7 +395,7 @@ final class HookChatPipeline {
             int value = Integer.parseInt(Main.readSmallText(path).trim());
             return PromptInjectionPolicy.normalizeSkippedTurns(value);
         } catch (Throwable ignored) {
-            return 3;
+            return PromptInjectionPolicy.DEFAULT_SKIPPED_TURNS;
         }
     }
 
