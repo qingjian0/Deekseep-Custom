@@ -214,11 +214,10 @@ final class z17 {
         BufferedReader reader = new BufferedReader(
                 new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
         try {
-            String line;
-            while ((line = reader.readLine()) != null) {
+            ConversationRelaySseLineReader.readLines(reader, line -> {
                 String data = ConversationRelaySsePolicy.dataPayload(line);
-                if (data == null) continue;
-                if (ConversationRelaySsePolicy.isOpenAiDone(data)) break;
+                if (data == null) return true;
+                if (ConversationRelaySsePolicy.isOpenAiDone(data)) return false;
                 try {
                     JSONObject chunk = new JSONObject(data);
                     JSONArray choices = chunk.optJSONArray("choices");
@@ -237,7 +236,8 @@ final class z17 {
                         }
                     }
                 } catch (Exception ignored) {}
-            }
+                return true;
+            });
         } finally {
             try { reader.close(); } catch (java.io.IOException ignored) {}
             conn.disconnect();
@@ -250,10 +250,9 @@ final class z17 {
         BufferedReader reader = new BufferedReader(
                 new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
         try {
-            String line;
-            while ((line = reader.readLine()) != null) {
+            ConversationRelaySseLineReader.readLines(reader, line -> {
                 String data = ConversationRelaySsePolicy.dataPayload(line);
-                if (data == null) continue;
+                if (data == null) return true;
                 try {
                     JSONObject event = new JSONObject(data);
                     String type = event.optString("type", "");
@@ -287,7 +286,8 @@ final class z17 {
                         }
                     }
                 } catch (Exception ignored) {}
-            }
+                return true;
+            });
         } finally {
             try { reader.close(); } catch (java.io.IOException ignored) {}
             conn.disconnect();
