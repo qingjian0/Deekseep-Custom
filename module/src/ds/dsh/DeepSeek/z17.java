@@ -212,7 +212,7 @@ final class z17 {
         ConversationRelayProviderStreamAdapter accumulator = new ConversationRelayProviderStreamAdapter();
         BufferedReader reader = new BufferedReader(
                 new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
-        ConversationRelayStreamLifecycle.readLinesAndClose(reader, conn, line -> {
+        ConversationRelayStreamLifecycle.readLinesAndClose(reader, line -> {
             String data = ConversationRelaySsePolicy.dataPayload(line);
             if (data == null) return true;
             if (ConversationRelaySsePolicy.isOpenAiDone(data)) return false;
@@ -226,7 +226,7 @@ final class z17 {
         ConversationRelayProviderStreamAdapter accumulator = new ConversationRelayProviderStreamAdapter();
         BufferedReader reader = new BufferedReader(
                 new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
-        ConversationRelayStreamLifecycle.readLinesAndClose(reader, conn, line -> {
+        ConversationRelayStreamLifecycle.readLinesAndClose(reader, line -> {
             String data = ConversationRelaySsePolicy.dataPayload(line);
             if (data == null) return true;
             ConversationRelayProviderJsonAdapter.appendAnthropicData(data, accumulator);
