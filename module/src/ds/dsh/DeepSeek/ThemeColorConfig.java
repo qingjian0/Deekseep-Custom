@@ -1,5 +1,7 @@
 package ds.dsh.DeepSeek;
 
+import android.system.Os;
+
 import org.json.JSONObject;
 
 import java.io.File;
@@ -54,15 +56,16 @@ final class ThemeColorConfig {
             o.put("secondary", String.format("#%08X", v.secondary));
             o.put("direction", validDirection(v.direction));
             File parent = FILE.getParentFile();
-            if (parent != null && !parent.exists()) parent.mkdirs();
+            if (parent != null && !parent.exists()
+                    && !parent.mkdirs() && !parent.isDirectory()) return false;
             File temp = new File(FILE.getAbsolutePath() + ".tmp");
-            FileOutputStream out = new FileOutputStream(temp);
-            out.write(o.toString(2).getBytes(StandardCharsets.UTF_8));
-            out.flush();
-            out.getFD().sync();
-            out.close();
-            if (FILE.exists() && !FILE.delete()) return false;
-            if (!temp.renameTo(FILE)) return false;
+            try (FileOutputStream out = new FileOutputStream(temp, false)) {
+                out.write(o.toString(2).getBytes(StandardCharsets.UTF_8));
+                out.flush();
+                out.getFD().sync();
+            }
+            // Atomically replace the previous config; never delete the only good copy first.
+            Os.rename(temp.getAbsolutePath(), FILE.getAbsolutePath());
             cached = v.copy();
             return true;
         } catch (Throwable ignored) {
