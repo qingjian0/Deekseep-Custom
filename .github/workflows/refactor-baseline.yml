@@ -38,6 +38,9 @@ jobs:
         with:
           gradle-version: "9.8.2"
 
+      - name: Run Kotlin runtime JVM tests
+        run: gradle --no-daemon --stacktrace -p module-kotlin-runtime test
+
       - name: Run Legacy Xposed adapter regression matrix
         run: bash module-legacy/test-adapter-regression.sh
 
