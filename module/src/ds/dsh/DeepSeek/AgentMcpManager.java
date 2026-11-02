@@ -703,6 +703,9 @@ final class AgentMcpManager {
         final Config config;
         final CountDownLatch endpointReady = new CountDownLatch(1);
         final ConcurrentHashMap<Long, Reply> replies = new ConcurrentHashMap<>();
+        // Track outbound POSTs as well as the long-lived GET stream so teardown can interrupt
+        // requests that are waiting for a response from this session.
+        final ConcurrentHashMap<HttpURLConnection, Boolean> posts = new ConcurrentHashMap<>();
         volatile String endpoint = "";
         volatile String failure = "";
         volatile HttpURLConnection stream;
@@ -738,6 +741,11 @@ final class AgentMcpManager {
             HttpURLConnection connection = null;
             try {
                 connection = (HttpURLConnection) new URL(endpoint).openConnection();
+                posts.put(connection, Boolean.TRUE);
+                if (closed) {
+                    throw new Exception(failure.length() == 0
+                            ? "MCP SSE 已断开" : failure);
+                }
                 connection.setRequestMethod("POST");
                 connection.setConnectTimeout(15000);
                 connection.setReadTimeout(30000);
@@ -763,7 +771,10 @@ final class AgentMcpManager {
                 return new JSONObject(reply.payload);
             } finally {
                 if (expectedId >= 0L) replies.remove(expectedId);
-                if (connection != null) connection.disconnect();
+                if (connection != null) {
+                    posts.remove(connection);
+                    connection.disconnect();
+                }
             }
         }
 
@@ -851,6 +862,9 @@ final class AgentMcpManager {
             }
             HttpURLConnection current = stream;
             if (current != null) current.disconnect();
+            for (HttpURLConnection post : posts.keySet()) {
+                try { post.disconnect(); } catch (Throwable ignored) {}
+            }
         }
     }
 
