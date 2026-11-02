@@ -128,8 +128,7 @@ final class AgentMcpManager {
     private static volatile List<Config> cachedProfiles;
     private static volatile long cachedModified = Long.MIN_VALUE;
     private static volatile Status status = new Status(State.DISABLED, "未连接", 0);
-    private static volatile String sessionId = "";
-    private static volatile String connectedKey = "";
+    private static final AgentMcpSessionState SESSION = new AgentMcpSessionState();
     private static volatile LegacySseSession legacySse;
     private static final Object SESSION_LOCK = new Object();
 
@@ -200,10 +199,7 @@ final class AgentMcpManager {
                 cachedProfiles = Collections.unmodifiableList(new ArrayList<>(safeList));
                 cachedModified = target.lastModified();
                 if (invalidateSession) {
-                    synchronized (SESSION_LOCK) {
-                        connectedKey = "";
-                        sessionId = "";
-                    }
+                    SESSION.invalidate();
                 }
                 if (safeList.isEmpty()) setStatus(State.DISABLED, "未连接", 0);
                 return true;
@@ -240,8 +236,7 @@ final class AgentMcpManager {
                 saveSyncedTools(synced);
                 setStatus(State.CONNECTED, "已连接", synced.tools.size());
             } catch (Throwable error) {
-                connectedKey = "";
-                sessionId = "";
+                SESSION.invalidate();
                 setStatus(State.ERROR, safeError(error), 0);
             }
             deliverStatus(callback);
@@ -312,7 +307,7 @@ final class AgentMcpManager {
                 Config config = findConfigForTool(fullName);
                 Tool tool = resolveTool(config, fullName);
                 if (tool == null || !tool.enabled) throw new Exception("MCP 工具未启用");
-                if (!connectionKey(config).equals(connectedKey)) {
+                if (!connectionKey(config).equals(SESSION.connectedKey())) {
                     config = connectAndSync(config);
                     saveSyncedTools(config);
                 }
@@ -339,19 +334,18 @@ final class AgentMcpManager {
     // Serialize the full handshake so concurrent probes cannot publish stale sessions.
     private static synchronized Config connectAndSync(Config config) throws Exception {
         validate(config);
+        long generation = SESSION.beginHandshake();
         LegacySseSession oldSse;
         synchronized (SESSION_LOCK) {
-            sessionId = "";
             oldSse = legacySse;
             legacySse = null;
-            connectedKey = "";
         }
         if (oldSse != null) oldSse.close();
         LegacySseSession created = null;
         boolean success = false;
         try {
             if (TRANSPORT_SSE.equals(config.transport)) {
-                created = new LegacySseSession(config);
+                created = new LegacySseSession(config, generation);
                 created.start();
                 synchronized (SESSION_LOCK) {
                     if (created.closed) {
@@ -399,12 +393,12 @@ final class AgentMcpManager {
             }
             Config synced = new Config(config.enabled, config.name, config.url,
                     config.transport, config.headers, merged);
-            synchronized (SESSION_LOCK) {
-                if (created != null && created.closed) {
-                    throw new Exception(created.failure.length() == 0
-                            ? "MCP SSE 已断开" : created.failure);
-                }
-                connectedKey = connectionKey(synced);
+            if (created != null && created.closed) {
+                throw new Exception(created.failure.length() == 0
+                        ? "MCP SSE 已断开" : created.failure);
+            }
+            if (!SESSION.publishConnectedKey(generation, connectionKey(synced))) {
+                throw new Exception("MCP 配置已变化，连接结果已过期");
             }
             success = true;
             return synced;
@@ -413,9 +407,8 @@ final class AgentMcpManager {
                 if (created != null) created.close();
                 synchronized (SESSION_LOCK) {
                     if (legacySse == created) legacySse = null;
-                    connectedKey = "";
-                    sessionId = "";
                 }
+                SESSION.failHandshake(generation);
             }
         }
     }
@@ -441,6 +434,7 @@ final class AgentMcpManager {
             if (active == null) throw new Exception("MCP SSE 尚未连接");
             return active.send(body, expectedId);
         }
+        AgentMcpSessionState.Snapshot session = SESSION.snapshot();
         HttpURLConnection connection = (HttpURLConnection) new URL(config.url).openConnection();
         try {
             connection.setRequestMethod("POST");
@@ -450,8 +444,8 @@ final class AgentMcpManager {
             connection.setRequestProperty("Content-Type", "application/json");
             connection.setRequestProperty("Accept", "application/json, text/event-stream");
             connection.setRequestProperty("MCP-Protocol-Version", "2025-03-26");
-            if (includeSession && sessionId.length() > 0) {
-                connection.setRequestProperty("Mcp-Session-Id", sessionId);
+            if (includeSession && session.sessionId.length() > 0) {
+                connection.setRequestProperty("Mcp-Session-Id", session.sessionId);
             }
             for (Header header : config.headers) {
                 if (header.name.length() > 0 && header.value.length() > 0
@@ -464,7 +458,9 @@ final class AgentMcpManager {
             try (OutputStream output = connection.getOutputStream()) { output.write(bytes); }
             int code = connection.getResponseCode();
             String newSession = connection.getHeaderField("Mcp-Session-Id");
-            if (newSession != null && newSession.trim().length() > 0) sessionId = newSession.trim();
+            if (newSession != null && newSession.trim().length() > 0) {
+                SESSION.updateSessionId(session.generation, newSession.trim());
+            }
             InputStream input = code >= 200 && code < 300
                     ? connection.getInputStream() : connection.getErrorStream();
             String response = readLimited(input, 1024 * 1024);
@@ -701,6 +697,7 @@ final class AgentMcpManager {
     /** Legacy MCP SSE: one long GET receives endpoint and JSON-RPC responses. */
     private static final class LegacySseSession {
         final Config config;
+        final long generation;
         final CountDownLatch endpointReady = new CountDownLatch(1);
         final ConcurrentHashMap<Long, Reply> replies = new ConcurrentHashMap<>();
         // Track outbound POSTs as well as the long-lived GET stream so teardown can interrupt
@@ -711,7 +708,10 @@ final class AgentMcpManager {
         volatile HttpURLConnection stream;
         volatile boolean closed;
 
-        LegacySseSession(Config config) { this.config = config; }
+        LegacySseSession(Config config, long generation) {
+            this.config = config;
+            this.generation = generation;
+        }
 
         void start() throws Exception {
             Thread reader = new Thread(this::readLoop, "Deekseep-MCP-SSE");
@@ -847,11 +847,9 @@ final class AgentMcpManager {
                 closed = true;
                 // The global reference and key are changed under the same lock used when
                 // publishing a new session, so an old reader cannot clear a replacement.
-                if (legacySse == this) {
-                    legacySse = null;
-                    connectedKey = "";
-                }
+                if (legacySse == this) legacySse = null;
             }
+            SESSION.endSession(generation);
             endpointReady.countDown();
             String terminal = failure.length() == 0 ? "MCP SSE 已断开" : failure;
             for (Reply reply : replies.values()) {

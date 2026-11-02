@@ -96,6 +96,8 @@ javac -source 8 -target 8 -cp "$JSON_JAR:$ANDROID_JAR:$UNIVERSAL_CLASSES:build/c
     tests/ds/dsh/DeepSeek/RichPanelRendererRegressionTest.java \
     tests/ds/dsh/DeepSeek/AgentRunStoreRegressionTest.java \
     tests/ds/dsh/DeepSeek/AgentToolTraceStoreRegressionTest.java \
+    tests/ds/dsh/DeepSeek/AgentMcpSessionStateRegressionTest.java \
+    src/ds/dsh/DeepSeek/AgentMcpSessionState.java \
     tests/ds/dsh/DeepSeek/ChatBackupFormatRegressionTest.java \
     tests/ds/dsh/DeepSeek/DeepSeekCacheCleanerRegressionTest.java \
     tests/ds/dsh/DeepSeek/RemoteFeatureFlagsRegressionTest.java \
@@ -237,6 +239,9 @@ java -cp "$TEST_CP" \
 
 java -cp "$TEST_CP" \
     ds.dsh.DeepSeek.AgentToolTraceStoreRegressionTest
+
+java -cp "$TEST_CP" \
+    ds.dsh.DeepSeek.AgentMcpSessionStateRegressionTest
 
 java -cp "$TEST_CP" \
     ds.dsh.DeepSeek.ChatBackupFormatRegressionTest
