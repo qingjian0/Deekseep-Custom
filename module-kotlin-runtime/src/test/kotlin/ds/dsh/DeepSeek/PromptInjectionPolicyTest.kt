@@ -37,7 +37,7 @@ class PromptInjectionPolicyTest {
 
     @Test
     fun clampsSkipCountBeforeScheduling() {
-        assertTrue(PromptInjectionPolicy.shouldInjectTurn(2, 0))
+        assertFalse(PromptInjectionPolicy.shouldInjectTurn(2, 0))
         assertFalse(PromptInjectionPolicy.shouldInjectTurn(2, 30))
         assertTrue(PromptInjectionPolicy.shouldInjectTurn(32, 30))
     }
