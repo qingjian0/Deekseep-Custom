@@ -145,3 +145,10 @@ This remains a staged migration. Do not rewrite `HookChatPipeline` or move host 
 - Added JVM tests for CRLF/LF/CR line boundaries, blank lines, EOF, early termination, read exceptions, handler exceptions, and caller-owned reader lifecycle.
 - Local validation with Kotlin 1.9/JDK 21: source-copy smoke passed line framing, blank lines, EOF, early stop, read-failure propagation, and handler-failure propagation. A Java caller compiled and ran against the Kotlin `@JvmStatic` API and SAM handler. These are focused local smoke checks, not repository Gradle/JUnit execution.
 - Full Gradle/JUnit, Android build, CI, real LSPosed injection, and live OpenAI/Anthropic stream behavior remain unverified.
+
+
+### P2c-6 integration regression coverage
+
+- Added `ConversationRelaySseLineReaderPolicyTest` to exercise the new Kotlin line iterator together with the existing exact-prefix payload policy.
+- Coverage confirms comments/event metadata and unspaced `data:` lines remain ignored, OpenAI `[DONE]` stops before subsequent lines, and Anthropic event metadata does not prevent its following `data: ` payload from being read.
+- A local Kotlin 1.9/JDK 21 source-copy integration smoke passed both OpenAI-style termination and Anthropic-style line composition. Repository Gradle/JUnit remains unrun.
