@@ -8,12 +8,12 @@ class ConversationRelayProviderStreamAdapterTest {
     fun openAiDecodedDeltaFieldsUseProductionAdapterAndPreserveOrder() {
         val stream = ConversationRelayProviderStreamAdapter()
 
-        stream.append(stream.openAiChannel("reasoning_content"), "think-1")
-        stream.append(stream.openAiChannel("content"), "answer-1")
-        stream.append(stream.openAiChannel("tool_calls"), "must-ignore")
-        stream.append(stream.openAiChannel("reasoning_content"), "-think-2")
-        stream.append(stream.openAiChannel("content"), "-answer-2")
-        stream.append(stream.openAiChannel("content"), "")
+        stream.appendOpenAiDelta("reasoning_content", "think-1")
+        stream.appendOpenAiDelta("content", "answer-1")
+        stream.appendOpenAiDelta("tool_calls", "must-ignore")
+        stream.appendOpenAiDelta("reasoning_content", "-think-2")
+        stream.appendOpenAiDelta("content", "-answer-2")
+        stream.appendOpenAiDelta("content", "")
 
         assertEquals("think-1-think-2", stream.reasoningText())
         assertEquals("answer-1-answer-2", stream.contentText())
@@ -23,18 +23,13 @@ class ConversationRelayProviderStreamAdapterTest {
     fun anthropicStartAndDeltaUseProductionAdapterAndKeepChannelsSeparate() {
         val stream = ConversationRelayProviderStreamAdapter()
 
-        val thinkingStart = stream.anthropicStartChannel("content_block_start", "thinking")
-        val textStart = stream.anthropicStartChannel("content_block_start", "text")
-        val thinkingDelta = stream.anthropicDeltaChannel("content_block_delta", "thinking_delta")
-        val textDelta = stream.anthropicDeltaChannel("content_block_delta", "text_delta")
-
-        stream.append(thinkingStart, "thought-start")
-        stream.append(textStart, "text-start")
-        stream.append(thinkingDelta, "-thought")
-        stream.append(textDelta, "-text")
-        stream.append(stream.anthropicDeltaChannel("content_block_delta", "input_json_delta"), "ignored")
-        stream.append(stream.anthropicStartChannel("message_start", "thinking"), "ignored")
-        stream.append(stream.anthropicDeltaChannel("content_block_delta", "text_delta"), null)
+        stream.appendAnthropicStart("content_block_start", "thinking", "thought-start", "unused")
+        stream.appendAnthropicStart("content_block_start", "text", "unused", "text-start")
+        stream.appendAnthropicDelta("content_block_delta", "thinking_delta", "-thought", "unused")
+        stream.appendAnthropicDelta("content_block_delta", "text_delta", "unused", "-text")
+        stream.appendAnthropicDelta("content_block_delta", "input_json_delta", "ignored", "ignored")
+        stream.appendAnthropicStart("message_start", "thinking", "ignored", "ignored")
+        stream.appendAnthropicDelta("content_block_delta", "text_delta", null, null)
 
         assertEquals("thought-start-thought", stream.reasoningText())
         assertEquals("text-start-text", stream.contentText())
@@ -45,8 +40,8 @@ class ConversationRelayProviderStreamAdapterTest {
         val first = ConversationRelayProviderStreamAdapter()
         val second = ConversationRelayProviderStreamAdapter()
 
-        first.append(first.openAiChannel("content"), "first")
-        second.append(second.openAiChannel("content"), "second")
+        first.appendOpenAiDelta("content", "first")
+        second.appendOpenAiDelta("content", "second")
 
         assertEquals("first", first.contentText())
         assertEquals("second", second.contentText())
