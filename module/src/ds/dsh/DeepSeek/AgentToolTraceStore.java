@@ -9,6 +9,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.nio.ByteBuffer;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -301,8 +303,7 @@ final class AgentToolTraceStore {
                 }
                 output.write(buffer, 0, count);
             }
-            List<Trace> decoded = decodeRecords(
-                    new String(output.toByteArray(), StandardCharsets.UTF_8));
+            List<Trace> decoded = decodeRecords(output.toByteArray());
             // Publish only after the complete file has passed structural validation.
             for (Trace trace : decoded) putLocked(trace.key, trace);
         } catch (Throwable ignored) {
@@ -310,6 +311,15 @@ final class AgentToolTraceStore {
             ORDER.clear();
             loadFailed = true;
         }
+    }
+
+    static List<Trace> decodeRecords(byte[] bytes)
+            throws org.json.JSONException, java.nio.charset.CharacterCodingException {
+        String json = StandardCharsets.UTF_8.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT)
+                .decode(ByteBuffer.wrap(bytes)).toString();
+        return decodeRecords(json);
     }
 
     static List<Trace> decodeRecords(String json) throws org.json.JSONException {

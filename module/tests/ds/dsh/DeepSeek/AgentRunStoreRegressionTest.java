@@ -17,6 +17,19 @@ public final class AgentRunStoreRegressionTest {
         }
     }
 
+    private static byte[] readBytes(File file) throws Exception {
+        byte[] bytes = new byte[(int) file.length()];
+        try (java.io.FileInputStream input = new java.io.FileInputStream(file)) {
+            int offset = 0;
+            while (offset < bytes.length) {
+                int count = input.read(bytes, offset, bytes.length - offset);
+                if (count < 0) break;
+                offset += count;
+            }
+        }
+        return bytes;
+    }
+
     private static String read(File file) throws Exception {
         byte[] bytes = new byte[(int) file.length()];
         try (java.io.FileInputStream input = new java.io.FileInputStream(file)) {
@@ -141,6 +154,24 @@ public final class AgentRunStoreRegressionTest {
                         "unsupported ledger version must fail closed");
                 check("{\"version\":2,\"records\":[]}".equals(read(corruptLedger)),
                         "unsupported ledger was overwritten");
+
+                corruptStore.invalidateCacheForTest();
+                byte[] malformedUtf8 = new byte[]{'{', '"', 'v', 'e', 'r', 's', 'i', 'o',
+                        'n', '"', ':', '1', ',', '"', 'r', 'e', 'c', 'o', 'r', 'd', 's',
+                        '"', ':', '[', ']', ',', '"', 'x', '"', ':', '"', (byte) 0xc3, '(',
+                        '"', '}'};
+                try (java.io.FileOutputStream output =
+                             new java.io.FileOutputStream(corruptLedger, false)) {
+                    output.write(malformedUtf8);
+                    output.flush();
+                    output.getFD().sync();
+                }
+                check(!corruptStore.isHealthy(),
+                        "malformed UTF-8 must make the execution ledger unhealthy");
+                check(!corruptStore.claim(corruptCall),
+                        "malformed UTF-8 must block execution claims");
+                check(java.util.Arrays.equals(malformedUtf8, readBytes(corruptLedger)),
+                        "malformed UTF-8 ledger bytes were rewritten");
 
                 corruptStore.invalidateCacheForTest();
                 write(corruptLedger, "");

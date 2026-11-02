@@ -7,6 +7,15 @@ public final class AgentToolTraceStoreRegressionTest {
         if (!value) throw new AssertionError(message);
     }
 
+    private static void rejectedBytes(byte[] bytes, String message) throws Exception {
+        try {
+            AgentToolTraceStore.decodeRecords(bytes);
+            throw new AssertionError(message);
+        } catch (java.nio.charset.CharacterCodingException expected) {
+            // Malformed UTF-8 must not be normalized into apparently valid JSON.
+        }
+    }
+
     private static void rejected(String json, String message) throws Exception {
         try {
             AgentToolTraceStore.decodeRecords(json);
@@ -30,6 +39,9 @@ public final class AgentToolTraceStoreRegressionTest {
         check(records.get(0).finished && !records.get(0).success,
                 "trace completion fields changed during decode");
 
+        rejectedBytes(new byte[]{'[', '{', '"', 'k', 'e', 'y', '"', ':', '"',
+                        (byte) 0xc3, '(', '"', '}', ']'},
+                "malformed UTF-8 trace data was accepted");
         rejected("[null]", "null record was silently skipped");
         rejected("[1]", "non-object record was silently skipped");
         rejected("[{}]", "record without key was accepted");

@@ -3,12 +3,13 @@ package ds.dsh.DeepSeek;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.nio.ByteBuffer;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -418,21 +419,22 @@ final class AgentRunStore {
                 loadFailed = true;
                 return out;
             }
-            BufferedReader reader = null;
-            try {
-                reader = new BufferedReader(new InputStreamReader(
-                        new FileInputStream(file), StandardCharsets.UTF_8));
-                StringBuilder text = new StringBuilder((int) file.length());
-                char[] buffer = new char[8192];
+            try (FileInputStream input = new FileInputStream(file);
+                 ByteArrayOutputStream bytes = new ByteArrayOutputStream((int) file.length())) {
+                byte[] buffer = new byte[8192];
                 int count;
-                while ((count = reader.read(buffer)) >= 0) {
-                    if (count > 0) text.append(buffer, 0, count);
-                    if (text.length() > MAX_FILE_BYTES) {
+                while ((count = input.read(buffer)) != -1) {
+                    if (count > 0) bytes.write(buffer, 0, count);
+                    if (bytes.size() > MAX_FILE_BYTES) {
                         loadFailed = true;
                         return out;
                     }
                 }
-                JSONObject root = new JSONObject(text.toString());
+                String text = StandardCharsets.UTF_8.newDecoder()
+                        .onMalformedInput(CodingErrorAction.REPORT)
+                        .onUnmappableCharacter(CodingErrorAction.REPORT)
+                        .decode(ByteBuffer.wrap(bytes.toByteArray())).toString();
+                JSONObject root = new JSONObject(text);
                 if (root.optInt("version", -1) != 1) {
                     throw new IllegalStateException("Unsupported Agent run ledger version");
                 }
@@ -450,8 +452,6 @@ final class AgentRunStore {
             } catch (Throwable ignored) {
                 out.clear();
                 loadFailed = true;
-            } finally {
-                if (reader != null) try { reader.close(); } catch (Throwable ignored) {}
             }
             if (!loadFailed) trim(out);
             return out;
