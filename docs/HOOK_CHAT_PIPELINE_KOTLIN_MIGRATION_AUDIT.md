@@ -116,3 +116,12 @@ This remains a staged migration. Do not rewrite `HookChatPipeline` or move host 
 - The Java `z17.readStream` compatibility adapter now delegates to the tested Kotlin helper. Existing callers, HTTP status handling, error formatting, JSON parsing, and connection `disconnect()` ownership remain unchanged.
 - This extraction does not move `HttpURLConnection`, request construction, SSE framing, or Android `org.json` decoding into the shared runtime.
 - Local validation: Kotlin compiler smoke assertions passed for UTF-8 decoding, close-on-success, close-on-read-failure, close-failure propagation, and null input; a Java caller compiled and ran against the Kotlin `@JvmStatic` facade. This is a focused source-copy harness, not the repository Gradle/JUnit suite. Full Gradle/JUnit, Android build, and CI remain unverified.
+
+
+## P2c-4 relay fatal-error boundary (2026-11-02)
+
+- Narrowed the network relay's outer failure conversion from `Throwable` to `Exception`. Recoverable transport, JSON, and runtime exceptions still become the existing `RelayResult` error; JVM `Error` types such as `OutOfMemoryError`, linkage failures, and `ThreadDeath` are no longer silently converted into ordinary relay failures.
+- Narrowed per-SSE-event parse guards to `Exception`, so malformed JSON/events remain isolated without swallowing fatal VM errors.
+- Reader cleanup now catches only `IOException`; connection disconnect remains in the existing `finally` path.
+- No endpoint, header, payload, timeout, status, error-message, provider-routing, or Hook callback behavior was changed for ordinary exceptions.
+- Validation: source-level diff review only; full Gradle/JUnit, Android build, and real provider/device tests remain unverified.
