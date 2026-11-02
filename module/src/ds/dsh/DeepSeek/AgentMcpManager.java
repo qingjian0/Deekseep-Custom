@@ -845,8 +845,8 @@ final class AgentMcpManager {
                     failure = reason;
                 }
                 closed = true;
-                // The global reference and key are changed under the same lock used when
-                // publishing a new session, so an old reader cannot clear a replacement.
+                // Protect the global SSE reference here. The generation-guarded session
+                // state is retired separately so an old reader cannot clear a replacement.
                 if (legacySse == this) legacySse = null;
             }
             SESSION.endSession(generation);
