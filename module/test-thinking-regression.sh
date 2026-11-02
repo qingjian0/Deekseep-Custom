@@ -2,12 +2,21 @@
 set -e
 cd "$(dirname "$0")"
 
-# A partial multi-hook install must clear its atomic guard so the registry can retry.
-THINKING_RETRY_GUARDS="$(grep -Fc 'if (installed == 0 || firstFailure != null) {' src/ds/dsh/DeepSeek/Main.java || true)"
-if [[ "$THINKING_RETRY_GUARDS" != "2" ]]; then
-    echo "Thinking code-copy partial-failure retry guards are missing or inconsistent" >&2
-    exit 1
-fi
+# Each thinking code-copy installer must clear its own atomic guard after a
+# partial/empty install. Do not assert a global occurrence count: other hook
+# installers legitimately use the same condition and are covered separately.
+for method in hookV236ThinkingCodeCopy hookV241ThinkingCodeCopy; do
+    guard_count="$(awk -v method="$method" '
+        index($0, "private void " method "(") { in_method = 1; next }
+        in_method && /^    private / { exit }
+        in_method && /if \(installed == 0 \|\| firstFailure != null\) \{/ { count++ }
+        END { print count + 0 }
+    ' src/ds/dsh/DeepSeek/Main.java)"
+    if [[ "$guard_count" != "1" ]]; then
+        echo "$method must contain exactly one partial-failure retry guard (found $guard_count)" >&2
+        exit 1
+    fi
+done
 
 source ../scripts/android-tools.sh
 OUT="build/thinking-test"
