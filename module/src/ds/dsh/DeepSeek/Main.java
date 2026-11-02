@@ -1243,6 +1243,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                             if (curAct.get() == act) hideButton();
                         }
                         @Override public void onActivityResumed(Activity act) {
+                            // Retry if the early process-wide crash-handler registration failed.
+                            installCrashHandler();
                             onActivityResumedInternal(act, cl);
                         }
                     });
