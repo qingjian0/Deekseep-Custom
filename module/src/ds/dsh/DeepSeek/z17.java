@@ -210,7 +210,7 @@ final class z17 {
     }
 
     private static RelayResult parseOpenAIStream(HttpURLConnection conn) throws Exception {
-        ConversationRelayStreamAccumulator accumulator = new ConversationRelayStreamAccumulator();
+        ConversationRelayProviderStreamAdapter accumulator = new ConversationRelayProviderStreamAdapter();
         BufferedReader reader = new BufferedReader(
                 new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
         try {
@@ -228,7 +228,7 @@ final class z17 {
                             while (fields.hasNext()) {
                                 String field = fields.next();
                                 ConversationRelayProviderEventPolicy.OutputChannel channel =
-                                        ConversationRelayProviderEventPolicy.openAiChannel(field);
+                                        accumulator.openAiChannel(field);
                                 String value = delta.optString(field, "");
                                 if (value.length() == 0) continue;
                                 accumulator.append(channel, value);
@@ -246,7 +246,7 @@ final class z17 {
     }
 
     private static RelayResult parseAnthropicStream(HttpURLConnection conn) throws Exception {
-        ConversationRelayStreamAccumulator accumulator = new ConversationRelayStreamAccumulator();
+        ConversationRelayProviderStreamAdapter accumulator = new ConversationRelayProviderStreamAdapter();
         BufferedReader reader = new BufferedReader(
                 new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
         try {
@@ -261,7 +261,7 @@ final class z17 {
                         if (delta != null) {
                             String dt = delta.optString("type", "");
                             ConversationRelayProviderEventPolicy.OutputChannel channel =
-                                    ConversationRelayProviderEventPolicy.anthropicDeltaChannel(type, dt);
+                                    accumulator.anthropicDeltaChannel(type, dt);
                             if (channel == ConversationRelayProviderEventPolicy.OutputChannel.REASONING) {
                                 String think = delta.optString("thinking", "");
                                 accumulator.append(channel, think);
@@ -275,7 +275,7 @@ final class z17 {
                         if (block != null) {
                             String bt = block.optString("type", "");
                             ConversationRelayProviderEventPolicy.OutputChannel channel =
-                                    ConversationRelayProviderEventPolicy.anthropicStartChannel(type, bt);
+                                    accumulator.anthropicStartChannel(type, bt);
                             if (channel == ConversationRelayProviderEventPolicy.OutputChannel.REASONING) {
                                 String think = block.optString("thinking", "");
                                 accumulator.append(channel, think);
