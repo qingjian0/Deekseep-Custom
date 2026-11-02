@@ -42,6 +42,9 @@ test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$AGENT_PIPELINE")" -ge 11
 MAIN_SOURCE="$MODULE_DIR/src/ds/dsh/DeepSeek/Main.java"
 grep -Fq 'settings composable method not found' "$MAIN_SOURCE"
 grep -Fq 'settings composable hook installation failed' "$MAIN_SOURCE"
+# Early dual-root capture and Activity-resume retry must share one registry ID/scope.
+test "$(grep -Fc 'installHookStep("ui.native-dual-chat-root"' "$MAIN_SOURCE")" -ge 2
+grep -Fq 'Use the same stable registry ID and adapter scope as the later feature pass.' "$MAIN_SOURCE"
 grep -Fq 'code249 live session publish method fh.e was not found' "$MAIN_SOURCE"
 grep -Fq 'code249 live session publish repair hook installation failed' "$MAIN_SOURCE"
 grep -Fq 'code257 live session publish method jh.e was not found' "$MAIN_SOURCE"
