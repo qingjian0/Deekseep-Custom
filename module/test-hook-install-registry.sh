@@ -65,6 +65,9 @@ test -n "$CRASH_SUCCESS_LINE"
 test "$CRASH_SUCCESS_LINE" -gt "$CRASH_SETTER_LINE"
 grep -Fq 'private static void rethrowFatalHookInstallFailure(Throwable failure)' "$MAIN_SOURCE"
 test "$(grep -Fc 'rethrowFatalHookInstallFailure(' "$MAIN_SOURCE")" -ge 10
+# A failed early crash-handler registration is retried on the next Activity resume.
+grep -Fq 'Retry if the early process-wide crash-handler registration failed.' "$MAIN_SOURCE"
+
 grep -Fq 'code249 Local API routing hooks were only partially installed' "$MAIN_SOURCE"
 test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$MAIN_SOURCE")" -ge 1
 test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$MAIN_SOURCE")" -ge 1
