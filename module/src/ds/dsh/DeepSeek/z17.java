@@ -69,7 +69,7 @@ final class z17 {
             } else if (flag.exists()) {
                 flag.delete();
             }
-        } catch (Exception ignored) {}
+        } catch (Throwable ignored) {}
     }
 
     private static synchronized JSONObject config() {
