@@ -152,3 +152,10 @@ This remains a staged migration. Do not rewrite `HookChatPipeline` or move host 
 - Added `ConversationRelaySseLineReaderPolicyTest` to exercise the new Kotlin line iterator together with the existing exact-prefix payload policy.
 - Coverage confirms comments/event metadata and unspaced `data:` lines remain ignored, OpenAI `[DONE]` stops before subsequent lines, and Anthropic event metadata does not prevent its following `data: ` payload from being read.
 - A local Kotlin 1.9/JDK 21 source-copy integration smoke passed both OpenAI-style termination and Anthropic-style line composition. Repository Gradle/JUnit remains unrun.
+
+
+## P2c-7 provider stream contract regression coverage (2026-11-02)
+
+- Added `ConversationRelayProviderStreamContractTest` to exercise provider classification and the per-response accumulator together, without introducing an Android `org.json` dependency into the standalone runtime.
+- OpenAI coverage verifies ordered reasoning/content accumulation and ignores unsupported fields. Anthropic coverage verifies both block-start and delta events, channel separation, and rejection of unrelated event/delta types.
+- This is contract-level coverage for the policy boundary, not a replacement for tests of the Java `JSONObject` adapter. Actual provider JSON parsing and live SSE interoperability remain in the Android adapter and require the repository/Android test environment.
