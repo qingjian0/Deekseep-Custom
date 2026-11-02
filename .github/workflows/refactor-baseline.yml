@@ -76,6 +76,9 @@ jobs:
       - name: Build Universal APK
         run: bash module-universal/build.sh
 
+      - name: Run Android-backed response and compatibility regression suite
+        run: bash module/test-thinking-regression.sh
+
       - name: Run feature-hook registry regression
         run: |
           set -e
