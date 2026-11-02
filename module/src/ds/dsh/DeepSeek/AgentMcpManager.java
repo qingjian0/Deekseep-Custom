@@ -326,7 +326,9 @@ final class AgentMcpManager {
         });
     }
 
-    private static Config connectAndSync(Config config) throws Exception {
+    // The MCP session, session ID and connected key are process-wide singletons.
+    // Serialize the full handshake so concurrent probes cannot publish stale sessions.
+    private static synchronized Config connectAndSync(Config config) throws Exception {
         validate(config);
         LegacySseSession oldSse;
         synchronized (SESSION_LOCK) {
@@ -399,9 +401,12 @@ final class AgentMcpManager {
             return synced;
         } finally {
             if (!success) {
-                connectedKey = "";
                 if (created != null) created.close();
-                if (legacySse == created) legacySse = null;
+                synchronized (SESSION_LOCK) {
+                    if (legacySse == created) legacySse = null;
+                    connectedKey = "";
+                    sessionId = "";
+                }
             }
         }
     }
