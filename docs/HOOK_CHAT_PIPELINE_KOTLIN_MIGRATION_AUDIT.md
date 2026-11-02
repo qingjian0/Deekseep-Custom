@@ -159,3 +159,13 @@ This remains a staged migration. Do not rewrite `HookChatPipeline` or move host 
 - Added `ConversationRelayProviderStreamContractTest` to exercise provider classification and the per-response accumulator together, without introducing an Android `org.json` dependency into the standalone runtime.
 - OpenAI coverage verifies ordered reasoning/content accumulation and ignores unsupported fields. Anthropic coverage verifies both block-start and delta events, channel separation, and rejection of unrelated event/delta types.
 - This is contract-level coverage for the policy boundary, not a replacement for tests of the Java `JSONObject` adapter. Actual provider JSON parsing and live SSE interoperability remain in the Android adapter and require the repository/Android test environment.
+
+## P2c-8 production provider adapter seam (2026-11-02)
+
+- Added `ConversationRelayProviderStreamAdapter` as the per-response production seam shared by the Android JSON parser and JVM contract tests.
+- The adapter centralizes the exact provider routing calls (OpenAI delta field, Anthropic content-block start, Anthropic content-block delta) and delegates to the existing provider policy + channel accumulator. It owns one accumulator per parser invocation and exposes the same reasoning/content snapshots consumed by the existing `RelayResult`.
+- Both Java `z17` parsers now instantiate this adapter and route decoded `org.json` field/type values through it. The Java parser still owns JSON decoding, JSON field selection, malformed-event `catch (Exception)` isolation, SSE framing, reader closure, and connection disconnect.
+- Added `ConversationRelayProviderStreamAdapterTest` covering the same adapter now used by production: OpenAI reasoning/content order and ignored fields; Anthropic start/delta channel separation and unknown event rejection; null/empty values; and per-response isolation.
+- Compatibility review: no JSON key, provider event name, selected JSON value, event order, `RelayResult` shape, reader lifecycle, exception boundary, HTTP behavior, or Hook API was intentionally changed. `ConversationRelayProviderEventPolicy` remains the single classification authority.
+- This closes the production policy/accumulator seam, but does **not** claim that Android `org.json` decoding itself has been executed in a test. Malformed JSON, malformed nested object shapes, EOF/DONE handling, and connection cleanup still require an Android-capable integration test environment or the full CI build.
+- Validation status for this change: source and call-site review only so far. The repository Gradle/JUnit task, Android build, CI, live provider stream, and LSPosed device tests have not been run for this change.
