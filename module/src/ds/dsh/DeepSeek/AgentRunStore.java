@@ -166,7 +166,12 @@ final class AgentRunStore {
             record.createdAt = now;
             record.updatedAt = now;
             records.add(0, record);
-            persist(records);
+            if (!persist(records)) {
+                // Do not authorize a side effect unless its deduplication claim is durable.
+                // Drop the mutated cache so a later attempt reloads only committed disk state.
+                cached = null;
+                return false;
+            }
             return true;
         }
 
