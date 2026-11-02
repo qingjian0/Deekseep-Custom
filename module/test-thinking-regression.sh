@@ -95,6 +95,7 @@ javac -source 8 -target 8 -cp "$JSON_JAR:$ANDROID_JAR:$UNIVERSAL_CLASSES:build/c
     tests/ds/dsh/DeepSeek/HeartbeatToolProtocolRegressionTest.java \
     tests/ds/dsh/DeepSeek/RichPanelRendererRegressionTest.java \
     tests/ds/dsh/DeepSeek/AgentRunStoreRegressionTest.java \
+    tests/ds/dsh/DeepSeek/AgentToolTraceStoreRegressionTest.java \
     tests/ds/dsh/DeepSeek/ChatBackupFormatRegressionTest.java \
     tests/ds/dsh/DeepSeek/DeepSeekCacheCleanerRegressionTest.java \
     tests/ds/dsh/DeepSeek/RemoteFeatureFlagsRegressionTest.java \
@@ -115,6 +116,7 @@ javac -source 8 -target 8 -cp "$JSON_JAR:$ANDROID_JAR:$UNIVERSAL_CLASSES:build/c
     src/ds/dsh/DeepSeek/HeartbeatToolProtocol.java \
     src/ds/dsh/DeepSeek/RichPanelRenderer.java \
     src/ds/dsh/DeepSeek/AgentRunStore.java \
+    src/ds/dsh/DeepSeek/AgentToolTraceStore.java \
     src/ds/dsh/DeepSeek/ChatBackupStore.java \
     src/ds/dsh/DeepSeek/DeekseepTools.java \
     src/ds/dsh/DeepSeek/AgentToolConfig.java \
@@ -232,6 +234,9 @@ java -cp "$TEST_CP" \
 
 java -cp "$TEST_CP" \
     ds.dsh.DeepSeek.AgentRunStoreRegressionTest
+
+java -cp "$TEST_CP" \
+    ds.dsh.DeepSeek.AgentToolTraceStoreRegressionTest
 
 java -cp "$TEST_CP" \
     ds.dsh.DeepSeek.ChatBackupFormatRegressionTest

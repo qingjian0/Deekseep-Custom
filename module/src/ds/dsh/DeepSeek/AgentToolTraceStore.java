@@ -12,6 +12,7 @@ import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -300,26 +301,56 @@ final class AgentToolTraceStore {
                 }
                 output.write(buffer, 0, count);
             }
-            JSONArray values = new JSONArray(new String(
-                    output.toByteArray(), StandardCharsets.UTF_8));
-            for (int index = 0; index < values.length(); index++) {
-                JSONObject value = values.optJSONObject(index);
-                if (value == null) continue;
-                String key = value.optString("key", "").trim();
-                if (key.length() == 0) continue;
-                putLocked(key, new Trace(key,
-                        trim(value.optString("input", "{}"), MAX_INPUT_CHARS),
-                        trim(value.optString("output", ""), MAX_OUTPUT_CHARS),
-                        value.optBoolean("finished", false),
-                        value.optBoolean("success", false),
-                        value.optLong("started_at", 0L),
-                        value.optLong("finished_at", 0L)));
-            }
+            List<Trace> decoded = decodeRecords(
+                    new String(output.toByteArray(), StandardCharsets.UTF_8));
+            // Publish only after the complete file has passed structural validation.
+            for (Trace trace : decoded) putLocked(trace.key, trace);
         } catch (Throwable ignored) {
             TRACES.clear();
             ORDER.clear();
             loadFailed = true;
         }
+    }
+
+    static List<Trace> decodeRecords(String json) throws Exception {
+        JSONArray values = new JSONArray(json);
+        ArrayList<Trace> decoded = new ArrayList<>();
+        HashSet<String> keys = new HashSet<>();
+        for (int index = 0; index < values.length(); index++) {
+            Object raw = values.get(index);
+            if (!(raw instanceof JSONObject)) {
+                throw new IllegalArgumentException("trace record is not an object");
+            }
+            JSONObject value = (JSONObject) raw;
+            Object rawKey = value.opt("key");
+            if (!(rawKey instanceof String) || ((String) rawKey).trim().length() == 0) {
+                throw new IllegalArgumentException("trace record key is missing");
+            }
+            String key = ((String) rawKey).trim();
+            if (!keys.add(key)) throw new IllegalArgumentException("duplicate trace record key");
+            Object rawInput = value.opt("input");
+            Object rawOutput = value.opt("output");
+            Object rawFinished = value.opt("finished");
+            Object rawSuccess = value.opt("success");
+            Object rawStartedAt = value.opt("started_at");
+            Object rawFinishedAt = value.opt("finished_at");
+            if ((value.has("input") && !(rawInput instanceof String))
+                    || (value.has("output") && !(rawOutput instanceof String))
+                    || (value.has("finished") && !(rawFinished instanceof Boolean))
+                    || (value.has("success") && !(rawSuccess instanceof Boolean))
+                    || (value.has("started_at") && !(rawStartedAt instanceof Number))
+                    || (value.has("finished_at") && !(rawFinishedAt instanceof Number))) {
+                throw new IllegalArgumentException("trace record field has an invalid type");
+            }
+            decoded.add(new Trace(key,
+                    trim(value.optString("input", "{}"), MAX_INPUT_CHARS),
+                    trim(value.optString("output", ""), MAX_OUTPUT_CHARS),
+                    value.optBoolean("finished", false),
+                    value.optBoolean("success", false),
+                    value.optLong("started_at", 0L),
+                    value.optLong("finished_at", 0L)));
+        }
+        return decoded;
     }
 
     private static void persistLocked() {
