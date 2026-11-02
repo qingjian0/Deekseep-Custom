@@ -135,3 +135,13 @@ This remains a staged migration. Do not rewrite `HookChatPipeline` or move host 
 - Added JVM tests using a fake `HttpURLConnection` for GET metadata/no body, POST metadata/headers/exact body bytes/output closure, and disconnect after a body-write failure.
 - Scope intentionally stops before response-code handling, error-stream decoding, JSON parsing, SSE reading, and response cleanup. Those remain in the Java Android adapter; the existing exact-200 policy, 200-character error formatting, UTF-8 stream ownership, provider parsing, and outer `finally` disconnect remain authoritative.
 - Local validation: Kotlin 1.9 compiled the production transport; a local fake-connection smoke harness passed GET/POST metadata, headers, exact body bytes, output close, and failure disconnect. The generated JVM class exposes Java-callable static overloads; a Java caller compiled against the default overload. This is not the repository Gradle/JUnit suite. Full Gradle/JUnit, Android build, CI, and real LSPosed/provider validation remain unverified.
+
+
+## P2c-6 SSE line iteration seam (2026-11-02)
+
+- Added `ConversationRelaySseLineReader` to the Kotlin runtime. It delegates line framing directly to `BufferedReader.readLine()`, invokes a caller-supplied handler for each line, and stops only when the handler returns false or EOF is reached.
+- The OpenAI and Anthropic Java stream parsers now use this shared Kotlin line iterator. The parser bodies remain Java: SSE `data:` filtering, OpenAI `[DONE]` handling, JSON decoding, provider event routing, and reasoning/content accumulation are unchanged.
+- The reader does not close or otherwise own the supplied `BufferedReader`. Existing Java `finally` blocks still close the reader and disconnect the HTTP connection, retaining the existing cleanup boundary.
+- Added JVM tests for CRLF/LF/CR line boundaries, blank lines, EOF, early termination, read exceptions, handler exceptions, and caller-owned reader lifecycle.
+- Local validation with Kotlin 1.9/JDK 21: source-copy smoke passed line framing, blank lines, EOF, early stop, read-failure propagation, and handler-failure propagation. A Java caller compiled and ran against the Kotlin `@JvmStatic` API and SAM handler. These are focused local smoke checks, not repository Gradle/JUnit execution.
+- Full Gradle/JUnit, Android build, CI, real LSPosed injection, and live OpenAI/Anthropic stream behavior remain unverified.
