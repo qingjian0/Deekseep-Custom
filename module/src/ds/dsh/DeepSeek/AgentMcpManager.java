@@ -176,6 +176,11 @@ final class AgentMcpManager {
     }
 
     static boolean saveAll(List<Config> values) {
+        return saveAll(values, true);
+    }
+
+    // Tool discovery updates metadata but must not invalidate the session that supplied it.
+    private static boolean saveAll(List<Config> values, boolean invalidateSession) {
         ArrayList<Config> safeList = new ArrayList<>();
         if (values != null) for (Config value : values) {
             if (value != null) safeList.add(value);
@@ -194,8 +199,12 @@ final class AgentMcpManager {
                 cached = safeList.isEmpty() ? defaults() : safeList.get(0);
                 cachedProfiles = Collections.unmodifiableList(new ArrayList<>(safeList));
                 cachedModified = target.lastModified();
-                connectedKey = "";
-                sessionId = "";
+                if (invalidateSession) {
+                    synchronized (SESSION_LOCK) {
+                        connectedKey = "";
+                        sessionId = "";
+                    }
+                }
                 if (safeList.isEmpty()) setStatus(State.DISABLED, "未连接", 0);
                 return true;
             } catch (Throwable ignored) {
@@ -556,7 +565,7 @@ final class AgentMcpManager {
                             current.transport, current.headers, synced.tools)); changed = true;
                 } else next.add(current);
             }
-            if (changed) { saveAll(next); connectedKey = connectionKey(synced); }
+            if (changed) saveAll(next, false);
         }
     }
 
