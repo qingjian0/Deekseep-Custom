@@ -312,7 +312,7 @@ final class AgentToolTraceStore {
         }
     }
 
-    static List<Trace> decodeRecords(String json) throws Exception {
+    static List<Trace> decodeRecords(String json) throws org.json.JSONException {
         JSONArray values = new JSONArray(json);
         ArrayList<Trace> decoded = new ArrayList<>();
         HashSet<String> keys = new HashSet<>();
