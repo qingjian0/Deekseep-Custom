@@ -64,7 +64,7 @@ test -n "$CRASH_SETTER_LINE"
 test -n "$CRASH_SUCCESS_LINE"
 test "$CRASH_SUCCESS_LINE" -gt "$CRASH_SETTER_LINE"
 grep -Fq 'private static void rethrowFatalHookInstallFailure(Throwable failure)' "$MAIN_SOURCE"
-test "$(grep -Fc 'rethrowFatalHookInstallFailure(' "$MAIN_SOURCE")" -ge 10"
+test "$(grep -Fc 'rethrowFatalHookInstallFailure(' "$MAIN_SOURCE")" -ge 10
 grep -Fq 'code249 Local API routing hooks were only partially installed' "$MAIN_SOURCE"
 test "$(grep -Fc 'if (error instanceof VirtualMachineError)' "$MAIN_SOURCE")" -ge 1
 test "$(grep -Fc 'if (error instanceof ThreadDeath)' "$MAIN_SOURCE")" -ge 1
