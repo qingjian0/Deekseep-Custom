@@ -186,3 +186,9 @@ This remains a staged migration. Do not rewrite `HookChatPipeline` or move host 
 - The SID tests intentionally preserve the existing permissive rule (36 characters from the allowed set, without enforcing canonical UUID hyphen positions). Tightening it would be a behavior change and is not part of this migration.
 - Local validation: Kotlin 1.9/JDK 21 source-copy smoke passed all covered cases; a Java 8 caller compiled and executed against the Kotlin static facade. This is not the Gradle/JUnit test task.
 - Branch CI: the new `Permissive Android build` workflow completed successfully for baseline commit `c33790fe62a1faaf5b49a50d8a17fec1ea9c2731` (Kotlin runtime tests, Legacy Xposed regression, Legacy/Universal APK builds, and Compose Launcher debug APK build all completed in the single `Build Android APKs` job). The workflow for later branch head `c08adfaca0f212dbaa8679c68670cb40d138bfdf` was still in progress at the time of this audit; its result is not inferred from the baseline run.
+
+## P2d-3 CI response-preservation regression coverage (2026-11-02)
+
+- Extended `.github/workflows/refactor-baseline.yml` to run the existing `module/test-thinking-regression.sh` after the Universal APK build. That suite compiles and executes `ResponsePreserverRegressionTest` together with the broader Android-backed compatibility regression set, using the just-built Universal classes and Kotlin runtime artifacts.
+- This closes a CI coverage gap: the previous permissive workflow built both APK variants but did not execute the repository's existing response-preservation regression suite.
+- The workflow change itself has been committed; the new workflow run must complete before this expanded CI path can be called green. The earlier baseline workflow success did not include this newly added step.
