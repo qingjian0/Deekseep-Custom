@@ -787,6 +787,12 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         if (failure instanceof ThreadDeath) throw (ThreadDeath) failure;
     }
 
+    /** Fatal VM/control-flow failures must escape hook-installation fail-open boundaries. */
+    private static void rethrowFatalHookInstallFailure(Throwable failure) {
+        if (failure instanceof VirtualMachineError) throw (VirtualMachineError) failure;
+        if (failure instanceof ThreadDeath) throw (ThreadDeath) failure;
+    }
+
     public static synchronized void log(String msg) {
         if (z8.shouldSuppressGeneralMessage(msg)) return;
         if (isLocalApiExecutionLogContext() && !z8.isError(msg)) return;
@@ -848,7 +854,6 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     static synchronized void installCrashHandler() {
         if (crashHandlerInstalled) return;
-        crashHandlerInstalled = true;
         try {
             final Thread.UncaughtExceptionHandler prev = Thread.getDefaultUncaughtExceptionHandler();
             Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
@@ -862,7 +867,11 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     if (prev != null) prev.uncaughtException(t, e);
                 }
             });
-        } catch (Throwable ignored) {}
+            // Publish success only after the process-wide handler was actually installed.
+            crashHandlerInstalled = true;
+        } catch (Throwable ignored) {
+            rethrowFatalHookInstallFailure(ignored);
+        }
     }
 
     static void triggerCrashTest(Context context, String mode) {
@@ -1260,8 +1269,14 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                                 break;
                             }
                         }
-                    } catch (Throwable t) { log("lifecycle bootstrap scan failed: " + t); }
-                } catch (Throwable t) { log("lifecycle registration failed: " + t); }
+                    } catch (Throwable t) {
+                        rethrowFatalHookInstallFailure(t);
+                        log("lifecycle bootstrap scan failed: " + t);
+                    }
+                } catch (Throwable t) {
+                    rethrowFatalHookInstallFailure(t);
+                    log("lifecycle registration failed: " + t);
+                }
             }
         });
         try {
@@ -1276,7 +1291,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     return r;
                 }
             });
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+            rethrowFatalHookInstallFailure(ignored);
+        }
 
         try {
             Method onPause = HostRemap.declaredMethod(Activity.class, "onPause");
@@ -1300,6 +1317,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 }
             });
         } catch (Throwable t) {
+            rethrowFatalHookInstallFailure(t);
             log("hook onPause failed: " + t);
         }
 
@@ -1320,6 +1338,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 }
             });
         } catch (Throwable t) {
+            rethrowFatalHookInstallFailure(t);
             log("hook onNewIntent for heartbeat failed: " + t);
         }
 
@@ -1333,6 +1352,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 }
             });
         } catch (Throwable t) {
+            rethrowFatalHookInstallFailure(t);
             log("hook image-preview back boundary failed: " + t);
         }
 
@@ -1353,7 +1373,10 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     return chain.proceed();
                 }
             });
-        } catch (Throwable t) { log("hook onDestroy failed: " + t); }
+        } catch (Throwable t) {
+            rethrowFatalHookInstallFailure(t);
+            log("hook onDestroy failed: " + t);
+        }
 
         // Observe pointer state without consuming it. The glass compositor uses this only for
         // highlight/lens feedback; DeepSeek still receives the original MotionEvent unchanged.
@@ -1399,6 +1422,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 }
             });
         } catch (Throwable t) {
+            rethrowFatalHookInstallFailure(t);
             log("hook liquid glass touch feedback failed: " + t);
         }
 
@@ -1508,7 +1532,10 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     return r;
                 }
             });
-        } catch (Throwable t) { log("hook onActivityResult failed: " + t); }
+        } catch (Throwable t) {
+            rethrowFatalHookInstallFailure(t);
+            log("hook onActivityResult failed: " + t);
+        }
 
         Context earlyCtx = hostApplicationContext;
         if (earlyCtx == null) {
@@ -1519,7 +1546,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     earlyCtx = app;
                     hostApplicationContext = app;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) {
+                rethrowFatalHookInstallFailure(ignored);
+            }
         }
         if (!BuildInfo.PROTECTED_BUILD
                 || (earlyCtx != null && CloudPromptClient.hasValidLicense(earlyCtx))) {
