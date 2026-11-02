@@ -331,50 +331,62 @@ final class AgentMcpManager {
         LegacySseSession oldSse = legacySse;
         legacySse = null;
         if (oldSse != null) oldSse.close();
-        if (TRANSPORT_SSE.equals(config.transport)) {
-            LegacySseSession created = new LegacySseSession(config);
-            created.start();
-            legacySse = created;
-        }
-        JSONObject client = new JSONObject().put("name", "Deekseep").put("version", "1.7.5");
-        JSONObject params = new JSONObject().put("protocolVersion", "2025-03-26")
-                .put("capabilities", new JSONObject()).put("clientInfo", client);
-        JSONObject initialized = rpc(config, "initialize", params, false);
-        if (initialized.optJSONObject("error") != null) {
-            throw new Exception(initialized.getJSONObject("error")
-                    .optString("message", "MCP 初始化失败"));
-        }
-        notify(config, "notifications/initialized", new JSONObject());
-        JSONObject listed = rpc(config, "tools/list", new JSONObject(), true);
-        if (listed.optJSONObject("error") != null) {
-            throw new Exception(listed.getJSONObject("error")
-                    .optString("message", "MCP 工具同步失败"));
-        }
-        JSONArray tools = listed.optJSONObject("result") == null ? null
-                : listed.optJSONObject("result").optJSONArray("tools");
-        LinkedHashMap<String, Tool> merged = new LinkedHashMap<>();
-        if (tools != null) {
-            for (int i = 0; i < tools.length(); i++) {
-                JSONObject item = tools.optJSONObject(i);
-                if (item == null) continue;
-                String name = cleanToolToken(item.optString("name", ""));
-                if (name.length() == 0) continue;
-                Tool old = config.tools.get(name);
-                String title = item.optString("title", "");
-                JSONObject annotations = item.optJSONObject("annotations");
-                if (title.trim().length() == 0 && annotations != null) {
-                    title = annotations.optString("title", "");
+        LegacySseSession created = null;
+        boolean success = false;
+        try {
+            if (TRANSPORT_SSE.equals(config.transport)) {
+                created = new LegacySseSession(config);
+                created.start();
+                legacySse = created;
+            }
+            JSONObject client = new JSONObject().put("name", "Deekseep")
+                    .put("version", "1.7.5");
+            JSONObject params = new JSONObject().put("protocolVersion", "2025-03-26")
+                    .put("capabilities", new JSONObject()).put("clientInfo", client);
+            JSONObject initialized = rpc(config, "initialize", params, false);
+            if (initialized.optJSONObject("error") != null) {
+                throw new Exception(initialized.getJSONObject("error")
+                        .optString("message", "MCP 初始化失败"));
+            }
+            notify(config, "notifications/initialized", new JSONObject());
+            JSONObject listed = rpc(config, "tools/list", new JSONObject(), true);
+            if (listed.optJSONObject("error") != null) {
+                throw new Exception(listed.getJSONObject("error")
+                        .optString("message", "MCP 工具同步失败"));
+            }
+            JSONArray tools = listed.optJSONObject("result") == null ? null
+                    : listed.optJSONObject("result").optJSONArray("tools");
+            LinkedHashMap<String, Tool> merged = new LinkedHashMap<>();
+            if (tools != null) {
+                for (int i = 0; i < tools.length(); i++) {
+                    JSONObject item = tools.optJSONObject(i);
+                    if (item == null) continue;
+                    String name = cleanToolToken(item.optString("name", ""));
+                    if (name.length() == 0) continue;
+                    Tool old = config.tools.get(name);
+                    String title = item.optString("title", "");
+                    JSONObject annotations = item.optJSONObject("annotations");
+                    if (title.trim().length() == 0 && annotations != null) {
+                        title = annotations.optString("title", "");
+                    }
+                    if (title.trim().length() == 0 && old != null) title = old.title;
+                    merged.put(name, new Tool(name, title,
+                            item.optString("description", ""),
+                            item.optJSONObject("inputSchema"), old == null || old.enabled));
                 }
-                if (title.trim().length() == 0 && old != null) title = old.title;
-                merged.put(name, new Tool(name, title,
-                        item.optString("description", ""),
-                        item.optJSONObject("inputSchema"), old == null || old.enabled));
+            }
+            Config synced = new Config(config.enabled, config.name, config.url,
+                    config.transport, config.headers, merged);
+            connectedKey = connectionKey(synced);
+            success = true;
+            return synced;
+        } finally {
+            if (!success) {
+                connectedKey = "";
+                if (created != null) created.close();
+                if (legacySse == created) legacySse = null;
             }
         }
-        Config synced = new Config(config.enabled, config.name, config.url,
-                config.transport, config.headers, merged);
-        connectedKey = connectionKey(synced);
-        return synced;
     }
 
     private static JSONObject rpc(Config config, String method, JSONObject params,
@@ -675,14 +687,23 @@ final class AgentMcpManager {
                 close();
                 throw new Exception("MCP SSE 等待 endpoint 超时");
             }
-            if (endpoint.length() == 0) throw new Exception(
-                    failure.length() == 0 ? "MCP SSE 未返回 endpoint" : failure);
+            if (endpoint.length() == 0) {
+                String reason = failure.length() == 0 ? "MCP SSE 未返回 endpoint" : failure;
+                close();
+                throw new Exception(reason);
+            }
         }
 
         JSONObject send(JSONObject body, long expectedId) throws Exception {
             if (closed || endpoint.length() == 0) throw new Exception("MCP SSE 已断开");
             Reply reply = expectedId >= 0L ? new Reply() : null;
-            if (reply != null) replies.put(expectedId, reply);
+            if (reply != null) {
+                replies.put(expectedId, reply);
+                if (closed) {
+                    reply.error = failure.length() == 0 ? "MCP SSE 已断开" : failure;
+                    reply.ready.countDown();
+                }
+            }
             HttpURLConnection connection = null;
             try {
                 connection = (HttpURLConnection) new URL(endpoint).openConnection();
@@ -745,12 +766,9 @@ final class AgentMcpManager {
                 }
                 if (!closed) throw new Exception("MCP SSE 连接已关闭");
             } catch (Throwable error) {
-                failure = safeError(error);
-                endpointReady.countDown();
-                for (Reply reply : replies.values()) {
-                    reply.error = failure;
-                    reply.ready.countDown();
-                }
+                if (!closed) failure = safeError(error);
+            } finally {
+                finish(failure);
             }
         }
 
@@ -776,10 +794,24 @@ final class AgentMcpManager {
         }
 
         void close() {
+            finish("MCP SSE 已断开");
+        }
+
+        private void finish(String reason) {
+            if (reason != null && reason.length() > 0 && failure.length() == 0) {
+                failure = reason;
+            }
             closed = true;
+            endpointReady.countDown();
+            String terminal = failure.length() == 0 ? "MCP SSE 已断开" : failure;
+            for (Reply reply : replies.values()) {
+                if (reply.error.length() == 0 && reply.payload.length() == 0) {
+                    reply.error = terminal;
+                }
+                reply.ready.countDown();
+            }
             HttpURLConnection current = stream;
             if (current != null) current.disconnect();
-            endpointReady.countDown();
         }
     }
 
