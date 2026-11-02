@@ -1840,8 +1840,8 @@ final class HookChatPipeline {
     }
 
     private static boolean containsContentFilterState(String status, String quasi) {
-        return (status != null && status.contains("CONTENT_FILTER"))
-                || (quasi != null && quasi.contains("CONTENT_FILTER"));
+        return ResponsePreserverPolicy.containsFilterStatus(status)
+                || ResponsePreserverPolicy.containsFilterStatus(quasi);
     }
 
     // 反射调用无参方法返回 int（uo.u()=消息id）
