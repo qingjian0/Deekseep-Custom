@@ -1,5 +1,7 @@
 package ds.dsh.DeepSeek;
 
+import android.system.Os;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -34,6 +36,7 @@ final class AgentToolTraceStore {
     private static final LinkedHashMap<String, Trace> TRACES = new LinkedHashMap<>();
     private static final ArrayDeque<String> ORDER = new ArrayDeque<>();
     private static boolean loaded;
+    private static boolean loadFailed;
 
     static final class Trace {
         final String key;
@@ -281,13 +284,20 @@ final class AgentToolTraceStore {
         if (loaded || !supportsPersistence()) return;
         loaded = true;
         File file = new File(STORE_PATH);
-        if (!file.isFile() || file.length() <= 0 || file.length() > MAX_STORE_BYTES) return;
+        if (!file.exists()) return;
+        if (!file.isFile() || file.length() <= 0 || file.length() > MAX_STORE_BYTES) {
+            loadFailed = true;
+            return;
+        }
         try (FileInputStream input = new FileInputStream(file);
              ByteArrayOutputStream output = new ByteArrayOutputStream((int) file.length())) {
             byte[] buffer = new byte[16 * 1024];
             int count;
             while ((count = input.read(buffer)) > 0) {
-                if (output.size() + count > MAX_STORE_BYTES) return;
+                if (output.size() + count > MAX_STORE_BYTES) {
+                    loadFailed = true;
+                    return;
+                }
                 output.write(buffer, 0, count);
             }
             JSONArray values = new JSONArray(new String(
@@ -308,11 +318,12 @@ final class AgentToolTraceStore {
         } catch (Throwable ignored) {
             TRACES.clear();
             ORDER.clear();
+            loadFailed = true;
         }
     }
 
     private static void persistLocked() {
-        if (!supportsPersistence()) return;
+        if (!supportsPersistence() || loadFailed) return;
         File target = new File(STORE_PATH);
         File temporary = new File(STORE_PATH + ".tmp");
         try {
@@ -339,8 +350,9 @@ final class AgentToolTraceStore {
                 output.flush();
                 output.getFD().sync();
             }
-            if (target.exists() && !target.delete()) return;
-            if (!temporary.renameTo(target)) temporary.delete();
+            // POSIX rename on Android atomically replaces the target on the same filesystem.
+            // Never delete the previous file first: a failed replacement must preserve it.
+            Os.rename(temporary.getAbsolutePath(), target.getAbsolutePath());
         } catch (Throwable ignored) {
             temporary.delete();
         }
