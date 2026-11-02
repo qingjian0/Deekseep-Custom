@@ -1136,8 +1136,17 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         HookLogOverlay.resetSession();
         HostCompat.initialize(cl);
         if (!HostCompat.isV271Limited()) {
-            try { HookUiSurface.INSTANCE.hookNativeDualChatRoot(cl); }
-            catch (Throwable t) { log("early native dual root hook failed: " + t); }
+            try {
+                // Use the same stable registry ID and adapter scope as the later feature pass.
+                // If this early attempt partially registers and then fails, the Activity-resume
+                // retry skips completed occurrences instead of appending duplicate callbacks.
+                installHookStep("ui.native-dual-chat-root",
+                        () -> HookUiSurface.INSTANCE.hookNativeDualChatRoot(cl));
+            } catch (Throwable t) {
+                if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+                if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+                log("early native dual root hook failed: " + safeThrowableMessage(t));
+            }
         }
         // SSL trust bypass intentionally removed: was diagnostic-only for GP 2.5.0 symbol capture.
         final String bootstrapVersion = AndroidManifestVersion.readFromApk(
