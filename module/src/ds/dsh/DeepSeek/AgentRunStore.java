@@ -404,7 +404,7 @@ final class AgentRunStore {
             return out;
         }
 
-        private void persist(ArrayList<Record> records) {
+        private boolean persist(ArrayList<Record> records) {
             trim(records);
             if (file == null) return false;
             File parent = file.getParentFile();
@@ -412,7 +412,7 @@ final class AgentRunStore {
             OutputStreamWriter writer = null;
             FileOutputStream output = null;
             try {
-                if (parent != null && !parent.isDirectory() && !parent.mkdirs()) return;
+                if (parent != null && !parent.isDirectory() && !parent.mkdirs()) return false;
                 JSONObject root = new JSONObject();
                 JSONArray array = new JSONArray();
                 for (Record record : records) array.put(record.toJson());
@@ -430,10 +430,13 @@ final class AgentRunStore {
                 if (!temporary.renameTo(file)) {
                     // Linux/Android normally atomically replaces the destination. Preserve the
                     // previous valid ledger if an unusual filesystem refuses the rename.
-                    return;
+                    return false;
                 }
+                return true;
             } catch (Throwable ignored) {
-                // Delivery still proceeds from memory; the next mutation retries persistence.
+                // Callers that require durability fail closed; other mutations retain their
+                // in-memory state and may be persisted by a later mutation.
+                return false;
             } finally {
                 if (writer != null) try { writer.close(); } catch (Throwable ignored) {}
                 if (output != null) try { output.close(); } catch (Throwable ignored) {}
