@@ -147,11 +147,15 @@ final class AgentRunUi {
 
         LinearLayout summary = card(activity, cardColor);
         TextView headline = text(activity,
-                UiLanguage.text(activity,
-                        "执行中 " + active + " · 待回传 " + pending
-                                + " · 已结束 " + finished,
-                        "Active " + active + " · Pending delivery " + pending
-                                + " · Finished " + finished),
+                ledgerHealthy
+                        ? UiLanguage.text(activity,
+                                "执行中 " + active + " · 待回传 " + pending
+                                        + " · 已结束 " + finished,
+                                "Active " + active + " · Pending delivery " + pending
+                                        + " · Finished " + finished)
+                        : UiLanguage.text(activity,
+                                "运行记录状态不可用",
+                                "Run history status unavailable"),
                 15, textColor, true);
         headline.setPadding(dp(activity, 15), dp(activity, 14),
                 dp(activity, 15), dp(activity, 5));
@@ -306,9 +310,13 @@ final class AgentRunUi {
                         dark, textColor);
                 row.addView(retry, new LinearLayout.LayoutParams(
                         0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+                retry.setEnabled(ledgerHealthy);
+                retry.setAlpha(ledgerHealthy ? 1f : 0.42f);
                 TextView cancel = action(activity,
                         UiLanguage.text(activity, "取消回传", "Cancel delivery"),
                         dark, dark ? 0xFFFF9B9B : 0xFFC23B3B);
+                cancel.setEnabled(ledgerHealthy);
+                cancel.setAlpha(ledgerHealthy ? 1f : 0.42f);
                 LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(
                         0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
                 cancelParams.leftMargin = dp(activity, 8);

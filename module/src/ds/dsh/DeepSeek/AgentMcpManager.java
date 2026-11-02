@@ -337,7 +337,13 @@ final class AgentMcpManager {
             if (TRANSPORT_SSE.equals(config.transport)) {
                 created = new LegacySseSession(config);
                 created.start();
-                legacySse = created;
+                synchronized (created) {
+                    if (created.closed) {
+                        throw new Exception(created.failure.length() == 0
+                                ? "MCP SSE 已断开" : created.failure);
+                    }
+                    legacySse = created;
+                }
             }
             JSONObject client = new JSONObject().put("name", "Deekseep")
                     .put("version", "1.7.5");
@@ -377,7 +383,17 @@ final class AgentMcpManager {
             }
             Config synced = new Config(config.enabled, config.name, config.url,
                     config.transport, config.headers, merged);
-            connectedKey = connectionKey(synced);
+            if (created == null) {
+                connectedKey = connectionKey(synced);
+            } else {
+                synchronized (created) {
+                    if (created.closed) {
+                        throw new Exception(created.failure.length() == 0
+                                ? "MCP SSE 已断开" : created.failure);
+                    }
+                    connectedKey = connectionKey(synced);
+                }
+            }
             success = true;
             return synced;
         } finally {
@@ -798,10 +814,18 @@ final class AgentMcpManager {
         }
 
         private void finish(String reason) {
-            if (reason != null && reason.length() > 0 && failure.length() == 0) {
-                failure = reason;
+            synchronized (this) {
+                if (reason != null && reason.length() > 0 && failure.length() == 0) {
+                    failure = reason;
+                }
+                closed = true;
             }
-            closed = true;
+            // Only invalidate this session's key. A late reader from an old session must
+            // never clear a newer session that has already replaced it.
+            if (legacySse == this) {
+                legacySse = null;
+                connectedKey = "";
+            }
             endpointReady.countDown();
             String terminal = failure.length() == 0 ? "MCP SSE 已断开" : failure;
             for (Reply reply : replies.values()) {
