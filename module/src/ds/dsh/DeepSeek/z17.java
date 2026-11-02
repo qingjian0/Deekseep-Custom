@@ -247,7 +247,7 @@ final class z17 {
                 } catch (Exception ignored) {}
             }
         } finally {
-            try { reader.close(); } catch (Exception ignored) {}
+            try { reader.close(); } catch (java.io.IOException ignored) {}
             conn.disconnect();
         }
         return new RelayResult(accumulator.reasoningText(), accumulator.contentText());
@@ -297,7 +297,7 @@ final class z17 {
                 } catch (Exception ignored) {}
             }
         } finally {
-            try { reader.close(); } catch (Exception ignored) {}
+            try { reader.close(); } catch (java.io.IOException ignored) {}
             conn.disconnect();
         }
         return new RelayResult(accumulator.reasoningText(), accumulator.contentText());
