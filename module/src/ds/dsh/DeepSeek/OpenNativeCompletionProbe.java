@@ -37,12 +37,10 @@ final class OpenNativeCompletionProbe {
                 || !SCHEDULED.compareAndSet(false, true)) {
             return;
         }
-        ATTEMPTS.incrementAndGet();
         Thread worker = new Thread(() -> {
             try {
-                inspectHost(loader);
+                runBoundedInspection(loader);
             } finally {
-                // A failed/partial scan may be retried by a later startz1() entry.
                 SCHEDULED.set(false);
             }
         }, "dsh-native-completion-probe");
@@ -52,6 +50,27 @@ final class OpenNativeCompletionProbe {
         } catch (RuntimeException | Error error) {
             SCHEDULED.set(false);
             throw error;
+        }
+    }
+
+    /**
+     * Retry transient or partial inventories in the same daemon worker. This avoids depending
+     * on another startz1() callback, which may never occur after the first launch.
+     */
+    private static void runBoundedInspection(ClassLoader loader) {
+        while (!REPORTED.get() && ATTEMPTS.get() < MAX_ATTEMPTS) {
+            int completedAttempts = ATTEMPTS.get();
+            if (completedAttempts > 0) {
+                try {
+                    Thread.sleep(completedAttempts == 1 ? 1000L : 3000L);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
+            if (REPORTED.get()) return;
+            ATTEMPTS.incrementAndGet();
+            inspectHost(loader);
         }
     }
 
