@@ -148,6 +148,13 @@ jobs:
           "$ANDROID_SDK_ROOT/build-tools/37.0.0/apksigner" verify --verbose "$APK"
           echo "Open release APK passed structural, alignment, and CI-key signature checks."
 
+      - name: Upload verified Open release APK
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: yunseek-open-release-apk
+          if-no-files-found: error
+          path: compose-launcher/app/build/outputs/apk/release/app-release.apk
+
       - name: Upload Android Lint reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
