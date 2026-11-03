@@ -48,7 +48,7 @@ jobs:
           for script in scripts/gradle-open-debug.sh scripts/build-all.sh \
               scripts/test-package-identity.sh scripts/test-universal-feature-parity.sh \
               module-legacy/test-adapter-regression.sh module/test-target-process-guard.sh \
-              module/test-hostmap-regression.sh; do
+              module/test-hostmap-regression.sh module/test-local-api-network-regression.sh; do
             bash -n "$script"
           done
           GRADLE_BIN="$(bash scripts/gradle-bootstrap.sh)"
@@ -61,6 +61,7 @@ jobs:
           bash module/test-target-process-guard.sh
           bash module/test-hostmap-regression.sh
           bash module/test-hook-install-registry.sh
+          bash module/test-local-api-network-regression.sh
 
       - name: Build traditional Xposed core for regression tests
         run: |
