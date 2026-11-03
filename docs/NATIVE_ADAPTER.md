@@ -243,6 +243,6 @@ The probe remains diagnostic-only: it does not instantiate host classes, invoke 
 
 ### Google Play / international code290 classification
 
-The 2.7.x marker path identifies code290 by its `c02` Request and `nw1` marker interface. Unlike older Google Play builds, this host does not expose the PairIP marker used by the initial channel probe. The 2.7.x branch now explicitly sets `googlePlay = (code271 == 290)` after version identification, so code287/code289 remain mainland and code290 is classified as Google Play for channel-dependent feature decisions.
+The 2.7.x marker path identifies code290 by its `c02` Request and `nw1` marker interface. Unlike older Google Play builds, this host does not expose the PairIP marker used by the initial channel probe. Keep the private `googlePlay` flag unchanged: it selects the legacy 2.3.x symbol-mapping chain, which must remain on the reviewed 2.4.1 base symbols before `HostRemap`. The public `isGooglePlay()` accessor now returns `googlePlay || isIntl27()`, exposing code290 as Google Play to channel-dependent feature decisions without changing the legacy symbol-mapping path.
 
 Regression coverage in `module/test-hostmap-regression.sh` checks that code290 sets the channel flag. The mapping tables are still selected independently by versionCode; channel classification does not establish Native Completion support.
