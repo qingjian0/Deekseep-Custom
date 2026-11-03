@@ -6,13 +6,14 @@ MAIN="$ROOT/module/src/ds/dsh/DeepSeek/Main.java"
 STUB="$ROOT/module/src/ds/dsh/DeepSeek/z14.java"
 FACADE="$ROOT/module/src/ds/dsh/DeepSeek/HookAccountLoginSecurity.java"
 PROBE="$ROOT/module/src/ds/dsh/DeepSeek/OpenNativeCompletionProbe.java"
+Z18="$ROOT/module/src/ds/dsh/DeepSeek/z18.java"
 
-python - "$MAIN" "$STUB" "$FACADE" "$PROBE" <<'PY'
+python - "$MAIN" "$STUB" "$FACADE" "$PROBE" "$Z18" <<'PY'
 import pathlib
 import re
 import sys
 
-main, stub, facade, probe = [
+main, stub, facade, probe, z18 = [
     pathlib.Path(path).read_text(encoding="utf-8") for path in sys.argv[1:]
 ]
 
@@ -75,6 +76,14 @@ require(
     r'line\(out, "probe\.elapsedMs"',
     "probe reports scan duration",
 )
+require(
+    facade,
+    r'z14\.payloadClass\(Main\.hostApplicationContext, "ds\.dsh\.DeepSeek\.z18"\)',
+    "execution facade payload class target remains explicit",
+)
+if re.search(r"executeLocalApiCompletion\s*\(", z18):
+    raise SystemExit("Repository z18 helper must not be mistaken for the Completion payload")
+
 inspect = probe.split("static void inspectHost(ClassLoader loader)", 1)[1].split(
     "/** Legacy object-capture entry point", 1
 )[0]
