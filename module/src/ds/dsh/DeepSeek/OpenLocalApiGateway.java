@@ -43,6 +43,7 @@ final class OpenLocalApiGateway {
     private static volatile Context appContext;
     private static volatile String token;
     private static volatile int boundPort;
+    private static volatile int configuredPort = DEFAULT_PORT;
 
     private OpenLocalApiGateway() {}
 
@@ -53,7 +54,9 @@ final class OpenLocalApiGateway {
             appContext = app;
             token = loadOrCreateToken(app);
             backend = modelBackend;
-            ServerSocket socket = new ServerSocket(DEFAULT_PORT, 16,
+            configuredPort = app.getSharedPreferences("dsh_local_api", Context.MODE_PRIVATE)
+                    .getInt("port", DEFAULT_PORT);
+            ServerSocket socket = new ServerSocket(configuredPort, 16,
                     InetAddress.getByName("127.0.0.1"));
             server = socket;
             boundPort = socket.getLocalPort();
@@ -82,7 +85,34 @@ final class OpenLocalApiGateway {
     }
 
     static boolean isRunning() { return RUNNING.get(); }
-    static int port() { return boundPort; }
+    static int port() { return RUNNING.get() ? boundPort : configuredPort; }
+    static int preferredPort() { return configuredPort; }
+    static int preferredPort(Context context) {
+        return context == null ? configuredPort : context.getApplicationContext()
+                .getSharedPreferences("dsh_local_api", Context.MODE_PRIVATE)
+                .getInt("port", DEFAULT_PORT);
+    }
+    static synchronized String setPreferredPort(Context context, int requestedPort) {
+        if (requestedPort < 1024 || requestedPort > 65535) {
+            return "端口必须在 1024 到 65535 之间";
+        }
+        Context app = context == null ? appContext : context.getApplicationContext();
+        if (app == null) return "DeepSeek 上下文尚未就绪";
+        z2.Backend current = backend;
+        try {
+            app.getSharedPreferences("dsh_local_api", Context.MODE_PRIVATE)
+                    .edit().putInt("port", requestedPort).apply();
+            configuredPort = requestedPort;
+            if (RUNNING.get() && current != null) {
+                stop();
+                start(app, current);
+                if (!RUNNING.get()) return "端口已保存，但服务启动失败；请检查端口占用";
+            }
+            return null;
+        } catch (Exception error) {
+            return "端口设置失败";
+        }
+    }
     static String endpoint() {
         return RUNNING.get() ? "http://127.0.0.1:" + boundPort : "";
     }
