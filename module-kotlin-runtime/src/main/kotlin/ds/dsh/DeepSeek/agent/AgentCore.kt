@@ -2,7 +2,6 @@ package ds.dsh.DeepSeek.agent
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
-import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -39,8 +38,6 @@ class AgentCore(
         }
         try {
             executor.execute { execute(control) }
-        } catch (_: RejectedExecutionException) {
-            finishFailure(control, "executor rejected request")
         } catch (_: RuntimeException) {
             finishFailure(control, "executor rejected request")
         }
@@ -93,16 +90,23 @@ class AgentCore(
                     if (event.type == AgentEventType.TEXT_DELTA ||
                         event.type == AgentEventType.REASONING_DELTA
                     ) {
-                        synchronized(control.lock) {
-                            if (control.cancelled.get()) return@synchronized
-                            if (repository.stateOf(control.request.requestId) ==
-                                AgentRunState.RUNNING
-                            ) {
-                                repository.transition(
-                                    control.request.requestId,
-                                    AgentRunState.STREAMING,
-                                )
+                        val canForward = synchronized(control.lock) {
+                            if (control.cancelled.get()) {
+                                false
+                            } else {
+                                when (repository.stateOf(control.request.requestId)) {
+                                    AgentRunState.RUNNING -> repository.transition(
+                                        control.request.requestId,
+                                        AgentRunState.STREAMING,
+                                    )
+                                    AgentRunState.STREAMING -> true
+                                    else -> false
+                                }
                             }
+                        }
+                        if (!canForward) {
+                            finishFailure(control, "run could not enter streaming state")
+                            return@AgentEventSink false
                         }
                     }
                     emit(control, event)
@@ -122,7 +126,14 @@ class AgentCore(
                 ) return
                 val current = repository.stateOf(control.request.requestId)
                 if (current == AgentRunState.RUNNING || current == AgentRunState.STREAMING) {
-                    repository.transition(control.request.requestId, AgentRunState.COMPLETED)
+                    if (!repository.transition(
+                            control.request.requestId,
+                            AgentRunState.COMPLETED,
+                        )
+                    ) {
+                        finishFailureLocked(control, "run could not enter completed state")
+                        return
+                    }
                 } else {
                     finishFailureLocked(control, "unsupported final run state")
                     return
@@ -189,16 +200,21 @@ class AgentCore(
         override fun cancel(): Boolean = synchronized(lock) {
             val current = repository.stateOf(request.requestId)
             if (current == null || AgentRunStateMachine.isTerminal(current)) return@synchronized false
-            if (!cancelled.compareAndSet(false, true)) return@synchronized false
-            repository.transition(
-                request.requestId,
-                AgentRunState.CANCELLED,
-                "cancelled by caller",
-            )
+            if (cancelled.get()) return@synchronized false
+            if (!repository.transition(
+                    request.requestId,
+                    AgentRunState.CANCELLED,
+                    "cancelled by caller",
+                )
+            ) return@synchronized false
+            cancelled.set(true)
             active.remove(request.requestId, this)
             true
         }
 
-        override fun isCancelled(): Boolean = cancelled.get() || isExpired(request)
+        override fun isCancelled(): Boolean =
+            cancelled.get() ||
+                isExpired(request) ||
+                AgentRunStateMachine.isTerminal(repository.stateOf(request.requestId))
     }
 }
