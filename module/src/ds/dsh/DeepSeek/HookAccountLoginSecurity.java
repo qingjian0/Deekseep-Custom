@@ -437,7 +437,9 @@ final class HookAccountLoginSecurity {
     }
 
     static boolean setLocalApiEnabled(boolean on) {
-        if (on && !BuildInfo.LOCAL_API_INCLUDED) {
+        boolean openLocalApi = "Open".equals(BuildInfo.BUILD_EDITION)
+                && !BuildInfo.LOCAL_API_INCLUDED;
+        if (on && !BuildInfo.LOCAL_API_INCLUDED && !openLocalApi) {
             z13.stop();
             return false;
         }
