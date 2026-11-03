@@ -125,10 +125,12 @@ public final class z13 {
     }
 
     static String lanRootEndpoint() {
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) return "";
         return callString("lanRootEndpoint");
     }
 
     static String lanEndpoint() {
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) return "";
         return callString("lanEndpoint");
     }
 
@@ -147,14 +149,17 @@ public final class z13 {
     }
 
     static int tlsPort() {
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) return 0;
         return callInt("tlsPort");
     }
 
     static boolean isHttpsRunning() {
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) return false;
         return callBool("isHttpsRunning");
     }
 
     static String protocolMode() {
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) return "openai";
         return callString("protocolMode");
     }
 
