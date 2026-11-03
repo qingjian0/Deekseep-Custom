@@ -146,6 +146,10 @@ require(probe, r"ATTEMPTS\.incrementAndGet\(\);\s*inspectHost\(loader\)", "each 
 require(probe, r"finally\s*\{\s*SCHEDULED\.set\(false\);", "probe releases scheduling guard after every worker run")
 require(probe, r"completed\s*=\s*!names\.isEmpty\(\)\s*&&\s*classLoadFailures\s*==\s*0", "empty and partial DEX inventories remain retryable")
 require(probe, r"scannedTypes\.add\(owner\).*?for \(Class<\?> owner : scannedTypes\)", "manager inventory reuses successfully loaded classes without a second class-loader pass")
+require(probe, r"owner\.getDeclaredMethods\(\).*?catch \(LinkageError \| SecurityException error\).*?classLoadFailures\+\+", "a single class method-metadata failure does not abort the DEX scan")
+require(probe, r"owner\.getDeclaredFields\(\).*?catch \(LinkageError \| SecurityException error\).*?classLoadFailures\+\+", "a single manager field-metadata failure is counted and skipped")
+require(probe, r"getDeclaredConstructors\(\).*?catch \(LinkageError \| SecurityException error\).*?constructorError", "constructor diagnostics tolerate unavailable metadata")
+require(probe, r"getDeclaredFields\(\).*?catch \(LinkageError \| SecurityException error\).*?fieldInventoryError", "field diagnostics tolerate unavailable metadata in superclasses")
 require(probe, r"field\.getType\(\)\.isAssignableFrom\(transportOwner\)\s*\)", "manager field matching only accepts declared types that can hold the transport owner")
 if "transportOwner\.isAssignableFrom\(field\.getType\(\)\)" in probe:
     raise SystemExit("Manager matching must reject reverse assignability, which cannot hold the transport instance")
