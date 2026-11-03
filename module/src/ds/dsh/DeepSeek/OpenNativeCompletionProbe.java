@@ -335,8 +335,24 @@ final class OpenNativeCompletionProbe {
         return out.toString();
     }
 
+    private static final int MAX_REPORT_CHARS = 12_000;
+    private static final int REPORT_TERMINAL_RESERVE = 64;
+
     private static void line(StringBuilder out, String key, String value) {
-        if (out.length() > 12_000) return;
-        out.append(key).append('=').append(value == null ? "" : value).append('\n');
+        String entry = key + '=' + (value == null ? "" : value) + '\n';
+        // Keep the terminal timing field even when a large candidate inventory is truncated.
+        if ("probe.elapsedMs".equals(key)) {
+            if (out.length() + entry.length() <= MAX_REPORT_CHARS) out.append(entry);
+            return;
+        }
+        if (out.length() + entry.length() > MAX_REPORT_CHARS - REPORT_TERMINAL_RESERVE) {
+            String marker = "probe.truncated=true\n";
+            if (out.indexOf("probe.truncated=") < 0
+                    && out.length() + marker.length() + REPORT_TERMINAL_RESERVE <= MAX_REPORT_CHARS) {
+                out.append(marker);
+            }
+            return;
+        }
+        out.append(entry);
     }
 }
