@@ -115,9 +115,15 @@ if re.search(r"executeLocalApiCompletion\s*\(", z18):
 
 require(
     main,
-    r'if \(!new File\(HookAccountLoginSecurity\.LOCAL_API_ENABLED_FILE\)\.exists\(\)\) return;\s*// 2\.7\.x deliberately skips the older q71/r92 capture hooks\. The read-only inventory is\s*// diagnostic only\s*if \(openEdition\) OpenNativeCompletionProbe\.scheduleHostInspection\(hostClassLoader\);',
-    "native host inventory is gated by explicit Local API enablement",
+    r'OpenNativeCompletionProbe\.scheduleHostInspection\(hostClassLoader\);',
+    "native host inventory uses the explicit one-shot scheduler",
 )
+enabled_marker = "if (!new File(HookAccountLoginSecurity.LOCAL_API_ENABLED_FILE).exists()) return;"
+scheduled_probe = "OpenNativeCompletionProbe.scheduleHostInspection(hostClassLoader);"
+if enabled_marker not in main or scheduled_probe not in main:
+    raise SystemExit("native host inventory must be present behind the Local API enablement check")
+if main.index(enabled_marker) > main.index(scheduled_probe):
+    raise SystemExit("native host inventory must be gated by explicit Local API enablement")
 require(
     probe,
     r'static void scheduleHostInspection\(final ClassLoader loader\)\s*\{.*?SCHEDULED\.compareAndSet\(false, true\).*?worker\.setDaemon\(true\).*?worker\.start\(\);',
