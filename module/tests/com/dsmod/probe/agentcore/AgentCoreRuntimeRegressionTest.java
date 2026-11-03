@@ -90,6 +90,23 @@ public final class AgentCoreRuntimeRegressionTest {
         check(failureSink.events.contains(AgentCoreContract.EventType.FAILED),
                 "adapter failure event was not emitted");
 
+        MemoryRepository sinkFailureRepository = new MemoryRepository();
+        AgentCore sinkFailureCore = new AgentCore(adapter, sinkFailureRepository,
+                new Executor() {
+                    @Override public void execute(Runnable task) { task.run(); }
+                });
+        sinkFailureCore.submit(request("sink-failure"),
+                new AgentCoreContract.EventSink() {
+                    @Override public boolean onEvent(AgentCoreContract.Event event)
+                            throws Exception {
+                        throw new Exception("client output closed");
+                    }
+                    @Override public boolean isCancelled() { return false; }
+                });
+        check(sinkFailureRepository.stateOf("sink-failure")
+                        == AgentRunStateMachine.State.FAILED,
+                "event sink exception must fail the run, not mark it cancelled");
+
         MemoryRepository cancelRepository = new MemoryRepository();
         final List<Runnable> queued = new ArrayList<>();
         AgentCore cancelCore = new AgentCore(adapter, cancelRepository,
