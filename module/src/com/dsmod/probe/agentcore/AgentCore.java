@@ -151,7 +151,6 @@ public final class AgentCore {
             if (!accepted) control.cancel();
             return accepted && !control.cancelled.get();
         } catch (Exception error) {
-            control.cancel();
             finishFailure(control, "event sink failed");
             return false;
         }
@@ -168,10 +167,9 @@ public final class AgentCore {
         if (control.cancelled.get()) return;
         AgentRunStateMachine.State current =
                 repository.stateOf(control.request.requestId);
-        if (current != null && !AgentRunStateMachine.isTerminal(current)) {
-            repository.transition(control.request.requestId,
-                    AgentRunStateMachine.State.FAILED, detail);
-        }
+        if (current == null || AgentRunStateMachine.isTerminal(current)) return;
+        if (!repository.transition(control.request.requestId,
+                AgentRunStateMachine.State.FAILED, detail)) return;
         try {
             control.sink.onEvent(new AgentCoreContract.Event(
                     AgentCoreContract.EventType.FAILED,
