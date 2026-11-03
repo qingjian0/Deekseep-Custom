@@ -1,6 +1,7 @@
 package ds.dsh.DeepSeek;
 
 import android.content.Context;
+import android.util.AtomicFile;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -386,7 +387,7 @@ final class OpenLocalApiGateway {
         File file = new File(context.getFilesDir(), TOKEN_FILE);
         if (file.isFile()) {
             ByteArrayOutputStream stored = new ByteArrayOutputStream();
-            try (InputStream input = new java.io.FileInputStream(file)) {
+            try (InputStream input = new AtomicFile(file).openRead()) {
                 byte[] buffer = new byte[128];
                 int count;
                 while ((count = input.read(buffer)) >= 0 && stored.size() < 256) {
@@ -408,14 +409,16 @@ final class OpenLocalApiGateway {
                         | android.util.Base64.NO_PADDING);
     }
     private static void persistToken(Context context, String value) throws Exception {
-        File file = new File(context.getFilesDir(), TOKEN_FILE);
-        File temp = new File(context.getFilesDir(), TOKEN_FILE + ".tmp");
-        try (FileOutputStream stream = new FileOutputStream(temp)) {
+        AtomicFile atomic = new AtomicFile(new File(context.getFilesDir(), TOKEN_FILE));
+        FileOutputStream stream = atomic.startWrite();
+        try {
             stream.write(value.getBytes(StandardCharsets.US_ASCII));
             stream.getFD().sync();
+            atomic.finishWrite(stream);
+        } catch (Exception failure) {
+            atomic.failWrite(stream);
+            throw failure;
         }
-        if (file.exists() && !file.delete()) throw new IllegalStateException("Cannot replace API token");
-        if (!temp.renameTo(file)) throw new IllegalStateException("Cannot persist API token");
     }
 
     private static void sendJson(OutputStream out, int status, JSONObject body) throws Exception {
