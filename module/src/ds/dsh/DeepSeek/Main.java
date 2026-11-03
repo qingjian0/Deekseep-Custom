@@ -9358,7 +9358,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 if (nm.indexOf('.') >= 0) continue;   // defpackage 混淆类无包名
                 if (nm.length() > 6) continue;         // 混淆名很短，跳过长名降负载
                 Class<?> c;
-                try { c = HostRemap.forName(nm, false, cl); }  // false=不初始化，避免静态副作用
+                try { c = HostRemap.forDexName(nm, cl); }  // false=不初始化，避免静态副作用
                 catch (Throwable t) { continue; }
                 scanned++;
                 for (Method m : c.getDeclaredMethods()) {
