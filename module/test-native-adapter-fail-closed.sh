@@ -113,6 +113,19 @@ require(
 if re.search(r"executeLocalApiCompletion\s*\(", z18):
     raise SystemExit("Repository z18 helper must not be mistaken for the Completion payload")
 
+require(
+    main,
+    r'if \\(!new File\\(HookAccountLoginSecurity\\.LOCAL_API_ENABLED_FILE\\)\\.exists\\(\\)\\) return;\\s*// 2\\.7\\.x deliberately skips the older q71/r92 capture hooks\\. The read-only inventory is\\s*// diagnostic only',
+    "native host inventory is gated by explicit Local API enablement",
+)
+require(
+    main,
+    r'if \\(openEdition\\) \\{\\s*Thread probeThread = new Thread\\(\\s*\\(\\) -> OpenNativeCompletionProbe\\.inspectHost\\(hostClassLoader\\),\\s*"dsh-native-completion-probe"\\);\\s*probeThread\\.setDaemon\\(true\\);\\s*probeThread\\.start\\(\\);\\s*\\}',
+    "native host inventory runs once on a daemon worker rather than the startup/UI caller",
+)
+if re.search(r'if \\(openEdition\\) OpenNativeCompletionProbe\\.inspectHost\\(hostClassLoader\\)', main):
+    raise SystemExit("native host inventory must not execute synchronously on the startup/UI caller")
+
 inspect = probe.split("static void inspectHost(ClassLoader loader)", 1)[1].split(
     "/** Legacy object-capture entry point", 1
 )[0]
