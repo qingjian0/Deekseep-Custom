@@ -6,5 +6,7 @@ trap 'rm -rf "$TMP"' EXIT
 javac -encoding UTF-8 -d "$TMP" \
   "$ROOT/module/src/com/dsmod/probe/agentcore/AgentCoreContract.java" \
   "$ROOT/module/src/com/dsmod/probe/agentcore/AgentRunStateMachine.java" \
-  "$ROOT/module/tests/com/dsmod/probe/agentcore/AgentCoreContractRegressionTest.java"
+  "$ROOT/module/src/com/dsmod/probe/agentcore/AgentCore.java" \
+  "$ROOT/module/tests/com/dsmod/probe/agentcore/AgentCoreContractRegressionTest.java" \
+  "$ROOT/module/tests/com/dsmod/probe/agentcore/AgentCoreRuntimeRegressionTest.java"
 java -cp "$TMP" com.dsmod.probe.agentcore.AgentCoreContractRegressionTest
