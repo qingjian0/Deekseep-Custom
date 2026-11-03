@@ -38,11 +38,17 @@ class PersistentAgentRunRepository(
     @Synchronized
     override fun create(request: AgentRequest): Boolean {
         if (entries.containsKey(request.requestId)) return false
+        val snapshot = LinkedHashMap<String, Entry>().apply {
+            entries.forEach { (id, entry) -> put(id, entry.copy()) }
+        }
         pruneIfNeeded()
-        if (entries.size >= maxRecords) return false
+        if (entries.size >= maxRecords) {
+            restore(snapshot)
+            return false
+        }
         entries[request.requestId] = Entry(AgentRunState.CREATED, "", System.currentTimeMillis())
         if (persist()) return true
-        entries.remove(request.requestId)
+        restore(snapshot)
         return false
     }
 
@@ -121,6 +127,11 @@ class PersistentAgentRunRepository(
             }
         }
         if (changed && !persist()) throw IOException("Unable to persist Agent run recovery")
+    }
+
+    private fun restore(snapshot: LinkedHashMap<String, Entry>) {
+        entries.clear()
+        snapshot.forEach { (id, entry) -> entries[id] = entry.copy() }
     }
 
     private fun pruneIfNeeded() {
