@@ -17,7 +17,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 final class OpenNativeCompletionProbe {
     private static final AtomicBoolean SCHEDULED = new AtomicBoolean();
+    private static final AtomicBoolean INSPECTING = new AtomicBoolean();
     private static final AtomicBoolean REPORTED = new AtomicBoolean();
+    private static final java.util.concurrent.atomic.AtomicInteger ATTEMPTS =
+            new java.util.concurrent.atomic.AtomicInteger();
+    private static final int MAX_ATTEMPTS = 3;
     private static volatile String report = "not-run";
 
     private OpenNativeCompletionProbe() {}
@@ -29,11 +33,19 @@ final class OpenNativeCompletionProbe {
     static void scheduleHostInspection(final ClassLoader loader) {
         if (!"Open".equals(BuildInfo.BUILD_EDITION)
                 || BuildInfo.LOCAL_API_INCLUDED || loader == null
+                || REPORTED.get() || ATTEMPTS.get() >= MAX_ATTEMPTS
                 || !SCHEDULED.compareAndSet(false, true)) {
             return;
         }
-        Thread worker = new Thread(() -> inspectHost(loader),
-                "dsh-native-completion-probe");
+        ATTEMPTS.incrementAndGet();
+        Thread worker = new Thread(() -> {
+            try {
+                inspectHost(loader);
+            } finally {
+                // A failed/partial scan may be retried by a later startz1() entry.
+                SCHEDULED.set(false);
+            }
+        }, "dsh-native-completion-probe");
         worker.setDaemon(true);
         try {
             worker.start();
@@ -51,10 +63,11 @@ final class OpenNativeCompletionProbe {
     static void inspectHost(ClassLoader loader) {
         if (!"Open".equals(BuildInfo.BUILD_EDITION)
                 || BuildInfo.LOCAL_API_INCLUDED || loader == null
-                || !REPORTED.compareAndSet(false, true)) {
+                || REPORTED.get() || !INSPECTING.compareAndSet(false, true)) {
             return;
         }
         StringBuilder out = new StringBuilder(8192);
+        boolean completed = false;
         final long startedNanos = System.nanoTime();
         int eligibleClassNames = 0;
         int classLoadFailures = 0;
@@ -156,6 +169,7 @@ final class OpenNativeCompletionProbe {
                     }
                 }
                 line(out, "manager.candidateCount", String.valueOf(managerCandidates));
+                completed = true;
             }
         } catch (Throwable error) {
             line(out, "probe.error", error.getClass().getName() + ": "
@@ -165,6 +179,9 @@ final class OpenNativeCompletionProbe {
                     (System.nanoTime() - startedNanos) / 1_000_000L));
         }
         report = out.toString();
+        // Only a complete DEX inventory is terminal. Class-load/scan failures remain retryable.
+        if (completed) REPORTED.set(true);
+        INSPECTING.set(false);
         Main.extLog("[OPEN_NATIVE_COMPLETION_PROBE]\n" + report);
     }
 
