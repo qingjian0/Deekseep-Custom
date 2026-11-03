@@ -52,9 +52,6 @@ public final class HostCompat {
         if (code271 != 0) {
             v271 = true;
             hostCode = code271;
-            // Code290 is the Google Play / international 2.7.2 build. It has no
-            // PairIP marker, so the initial channel probe cannot set this flag for it.
-            googlePlay = code271 == 290;
             v250 = v236 = false;
             legacyUnitUsesTi8 = false;
             // Full mode: run the reviewed 2.4.1 feature code through the generated
@@ -130,7 +127,10 @@ public final class HostCompat {
     }
 
     static boolean isGooglePlay() {
-        return googlePlay;
+        // Keep the private flag as the legacy 2.3.x mapping-channel selector: code290 uses
+        // the reviewed 2.4.1 mainland symbol chain before HostRemap. Expose its real store
+        // channel separately through the version-specific 2.7.x marker.
+        return googlePlay || isIntl27();
     }
 
     /**
@@ -143,7 +143,7 @@ public final class HostCompat {
     }
 
     static String diagnosticSummary() {
-        return "channel=" + (googlePlay ? "google-play" : "mainland")
+        return "channel=" + (isGooglePlay() ? "google-play" : "mainland")
                 + "\ngeneration=" + (v271 ? (HostRemap.active() ? hostLabel() + " (2.4.1 map, " + HostRemap.classCount() + " classes)" : hostLabel() + " (limited)") : v250 ? "2.5.0" : v241 ? "2.4.1" : v236 ? "2.3.6"
                 : v234 ? "2.3.4" : v230 ? "2.3.0" : "2.2.x")
                 + "\nlegacyUnit=" + (legacyUnitUsesTi8 ? "ti8" : "ui8");
