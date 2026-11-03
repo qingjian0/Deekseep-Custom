@@ -16,10 +16,32 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * actual installed DeepSeek build instead of guessing obfuscated constructor layouts.
  */
 final class OpenNativeCompletionProbe {
+    private static final AtomicBoolean SCHEDULED = new AtomicBoolean();
     private static final AtomicBoolean REPORTED = new AtomicBoolean();
     private static volatile String report = "not-run";
 
     private OpenNativeCompletionProbe() {}
+
+    /**
+     * Schedule the passive inventory once, without creating a worker for every startz1 call.
+     * The probe is diagnostic only and must not run on the host startup/UI caller thread.
+     */
+    static void scheduleHostInspection(final ClassLoader loader) {
+        if (!"Open".equals(BuildInfo.BUILD_EDITION)
+                || BuildInfo.LOCAL_API_INCLUDED || loader == null
+                || !SCHEDULED.compareAndSet(false, true)) {
+            return;
+        }
+        Thread worker = new Thread(() -> inspectHost(loader),
+                "dsh-native-completion-probe");
+        worker.setDaemon(true);
+        try {
+            worker.start();
+        } catch (Throwable error) {
+            SCHEDULED.set(false);
+            throw error;
+        }
+    }
 
     /**
      * Runs before any legacy q71 capture hook is available. This is the entry point for
