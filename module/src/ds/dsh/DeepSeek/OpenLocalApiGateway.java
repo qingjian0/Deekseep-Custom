@@ -148,7 +148,13 @@ final class OpenLocalApiGateway {
                 sendError(out, 400, "model_not_found", "Unsupported model");
                 return;
             }
-            String prompt = toPrompt(body.optJSONArray("messages"));
+            String prompt;
+            try {
+                prompt = toPrompt(body.optJSONArray("messages"));
+            } catch (Exception invalid) {
+                sendError(out, 400, "invalid_messages", "Messages must contain supported text roles");
+                return;
+            }
             if (prompt.length() == 0 || prompt.length() > MAX_PROMPT_CHARS) {
                 sendError(out, 400, "invalid_prompt", "Prompt is empty or too large");
                 return;
@@ -303,13 +309,22 @@ final class OpenLocalApiGateway {
     private static String loadOrCreateToken(Context context) throws Exception {
         File file = new File(context.getFilesDir(), TOKEN_FILE);
         if (file.isFile()) {
-            byte[] bytes = java.nio.file.Files.readAllBytes(file.toPath());
-            String existing = new String(bytes, StandardCharsets.US_ASCII).trim();
+            ByteArrayOutputStream stored = new ByteArrayOutputStream();
+            try (InputStream input = new java.io.FileInputStream(file)) {
+                byte[] buffer = new byte[128];
+                int count;
+                while ((count = input.read(buffer)) >= 0 && stored.size() < 256) {
+                    stored.write(buffer, 0, count);
+                }
+            }
+            String existing = new String(stored.toByteArray(), StandardCharsets.US_ASCII).trim();
             if (existing.matches("[A-Za-z0-9_-]{40,80}")) return existing;
         }
         byte[] random = new byte[32];
         new SecureRandom().nextBytes(random);
-        String value = Base64.getUrlEncoder().withoutPadding().encodeToString(random);
+        String value = android.util.Base64.encodeToString(random,
+                android.util.Base64.URL_SAFE | android.util.Base64.NO_WRAP
+                        | android.util.Base64.NO_PADDING);
         File temp = new File(context.getFilesDir(), TOKEN_FILE + ".tmp");
         try (FileOutputStream stream = new FileOutputStream(temp)) {
             stream.write(value.getBytes(StandardCharsets.US_ASCII));
