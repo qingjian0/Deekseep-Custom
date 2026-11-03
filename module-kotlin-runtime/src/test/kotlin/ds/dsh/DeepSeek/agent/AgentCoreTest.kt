@@ -182,6 +182,30 @@ class AgentCoreTest {
     }
 
     @Test
+    fun deadlineExpiryDuringModelCallEndsInFailedState() {
+        val repository = MemoryRepository()
+        val sink = RecordingSink()
+        val core = AgentCore(
+            adapter { request, events, _ ->
+                Thread.sleep(30L)
+                events.onEvent(
+                    AgentEvent(AgentEventType.TEXT_DELTA, request.requestId, text = "late"),
+                )
+            },
+            repository,
+            Executor { it.run() },
+        )
+
+        core.submit(
+            request(deadline = System.currentTimeMillis() + 10L),
+            sink,
+        )
+        assertEquals(AgentRunState.FAILED, core.stateOf("request-1"))
+        assertEquals(AgentEventType.FAILED, sink.events.last().type)
+        assertEquals("request deadline exceeded", sink.events.last().detail)
+    }
+
+    @Test
     fun expiredRequestIsRejectedBeforeClaiming() {
         val repository = MemoryRepository()
         val core = AgentCore(adapter { _, _, _ -> }, repository, Executor { it.run() })
