@@ -37,7 +37,7 @@ final class OpenNativeCompletionProbe {
         worker.setDaemon(true);
         try {
             worker.start();
-        } catch (Throwable error) {
+        } catch (RuntimeException | Error error) {
             SCHEDULED.set(false);
             throw error;
         }
