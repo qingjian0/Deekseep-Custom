@@ -27,7 +27,7 @@ unavailable rather than falsely advertising model readiness.
 ## Security and resource limits
 
 - Disabled by default; the existing Local API enable switch is the opt-in.
-- Defaults to `127.0.0.1`. An explicit UI opt-in enables `0.0.0.0` binding; every accepted socket is then restricted to loopback or IPv4 sources in `192.168.0.0/16`. Other private ranges, public IPv4, and IPv6 are rejected.
+- Defaults to `127.0.0.1`. An explicit UI opt-in creates a second listener bound only to the currently detected `192.168.x.x` interface address; the original listener remains bound to `127.0.0.1`. The LAN listener also validates that the remote IPv4 source is in `192.168.0.0/16`. It never binds to `0.0.0.0`. Other private ranges, public IPv4, and IPv6 are rejected.
 - Uses a per-install random Bearer token stored in the host app's private files directory.
 - Supports token rotation from the existing Local API controls.
 - Default port is 8765; the existing port setting persists a custom port in private preferences.
