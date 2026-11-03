@@ -14,6 +14,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: agent-core-batch-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   contract-tests:
     runs-on: ubuntu-latest
@@ -47,6 +51,15 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "9.8.2"
+      - name: Create ephemeral debug signing key
+        run: |
+          set -euo pipefail
+          KEYSTORE="$RUNNER_TEMP/agent-core-debug.keystore"
+          keytool -genkeypair -v -keystore "$KEYSTORE" \
+            -storepass android -alias androiddebugkey -keypass android \
+            -dname "CN=Android Debug,O=Android,C=US" \
+            -keyalg RSA -keysize 2048 -validity 10000
+          echo "ANDROID_KEYSTORE_PATH=$KEYSTORE" >> "$GITHUB_ENV"
       - name: Install Android SDK components
         run: |
           set -euo pipefail
