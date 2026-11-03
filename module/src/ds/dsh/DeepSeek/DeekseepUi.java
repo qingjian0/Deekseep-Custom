@@ -3057,6 +3057,38 @@ public final class DeekseepUi {
                 textColor, dark);
         card.addView(agentHelp, insetParams(act, 0, 14));
 
+        TextView nativeProbeTitle = sectionTitle(act, "Open 原生适配诊断（DeepSeek 2.7.x）", textColor);
+        card.addView(nativeProbeTitle);
+        TextView nativeProbeHelp = infoBox(act,
+                "用于定位官方客户端请求对象、传输层与 PoW 管理器。不会读取聊天内容、账号凭据或请求参数。请先打开 DeepSeek 主界面并等待注入完成，再复制诊断信息。",
+                textColor, dark);
+        card.addView(nativeProbeHelp, insetParams(act, 0, 8));
+        LinearLayout nativeProbeActions = new LinearLayout(act);
+        nativeProbeActions.setOrientation(LinearLayout.HORIZONTAL);
+        nativeProbeActions.setPadding(dp(act, 16), dp(act, 4), dp(act, 16), dp(act, 14));
+        TextView copyNativeProbe = dialogAction(act, "复制原生适配诊断", BRAND, dark);
+        nativeProbeActions.addView(copyNativeProbe, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        copyNativeProbe.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View view) {
+                String report = Main.openNativeCompletionProbeStatus();
+                if (report == null || report.trim().isEmpty() || "not-run".equals(report)) {
+                    Toast.makeText(act,
+                            "诊断尚未运行。请返回 DeepSeek 主界面等待注入后重试。",
+                            Toast.LENGTH_LONG).show();
+                    return;
+                }
+                android.content.ClipboardManager clipboard =
+                        (android.content.ClipboardManager) act.getSystemService(Context.CLIPBOARD_SERVICE);
+                if (clipboard != null) {
+                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText(
+                            "Open Native Completion Probe", report));
+                    Toast.makeText(act, "原生适配诊断已复制", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+        card.addView(nativeProbeActions);
+
         card.addView(makeDivider(act, divColor));
         card.addView(sectionTitle(act, "深度思考参数", textColor));
         TextView reasoningHelp = infoBox(act,
