@@ -16,7 +16,7 @@ DeepSeek Hook startup
   |
   +-- Main.startz1(appContext)
         |
-        +-- OpenNativeCompletionProbe.inspectHost(hostClassLoader)  [Open only, read-only]
+        +-- OpenNativeCompletionProbe.scheduleHostInspection(hostClassLoader)  [Open only, enabled gate, daemon worker]
         |
         +-- z13.start(appContext, Backend)
               |
