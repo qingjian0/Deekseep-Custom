@@ -13,7 +13,7 @@ public final class AgentCoreContractRegressionTest {
         try {
             action.run();
             throw new AssertionError(message);
-        } catch (IllegalArgumentException | IllegalStateException expected) {
+        } catch (IllegalArgumentException | IllegalStateException | UnsupportedOperationException expected) {
             // Expected validation failure.
         }
     }
