@@ -169,7 +169,8 @@ final class OpenNativeCompletionProbe {
                     }
                 }
                 line(out, "manager.candidateCount", String.valueOf(managerCandidates));
-                completed = true;
+                // Per-class load failures mean the inventory is partial, not a terminal result.
+                completed = classLoadFailures == 0;
             }
         } catch (Throwable error) {
             line(out, "probe.error", error.getClass().getName() + ": "
