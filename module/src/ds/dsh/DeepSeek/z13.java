@@ -180,6 +180,9 @@ public final class z13 {
     }
 
     static int preferredPort(Context context) {
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
+            return OpenLocalApiGateway.preferredPort(context);
+        }
         try {
             Class<?> g = gateway();
             if (g == null) return 0;
@@ -193,6 +196,9 @@ public final class z13 {
     }
 
     static int preferredPort() {
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
+            return OpenLocalApiGateway.preferredPort();
+        }
         return callInt("preferredPort");
     }
 
@@ -207,6 +213,9 @@ public final class z13 {
     }
 
     static String setPreferredPort(Context context, int requestedPort) {
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
+            return OpenLocalApiGateway.setPreferredPort(context, requestedPort);
+        }
         try {
             Class<?> g = gateway();
             if (g == null) return null;
