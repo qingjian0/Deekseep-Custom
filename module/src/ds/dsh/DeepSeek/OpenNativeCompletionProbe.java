@@ -338,6 +338,7 @@ final class OpenNativeCompletionProbe {
         Class<?> current = type;
         int depth = 0;
         int count = 0;
+        int fieldIndex = 0;
         while (current != null && current != Object.class && depth <= maxDepth) {
             Field[] declaredFields;
             try {
@@ -356,6 +357,7 @@ final class OpenNativeCompletionProbe {
                 continue;
             }
             for (Field field : declaredFields) {
+                int memberIndex = fieldIndex++;
                 try {
                     if (Modifier.isStatic(field.getModifiers())) continue;
                     line(out, prefix + ".field." + count++,
@@ -363,7 +365,7 @@ final class OpenNativeCompletionProbe {
                                     + ":" + field.getType().getName());
                     if (count >= 48) break;
                 } catch (LinkageError | RuntimeException error) {
-                    line(out, prefix + ".fieldMetadataError." + count,
+                    line(out, prefix + ".fieldMetadataError." + memberIndex,
                             error.getClass().getName());
                 }
             }
