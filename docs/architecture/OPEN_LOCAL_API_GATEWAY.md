@@ -2,7 +2,7 @@
 
 ## Current implementation
 
-The Open edition now has an in-process loopback HTTP gateway implemented in
+The Open edition now has an in-process local/LAN HTTP gateway implemented in
 `module/src/ds/dsh/DeepSeek/OpenLocalApiGateway.java`. It uses only Android/JDK APIs and the
 stable `z2.Backend` contract. It does not load the Closed payload (`z14` / `z1`) and does not
 depend on a payload ABI.
@@ -27,7 +27,7 @@ unavailable rather than falsely advertising model readiness.
 ## Security and resource limits
 
 - Disabled by default; the existing Local API enable switch is the opt-in.
-- Binds exclusively to `127.0.0.1`; LAN and public binding are intentionally unavailable.
+- Defaults to `127.0.0.1`. An explicit UI opt-in enables `0.0.0.0` binding; every accepted socket is then restricted to loopback or IPv4 sources in `192.168.0.0/16`. Other private ranges, public IPv4, and IPv6 are rejected.
 - Uses a per-install random Bearer token stored in the host app's private files directory.
 - Supports token rotation from the existing Local API controls.
 - Default port is 8765; the existing port setting persists a custom port in private preferences.
@@ -40,7 +40,7 @@ unavailable rather than falsely advertising model readiness.
 ## Known limitations before release
 
 - No Responses API, Anthropic protocol, tools/function calling, image input, or audio input.
-- No LAN access, TLS, external tunnel, or remote port forwarding.
+- LAN access is limited to `192.168.0.0/16`; it uses plain HTTP, so enable it only on a trusted Wi-Fi/LAN. No TLS, external tunnel, or remote port forwarding.
 - The native completion adapter is not implemented in Open yet. Capturing the official host
   transport and PoW objects is insufficient because the existing completion method delegates to
   the Closed-only payload. The Gateway deliberately returns 503 until a public-source adapter is
