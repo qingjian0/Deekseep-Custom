@@ -4286,7 +4286,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         // not persisted across process restarts.  The inner re-enrollment block below handles the
         // no-grant case so that a process restart automatically re-enrolls rather than silently
         // leaving the local API stuck in a disabled state until the user manually toggles.
-        if (context == null || !BuildInfo.LOCAL_API_INCLUDED
+        boolean openEdition = "Open".equals(BuildInfo.BUILD_EDITION)
+                && !BuildInfo.LOCAL_API_INCLUDED;
+        if (context == null || (!BuildInfo.LOCAL_API_INCLUDED && !openEdition)
                 || !new File(HookAccountLoginSecurity.LOCAL_API_ENABLED_FILE).exists()
                 || !z16.allowSensitiveFeature(context)) return;
         final Context appContext = context.getApplicationContext();
@@ -4294,7 +4296,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         // restart, re-enroll before resolving z1; otherwise the facade reports port=0/key empty
         // and the UI misleadingly looks like a broken configuration.  Activation is idempotent
         // and server-bound, so this also keeps a rotated payload key from being reused offline.
-        if (!CloudPromptClient.hasLocalApiGrant(appContext)) {
+        if (BuildInfo.LOCAL_API_INCLUDED && !CloudPromptClient.hasLocalApiGrant(appContext)) {
             CloudPromptClient.activate(appContext, new CloudPromptClient.Callback<Boolean>() {
                 @Override public void done(Boolean ok, Throwable error) {
                     if (Boolean.TRUE.equals(ok)) {
