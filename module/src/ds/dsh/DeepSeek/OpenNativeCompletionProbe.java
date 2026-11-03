@@ -143,25 +143,46 @@ final class OpenNativeCompletionProbe {
                                 error.getClass().getName());
                         continue;
                     }
+                    int methodIndex = 0;
                     for (Method method : declaredMethods) {
-                        Class<?>[] p = method.getParameterTypes();
+                        Class<?>[] p;
+                        Class<?> returnType;
+                        try {
+                            p = method.getParameterTypes();
+                            returnType = method.getReturnType();
+                        } catch (LinkageError | RuntimeException error) {
+                            classLoadFailures++;
+                            line(out, "dex.methodMetadataError." + scanned + "." + methodIndex,
+                                    error.getClass().getName());
+                            methodIndex++;
+                            continue;
+                        }
                         if (p.length != 2 || p[1] != Long.class
                                 || !p[0].isAssignableFrom(requestType)
-                                || method.getReturnType().isPrimitive()
-                                || method.getReturnType() == Void.TYPE) {
+                                || returnType.isPrimitive() || returnType == Void.TYPE) {
+                            methodIndex++;
                             continue;
                         }
                         if (candidates < 24) {
-                            Type generic = method.getGenericReturnType();
+                            String generic;
+                            try {
+                                generic = String.valueOf(method.getGenericReturnType());
+                            } catch (LinkageError | RuntimeException error) {
+                                classLoadFailures++;
+                                generic = "<unavailable:" + error.getClass().getName() + ">";
+                                line(out, "dex.genericMetadataError." + scanned + "." + methodIndex,
+                                        error.getClass().getName());
+                            }
                             line(out, "transport.candidate." + candidates,
                                     owner.getName() + "." + method.getName()
                                             + "(" + parameters(p) + ")->"
-                                            + method.getReturnType().getName()
-                                            + " generic=" + String.valueOf(generic));
+                                            + returnType.getName()
+                                            + " generic=" + generic);
                             appendFields(out, "transport" + candidates, owner, 1);
                         }
                         candidates++;
                         transportOwners.add(owner);
+                        methodIndex++;
                     }
                 }
                 line(out, "dex.eligibleClassNameCount", String.valueOf(eligibleClassNames));
@@ -185,21 +206,38 @@ final class OpenNativeCompletionProbe {
                                     error.getClass().getName());
                             continue;
                         }
+                        int fieldIndex = 0;
                         for (Field field : declaredFields) {
-                            if (Modifier.isStatic(field.getModifiers())
-                                    || field.getType().isPrimitive()) continue;
+                            int modifiers;
+                            Class<?> fieldType;
+                            try {
+                                modifiers = field.getModifiers();
+                                fieldType = field.getType();
+                            } catch (LinkageError | RuntimeException error) {
+                                classLoadFailures++;
+                                line(out, "manager.fieldMetadataError." + managerCandidates
+                                                + "." + fieldIndex,
+                                        error.getClass().getName());
+                                fieldIndex++;
+                                continue;
+                            }
+                            if (Modifier.isStatic(modifiers) || fieldType.isPrimitive()) {
+                                fieldIndex++;
+                                continue;
+                            }
                             for (Class<?> transportOwner : transportOwners) {
-                                if (field.getType().isAssignableFrom(transportOwner)) {
+                                if (fieldType.isAssignableFrom(transportOwner)) {
                                     if (managerCandidates < 24) {
                                         line(out, "manager.candidate." + managerCandidates,
                                                 owner.getName() + "." + field.getName()
-                                                        + ":" + field.getType().getName());
+                                                        + ":" + fieldType.getName());
                                         appendConstructors(out, "manager" + managerCandidates, owner);
                                     }
                                     managerCandidates++;
                                     break;
                                 }
                             }
+                            fieldIndex++;
                         }
                     }
                 }
@@ -302,11 +340,16 @@ final class OpenNativeCompletionProbe {
                 continue;
             }
             for (Field field : declaredFields) {
-                if (Modifier.isStatic(field.getModifiers())) continue;
-                line(out, prefix + ".field." + count++,
-                        current.getSimpleName() + "." + field.getName()
-                                + ":" + field.getType().getName());
-                if (count >= 48) break;
+                try {
+                    if (Modifier.isStatic(field.getModifiers())) continue;
+                    line(out, prefix + ".field." + count++,
+                            current.getSimpleName() + "." + field.getName()
+                                    + ":" + field.getType().getName());
+                    if (count >= 48) break;
+                } catch (LinkageError | RuntimeException error) {
+                    line(out, prefix + ".fieldMetadataError." + count,
+                            error.getClass().getName());
+                }
             }
             if (count >= 48) break;
             current = current.getSuperclass();
