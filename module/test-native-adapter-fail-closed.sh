@@ -17,12 +17,12 @@ mkdir -p "$REPORT_OUT"
 javac -source 8 -target 8 -nowarn -d "$REPORT_OUT" "$REPORT" "$REPORT_TEST"
 java -cp "$REPORT_OUT" ds.dsh.DeepSeek.NativeProbeReportTest
 
-python - "$MAIN" "$STUB" "$FACADE" "$PROBE" "$Z18" "$HOST_V271" "$CHAT" <<'PY'
+python - "$MAIN" "$STUB" "$FACADE" "$PROBE" "$Z18" "$HOST_V271" "$CHAT" "$REPORT" <<'PY'
 import pathlib
 import re
 import sys
 
-main, stub, facade, probe, z18, host_v271, chat = [
+main, stub, facade, probe, z18, host_v271, chat, report = [
     pathlib.Path(path).read_text(encoding="utf-8") for path in sys.argv[1:]
 ]
 
@@ -166,10 +166,10 @@ if "transportOwner.isAssignableFrom(field.getType())" in probe:
     raise SystemExit("Manager matching must reject reverse assignability, which cannot hold the transport instance")
 require(probe, r'appendConstructors\(out, "request", requestType\).*?appendConstructors\(out, "manager" \+ managerCandidates, owner\).*?appendConstructors\(StringBuilder out, String prefix, Class<\?> type\).*?prefix \+ "\.constructorCount".*?prefix \+ "\.ctor\."', "request and manager constructor diagnostics use independent namespaces")
 require(probe, r"if \(completed\) REPORTED\.set\(true\)", "only a complete inventory becomes terminal")
-require(probe, r"MAX_REPORT_CHARS\s*=\s*12_000", "probe report has an explicit size bound")
-require(probe, r"REPORT_TERMINAL_RESERVE\s*=\s*64", "probe report reserves space for terminal diagnostics")
-require(probe, r"contentLimit\s*=\s*MAX_REPORT_CHARS\s*-\s*REPORT_TERMINAL_RESERVE\s*-\s*marker\.length\(\)", "probe report reserves room for both truncation marker and terminal timing")
-require(probe, r'"probe\.elapsedMs"\.equals\(key\).*?MAX_REPORT_CHARS.*?return;.*?probe\.truncated=true', "truncated reports retain terminal elapsed time and expose truncation")
+require(report, r"MAX_REPORT_CHARS\s*=\s*12_000", "probe report has an explicit size bound")
+require(report, r"REPORT_TERMINAL_RESERVE\s*=\s*64", "probe report reserves space for terminal diagnostics")
+require(report, r"contentLimit\s*=\s*MAX_REPORT_CHARS\s*-\s*REPORT_TERMINAL_RESERVE\s*-\s*marker\.length\(\)", "probe report reserves room for both truncation marker and terminal timing")
+require(report, r'"probe\.elapsedMs"\.equals\(key\).*?MAX_REPORT_CHARS.*?return;.*?probe\.truncated=true', "truncated reports retain terminal elapsed time and expose truncation")
 
 print("Native probe bounded-retry regression checks passed")
 print("Native adapter fail-closed and read-only probe source checks passed")
