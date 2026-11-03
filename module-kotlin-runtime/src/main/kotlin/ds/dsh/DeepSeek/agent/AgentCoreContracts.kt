@@ -87,7 +87,7 @@ class AgentEvent(
     }
 }
 
-interface AgentEventSink {
+fun interface AgentEventSink {
     /** Return false when the downstream client no longer accepts events. */
     fun onEvent(event: AgentEvent): Boolean
 }
