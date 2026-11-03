@@ -3955,6 +3955,11 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         return z13.connectionInfo();
     }
 
+    /** Read-only 2.7.x host structure inventory; contains signatures, not request data. */
+    static String openNativeCompletionProbeStatus() {
+        return OpenNativeCompletionProbe.status();
+    }
+
     static String rotateLocalApiKey(Activity activity) {
         String key = z13.rotateKey(activity);
         return key == null ? UiLanguage.text(activity,
