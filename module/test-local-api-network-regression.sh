@@ -30,7 +30,13 @@ if missing:
     raise SystemExit("Missing LAN network lifecycle contract: " + ", ".join(missing))
 if "InetAddress.getByName(\"0.0.0.0\")" in source:
     raise SystemExit("Wildcard listener binding is forbidden")
-if "new ServerSocket(configuredPort, 16, InetAddress.getByName(address))" not in source:
+import re
+exact_bind = re.compile(
+    r"new\s+ServerSocket\s*\(\s*configuredPort\s*,\s*16\s*,"
+    r"\s*InetAddress\.getByName\(address\)\s*\)",
+    re.DOTALL,
+)
+if not exact_bind.search(source):
     raise SystemExit("LAN socket must bind the discovered exact IPv4 address")
 print("LAN network callback, exact-address binding, and lifecycle source checks passed")
 PY
