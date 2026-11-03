@@ -261,15 +261,19 @@ final class OpenLocalApiGateway {
                 + "API Key: " + apiKey() + "\n"
                 + "Models: deepseek-chat, deepseek-reasoner\n"
                 + "Loopback URL: " + endpoint() + "/v1\n"
-                + (lanEnabled ? "LAN URL: " + lanEndpoint() + "\n"
+                + (lanEnabled
+                        ? (boundLanAddress.length() > 0
+                                ? "LAN URL: " + lanEndpoint() + "\n"
+                                : "LAN access: enabled but no 192.168.x.x interface is bound\n")
                         : "LAN access: disabled\n")
                 + "Allowed remote range: 192.168.0.0/16\n"
                 + "Backend: " + (backend != null && backend.isReady()
                         ? "ready" : (backend == null ? "unavailable" : backend.readinessDetail()));
     }
     static String runtimeStatus() {
-        return RUNNING.get() ? "Running on "
-                + (lanEnabled ? "127.0.0.1 + 192.168.0.0/16" : "127.0.0.1")
+        return RUNNING.get() ? "Running on 127.0.0.1"
+                + (boundLanAddress.length() > 0 ? " + " + boundLanAddress
+                        : (lanEnabled ? " (LAN unavailable)" : ""))
                 + ":" + boundPort : "Stopped";
     }
 
