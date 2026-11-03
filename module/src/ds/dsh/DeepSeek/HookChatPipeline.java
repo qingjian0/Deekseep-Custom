@@ -2284,6 +2284,9 @@ final class HookChatPipeline {
             Main.extLog("[VP] captured API managers q71=" + (Main.liveQ71 != null)
                     + " transport=" + (Main.liveR92 != null));
         }
+        // Open builds need a verified, payload-independent adapter. Capture member signatures
+        // only; the probe never invokes host methods or reads credential/request field values.
+        OpenNativeCompletionProbe.inspect(Main.hostClassLoader, q71, transport);
     }
 
     // ── ★正式功能：expert 模式带图 → 后台视觉描述中继（同步就地改写请求）────────
