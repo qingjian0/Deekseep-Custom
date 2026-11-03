@@ -9,6 +9,11 @@ object UiLanguageCatalog {
     init {
                 // Catalog entries are exact-string translations. Substring replacement is deliberately
                 // disabled: even long Chinese labels can occur inside unrelated sentences.
+                addExact("默认仅监听本机；可单独开启 192.168.x.x 局域网访问。所有请求必须携带 Bearer API Key。", "Listens on this device only by default; enable 192.168.x.x LAN access separately. All requests require a Bearer API key.");
+                addExact("开放 192.168 局域网访问", "Allow 192.168 LAN access");
+                addExact("允许同一 192.168.x.x 网段设备访问；仍需 Bearer API Key。关闭后仅本机可访问。", "Allow devices on the same 192.168.x.x network to connect; a Bearer API key is still required. When off, only this device can connect.");
+                addExact("局域网访问已开启；请复制局域网 Base URL", "LAN access is enabled; copy the LAN Base URL");
+                addExact("局域网访问已关闭", "LAN access is disabled");
                 add("Deekseep", "Deekseep");
                 add("YunSeek", "YunSeek");
                 // YunSeek 1.8.1 additions
