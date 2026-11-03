@@ -63,8 +63,10 @@ print("HostCompat 2.7.x channel classification regression OK")
 probe = pathlib.Path(sys.argv[1]).with_name("OpenNativeCompletionProbe.java").read_text(encoding="utf-8")
 if "HostRemap.forName(name, false, loader)" in probe:
     raise SystemExit("native probe must not translate raw DEX class names")
-if probe.count("HostRemap.forDexName(name, loader)") != 2:
-    raise SystemExit("native probe must use direct DEX loading for both scan passes")
+if probe.count("HostRemap.forDexName(name, loader)") != 1:
+    raise SystemExit("native probe must load each eligible DEX class exactly once in its first pass")
+if "scannedTypes.add(owner)" not in probe or "for (Class<?> owner : scannedTypes)" not in probe:
+    raise SystemExit("native probe manager inventory must reuse first-pass DEX-loaded classes")
 main = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
 if "HostRemap.forName(nm, false, cl)" in main:
     raise SystemExit("transport structural scan must not translate raw DEX class names")
