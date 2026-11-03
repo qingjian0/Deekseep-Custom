@@ -130,6 +130,7 @@ DeepSeek Hook startup
 - Manager 字段候选仅接受 `field.getType().isAssignableFrom(transportOwner)`，即字段声明类型能够持有候选方法声明类的实例；反向可赋值关系不接受；
 - Request 与各 Manager 候选的构造器报告使用独立命名空间，避免诊断 key 相互覆盖；
 - 方法参数/返回类型、泛型返回类型、构造器参数和 Manager 字段元数据按单个成员隔离异常；方法签名、泛型返回类型及 Manager 字段元数据失败会写入诊断字段并计入 `classLoadFailures`，使 DEX 清单保持可重试；构造器参数及附加字段诊断错误单独记录，目前不计入 `classLoadFailures`；
+- Request、Transport、PoW 附加字段的元数据错误使用独立的遍历成员序号；连续多个字段异常不会复用同一个诊断键而相互覆盖；
 - 仅输出声明签名，不实例化宿主类、不调用候选方法、不读取对象字段值。
 - 报告增加 schema 版本、符合扫描条件的类名数量、成功加载数量、类加载失败数量和扫描耗时，便于比较不同宿主版本的覆盖范围。
 
