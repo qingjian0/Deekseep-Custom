@@ -369,6 +369,15 @@ final class HostRemap {
         return Class.forName(cls(oldName), init, cl);
     }
 
+    /** Load an exact class name enumerated from the live host DEX; never translate it. */
+    static Class<?> forDexName(String dexName, ClassLoader loader)
+            throws ClassNotFoundException {
+        if (dexName == null || dexName.isEmpty()) {
+            throw new ClassNotFoundException("empty DEX class name");
+        }
+        return Class.forName(dexName, false, loader);
+    }
+
     /** Name-collision overloads produced by the source rewriter for non-reflection variables. */
     static String name(java.io.File f) {
         return f == null ? null : f.getName();
