@@ -152,6 +152,7 @@ require(probe, r"method\.getGenericReturnType\(\).*?catch \(LinkageError \| Runt
 require(probe, r"field\.getModifiers\(\).*?field\.getType\(\).*?catch \(LinkageError \| RuntimeException error\).*?manager\.fieldMetadataError", "a single manager field metadata failure is counted and skipped")
 require(probe, r"owner\.getDeclaredFields\(\).*?catch \(LinkageError \| SecurityException error\).*?classLoadFailures\+\+", "a single manager field-metadata failure is counted and skipped")
 require(probe, r"getDeclaredConstructors\(\).*?catch \(LinkageError \| SecurityException error\).*?constructorError", "constructor diagnostics tolerate unavailable metadata")
+require(probe, r"constructor\.getParameterTypes\(\).*?catch \(LinkageError \| RuntimeException error\).*?constructorMetadataError", "a single constructor signature failure does not abort constructor inventory")
 require(probe, r"getDeclaredFields\(\).*?catch \(LinkageError \| SecurityException error\).*?fieldInventoryError", "field diagnostics tolerate unavailable metadata in superclasses")
 require(probe, r"field\.getType\(\)\.isAssignableFrom\(transportOwner\)\s*\)", "manager field matching only accepts declared types that can hold the transport owner")
 if "transportOwner\.isAssignableFrom\(field\.getType\(\)\)" in probe:
