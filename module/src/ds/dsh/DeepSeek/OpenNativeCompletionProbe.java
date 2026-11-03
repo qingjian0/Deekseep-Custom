@@ -117,6 +117,7 @@ final class OpenNativeCompletionProbe {
                 int scanned = 0;
                 int candidates = 0;
                 int managerCandidates = 0;
+                List<Class<?>> scannedTypes = new java.util.ArrayList<Class<?>>();
                 java.util.HashSet<Class<?>> transportOwners =
                         new java.util.HashSet<Class<?>>();
                 for (String name : names) {
@@ -130,6 +131,7 @@ final class OpenNativeCompletionProbe {
                         continue;
                     }
                     scanned++;
+                    scannedTypes.add(owner);
                     for (Method method : owner.getDeclaredMethods()) {
                         Class<?>[] p = method.getParameterTypes();
                         if (p.length != 2 || p[1] != Long.class
@@ -160,14 +162,10 @@ final class OpenNativeCompletionProbe {
                 // Find equivalent 2.7.x manager candidates structurally without instantiating
                 // classes or reading any live object values.
                 if (!transportOwners.isEmpty()) {
-                    for (String name : names) {
-                        if (name == null || name.indexOf('.') >= 0 || name.length() > 6) continue;
-                        Class<?> owner;
-                        try {
-                            owner = HostRemap.forDexName(name, loader);
-                        } catch (Throwable ignored) {
-                            continue;
-                        }
+                    // Reuse the successfully loaded classes from the first pass. Reloading each
+                    // name would duplicate class-loader work and could silently make the manager
+                    // inventory partial after the DEX scan had already been marked complete.
+                    for (Class<?> owner : scannedTypes) {
                         for (Field field : owner.getDeclaredFields()) {
                             if (Modifier.isStatic(field.getModifiers())
                                     || field.getType().isPrimitive()) continue;
