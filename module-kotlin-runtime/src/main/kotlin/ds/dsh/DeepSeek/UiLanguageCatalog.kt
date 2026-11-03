@@ -14,6 +14,8 @@ object UiLanguageCatalog {
                 addExact("允许同一 192.168.x.x 网段设备访问；仍需 Bearer API Key。关闭后仅本机可访问。", "Allow devices on the same 192.168.x.x network to connect; a Bearer API key is still required. When off, only this device can connect.");
                 addExact("局域网访问已开启；请复制局域网 Base URL", "LAN access is enabled; copy the LAN Base URL");
                 addExact("局域网访问已关闭", "LAN access is disabled");
+                addExact("原生适配诊断已复制", "Native adapter diagnostics copied");
+                addExact("诊断尚未运行。请返回 DeepSeek 主界面等待注入后重试。", "Diagnostics have not run yet. Return to the DeepSeek home screen, wait for injection, and try again.");
                 add("Deekseep", "Deekseep");
                 add("YunSeek", "YunSeek");
                 // YunSeek 1.8.1 additions
