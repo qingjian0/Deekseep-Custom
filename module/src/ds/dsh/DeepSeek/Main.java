@@ -3982,7 +3982,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     static String localApiLanEndpoint() { return z13.lanEndpoint(); }
 
-    static boolean isLocalApiLanEnabled() { return z13.isLanEnabled(); }
+    static boolean isLocalApiLanEnabled(Context context) { return z13.isLanEnabled(context); }
 
     static String setLocalApiLanEnabled(Context context, boolean enabled) {
         return z13.setLanEnabled(context, enabled);
