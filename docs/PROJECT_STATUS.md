@@ -130,3 +130,30 @@ Run `41649071834` 是本轮已核实的完整绿色 CI。它验证的是 JVM/脚
 - [Local API Gateway](architecture/OPEN_LOCAL_API_GATEWAY.md)
 - [Native Completion Adapter 调查](NATIVE_ADAPTER.md)
 - [ROI Agent Core 与 Gateway](architecture/ROI_AGENT_CORE_GATEWAY.md)
+
+
+## 8. 2026-11-03 后续状态补记
+
+### 8.1 2.7.x 旧捕获链断层
+
+提交 `4cf1d98` 与 `2f23d0c` 补充了 `docs/NATIVE_ADAPTER.md` 和 `module/test-native-adapter-fail-closed.sh`，记录并保护以下源码事实：
+
+- 2.7.x（versionCode 287/289/290）不再安装旧版 `network.payload-capture` 与 `chat.pow-manager-capture` 路径。
+- `liveQ71` / `liveR92` 的已知旧赋值入口依赖上述旧捕获链；2.7.x limited 路径也没有安装对应旧捕获。
+- Backend `isReady()` 仍要求 `BuildInfo.LOCAL_API_INCLUDED`、宿主 ClassLoader、`liveR92` 与 `liveQ71`。因此不能把 2.7.x 的版本映射识别或 full mapping 状态等同于 Backend 已就绪。
+- 回归保护覆盖 readiness 条件、旧 Hook 安装限制、HostV271 limited 白名单和旧入口锚点。未通过删除 readiness 条件、伪造对象或猜测混淆字段来绕过。
+
+### 8.2 CI 记录更新
+
+| Run | Commit | 结果 | 说明 |
+|---|---|---|---|
+| [41654682315](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41654682315) | `2f23d0c2ea435e0269eba0fb2757fc4e7ce19b99` | Success | Android Open build and lint、APK 结构/对齐/签名检查、产物上传、Regression tests、传统 Xposed Core 构建及宿主兼容回归全部成功 |
+
+该 Run 只证明当前源码回归与 Open Android 构建通过，不证明 2.7.x 原生 Completion 已接通，也不构成模拟器或真机验证。
+
+### 8.3 当前 Native Adapter 阻塞与下一步
+
+- Open Native Completion Adapter 仍未实现；Gateway 在适配器不可用时继续 fail-closed 返回 503。
+- 2.7.x 需要独立的 Request / Challenge / Transport / Flow 发现与绑定证据，不能复用未经证明的旧版 q71 / R92 对象路径。
+- Closed payload 中 `z18` 的定义加载器、真实声明类与执行签名仍未证实；不得与仓库普通 `z18` 类混淆。
+- 下一步优先建立 287、289、290 分渠道证据矩阵，并检查仓库内所有 `liveQ71` / `liveR92` 写入点；若无官方 APK 静态证据或设备验证，不实现猜测性调用。
