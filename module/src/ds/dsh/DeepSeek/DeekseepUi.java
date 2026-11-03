@@ -2166,7 +2166,8 @@ public final class DeekseepUi {
                     @Override public void onClick(View v) { JavaPluginUi.show(act); }
                 }));
 
-        if (BuildInfo.PROTECTED_BUILD && BuildInfo.LOCAL_API_INCLUDED && !isClosedV241()) {
+        if ((BuildInfo.PROTECTED_BUILD && BuildInfo.LOCAL_API_INCLUDED && !isClosedV241())
+                || "Open".equals(BuildInfo.BUILD_EDITION)) {
             card.addView(makeDivider(act, divColor));
             card.addView(toolActionRow(act, isClosedV236OrV241Feature()
                             ? "本地 API" : "本地 API · 实验性",
@@ -2575,7 +2576,8 @@ public final class DeekseepUi {
                         JavaPluginUi.show(act);
                     }
                 }));
-        if (BuildInfo.PROTECTED_BUILD && BuildInfo.LOCAL_API_INCLUDED) {
+        if ((BuildInfo.PROTECTED_BUILD && BuildInfo.LOCAL_API_INCLUDED)
+                || "Open".equals(BuildInfo.BUILD_EDITION)) {
             card.addView(makeDivider(act, divColor));
             card.addView(toolActionRow(act, "本地 API 服务",
                     "配置 OpenAI / Anthropic 格式、后台保活、API Key、监听地址与请求统计。",
@@ -2857,7 +2859,7 @@ public final class DeekseepUi {
         enableTitle.setTypeface(Typeface.DEFAULT_BOLD);
         enableLabels.addView(enableTitle);
         TextView enableDesc = new TextView(act);
-        enableDesc.setText("监听本机和局域网；局域网调用同样必须携带 API Key。启用时前台保活会防止后台冻结；彻底退出 DeepSeek 后监听会停止，关闭时会清理复用的服务端会话。");
+        enableDesc.setText("仅监听 127.0.0.1；所有请求必须携带 Bearer API Key。服务随 DeepSeek 进程运行，关闭后停止监听。");
         enableDesc.setTextColor(subColor);
         enableDesc.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         enableLabels.addView(enableDesc);
