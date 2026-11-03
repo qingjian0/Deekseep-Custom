@@ -2885,15 +2885,14 @@ public final class DeekseepUi {
                         String error = Main.setLocalApiLanEnabled(act, checked);
                         if (error != null) {
                             button.setChecked(!checked);
-                            feedback.setText(UiLanguage.dynamic(act, error));
+                            Toast.makeText(act, UiLanguage.dynamic(act, error),
+                                    Toast.LENGTH_LONG).show();
                         } else {
-                            feedback.setText(UiLanguage.dynamic(act, checked
+                            Toast.makeText(act, UiLanguage.dynamic(act, checked
                                     ? "局域网访问已开启；请复制局域网 Base URL"
-                                    : "局域网访问已关闭"));
+                                    : "局域网访问已关闭"),
+                                    Toast.LENGTH_SHORT).show();
                         }
-                        connectionInfo.setText(UiLanguage.dynamic(
-                                act, Main.localApiConnectionInfo()));
-                        runtime.setText(UiLanguage.dynamic(act, Main.localApiRuntimeStatus()));
                     }
                 }));
 
