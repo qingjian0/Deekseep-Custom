@@ -155,7 +155,7 @@ final class OpenLocalApiGateway {
             if (RUNNING.get() && current != null) {
                 stop();
                 start(app, current);
-                if (!RUNNING.get() || (enabled && boundLanAddress.length() == 0)) {
+                if (!RUNNING.get()) {
                     app.getSharedPreferences("dsh_local_api", Context.MODE_PRIVATE)
                             .edit().putBoolean("lan_enabled", previous).commit();
                     lanEnabled = previous;
@@ -266,7 +266,10 @@ final class OpenLocalApiGateway {
         } catch (Exception error) {
             Main.log("Open Local API LAN rebind failed: "
                     + error.getClass().getSimpleName());
-            if (current == null || current.isClosed()) {
+            if (current == null || current.isClosed() || !address.equals(boundLanAddress)) {
+                if (current != null && !current.isClosed()) {
+                    try { current.close(); } catch (Exception ignored) {}
+                }
                 lanServer = null;
                 boundLanAddress = "";
             }
