@@ -33,7 +33,11 @@ final class OpenNativeCompletionProbe {
             return;
         }
         StringBuilder out = new StringBuilder(8192);
+        final long startedNanos = System.nanoTime();
+        int eligibleClassNames = 0;
+        int classLoadFailures = 0;
         try {
+            line(out, "report.schema", "2");
             Class<?> requestType = HostCompat.load(loader, "ew0");
             line(out, "edition", BuildInfo.BUILD_EDITION);
             line(out, "host", HostCompat.diagnosticSummary());
@@ -63,10 +67,12 @@ final class OpenNativeCompletionProbe {
                         new java.util.HashSet<Class<?>>();
                 for (String name : names) {
                     if (name == null || name.indexOf('.') >= 0 || name.length() > 6) continue;
+                    eligibleClassNames++;
                     Class<?> owner;
                     try {
                         owner = HostRemap.forName(name, false, loader);
                     } catch (Throwable ignored) {
+                        classLoadFailures++;
                         continue;
                     }
                     scanned++;
@@ -91,7 +97,9 @@ final class OpenNativeCompletionProbe {
                         transportOwners.add(owner);
                     }
                 }
+                line(out, "dex.eligibleClassNameCount", String.valueOf(eligibleClassNames));
                 line(out, "dex.scannedClassCount", String.valueOf(scanned));
+                line(out, "dex.classLoadFailureCount", String.valueOf(classLoadFailures));
                 line(out, "transport.candidateCount", String.valueOf(candidates));
 
                 // q71 in earlier host builds owned an r92 transport in an instance field.
@@ -130,6 +138,9 @@ final class OpenNativeCompletionProbe {
         } catch (Throwable error) {
             line(out, "probe.error", error.getClass().getName() + ": "
                     + String.valueOf(error.getMessage()));
+        } finally {
+            line(out, "probe.elapsedMs", String.valueOf(
+                    (System.nanoTime() - startedNanos) / 1_000_000L));
         }
         report = out.toString();
         Main.extLog("[OPEN_NATIVE_COMPLETION_PROBE]\n" + report);
