@@ -192,6 +192,13 @@ final class OpenLocalApiGateway {
                 return;
             }
             if ("GET".equals(request.method) && "/v1/models".equals(request.path)) {
+                z2.Backend modelBackend = backend;
+                if (modelBackend == null || !modelBackend.isReady()) {
+                    sendError(out, 503, "model_not_ready",
+                            modelBackend == null ? "Model backend unavailable"
+                                    : modelBackend.readinessDetail());
+                    return;
+                }
                 JSONObject model = new JSONObject().put("id", "deepseek-chat")
                         .put("object", "model").put("owned_by", "local");
                 JSONObject reasoner = new JSONObject().put("id", "deepseek-reasoner")
