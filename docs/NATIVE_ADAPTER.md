@@ -246,3 +246,22 @@ The probe remains diagnostic-only: it does not instantiate host classes, invoke 
 The 2.7.x marker path identifies code290 by its `c02` Request and `nw1` marker interface. Unlike older Google Play builds, this host does not expose the PairIP marker used by the initial channel probe. Keep the private `googlePlay` flag unchanged: it selects the legacy 2.3.x symbol-mapping chain, which must remain on the reviewed 2.4.1 base symbols before `HostRemap`. The public `isGooglePlay()` accessor now returns `googlePlay || isIntl27()`, exposing code290 as Google Play to channel-dependent feature decisions without changing the legacy symbol-mapping path.
 
 Regression coverage in `module/test-hostmap-regression.sh` checks that code290 sets the channel flag. The mapping tables are still selected independently by versionCode; channel classification does not establish Native Completion support.
+
+
+## 2.7.x probe report collection (2026-11-04)
+
+The probe is not scheduled on every app launch. In the Open build, `Main.startz1()` first checks the explicit Local API enabled marker; only then does it call `OpenNativeCompletionProbe.scheduleHostInspection(hostClassLoader)`. The inventory runs on a daemon worker and makes at most three attempts (initial, +1 s, +3 s) until a complete non-empty DEX inventory is obtained. A partial or empty inventory remains retryable; a complete inventory becomes terminal for the current process.
+
+To collect a report on a test device:
+
+1. Install an Open build containing the probe diagnostics.
+2. In DeepSeek module settings, open **工程 → 本地 API · 实验性** and explicitly enable Local API. This enables the diagnostic scheduling gate; it does not make Native Completion available and does not mean a model request will succeed.
+3. Force-stop DeepSeek, launch it again, and allow startup to settle. The probe is passive and does not send a completion request.
+4. Retrieve the external mirror file `/storage/emulated/0/deekseep_vision_m.log`. The primary private app file is `/data/data/com.deepseek.chat/files/deekseep_vision.log` and normally requires an authorized app-private/log collection path.
+5. Extract the complete block beginning `[OPEN_NATIVE_COMPLETION_PROBE]`, including all lines through the final `probe.elapsedMs` field. Do not trim candidate or loader-chain lines.
+
+The report currently records `host`, `loader.chain.*`, `dex.scan.scope`, `dex.classCount`, `dex.eligibleClassNameCount`, `dex.scannedClassCount`, `dex.classLoadFailureCount`, `transport.candidateCount`, `manager.candidateCount`, and `probe.elapsedMs`. The scan covers only the supplied `BaseDexClassLoader.pathList.dexElements`; parent and separate split/dynamic loaders are not recursively enumerated. Candidate entries are structural hints, not proof of a live Transport or manager.
+
+Before sharing, inspect the file and redact unrelated log records, account identifiers, tokens, authorization headers, prompts, message bodies, and personal data. The probe block is designed to contain declarations and signatures only; share the complete probe block rather than the entire log file.
+
+If the marker is absent, first confirm that the installed APK is an Open build with the probe changes and that Local API was explicitly enabled before restarting DeepSeek. Absence of a report is not evidence that the host has no matching classes.
