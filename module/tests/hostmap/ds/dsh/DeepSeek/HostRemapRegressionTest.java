@@ -25,8 +25,7 @@ public final class HostRemapRegressionTest {
             Class<?> fixture = HostRemap.forDexName(DexInitializationFixture.class.getName(),
                     HostRemapRegressionTest.class.getClassLoader());
             check(fixture == DexInitializationFixture.class, "DEX fixture class mismatch");
-            check(!DexInitializationFixture.initialized,
-                    "forDexName must use initialize=false");
+            check(!fixtureInitialized, "forDexName must use initialize=false");
         } catch (ClassNotFoundException error) {
             throw new AssertionError("direct DEX class loading failed", error);
         }
@@ -34,7 +33,15 @@ public final class HostRemapRegressionTest {
                 + HostRemap.classCount());
     }
 
-    private static boolean fixtureInitialized;\n\n    public static final class DexInitializationFixture {\n        static { fixtureInitialized = true; }\n    }\n\n    private static void check(boolean condition, String message) {
+    private static boolean fixtureInitialized;
+
+    public static final class DexInitializationFixture {
+        static {
+            fixtureInitialized = true;
+        }
+    }
+
+    private static void check(boolean condition, String message) {
         if (!condition) throw new AssertionError(message);
     }
 }
