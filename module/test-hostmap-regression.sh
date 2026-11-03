@@ -59,4 +59,18 @@ if not re.search(r"channel=.*isInternationalChannel\(\)", source):
 if not re.search(r"return v271 && hostCode == 290;", source):
     raise SystemExit("isIntl27 must identify only the 2.7.2 international host")
 print("HostCompat 2.7.x channel classification regression OK")
+
+probe = pathlib.Path(sys.argv[1]).with_name("OpenNativeCompletionProbe.java").read_text(encoding="utf-8")
+if "HostRemap.forName(name, false, loader)" in probe:
+    raise SystemExit("native probe must not translate raw DEX class names")
+if probe.count("HostRemap.forDexName(name, loader)") != 2:
+    raise SystemExit("native probe must use direct DEX loading for both scan passes")
+main = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
+if "HostRemap.forName(nm, false, cl)" in main:
+    raise SystemExit("transport structural scan must not translate raw DEX class names")
+if "HostRemap.forDexName(nm, cl)" not in main:
+    raise SystemExit("transport structural scan must use direct DEX loading")
+if not re.search(r"static Class<?> forDexName\\(String dexName, ClassLoader loader\\).*?Class\\.forName\\(dexName, false, loader\\)", pathlib.Path(sys.argv[1]).with_name("HostRemap.java").read_text(encoding="utf-8"), re.S):
+    raise SystemExit("HostRemap.forDexName must load exact names without initialization")
+print("Runtime DEX class-name namespace regression OK")
 PY
