@@ -118,6 +118,9 @@ public final class z13 {
     }
 
     static String rootEndpoint() {
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
+            return OpenLocalApiGateway.endpoint();
+        }
         return callString("rootEndpoint");
     }
 
@@ -130,6 +133,9 @@ public final class z13 {
     }
 
     static String openAiEndpoint() {
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
+            return OpenLocalApiGateway.endpoint() + "/v1/chat/completions";
+        }
         return callString("openAiEndpoint");
     }
 
@@ -160,10 +166,16 @@ public final class z13 {
     }
 
     static String connectionInfo() {
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
+            return OpenLocalApiGateway.connectionInfo();
+        }
         return callString("connectionInfo");
     }
 
     static String runtimeStatus() {
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
+            return OpenLocalApiGateway.runtimeStatus();
+        }
         return callString("runtimeStatus");
     }
 
@@ -208,6 +220,9 @@ public final class z13 {
     }
 
     static String rotateKey(Context context) {
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
+            return OpenLocalApiGateway.rotateKey(context);
+        }
         try {
             Class<?> g = gateway();
             if (g == null) return null;
