@@ -20,7 +20,9 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -55,7 +57,8 @@ final class OpenLocalApiGateway {
                     InetAddress.getByName("127.0.0.1"));
             server = socket;
             boundPort = socket.getLocalPort();
-            clients = Executors.newFixedThreadPool(2);
+            clients = new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS,
+                    new ArrayBlockingQueue<Runnable>(8));
             RUNNING.set(true);
             acceptThread = new Thread(() -> acceptLoop(socket), "dsh-local-api-accept");
             acceptThread.setDaemon(true);
@@ -126,7 +129,15 @@ final class OpenLocalApiGateway {
                 if (pool == null) {
                     client.close();
                 } else {
-                    pool.execute(() -> handle(client));
+                    try {
+                        pool.execute(() -> handle(client));
+                    } catch (java.util.concurrent.RejectedExecutionException saturated) {
+                        try {
+                            OutputStream rejected = client.getOutputStream();
+                            sendError(rejected, 503, "server_busy", "Too many queued requests");
+                            client.close();
+                        } catch (Exception ignored) {}
+                    }
                 }
             } catch (Exception error) {
                 if (RUNNING.get()) Main.log("Open Local API accept failed: "
@@ -239,7 +250,7 @@ final class OpenLocalApiGateway {
                 try { send(delta); return true; }
                 catch (Exception failure) { disconnected.set(true); return false; }
             }
-            @Override public boolean onReasoning(String delta) throws Exception { return onText(delta); }
+            @Override public boolean onReasoning(String delta) { return !disconnected.get(); }
             @Override public boolean isCancelled() { return disconnected.get(); }
         };
         try {
