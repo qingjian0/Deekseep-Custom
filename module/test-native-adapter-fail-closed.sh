@@ -191,6 +191,21 @@ require(
     "legacy PoW diagnostics isolate individual method metadata failures",
 )
 require(probe, r"if \(completed\) REPORTED\.set\(true\)", "only a complete inventory becomes terminal")
+require(
+    probe,
+    r"static void inspect\(ClassLoader loader, Object powManager, Object transport\).*?REPORTED\.get\(\).*?INSPECTING\.compareAndSet\(false, true\)",
+    "legacy object probe serializes inspection without prematurely claiming terminal completion",
+)
+require(
+    probe,
+    r"boolean completed = false;.*?appendPowMethods\(out, powManager\.getClass\(\)\);\s*completed = true;.*?if \(completed\) REPORTED\.set\(true\);\s*INSPECTING\.set\(false\)",
+    "legacy object probe marks terminal only after a completed inventory and always releases inspection lock",
+)
+require(
+    probe,
+    r"appendFields.*?current\.getSuperclass\(\).*?catch \(LinkageError \| RuntimeException superclassError\).*?superclassError",
+    "field inventory isolates superclass metadata failures",
+)
 require(report, r"MAX_REPORT_CHARS\s*=\s*12_000", "probe report has an explicit size bound")
 require(report, r"REPORT_TERMINAL_RESERVE\s*=\s*64", "probe report reserves space for terminal diagnostics")
 require(report, r"contentLimit\s*=\s*MAX_REPORT_CHARS\s*-\s*REPORT_TERMINAL_RESERVE\s*-\s*marker\.length\(\)", "probe report reserves room for both truncation marker and terminal timing")
