@@ -2,7 +2,7 @@
 
 > 状态日期：2026-11-03  
 > 适用分支：`work/roi-agent-core-kotlin`  
-> 当前基线提交：`c87ce1b67e57788ff8f53777f4d583f5a00a6151`  
+> 最近一次 Runtime 修复提交：`c87ce1b67e57788ff8f53777f4d583f5a00a6151`；后续提交用于文档校准  
 > 宿主：官方 DeepSeek Android `com.deepseek.chat`  
 > 宿主版本目标：国内版 2.7.1（versionCode 287）、国内版 2.7.2（289）、Google Play / 国际版 2.7.2（290）
 
@@ -22,7 +22,8 @@
 | 项目 | 当前值 |
 |---|---|
 | 工作分支 | `work/roi-agent-core-kotlin` |
-| 当前 HEAD | `c87ce1b67e57788ff8f53777f4d583f5a00a6151` |
+| 最近一次 Runtime 修复 | `c87ce1b67e57788ff8f53777f4d583f5a00a6151` |
+| 最近一次文档整理提交（提交前快照） | `20320a2d36a2da456f0c768bc36ced15d1fae856` |
 | 前一提交 | `4f80b5a658e9f22910292cf569f403e8b6f540d8` |
 | Kotlin 架构基线 | `refactor/kotlin-hook-architecture` |
 | 与架构基线关系 | 领先 77 个提交、落后 0 个提交（最近一次 compare 结果） |
@@ -95,9 +96,10 @@
 | Run | Commit | 结果 | 说明 |
 |---|---|---|---|
 | [41647101079](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41647101079) | `4f80b5a` | Failure | Android Open build and lint 成功；Regression 因两条新 Toast 文案缺少精确译文失败 |
-| [41648546478](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41648546478) | `c87ce1b` | Queued（提交时） | 已补齐两条精确译文，等待重新验证 |
+| [41648546478](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41648546478) | `c87ce1b` | Cancelled | 后续文档提交触发新工作流并取消旧运行；修复尚未获得独立 CI 通过证据 |
+| [41648878672](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41648878672) | `20320a2` | Queued（最近查询） | 当前文档整理批次的工作流；后续提交可能使其被新运行替代 |
 
-修复提交后的 CI 结果必须重新查询，不以代码推断替代工作流结果。
+修复提交后的 CI 结果必须重新查询，不以代码推断替代工作流结果。由于 GitHub Actions concurrency 设置为同一分支新提交会取消旧运行，必须等待最后一个文档/代码提交对应的完整 Run，才能形成最终回归结论。
 
 ## 5. 下一批任务顺序
 
