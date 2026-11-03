@@ -39,7 +39,7 @@ for code in 287 289 290; do
     java -cp "$CLASSES:$RESOURCES" ds.dsh.DeepSeek.HostRemapRegressionTest "$code"
 done
 
-python - "$MODULE/src/ds/dsh/DeepSeek/HostCompat.java" <<'PY'
+python - "$MODULE/src/ds/dsh/DeepSeek/HostCompat.java" "$MODULE/src/ds/dsh/DeepSeek/Main.java" <<'PY'
 import pathlib
 import re
 import sys
@@ -65,12 +65,12 @@ if "HostRemap.forName(name, false, loader)" in probe:
     raise SystemExit("native probe must not translate raw DEX class names")
 if probe.count("HostRemap.forDexName(name, loader)") != 2:
     raise SystemExit("native probe must use direct DEX loading for both scan passes")
-main = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
+main = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
 if "HostRemap.forName(nm, false, cl)" in main:
     raise SystemExit("transport structural scan must not translate raw DEX class names")
 if "HostRemap.forDexName(nm, cl)" not in main:
     raise SystemExit("transport structural scan must use direct DEX loading")
-if not re.search(r"static Class<?> forDexName\\(String dexName, ClassLoader loader\\).*?Class\\.forName\\(dexName, false, loader\\)", pathlib.Path(sys.argv[1]).with_name("HostRemap.java").read_text(encoding="utf-8"), re.S):
+if not re.search(r"static Class<?> forDexName\(String dexName, ClassLoader loader\).*?Class\.forName\(dexName, false, loader\)", pathlib.Path(sys.argv[1]).with_name("HostRemap.java").read_text(encoding="utf-8"), re.S):
     raise SystemExit("HostRemap.forDexName must load exact names without initialization")
 print("Runtime DEX class-name namespace regression OK")
 PY
