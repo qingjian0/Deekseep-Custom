@@ -130,8 +130,32 @@ public final class z13 {
     }
 
     static String lanEndpoint() {
-        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) return "";
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
+            return OpenLocalApiGateway.lanEndpoint();
+        }
         return callString("lanEndpoint");
+    }
+
+    static boolean isLanEnabled() {
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
+            return OpenLocalApiGateway.isLanEnabled();
+        }
+        return callBool("isLanEnabled");
+    }
+
+    static String setLanEnabled(Context context, boolean enabled) {
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
+            return OpenLocalApiGateway.setLanEnabled(context, enabled);
+        }
+        try {
+            Class<?> g = gateway();
+            if (g == null) return "Gateway unavailable";
+            Method m = method("setLanEnabled", g, "setLanEnabled", Context.class, boolean.class);
+            return m == null ? "LAN setting unavailable"
+                    : (String) m.invoke(null, context, enabled);
+        } catch (Throwable ignored) {
+            return "LAN setting failed";
+        }
     }
 
     static String openAiEndpoint() {
