@@ -165,6 +165,31 @@ require(probe, r"fieldType\.isAssignableFrom\(transportOwner\)", "manager field 
 if "transportOwner.isAssignableFrom(field.getType())" in probe:
     raise SystemExit("Manager matching must reject reverse assignability, which cannot hold the transport instance")
 require(probe, r'appendConstructors\(out, "request", requestType\).*?appendConstructors\(out, "manager" \+ managerCandidates, owner\).*?appendConstructors\(StringBuilder out, String prefix, Class<\?> type\).*?prefix \+ "\.constructorCount".*?prefix \+ "\.ctor\."', "request and manager constructor diagnostics use independent namespaces")
+require(
+    probe,
+    r"appendTransportMethods.*?current\.getDeclaredMethods\(\).*?catch \(LinkageError \| SecurityException error\).*?transport\.inventoryError",
+    "legacy transport diagnostics isolate class method inventory failures",
+)
+require(
+    probe,
+    r"method\.getParameterTypes\(\).*?method\.getReturnType\(\).*?method\.getGenericReturnType\(\).*?catch \(LinkageError \| RuntimeException error\).*?transport\.methodMetadataError",
+    "legacy transport diagnostics isolate individual method metadata failures",
+)
+require(
+    probe,
+    r"current\.getSuperclass\(\).*?catch \(LinkageError \| RuntimeException error\).*?transport\.superclassError",
+    "legacy transport diagnostics tolerate superclass metadata failures",
+)
+require(
+    probe,
+    r"appendPowMethods.*?type\.getDeclaredMethods\(\).*?catch \(LinkageError \| SecurityException error\).*?pow\.inventoryError",
+    "legacy PoW diagnostics isolate method inventory failures",
+)
+require(
+    probe,
+    r"method\.getParameterTypes\(\).*?method\.getReturnType\(\).*?catch \(LinkageError \| RuntimeException error\).*?pow\.methodMetadataError",
+    "legacy PoW diagnostics isolate individual method metadata failures",
+)
 require(probe, r"if \(completed\) REPORTED\.set\(true\)", "only a complete inventory becomes terminal")
 require(report, r"MAX_REPORT_CHARS\s*=\s*12_000", "probe report has an explicit size bound")
 require(report, r"REPORT_TERMINAL_RESERVE\s*=\s*64", "probe report reserves space for terminal diagnostics")

@@ -365,34 +365,76 @@ final class OpenNativeCompletionProbe {
     private static void appendTransportMethods(StringBuilder out, Class<?> type,
                                                Class<?> requestType) {
         int count = 0;
-        for (Class<?> current = type; current != null && current != Object.class;
-                current = current.getSuperclass()) {
-            for (Method method : current.getDeclaredMethods()) {
-                Class<?>[] parameters = method.getParameterTypes();
-                if (parameters.length != 2 || parameters[1] != Long.class
-                        || !parameters[0].isAssignableFrom(requestType)
-                                && !requestType.isAssignableFrom(parameters[0])) {
-                    continue;
-                }
-                Type generic = method.getGenericReturnType();
-                line(out, "transport.candidate." + count++,
-                        current.getSimpleName() + "." + method.getName()
-                                + "(" + parameters(parameters) + ")->"
-                                + method.getReturnType().getName()
-                                + " generic=" + String.valueOf(generic));
+        int classIndex = 0;
+        Class<?> current = type;
+        while (current != null && current != Object.class) {
+            Method[] declaredMethods;
+            try {
+                declaredMethods = current.getDeclaredMethods();
+            } catch (LinkageError | SecurityException error) {
+                line(out, "transport.inventoryError." + classIndex,
+                        error.getClass().getName());
+                declaredMethods = null;
             }
+            if (declaredMethods != null) {
+                for (int methodIndex = 0; methodIndex < declaredMethods.length; methodIndex++) {
+                    Method method = declaredMethods[methodIndex];
+                    try {
+                        Class<?>[] methodParameters = method.getParameterTypes();
+                        Class<?> returnType = method.getReturnType();
+                        Type generic = method.getGenericReturnType();
+                        if (methodParameters.length != 2 || methodParameters[1] != Long.class
+                                || !methodParameters[0].isAssignableFrom(requestType)
+                                        && !requestType.isAssignableFrom(methodParameters[0])) {
+                            continue;
+                        }
+                        line(out, "transport.candidate." + count++,
+                                current.getSimpleName() + "." + method.getName()
+                                        + "(" + parameters(methodParameters) + ")->"
+                                        + returnType.getName()
+                                        + " generic=" + String.valueOf(generic));
+                    } catch (LinkageError | RuntimeException error) {
+                        line(out, "transport.methodMetadataError." + classIndex + "."
+                                + methodIndex, error.getClass().getName());
+                    }
+                }
+            }
+            try {
+                current = current.getSuperclass();
+            } catch (LinkageError | RuntimeException error) {
+                line(out, "transport.superclassError." + classIndex,
+                        error.getClass().getName());
+                break;
+            }
+            classIndex++;
         }
         line(out, "transport.candidateCount", String.valueOf(count));
     }
 
     private static void appendPowMethods(StringBuilder out, Class<?> type) {
         int count = 0;
-        for (Method method : type.getDeclaredMethods()) {
-            if (count >= 40) break;
-            Class<?>[] parameters = method.getParameterTypes();
-            line(out, "pow.method." + count++,
-                    method.getName() + "(" + parameters(parameters) + ")->"
-                            + method.getReturnType().getName());
+        Method[] declaredMethods;
+        try {
+            declaredMethods = type.getDeclaredMethods();
+        } catch (LinkageError | SecurityException error) {
+            line(out, "pow.inventoryError", error.getClass().getName());
+            declaredMethods = null;
+        }
+        if (declaredMethods != null) {
+            for (int methodIndex = 0; methodIndex < declaredMethods.length; methodIndex++) {
+                if (count >= 40) break;
+                Method method = declaredMethods[methodIndex];
+                try {
+                    Class<?>[] methodParameters = method.getParameterTypes();
+                    Class<?> returnType = method.getReturnType();
+                    line(out, "pow.method." + count++,
+                            method.getName() + "(" + parameters(methodParameters) + ")->"
+                                    + returnType.getName());
+                } catch (LinkageError | RuntimeException error) {
+                    line(out, "pow.methodMetadataError." + methodIndex,
+                            error.getClass().getName());
+                }
+            }
         }
         line(out, "pow.methodCount", String.valueOf(count));
     }
