@@ -14,11 +14,14 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.Inet4Address;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.UUID;
+import java.util.Enumeration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -26,7 +29,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Open-build loopback API gateway. It deliberately uses only Android/JDK APIs and the stable
+ * Open-build local/LAN API gateway. It deliberately uses only Android/JDK APIs and the stable
  * z2.Backend contract; no protected payload or obfuscated host type is referenced here.
  */
 final class OpenLocalApiGateway {
@@ -44,6 +47,7 @@ final class OpenLocalApiGateway {
     private static volatile String token;
     private static volatile int boundPort;
     private static volatile int configuredPort = DEFAULT_PORT;
+    private static volatile boolean lanEnabled;
 
     private OpenLocalApiGateway() {}
 
@@ -54,10 +58,13 @@ final class OpenLocalApiGateway {
             appContext = app;
             token = loadOrCreateToken(app);
             backend = modelBackend;
-            configuredPort = app.getSharedPreferences("dsh_local_api", Context.MODE_PRIVATE)
-                    .getInt("port", DEFAULT_PORT);
-            ServerSocket socket = new ServerSocket(configuredPort, 16,
-                    InetAddress.getByName("127.0.0.1"));
+            android.content.SharedPreferences prefs = app.getSharedPreferences(
+                    "dsh_local_api", Context.MODE_PRIVATE);
+            configuredPort = prefs.getInt("port", DEFAULT_PORT);
+            lanEnabled = prefs.getBoolean("lan_enabled", false);
+            InetAddress bindAddress = InetAddress.getByName(
+                    lanEnabled ? "0.0.0.0" : "127.0.0.1");
+            ServerSocket socket = new ServerSocket(configuredPort, 16, bindAddress);
             server = socket;
             boundPort = socket.getLocalPort();
             clients = new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS,
@@ -66,7 +73,8 @@ final class OpenLocalApiGateway {
             acceptThread = new Thread(() -> acceptLoop(socket), "dsh-local-api-accept");
             acceptThread.setDaemon(true);
             acceptThread.start();
-            Main.log("Open Local API listening on 127.0.0.1:" + boundPort);
+            Main.log("Open Local API listening on "
+                    + (lanEnabled ? "LAN interfaces" : "127.0.0.1") + ":" + boundPort);
         } catch (Exception error) {
             RUNNING.set(false);
             closeServer();
@@ -116,6 +124,57 @@ final class OpenLocalApiGateway {
     static String endpoint() {
         return RUNNING.get() ? "http://127.0.0.1:" + boundPort : "";
     }
+    static boolean isLanEnabled() { return lanEnabled; }
+    static synchronized String setLanEnabled(Context context, boolean enabled) {
+        Context app = context == null ? appContext : context.getApplicationContext();
+        if (app == null) return "DeepSeek 上下文尚未就绪";
+        z2.Backend current = backend;
+        try {
+            app.getSharedPreferences("dsh_local_api", Context.MODE_PRIVATE)
+                    .edit().putBoolean("lan_enabled", enabled).apply();
+            lanEnabled = enabled;
+            if (RUNNING.get() && current != null) {
+                stop();
+                start(app, current);
+                if (!RUNNING.get()) return "设置已保存，但监听重启失败；请检查端口占用";
+            }
+            return null;
+        } catch (Exception error) {
+            return "局域网设置失败";
+        }
+    }
+    static String lanEndpoint() {
+        if (!RUNNING.get() || !lanEnabled) return "";
+        String address = firstLanAddress();
+        return address.length() == 0 ? "" : "http://" + address + ":" + boundPort + "/v1";
+    }
+    private static String firstLanAddress() {
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces != null && interfaces.hasMoreElements()) {
+                NetworkInterface network = interfaces.nextElement();
+                if (!network.isUp() || network.isLoopback()) continue;
+                Enumeration<InetAddress> addresses = network.getInetAddresses();
+                while (addresses.hasMoreElements()) {
+                    InetAddress address = addresses.nextElement();
+                    if (!(address instanceof Inet4Address) || address.isLoopbackAddress()
+                            || address.isLinkLocalAddress()) continue;
+                    byte[] bytes = address.getAddress();
+                    if ((bytes[0] & 255) == 192 && (bytes[1] & 255) == 168) {
+                        return address.getHostAddress();
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        return "";
+    }
+    private static boolean isAllowedRemote(InetAddress address) {
+        if (address == null) return false;
+        if (address.isLoopbackAddress()) return true;
+        if (!lanEnabled || !(address instanceof Inet4Address)) return false;
+        byte[] bytes = address.getAddress();
+        return (bytes[0] & 255) == 192 && (bytes[1] & 255) == 168;
+    }
     static String apiKey() { return token == null ? "" : token; }
     static synchronized String rotateKey(Context context) {
         try {
@@ -149,39 +208,23 @@ final class OpenLocalApiGateway {
             return "API Key 保存失败";
         }
     }
-    static synchronized String setCustomKey(Context context, String candidate) {
-        String value = candidate == null ? "" : candidate.trim();
-        if (value.length() < 24 || value.length() > 128) {
-            return "API Key 长度必须为 24 到 128 个字符";
-        }
-        for (int i = 0; i < value.length(); i++) {
-            char c = value.charAt(i);
-            if (c < 0x21 || c > 0x7e) return "API Key 只能包含可见 ASCII 字符";
-        }
-        Context app = context == null ? appContext : context.getApplicationContext();
-        if (app == null) return "DeepSeek 上下文尚未就绪";
-        try {
-            persistToken(app, value);
-            appContext = app;
-            token = value;
-            return null;
-        } catch (Exception error) {
-            return "API Key 保存失败";
-        }
-    }
     static String connectionInfo() {
         if (!RUNNING.get()) return "Open Local API is stopped";
         return "Base URL: " + endpoint() + "/v1\n"
                 + "Chat Completions: " + endpoint() + "/v1/chat/completions\n"
                 + "API Key: " + apiKey() + "\n"
                 + "Models: deepseek-chat, deepseek-reasoner\n"
-                + "Binding: 127.0.0.1 only\n"
+                + "Loopback URL: " + endpoint() + "/v1\n"
+                + (lanEnabled ? "LAN URL: " + lanEndpoint() + "\n"
+                        : "LAN access: disabled\n")
+                + "Allowed remote range: 192.168.0.0/16\n"
                 + "Backend: " + (backend != null && backend.isReady()
                         ? "ready" : (backend == null ? "unavailable" : backend.readinessDetail()));
     }
     static String runtimeStatus() {
-        return RUNNING.get() ? "Running on 127.0.0.1:" + boundPort
-                : "Stopped";
+        return RUNNING.get() ? "Running on "
+                + (lanEnabled ? "127.0.0.1 + 192.168.0.0/16" : "127.0.0.1")
+                + ":" + boundPort : "Stopped";
     }
 
     private static void closeServer() {
@@ -220,6 +263,11 @@ final class OpenLocalApiGateway {
         try (Socket client = socket;
              InputStream in = new BufferedInputStream(client.getInputStream());
              OutputStream out = new BufferedOutputStream(client.getOutputStream())) {
+            if (!isAllowedRemote(client.getInetAddress())) {
+                sendError(out, 403, "source_not_allowed",
+                        "Only loopback and 192.168.0.0/16 clients are allowed");
+                return;
+            }
             HttpRequest request = readRequest(in);
             if (request == null) return;
             if (!"GET".equals(request.method) && !"POST".equals(request.method)) {
@@ -475,9 +523,12 @@ final class OpenLocalApiGateway {
                 .put("message", message).put("type", "invalid_request_error").put("code", code)));
     }
     private static void writeHeaders(OutputStream out, int status, String type) throws Exception {
-        String reason = status == 200 ? "OK" : status == 401 ? "Unauthorized"
-                : status == 400 ? "Bad Request" : status == 404 ? "Not Found"
-                : status == 405 ? "Method Not Allowed" : "Service Unavailable";
+        String reason = status == 200 ? "OK" : status == 400 ? "Bad Request"
+                : status == 401 ? "Unauthorized" : status == 403 ? "Forbidden"
+                : status == 404 ? "Not Found" : status == 405 ? "Method Not Allowed"
+                : status == 413 ? "Payload Too Large" : status == 429 ? "Too Many Requests"
+                : status == 502 ? "Bad Gateway" : status == 503 ? "Service Unavailable"
+                : "Internal Server Error";
         out.write(("HTTP/1.1 " + status + " " + reason + "\r\n"
                 + "Content-Type: " + type + "\r\n"
                 + "Cache-Control: no-cache, no-store\r\n"
