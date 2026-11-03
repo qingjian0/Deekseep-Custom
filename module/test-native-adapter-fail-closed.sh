@@ -137,5 +137,11 @@ inspect = probe.split("static void inspectHost(ClassLoader loader)", 1)[1].split
 )[0]
 if re.search(r"method\.invoke\(|constructor\.newInstance\(|field\.get\(", inspect):
     raise SystemExit("Probe must not invoke candidate host methods or read live field values")
+require(probe, r"MAX_ATTEMPTS\s*=\s*3", "probe retries are bounded to three attempts")
+require(probe, r"ATTEMPTS\.get\(\)\s*>=\s*MAX_ATTEMPTS", "probe scheduler enforces retry cap")
+require(probe, r"finally\s*\{\s*// A failed/partial scan may be retried.*?SCHEDULED\.set\(false\);", "probe releases scheduling guard after every worker run")
+require(probe, r"completed\s*=\s*classLoadFailures\s*==\s*0", "partial DEX inventories remain retryable")
+require(probe, r"if \(completed\) REPORTED\.set\(true\)", "only a complete inventory becomes terminal")
+print("Native probe bounded-retry regression checks passed")
 print("Native adapter fail-closed and read-only probe source checks passed")
 PY
