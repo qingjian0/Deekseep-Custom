@@ -76,9 +76,11 @@ class AgentCore(
             adapter.complete(
                 control.request,
                 AgentEventSink { event ->
-                    if (event.requestId != control.request.requestId || control.isCancelled()) {
+                    if (event.requestId != control.request.requestId) {
+                        finishFailure(control, "adapter emitted event for another request")
                         return@AgentEventSink false
                     }
+                    if (control.isCancelled()) return@AgentEventSink false
                     require(
                         event.type != AgentEventType.STARTED &&
                             event.type != AgentEventType.COMPLETED &&
