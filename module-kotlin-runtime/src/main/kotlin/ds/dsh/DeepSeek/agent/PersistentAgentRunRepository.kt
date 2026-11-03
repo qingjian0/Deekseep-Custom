@@ -38,6 +38,8 @@ class PersistentAgentRunRepository(
     @Synchronized
     override fun create(request: AgentRequest): Boolean {
         if (entries.containsKey(request.requestId)) return false
+        val parent = file.absoluteFile.parentFile ?: return false
+        if (parent.exists() && !parent.isDirectory) return false
         val snapshot = LinkedHashMap<String, Entry>().apply {
             entries.forEach { (id, entry) -> put(id, entry.copy()) }
         }
