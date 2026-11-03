@@ -157,3 +157,10 @@ Run `41649071834` 是本轮已核实的完整绿色 CI。它验证的是 JVM/脚
 - 2.7.x 需要独立的 Request / Challenge / Transport / Flow 发现与绑定证据，不能复用未经证明的旧版 q71 / R92 对象路径。
 - Closed payload 中 `z18` 的定义加载器、真实声明类与执行签名仍未证实；不得与仓库普通 `z18` 类混淆。
 - 下一步优先建立 287、289、290 分渠道证据矩阵，并检查仓库内所有 `liveQ71` / `liveR92` 写入点；若无官方 APK 静态证据或设备验证，不实现猜测性调用。
+
+
+### 8.4 Transport 调用点复核补充
+
+复核 `Main.java` 约 9312、9327、9337 行的 `HookChatPipeline.hookTransport(...)` 调用后，确认它们属于 `installNetworkPayloadCapture()` 内部的旧版候选发现分支，不是独立的 2.7.x 安装入口。该安装步骤本身在 `HostCompat.isV271()` 时被跳过。因此这些调用不会自动形成新的 2.7.x `liveR92` 捕获通道。详细边界已补入 `docs/NATIVE_ADAPTER.md`。
+
+该复核收窄了源码结论，但仍不替代完整仓库赋值点检索、官方 APK 静态证据或受控设备验证。
