@@ -41,6 +41,7 @@ unavailable rather than falsely advertising model readiness.
 
 - No Responses API, Anthropic protocol, tools/function calling, image input, or audio input.
 - LAN access is limited to `192.168.0.0/16`; it uses plain HTTP, so enable it only on a trusted Wi-Fi/LAN. No TLS, external tunnel, or remote port forwarding.
+- While LAN access is enabled, the gateway observes Android's default-network callbacks and re-reads the active network's link properties. It binds a replacement socket to the new exact `192.168.x.x` address before closing the previous listener; loss of an eligible address closes the LAN listener while preserving loopback. Callback registration or rebind failures are logged and do not stop the loopback API.
 - The native completion adapter is not implemented in Open yet. Capturing the official host
   transport and PoW objects is insufficient because the existing completion method delegates to
   the Closed-only payload. The Gateway deliberately returns 503 until a public-source adapter is
