@@ -70,7 +70,7 @@ if "HostRemap.forName(nm, false, cl)" in main:
     raise SystemExit("transport structural scan must not translate raw DEX class names")
 if "HostRemap.forDexName(nm, cl)" not in main:
     raise SystemExit("transport structural scan must use direct DEX loading")
-if not re.search(r"static Class<?> forDexName\(String dexName, ClassLoader loader\).*?Class\.forName\(dexName, false, loader\)", pathlib.Path(sys.argv[1]).with_name("HostRemap.java").read_text(encoding="utf-8"), re.S):
+if not re.search(r"static Class<\?> forDexName\(String dexName, ClassLoader loader\).*?Class\.forName\(dexName, false, loader\)", pathlib.Path(sys.argv[1]).with_name("HostRemap.java").read_text(encoding="utf-8"), re.S):
     raise SystemExit("HostRemap.forDexName must load exact names without initialization")
 print("Runtime DEX class-name namespace regression OK")
 PY
