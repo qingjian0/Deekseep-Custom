@@ -1,6 +1,10 @@
 package ds.dsh.DeepSeek;
 
 import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.LinkAddress;
+import android.net.LinkProperties;
+import android.net.Network;
 import android.util.AtomicFile;
 
 import org.json.JSONArray;
@@ -51,6 +55,8 @@ final class OpenLocalApiGateway {
     private static volatile int boundPort;
     private static volatile int configuredPort = DEFAULT_PORT;
     private static volatile boolean lanEnabled;
+    private static volatile ConnectivityManager networkManager;
+    private static volatile ConnectivityManager.NetworkCallback networkCallback;
 
     private OpenLocalApiGateway() {}
 
@@ -77,24 +83,8 @@ final class OpenLocalApiGateway {
             acceptThread.start();
             boundLanAddress = "";
             if (lanEnabled) {
-                String address = firstLanAddress();
-                if (address.length() > 0) {
-                    try {
-                        ServerSocket lanSocket = new ServerSocket(configuredPort, 16,
-                                InetAddress.getByName(address));
-                        lanServer = lanSocket;
-                        boundLanAddress = address;
-                        lanAcceptThread = new Thread(
-                                () -> acceptLoop(lanSocket), "dsh-local-api-lan");
-                        lanAcceptThread.setDaemon(true);
-                        lanAcceptThread.start();
-                    } catch (Exception lanError) {
-                        Main.log("Open Local API LAN bind failed: "
-                                + lanError.getClass().getSimpleName());
-                    }
-                } else {
-                    Main.log("Open Local API LAN enabled but no 192.168.x.x address is available");
-                }
+                refreshLanBinding();
+                registerLanNetworkCallback(app);
             }
             Main.log("Open Local API listening on 127.0.0.1:" + boundPort
                     + (boundLanAddress.length() == 0 ? ""
@@ -108,6 +98,7 @@ final class OpenLocalApiGateway {
 
     static synchronized void stop() {
         RUNNING.set(false);
+        unregisterLanNetworkCallback();
         closeServer();
         ExecutorService pool = clients;
         clients = null;
@@ -195,24 +186,93 @@ final class OpenLocalApiGateway {
                 : "http://" + boundLanAddress + ":" + boundPort + "/v1";
     }
     private static String firstLanAddress() {
+        Context app = appContext;
+        if (app == null) return "";
         try {
-            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
-            while (interfaces != null && interfaces.hasMoreElements()) {
-                NetworkInterface network = interfaces.nextElement();
-                if (!network.isUp() || network.isLoopback()) continue;
-                Enumeration<InetAddress> addresses = network.getInetAddresses();
-                while (addresses.hasMoreElements()) {
-                    InetAddress address = addresses.nextElement();
-                    if (!(address instanceof Inet4Address) || address.isLoopbackAddress()
-                            || address.isLinkLocalAddress()) continue;
-                    byte[] bytes = address.getAddress();
-                    if ((bytes[0] & 255) == 192 && (bytes[1] & 255) == 168) {
-                        return address.getHostAddress();
-                    }
+            ConnectivityManager manager = (ConnectivityManager) app.getSystemService(
+                    Context.CONNECTIVITY_SERVICE);
+            if (manager == null) return "";
+            Network active = manager.getActiveNetwork();
+            LinkProperties properties = active == null ? null : manager.getLinkProperties(active);
+            if (properties == null) return "";
+            for (LinkAddress linkAddress : properties.getLinkAddresses()) {
+                InetAddress address = linkAddress.getAddress();
+                if (!(address instanceof Inet4Address) || address.isLoopbackAddress()
+                        || address.isLinkLocalAddress()) continue;
+                byte[] bytes = address.getAddress();
+                if ((bytes[0] & 255) == 192 && (bytes[1] & 255) == 168) {
+                    return address.getHostAddress();
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception error) {
+            Main.log("Open Local API active network lookup failed: "
+                    + error.getClass().getSimpleName());
+        }
         return "";
+    }
+
+    private static void registerLanNetworkCallback(Context app) {
+        if (app == null || !lanEnabled || networkCallback != null) return;
+        try {
+            ConnectivityManager manager = (ConnectivityManager) app.getSystemService(
+                    Context.CONNECTIVITY_SERVICE);
+            if (manager == null) return;
+            ConnectivityManager.NetworkCallback callback = new ConnectivityManager.NetworkCallback() {
+                @Override public void onAvailable(Network network) { refreshLanBinding(); }
+                @Override public void onLost(Network network) { refreshLanBinding(); }
+                @Override public void onLinkPropertiesChanged(
+                        Network network, LinkProperties properties) { refreshLanBinding(); }
+            };
+            manager.registerDefaultNetworkCallback(callback);
+            networkManager = manager;
+            networkCallback = callback;
+        } catch (Exception error) {
+            Main.log("Open Local API network callback registration failed: "
+                    + error.getClass().getSimpleName());
+        }
+    }
+
+    private static void unregisterLanNetworkCallback() {
+        ConnectivityManager manager = networkManager;
+        ConnectivityManager.NetworkCallback callback = networkCallback;
+        networkManager = null;
+        networkCallback = null;
+        if (manager != null && callback != null) {
+            try { manager.unregisterNetworkCallback(callback); } catch (Exception ignored) {}
+        }
+    }
+
+    private static synchronized void refreshLanBinding() {
+        if (!RUNNING.get() || !lanEnabled) return;
+        String address = firstLanAddress();
+        ServerSocket current = lanServer;
+        if (address.length() == 0) {
+            lanServer = null;
+            boundLanAddress = "";
+            if (current != null) try { current.close(); } catch (Exception ignored) {}
+            Main.log("Open Local API LAN unavailable: no active 192.168.x.x address");
+            return;
+        }
+        if (address.equals(boundLanAddress) && current != null && !current.isClosed()) return;
+        try {
+            ServerSocket replacement = new ServerSocket(configuredPort, 16,
+                    InetAddress.getByName(address));
+            lanServer = replacement;
+            boundLanAddress = address;
+            Thread thread = new Thread(() -> acceptLoop(replacement), "dsh-local-api-lan");
+            thread.setDaemon(true);
+            lanAcceptThread = thread;
+            thread.start();
+            if (current != null) try { current.close(); } catch (Exception ignored) {}
+            Main.log("Open Local API LAN rebound to " + address + ":" + boundPort);
+        } catch (Exception error) {
+            Main.log("Open Local API LAN rebind failed: "
+                    + error.getClass().getSimpleName());
+            if (current == null || current.isClosed()) {
+                lanServer = null;
+                boundLanAddress = "";
+            }
+        }
     }
     private static boolean isAllowedRemote(InetAddress address) {
         if (address == null) return false;
