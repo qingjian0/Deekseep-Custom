@@ -7,13 +7,15 @@ STUB="$ROOT/module/src/ds/dsh/DeepSeek/z14.java"
 FACADE="$ROOT/module/src/ds/dsh/DeepSeek/HookAccountLoginSecurity.java"
 PROBE="$ROOT/module/src/ds/dsh/DeepSeek/OpenNativeCompletionProbe.java"
 Z18="$ROOT/module/src/ds/dsh/DeepSeek/z18.java"
+HOST_V271="$ROOT/module/src/ds/dsh/DeepSeek/HostV271.java"
+CHAT="$ROOT/module/src/ds/dsh/DeepSeek/HookChatPipeline.java"
 
-python - "$MAIN" "$STUB" "$FACADE" "$PROBE" "$Z18" <<'PY'
+python - "$MAIN" "$STUB" "$FACADE" "$PROBE" "$Z18" "$HOST_V271" "$CHAT" <<'PY'
 import pathlib
 import re
 import sys
 
-main, stub, facade, probe, z18 = [
+main, stub, facade, probe, z18, host_v271, chat = [
     pathlib.Path(path).read_text(encoding="utf-8") for path in sys.argv[1:]
 ]
 
@@ -35,6 +37,33 @@ require(
     main,
     r"@Override\s+public boolean isReady\(\)\s*\{\s*return BuildInfo\.LOCAL_API_INCLUDED\s*&&",
     "Backend readiness requires the native adapter build flag",
+)
+require(
+    main,
+    r"@Override\s+public boolean isReady\(\)\s*\{\s*return BuildInfo\.LOCAL_API_INCLUDED\s*&&\s*hostClassLoader != null && liveR92 != null && liveQ71 != null",
+    "Backend readiness does not accept missing legacy transport or PoW objects",
+)
+require(
+    main,
+    r'if \(!HostCompat\.isV271\(\)\) installBestEffortHook\("network\.payload-capture"',
+    "legacy transport capture is not installed for the 2.7.x family",
+)
+require(
+    main,
+    r'if \(!HostCompat\.isV271\(\)\) installBestEffortHook\("chat\.pow-manager-capture"',
+    "legacy PoW capture is not installed for the 2.7.x family",
+)
+require(
+    host_v271,
+    r"static void installFeatureHooks\(final ClassLoader cl\)",
+    "2.7.x limited whitelist remains an explicit separate hook path",
+)
+if "installPowManagerCapture" in host_v271 or "hookTransport(" in host_v271:
+    raise SystemExit("2.7.x whitelist must not silently reuse legacy q71/transport capture")
+require(
+    chat,
+    r"void installPowManagerCapture\(ClassLoader cl\)",
+    "legacy q71 capture entry point remains identifiable for a future version-specific adapter",
 )
 require(
     main,
