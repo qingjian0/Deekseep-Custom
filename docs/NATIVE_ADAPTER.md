@@ -231,3 +231,18 @@ DeepSeek Hook startup
 对应地，`HookChatPipeline.hookTransport()` 内对 `Main.liveR92` 的赋值只有在该方法被安装并实际执行时才会发生；`liveQ71` 的已知赋值仍来自 `captureApiManagers()`，其 Hook 安装入口 `installPowManagerCapture()` 同样在 2.7.x 被跳过。由此，本次新增检查没有发现这几处 Main.java 调用构成独立的 2.7.x 捕获通道。
 
 本结论的范围是上述源码安装链与字段写入点；它不等于已取得官方 APK 的完整反编译证明，也不排除未来新增代码路径。后续仍应以完整仓库赋值点检索、各渠道官方 APK 静态证据和受控设备验证收敛结论。
+
+
+## 2.7.x probe scheduling and channel classification update (2026-11-03)
+
+### Read-only inventory scheduling
+
+The Open build now schedules `OpenNativeCompletionProbe.inspectHost()` only after the explicit Local API enabled marker is present. Scheduling is delegated to `scheduleHostInspection()`, guarded by a one-shot atomic flag, and runs on a daemon worker thread. This prevents the DEX inventory from running on the Activity/startup caller thread and avoids creating repeated worker threads when `startz1()` is re-entered.
+
+The probe remains diagnostic-only: it does not instantiate host classes, invoke candidate host methods, or read live object field values. No real-device timing result is available yet; the change removes synchronous startup work but does not claim a measured latency improvement. Gateway readiness remains unchanged and the Open adapter still fails closed with 503.
+
+### Google Play / international code290 classification
+
+The 2.7.x marker path identifies code290 by its `c02` Request and `nw1` marker interface. Unlike older Google Play builds, this host does not expose the PairIP marker used by the initial channel probe. The 2.7.x branch now explicitly sets `googlePlay = (code271 == 290)` after version identification, so code287/code289 remain mainland and code290 is classified as Google Play for channel-dependent feature decisions.
+
+Regression coverage in `module/test-hostmap-regression.sh` checks that code290 sets the channel flag. The mapping tables are still selected independently by versionCode; channel classification does not establish Native Completion support.

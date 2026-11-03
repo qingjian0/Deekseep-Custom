@@ -164,3 +164,17 @@ Run `41649071834` 是本轮已核实的完整绿色 CI。它验证的是 JVM/脚
 复核 `Main.java` 约 9312、9327、9337 行的 `HookChatPipeline.hookTransport(...)` 调用后，确认它们属于 `installNetworkPayloadCapture()` 内部的旧版候选发现分支，不是独立的 2.7.x 安装入口。该安装步骤本身在 `HostCompat.isV271()` 时被跳过。因此这些调用不会自动形成新的 2.7.x `liveR92` 捕获通道。详细边界已补入 `docs/NATIVE_ADAPTER.md`。
 
 该复核收窄了源码结论，但仍不替代完整仓库赋值点检索、官方 APK 静态证据或受控设备验证。
+
+
+### 8.5 探针调度与 2.7.2 国际版识别修正（2026-11-03）
+
+- Open 版只在 Local API 显式启用后调度宿主结构探针。
+- 新增 `OpenNativeCompletionProbe.scheduleHostInspection()`，通过原子标志保证只调度一次，并在 daemon worker 上执行，避免 DEX 全量扫描占用 Activity/startup 调用线程。
+- 探针仍只输出结构签名与扫描计数，不实例化宿主类、不调用候选宿主方法、不读取对象字段值。尚无真机耗时数据，不宣称已测得启动提速。
+- 修复 2.7.2 Google Play / 国际版 code290 渠道标志：识别 `c02 + nw1` 后显式设置 `googlePlay = true`；287/289 保持国内版标志。
+- `module/test-native-adapter-fail-closed.sh` 与 `module/test-hostmap-regression.sh` 已增加对应源码回归保护。
+
+最新完整 CI：
+- [Run 41660387191](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41660387191) — Success。
+- Regression tests、传统 Xposed Core 构建、Host compatibility / feature regression、Android Open build and lint、APK 结构/对齐/签名检查、APK 与 Lint 报告上传全部成功。
+- CI 成功仅代表当前构建和回归通过，不代表 2.7.x Native Completion 已接通或真机验证完成。
