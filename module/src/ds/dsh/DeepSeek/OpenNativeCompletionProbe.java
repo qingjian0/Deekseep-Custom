@@ -172,8 +172,7 @@ final class OpenNativeCompletionProbe {
                             if (Modifier.isStatic(field.getModifiers())
                                     || field.getType().isPrimitive()) continue;
                             for (Class<?> transportOwner : transportOwners) {
-                                if (field.getType().isAssignableFrom(transportOwner)
-                                        || transportOwner.isAssignableFrom(field.getType())) {
+                                if (field.getType().isAssignableFrom(transportOwner)) {
                                     if (managerCandidates < 24) {
                                         line(out, "manager.candidate." + managerCandidates,
                                                 owner.getName() + "." + field.getName()
