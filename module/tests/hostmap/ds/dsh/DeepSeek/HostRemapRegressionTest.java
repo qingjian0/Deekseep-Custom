@@ -20,7 +20,7 @@ public final class HostRemapRegressionTest {
             Class<?> direct = HostRemap.forDexName("java.lang.String",
                     HostRemapRegressionTest.class.getClassLoader());
             check(direct == String.class, "DEX class name must load without symbol remapping");
-            check(!DexInitializationFixture.initialized,
+            check(!fixtureInitialized,
                     "DEX class loading must not trigger static initialization");
             Class<?> fixture = HostRemap.forDexName(DexInitializationFixture.class.getName(),
                     HostRemapRegressionTest.class.getClassLoader());
@@ -34,7 +34,7 @@ public final class HostRemapRegressionTest {
                 + HostRemap.classCount());
     }
 
-    public static final class DexInitializationFixture {\n        static boolean initialized;\n        static { initialized = true; }\n    }\n\n    private static void check(boolean condition, String message) {
+    private static boolean fixtureInitialized;\n\n    public static final class DexInitializationFixture {\n        static { fixtureInitialized = true; }\n    }\n\n    private static void check(boolean condition, String message) {
         if (!condition) throw new AssertionError(message);
     }
 }
