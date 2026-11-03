@@ -319,7 +319,12 @@ final class OpenNativeCompletionProbe {
         line(out, prefix + ".constructorCount", String.valueOf(constructors.length));
         for (int i = 0; i < constructors.length && i < 24; i++) {
             Constructor<?> constructor = constructors[i];
-            line(out, prefix + ".ctor." + i, parameters(constructor.getParameterTypes()));
+            try {
+                line(out, prefix + ".ctor." + i, parameters(constructor.getParameterTypes()));
+            } catch (LinkageError | RuntimeException error) {
+                line(out, prefix + ".constructorMetadataError." + i,
+                        error.getClass().getName());
+            }
         }
     }
 
