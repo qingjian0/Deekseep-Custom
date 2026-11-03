@@ -147,6 +147,10 @@ require(probe, r"finally\s*\{\s*SCHEDULED\.set\(false\);", "probe releases sched
 require(probe, r"completed\s*=\s*!names\.isEmpty\(\)\s*&&\s*classLoadFailures\s*==\s*0", "empty and partial DEX inventories remain retryable")
 require(probe, r"scannedTypes\.add\(owner\).*?for \(Class<\?> owner : scannedTypes\)", "manager inventory reuses successfully loaded classes without a second class-loader pass")
 require(probe, r"if \(completed\) REPORTED\.set\(true\)", "only a complete inventory becomes terminal")
+require(probe, r"MAX_REPORT_CHARS\\s*=\\s*12_000", "probe report has an explicit size bound")
+require(probe, r"REPORT_TERMINAL_RESERVE\\s*=\\s*64", "probe report reserves space for terminal diagnostics")
+require(probe, r'"probe\.elapsedMs"\.equals\(key\).*?MAX_REPORT_CHARS.*?return;.*?probe\.truncated=true', "truncated reports retain terminal elapsed time and expose truncation")
+
 print("Native probe bounded-retry regression checks passed")
 print("Native adapter fail-closed and read-only probe source checks passed")
 PY
