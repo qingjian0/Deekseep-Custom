@@ -50,8 +50,12 @@ if branch is None:
     raise SystemExit("2.7.x host detection branch is missing")
 if re.search(r"googlePlay\s*=\s*code271", branch.group(1)):
     raise SystemExit("2.7.x channel detection must not alter the legacy 2.3.x symbol-mapping selector")
-if not re.search(r"static boolean isGooglePlay\(\)\s*\{.*?return googlePlay \|\| isIntl27\(\);", source, re.S):
-    raise SystemExit("isGooglePlay must expose code290 without changing the legacy symbol-mapping selector")
+if not re.search(r"static boolean isGooglePlay\(\)\s*\{\s*return googlePlay;", source):
+    raise SystemExit("isGooglePlay must remain the legacy symbol-mapping selector")
+if not re.search(r"static boolean isInternationalChannel\(\)\s*\{\s*return googlePlay \|\| isIntl27\(\);", source):
+    raise SystemExit("international-channel detection must include code290 independently")
+if not re.search(r"channel=.*isInternationalChannel\(\)", source):
+    raise SystemExit("diagnostics must report the actual international channel")
 if not re.search(r"return v271 && hostCode == 290;", source):
     raise SystemExit("isIntl27 must identify only the 2.7.2 international host")
 print("HostCompat 2.7.x channel classification regression OK")

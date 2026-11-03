@@ -2994,7 +2994,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     /** Ensures the opaque bundled prompt is present in DeepSeek's own private no-backup area. */
     static boolean ensureEmbeddedPromptInstalled(Context host) {
-        if (HostCompat.isGooglePlay() || host == null) return false;
+        if (HostCompat.isInternationalChannel() || host == null) return false;
         File destination = new File(EMBEDDED_PROMPT_FILE);
         InputStream input = null;
         FileOutputStream output = null;
@@ -3138,7 +3138,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     /** Enables the mainland-only hidden embedded prompt without exposing its source in the UI. */
     static boolean setEmbeddedPromptEnabled(Context host, boolean enabled) {
-        if (HostCompat.isGooglePlay()) return false;
+        if (HostCompat.isInternationalChannel()) return false;
         if (!enabled) {
             try {
                 restorePreviousPromptState();

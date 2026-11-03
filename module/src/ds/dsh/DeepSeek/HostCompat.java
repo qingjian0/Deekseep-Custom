@@ -126,10 +126,13 @@ public final class HostCompat {
         return v271 && hostCode == 290;
     }
 
+    /** Legacy mapping-channel selector; do not use as a general store-channel test. */
     static boolean isGooglePlay() {
-        // Keep the private flag as the legacy 2.3.x mapping-channel selector: code290 uses
-        // the reviewed 2.4.1 mainland symbol chain before HostRemap. Expose its real store
-        // channel separately through the version-specific 2.7.x marker.
+        return googlePlay;
+    }
+
+    /** Actual distribution channel, including the 2.7.2 Google Play host. */
+    static boolean isInternationalChannel() {
         return googlePlay || isIntl27();
     }
 
@@ -143,7 +146,7 @@ public final class HostCompat {
     }
 
     static String diagnosticSummary() {
-        return "channel=" + (isGooglePlay() ? "google-play" : "mainland")
+        return "channel=" + (isInternationalChannel() ? "google-play" : "mainland")
                 + "\ngeneration=" + (v271 ? (HostRemap.active() ? hostLabel() + " (2.4.1 map, " + HostRemap.classCount() + " classes)" : hostLabel() + " (limited)") : v250 ? "2.5.0" : v241 ? "2.4.1" : v236 ? "2.3.6"
                 : v234 ? "2.3.4" : v230 ? "2.3.0" : "2.2.x")
                 + "\nlegacyUnit=" + (legacyUnitUsesTi8 ? "ti8" : "ui8");

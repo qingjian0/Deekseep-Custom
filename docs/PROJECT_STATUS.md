@@ -171,7 +171,7 @@ Run `41649071834` 是本轮已核实的完整绿色 CI。它验证的是 JVM/脚
 - Open 版只在 Local API 显式启用后调度宿主结构探针。
 - 新增 `OpenNativeCompletionProbe.scheduleHostInspection()`，通过原子标志保证只调度一次，并在 daemon worker 上执行，避免 DEX 全量扫描占用 Activity/startup 调用线程。
 - 探针仍只输出结构签名与扫描计数，不实例化宿主类、不调用候选宿主方法、不读取对象字段值。尚无真机耗时数据，不宣称已测得启动提速。
-- 修复 2.7.2 Google Play / 国际版 code290 渠道识别：保留私有 `googlePlay` 作为旧 2.3.x 符号映射选择器；对外 `isGooglePlay()` 返回 `googlePlay || isIntl27()`，使 290 的渠道相关功能识别国际版，同时不污染 2.4.1 → 2.7.x 混淆映射链。
+- 修复 2.7.2 Google Play / 国际版 code290 渠道识别：保留私有 `googlePlay` 作为旧 2.3.x 符号映射选择器；`isGooglePlay()` 保留为旧混淆映射渠道选择器；新增 `isInternationalChannel()` 返回 `googlePlay || isIntl27()`。渠道诊断及仅限国内版的隐藏提示词功能使用实际渠道判断，旧映射分支继续使用原选择器，避免 code290 被误导入旧 Google Play 混淆表。
 - `module/test-native-adapter-fail-closed.sh` 与 `module/test-hostmap-regression.sh` 已增加对应源码回归保护。
 
 最新完整 CI：
