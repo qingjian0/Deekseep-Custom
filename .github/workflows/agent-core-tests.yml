@@ -1,4 +1,4 @@
-name: Agent Core contract tests
+name: Agent Core contract tests and Open build
 
 on:
   push:
@@ -10,6 +10,24 @@ on:
       - "scripts/test-agent-core.sh"
       - ".github/workflows/agent-core-tests.yml"
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Run platform-neutral Agent Core tests
+        run: bash scripts/test-agent-core.sh
 
   open-debug-build:
     runs-on: ubuntu-latest
@@ -56,38 +74,4 @@ on:
           test -s "$APK"
           unzip -t "$APK" >/dev/null
           unzip -Z1 "$APK" | grep -Fxq "AndroidManifest.xml"
-          unzip -Z1 "$APK" | grep -E '^classes([0-9]+)?[.]dex  contents: read
-
-jobs:
-  contract-tests:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v4
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-      - name: Run platform-neutral Agent Core tests
-        run: bash scripts/test-agent-core.sh
- >/dev/null
-
-permissions:
-  contents: read
-
-jobs:
-  contract-tests:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v4
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-      - name: Run platform-neutral Agent Core tests
-        run: bash scripts/test-agent-core.sh
+          unzip -Z1 "$APK" | grep -E '^classes([0-9]+)?[.]dex$' >/dev/null
