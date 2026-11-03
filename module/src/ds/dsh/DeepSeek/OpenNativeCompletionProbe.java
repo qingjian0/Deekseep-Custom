@@ -99,7 +99,7 @@ final class OpenNativeCompletionProbe {
             line(out, "dex.scan.scope", "supplied BaseDexClassLoader pathList.dexElements only; parent and separate split/dynamic loaders are not recursively enumerated");
             line(out, "request.class", requestType.getName());
             line(out, "request.interfaces", interfaces(requestType));
-            appendConstructors(out, requestType);
+            appendConstructors(out, "request", requestType);
             appendFields(out, "request", requestType, 2);
 
             List<String> names = null;
@@ -178,7 +178,7 @@ final class OpenNativeCompletionProbe {
                                         line(out, "manager.candidate." + managerCandidates,
                                                 owner.getName() + "." + field.getName()
                                                         + ":" + field.getType().getName());
-                                        appendConstructors(out, owner);
+                                        appendConstructors(out, "manager" + managerCandidates, owner);
                                     }
                                     managerCandidates++;
                                     break;
@@ -221,7 +221,7 @@ final class OpenNativeCompletionProbe {
             line(out, "host", HostCompat.diagnosticSummary());
             line(out, "request.class", requestType.getName());
             line(out, "request.interfaces", interfaces(requestType));
-            appendConstructors(out, requestType);
+            appendConstructors(out, "request", requestType);
             appendFields(out, "request", requestType, 2);
             line(out, "transport.class", transport.getClass().getName());
             line(out, "transport.requestType", transportRequestType.getName());
@@ -253,12 +253,12 @@ final class OpenNativeCompletionProbe {
         line(out, "loader.chain.bootstrapParent", String.valueOf(current == null));
     }
 
-    private static void appendConstructors(StringBuilder out, Class<?> type) {
+    private static void appendConstructors(StringBuilder out, String prefix, Class<?> type) {
         Constructor<?>[] constructors = type.getDeclaredConstructors();
-        line(out, "request.constructorCount", String.valueOf(constructors.length));
+        line(out, prefix + ".constructorCount", String.valueOf(constructors.length));
         for (int i = 0; i < constructors.length && i < 24; i++) {
             Constructor<?> constructor = constructors[i];
-            line(out, "request.ctor." + i, parameters(constructor.getParameterTypes()));
+            line(out, prefix + ".ctor." + i, parameters(constructor.getParameterTypes()));
         }
     }
 
