@@ -3532,9 +3532,12 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     }
 
     static boolean isLocalApiEnabled() {
-        return BuildInfo.LOCAL_API_INCLUDED
+        boolean openEdition = "Open".equals(BuildInfo.BUILD_EDITION)
+                && !BuildInfo.LOCAL_API_INCLUDED;
+        return (BuildInfo.LOCAL_API_INCLUDED || openEdition)
                 && new File(HookAccountLoginSecurity.LOCAL_API_ENABLED_FILE).exists()
-                && (!BuildInfo.PROTECTED_BUILD || (!HostCompat.isV236() && !HostCompat.isV241())
+                && (openEdition || !BuildInfo.PROTECTED_BUILD
+                    || (!HostCompat.isV236() && !HostCompat.isV241())
                     || CloudPromptClient.hasLocalApiGrant(hostApplicationContext))
                 && z16.allowSensitiveFeature(hostApplicationContext);
     }
