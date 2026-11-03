@@ -4305,10 +4305,17 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         if (context == null || (!BuildInfo.LOCAL_API_INCLUDED && !openEdition)
                 || !z16.allowSensitiveFeature(context)) return;
         final Context appContext = context.getApplicationContext();
-        // 2.7.x deliberately skips the older q71/r92 capture hooks. Run a passive structural
-        // inventory from the host class loader instead, even before the Local API is enabled.
-        if (openEdition) OpenNativeCompletionProbe.inspectHost(hostClassLoader);
         if (!new File(HookAccountLoginSecurity.LOCAL_API_ENABLED_FILE).exists()) return;
+        // 2.7.x deliberately skips the older q71/r92 capture hooks. The read-only inventory is
+        // diagnostic only: run it once, and only when Local API is enabled, off the startup/UI
+        // caller thread. It must never delay gateway startup or ordinary host activity.
+        if (openEdition) {
+            Thread probeThread = new Thread(
+                    () -> OpenNativeCompletionProbe.inspectHost(hostClassLoader),
+                    "dsh-native-completion-probe");
+            probeThread.setDaemon(true);
+            probeThread.start();
+        }
         // The Local API payload key is intentionally not persisted.  After a host process
         // restart, re-enroll before resolving z1; otherwise the facade reports port=0/key empty
         // and the UI misleadingly looks like a broken configuration.  Activation is idempotent
