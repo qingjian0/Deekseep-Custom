@@ -2881,10 +2881,14 @@ public final class DeekseepUi {
                         + "局域网使用 HTTP，请只在可信 Wi-Fi 下开启。",
                 Main.isLocalApiLanEnabled(), textColor, subColor, dark,
                 new CompoundButton.OnCheckedChangeListener() {
+                    private boolean internal;
                     @Override public void onCheckedChanged(CompoundButton button, boolean checked) {
+                        if (internal) return;
                         String error = Main.setLocalApiLanEnabled(act, checked);
                         if (error != null) {
+                            internal = true;
                             button.setChecked(!checked);
+                            internal = false;
                             Toast.makeText(act, UiLanguage.dynamic(act, error),
                                     Toast.LENGTH_LONG).show();
                         } else {
