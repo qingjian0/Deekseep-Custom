@@ -125,6 +125,11 @@ final class OpenLocalApiGateway {
         return RUNNING.get() ? "http://127.0.0.1:" + boundPort : "";
     }
     static boolean isLanEnabled() { return lanEnabled; }
+    static boolean isLanEnabled(Context context) {
+        Context app = context == null ? appContext : context.getApplicationContext();
+        return app == null ? lanEnabled : app.getSharedPreferences(
+                "dsh_local_api", Context.MODE_PRIVATE).getBoolean("lan_enabled", lanEnabled);
+    }
     static synchronized String setLanEnabled(Context context, boolean enabled) {
         Context app = context == null ? appContext : context.getApplicationContext();
         if (app == null) return "DeepSeek 上下文尚未就绪";
