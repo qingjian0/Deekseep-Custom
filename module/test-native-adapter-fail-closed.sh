@@ -155,7 +155,7 @@ require(probe, r"getDeclaredConstructors\(\).*?catch \(LinkageError \| SecurityE
 require(probe, r"constructor\.getParameterTypes\(\).*?catch \(LinkageError \| RuntimeException error\).*?constructorMetadataError", "a single constructor signature failure does not abort constructor inventory")
 require(probe, r"getDeclaredFields\(\).*?catch \(LinkageError \| SecurityException error\).*?fieldInventoryError", "field diagnostics tolerate unavailable metadata in superclasses")
 require(probe, r"fieldType\.isAssignableFrom\(transportOwner\)", "manager field matching only accepts declared types that can hold the transport owner")
-if "transportOwner\.isAssignableFrom\(field\.getType\(\)\)" in probe:
+if "transportOwner.isAssignableFrom(field.getType())" in probe:
     raise SystemExit("Manager matching must reject reverse assignability, which cannot hold the transport instance")
 require(probe, r'appendConstructors\(out, "request", requestType\).*?appendConstructors\(out, "manager" \+ managerCandidates, owner\).*?appendConstructors\(StringBuilder out, String prefix, Class<\?> type\).*?prefix \+ "\.constructorCount".*?prefix \+ "\.ctor\."', "request and manager constructor diagnostics use independent namespaces")
 require(probe, r"if \(completed\) REPORTED\.set\(true\)", "only a complete inventory becomes terminal")
