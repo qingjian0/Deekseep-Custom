@@ -25,7 +25,14 @@ class AgentCore(
     fun submit(request: AgentRequest, sink: AgentEventSink): AgentCancellation? {
         if (request.deadlineEpochMs <= System.currentTimeMillis()) return null
         if (!repository.create(request)) return null
-        if (!repository.transition(request.requestId, AgentRunState.QUEUED)) return null
+        if (!repository.transition(request.requestId, AgentRunState.QUEUED)) {
+            repository.transition(
+                request.requestId,
+                AgentRunState.FAILED,
+                "run could not enter queued state",
+            )
+            return null
+        }
 
         val control = RunControl(request, sink)
         if (active.putIfAbsent(request.requestId, control) != null) {
@@ -77,7 +84,15 @@ class AgentCore(
                         finishFailure(control, "adapter emitted event for another request")
                         return@AgentEventSink false
                     }
-                    if (control.isCancelled()) return@AgentEventSink false
+                    if (control.cancelled.get()) return@AgentEventSink false
+                    if (isExpired(control.request)) {
+                        finishFailure(control, "request deadline exceeded")
+                        return@AgentEventSink false
+                    }
+                    if (AgentRunStateMachine.isTerminal(
+                            repository.stateOf(control.request.requestId),
+                        )
+                    ) return@AgentEventSink false
                     require(
                         event.type != AgentEventType.STARTED &&
                             event.type != AgentEventType.COMPLETED &&
@@ -144,14 +159,25 @@ class AgentCore(
                 AgentEvent(AgentEventType.COMPLETED, control.request.requestId),
             )
         } catch (_: Exception) {
-            finishFailure(control, "model adapter failed")
+            finishFailure(
+                control,
+                if (isExpired(control.request)) {
+                    "request deadline exceeded"
+                } else {
+                    "model adapter failed"
+                },
+            )
         } finally {
             active.remove(control.request.requestId, control)
         }
     }
 
     private fun emit(control: RunControl, event: AgentEvent): Boolean {
-        if (control.cancelled.get() || isExpired(control.request)) return false
+        if (control.cancelled.get()) return false
+        if (isExpired(control.request)) {
+            finishFailure(control, "request deadline exceeded")
+            return false
+        }
         return try {
             val accepted = control.sink.onEvent(event)
             if (!accepted) control.cancel()
