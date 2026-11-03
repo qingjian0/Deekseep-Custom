@@ -30,6 +30,7 @@ class PersistentAgentRunRepository(
 
     init {
         require(maxRecords in 16..MAX_RECORDS_LIMIT) { "maxRecords out of range" }
+        recoverBackupIfNeeded()
         load()
         recoverInterruptedRuns()
     }
@@ -74,6 +75,16 @@ class PersistentAgentRunRepository(
 
     @Synchronized
     fun size(): Int = entries.size
+
+    private fun recoverBackupIfNeeded() {
+        val backup = File(file.absoluteFile.parentFile, file.name + ".bak")
+        if (!file.exists() && backup.exists() && !backup.renameTo(file)) {
+            throw IOException("Unable to recover Agent run ledger backup")
+        }
+        File(file.absoluteFile.parentFile, file.name + ".tmp").let {
+            if (it.exists()) it.delete()
+        }
+    }
 
     private fun load() {
         if (!file.exists()) return
@@ -163,7 +174,7 @@ class PersistentAgentRunRepository(
         private const val FORMAT_VERSION = 1
         private const val DEFAULT_MAX_RECORDS = 2_000
         private const val MAX_RECORDS_LIMIT = 10_000
-        private const val MAX_FILE_BYTES = 2 * 1024 * 1024L
+        private const val MAX_FILE_BYTES = 16 * 1024 * 1024L
         private const val MAX_REQUEST_ID_CHARS = 128
         private const val MAX_DETAIL_CHARS = 2_048
     }
