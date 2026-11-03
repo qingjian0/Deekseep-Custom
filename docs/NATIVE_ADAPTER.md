@@ -73,6 +73,19 @@ DeepSeek Hook startup
 - 这构成一个必须核实的类名碰撞/隔离边界：Closed payload 可能通过独立 ClassLoader 提供同名类，但当前仓库可见源码不足以证明其定义、加载器身份、父子委派策略或实际解析结果。不得将普通源码的 `z18` 误认成 Closed Completion Engine，也不得仅凭类名断言 Closed 路径正确或错误。
 - 在获得 Closed payload 的构建产物和 `z14.payloadClass()` 完整实现之前，执行引擎定位状态记为“未证实”。后续应记录解析所得 Class 的定义加载器、代码来源（若可安全取得）、方法声明类与静态签名；不记录 payload 内容、凭据或用户数据。
 
+### 2.5 2.7.x 旧对象捕获链的安装缺口
+
+本轮沿 `HostCompat.initialize()`、`Main.installAllFeatureHooks()`、`installNetworkPayloadCapture()` 和 `HookChatPipeline.installPowManagerCapture()` 继续追踪，确认当前源码存在一个 2.7.x Backend readiness 阻塞：
+
+- `HostCompat.initialize()` 将 287、289、290 都识别为 `v271=true`，并按各自映射表决定 full / limited。
+- 对 287 且映射表不可用的 limited 路径，`Main.installAllFeatureHooks()` 直接进入 `HostV271.installFeatureHooks()` 并返回。当前 `HostV271` 白名单只安装设置入口、聊天 Request 构造器和历史清理器，没有安装旧 q71 / Transport 捕获。
+- 对 287/289/290 的 full 路径，主功能安装流程继续执行，但 `network.payload-capture` 与 `chat.pow-manager-capture` 两项都被 `if (!HostCompat.isV271())` 排除。因此不能因为 289/290 使用 full 映射表，就认为旧捕获 Hook 会被安装。
+- `liveQ71` 的旧赋值入口是 `HookChatPipeline.captureApiManagers()`；它由 `installPowManagerCapture()` 安装的构造器 / 方法 Hook 触发。该安装步骤在全部 `v271` 版本上被跳过。
+- `liveR92` 的旧赋值入口包括 `hookTransport()` 捕获 transport this，以及 `captureApiManagers()` 从 q71 的字段 `f` 取得 transport；对应的两个安装入口同样被跳过。
+- 但 `Main.startz1()` 的 Backend `isReady()` 仍要求 `liveR92 != null && liveQ71 != null`。按目前可见安装路径，2.7.x 无法满足这两个旧字段的 readiness 前置条件。
+
+**判定：** 这是源码层面的捕获链断层，不是“2.7.x 运行时等待初始化慢”。在找到并证明其他赋值路径之前，不能声称 287/289/290 的 Local API Backend 已具备就绪条件。后续应为 2.7.x 建立独立的 Request / Challenge / Transport 发现与对象绑定路径，或明确禁用该版本 Local API；不得通过删除 readiness 条件、填充伪对象或复用旧版字段名绕过。
+
 ### 2.4 旧 Backend 与运行时对象
 
 仓库源码中也存在一个源文件 `module/src/ds/dsh/DeepSeek/z18.java`，其内容是 Android Doze / App Standby 白名单辅助逻辑，并不声明 `executeLocalApiCompletion`。
