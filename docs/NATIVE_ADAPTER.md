@@ -1,7 +1,7 @@
 # DeepSeek Native Completion Adapter 调查与实施边界
 
 > 适用分支：`work/roi-agent-core-kotlin`  
-> 当前源码快照：`c34d8bac95238e99f0c88b19209a5151b9098e3b`  
+> 当前源码快照：`690d7d7dd63f48e2762e34d001de99e4ae97e590`  
 > 宿主目标：`com.deepseek.chat`，versionCode 287 / 289 / 290  
 > 当前结论：**Open 原生 Completion Adapter 未完成；Gateway 保持 503 fail-closed。**
 
@@ -123,20 +123,21 @@ DeepSeek Hook startup
 
 当前探针是只读结构盘点工具：
 
-- 在 Open 版启动路径中调用 `inspectHost(hostClassLoader)`；
+- 在 Open 版 Local API 显式启用后，通过 `scheduleHostInspection(hostClassLoader)` 调度 daemon worker；探针不在启动/UI 调用线程同步执行。
 - 通过 `HostCompat.load(loader, "ew0")` 获取当前版本映射后的 Request 类型；
 - 输出 Request 类名、接口、构造器签名和非静态字段声明；
-- 扫描 DEX 类名，寻找形状符合“第一个参数可接收 Request、第二个参数为 Long、返回非 primitive / 非 void”的候选方法；
-- 进一步按字段类型寻找可能持有候选 Transport 的管理类；
+- 扫描 DEX 类名，寻找声明方法满足以下结构条件的候选：恰有两个参数、第一参数类型可接收当前 Request（`parameter[0].isAssignableFrom(requestType)`）、第二参数严格为 `Long`、返回类型既非 primitive 也非 `void`；
+- Manager 字段候选仅接受 `field.getType().isAssignableFrom(transportOwner)`，即字段声明类型能够持有候选方法声明类的实例；反向可赋值关系不接受；
+- Request 与各 Manager 候选的构造器报告使用独立命名空间，避免诊断 key 相互覆盖；
 - 仅输出声明签名，不实例化宿主类、不调用候选方法、不读取对象字段值。
 - 报告增加 schema 版本、符合扫描条件的类名数量、成功加载数量、类加载失败数量和扫描耗时，便于比较不同宿主版本的覆盖范围。
 
 限制：
 
-1. 候选筛选条件只是启发式结构特征，可能包含误报；候选数量不等于真实 Transport 数量。
+1. 候选筛选条件只是启发式结构特征，可能包含误报；候选数量不等于真实 Transport 数量。方法声明类也不必然等于实际运行时 Transport 实例类。
 2. 返回类型可能是 Flow、泛型包装或其他对象；签名本身不证明其语义。
 3. `Long` 参数的语义尚未被确认，不能直接称为 timeout、deadline 或 PoW 参数。
-4. 管理类字段的类型关联不证明其生命周期、初始化顺序或线程约束。
+4. Manager 字段的正向类型可赋值关系只说明声明类型能够容纳该候选类实例，不证明字段实际持有该实例，也不证明其生命周期、初始化顺序或线程约束。
 5. 当前 `inspectHost()` 的只读扫描不取得 live PoW manager / Transport 实例。
 6. 旧版 `inspect(loader, powManager, transport)` 保留了对象捕获入口，但 2.7.x 启动路径注释明确说明旧 `q71` 捕获 Hook 不可用；不能把该入口视为新版本已完成的捕获机制。
 
