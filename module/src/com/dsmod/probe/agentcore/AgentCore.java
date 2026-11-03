@@ -48,7 +48,7 @@ public final class AgentCore {
             executor.execute(new Runnable() {
                 @Override public void run() { execute(control); }
             });
-        } catch (Throwable rejected) {
+        } catch (RuntimeException rejected) {
             finishFailure(control, "executor rejected request");
         }
         return control;
@@ -86,6 +86,11 @@ public final class AgentCore {
                     if (event == null
                             || !control.request.requestId.equals(event.requestId)
                             || isCancelled()) return false;
+                    if (event.type == AgentCoreContract.EventType.STARTED
+                            || event.type == AgentCoreContract.EventType.COMPLETED
+                            || event.type == AgentCoreContract.EventType.FAILED) {
+                        throw new IllegalArgumentException("adapter emitted a reserved lifecycle event");
+                    }
                     if (expired(control.request)) {
                         finishFailure(control, "request deadline exceeded");
                         return false;
@@ -110,6 +115,10 @@ public final class AgentCore {
                 }
             }, control);
 
+            if (expired(control.request)) {
+                finishFailure(control, "request deadline exceeded");
+                return;
+            }
             synchronized (control.lock) {
                 if (control.cancelled.get()
                         || AgentRunStateMachine.isTerminal(
@@ -128,7 +137,7 @@ public final class AgentCore {
             emit(control, new AgentCoreContract.Event(
                     AgentCoreContract.EventType.COMPLETED,
                     control.request.requestId, "", "", null));
-        } catch (Throwable error) {
+        } catch (Exception error) {
             finishFailure(control, "model adapter failed");
         } finally {
             active.remove(control.request.requestId, control);
@@ -141,7 +150,7 @@ public final class AgentCore {
             boolean accepted = control.sink.onEvent(event);
             if (!accepted) control.cancel();
             return accepted && !control.cancelled.get();
-        } catch (Throwable error) {
+        } catch (Exception error) {
             control.cancel();
             finishFailure(control, "event sink failed");
             return false;
@@ -167,7 +176,7 @@ public final class AgentCore {
             control.sink.onEvent(new AgentCoreContract.Event(
                     AgentCoreContract.EventType.FAILED,
                     control.request.requestId, "", detail, null));
-        } catch (Throwable ignored) {}
+        } catch (Exception ignored) {}
     }
 
     private static boolean expired(AgentCoreContract.Request request) {
