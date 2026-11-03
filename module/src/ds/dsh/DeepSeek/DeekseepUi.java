@@ -2859,7 +2859,7 @@ public final class DeekseepUi {
         enableTitle.setTypeface(Typeface.DEFAULT_BOLD);
         enableLabels.addView(enableTitle);
         TextView enableDesc = new TextView(act);
-        enableDesc.setText("仅监听 127.0.0.1；所有请求必须携带 Bearer API Key。服务随 DeepSeek 进程运行，关闭后停止监听。");
+        enableDesc.setText("默认仅监听本机；可单独开启 192.168.x.x 局域网访问。所有请求必须携带 Bearer API Key。");
         enableDesc.setTextColor(subColor);
         enableDesc.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         enableLabels.addView(enableDesc);
@@ -2874,6 +2874,28 @@ public final class DeekseepUi {
         serviceSwitch.setBackground(null);
         enableRow.addView(serviceSwitch);
         card.addView(enableRow);
+
+        card.addView(makeDivider(act, divColor));
+        card.addView(simpleSwitchRow(act, "开放 192.168 局域网访问",
+                "允许同一 192.168.x.x 网段设备访问；仍需 Bearer API Key。关闭后仅本机可访问。"
+                        + "局域网使用 HTTP，请只在可信 Wi-Fi 下开启。",
+                Main.isLocalApiLanEnabled(), textColor, subColor, dark,
+                new CompoundButton.OnCheckedChangeListener() {
+                    @Override public void onCheckedChanged(CompoundButton button, boolean checked) {
+                        String error = Main.setLocalApiLanEnabled(act, checked);
+                        if (error != null) {
+                            button.setChecked(!checked);
+                            feedback.setText(UiLanguage.dynamic(act, error));
+                        } else {
+                            feedback.setText(UiLanguage.dynamic(act, checked
+                                    ? "局域网访问已开启；请复制局域网 Base URL"
+                                    : "局域网访问已关闭"));
+                        }
+                        connectionInfo.setText(UiLanguage.dynamic(
+                                act, Main.localApiConnectionInfo()));
+                        runtime.setText(UiLanguage.dynamic(act, Main.localApiRuntimeStatus()));
+                    }
+                }));
 
         if (isClosedV236OrV241Feature()) {
             card.addView(makeDivider(act, divColor));
