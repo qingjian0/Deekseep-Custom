@@ -265,10 +265,11 @@ final class OpenNativeCompletionProbe {
         if (!"Open".equals(BuildInfo.BUILD_EDITION)
                 || BuildInfo.LOCAL_API_INCLUDED || loader == null
                 || powManager == null || transport == null
-                || !REPORTED.compareAndSet(false, true)) {
+                || REPORTED.get() || !INSPECTING.compareAndSet(false, true)) {
             return;
         }
         StringBuilder out = new StringBuilder(4096);
+        boolean completed = false;
         try {
             Class<?> requestType = HostCompat.load(loader, "ew0");
             Class<?> transportRequestType = HostCompat.load(loader, "rs0");
@@ -284,11 +285,15 @@ final class OpenNativeCompletionProbe {
             line(out, "pow.class", powManager.getClass().getName());
             appendFields(out, "pow", powManager.getClass(), 2);
             appendPowMethods(out, powManager.getClass());
+            completed = true;
         } catch (Throwable error) {
             line(out, "probe.error", error.getClass().getName() + ": "
                     + String.valueOf(error.getMessage()));
+        } finally {
+            report = out.toString();
+            if (completed) REPORTED.set(true);
+            INSPECTING.set(false);
         }
-        report = out.toString();
         Main.extLog("[OPEN_NATIVE_COMPLETION_PROBE]\n" + report);
     }
 
@@ -340,7 +345,13 @@ final class OpenNativeCompletionProbe {
             } catch (LinkageError | SecurityException error) {
                 line(out, prefix + ".fieldInventoryError." + depth,
                         error.getClass().getName());
-                current = current.getSuperclass();
+                try {
+                    current = current.getSuperclass();
+                } catch (LinkageError | RuntimeException superclassError) {
+                    line(out, prefix + ".superclassError." + depth,
+                            superclassError.getClass().getName());
+                    break;
+                }
                 depth++;
                 continue;
             }
@@ -357,7 +368,13 @@ final class OpenNativeCompletionProbe {
                 }
             }
             if (count >= 48) break;
-            current = current.getSuperclass();
+            try {
+                current = current.getSuperclass();
+            } catch (LinkageError | RuntimeException error) {
+                line(out, prefix + ".superclassError." + depth,
+                        error.getClass().getName());
+                break;
+            }
             depth++;
         }
     }
