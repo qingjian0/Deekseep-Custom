@@ -52,6 +52,9 @@ jobs:
           test -x "$ANDROID_SDK_ROOT/build-tools/36.0.0/zipalign"
           test -x "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner"
 
+      - name: Run Agent Core JVM contract tests
+        run: bash scripts/test-agent-core.sh
+
       - name: Prepare private release signing key
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
