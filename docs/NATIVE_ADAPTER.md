@@ -141,6 +141,7 @@ DeepSeek Hook startup
 4. Manager 字段的正向类型可赋值关系只说明声明类型能够容纳该候选类实例，不证明字段实际持有该实例，也不证明其生命周期、初始化顺序或线程约束。
 5. 当前 `inspectHost()` 的只读扫描不取得 live PoW manager / Transport 实例。
 6. 旧版 `inspect(loader, powManager, transport)` 保留了对象捕获入口，但 2.7.x 启动路径注释明确说明旧 `q71` 捕获 Hook 不可用；不能把该入口视为新版本已完成的捕获机制。
+7. 旧版对象捕获诊断入口使用独立的 `INSPECTING` 锁；只有完成报告才设置 `REPORTED`，顶层反射失败会保留可重试状态。附加字段父类遍历失败会记录 `superclassError` 并停止该条遍历，不会继续假定父类元数据可用。
 
 探针结果应作为候选清单，不得作为调用协议的最终证据。
 
