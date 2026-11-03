@@ -36,6 +36,12 @@ public final class AgentCoreContractRegressionTest {
         expectInvalid(() -> new AgentCoreContract.Request(
                 "req", "scope", "model", "x", false, 0L, null),
                 "non-positive deadline must be rejected");
+        char[] oversized = new char[64 * 1024 + 1];
+        java.util.Arrays.fill(oversized, (char) 120);
+        expectInvalid(() -> new AgentCoreContract.Event(
+                AgentCoreContract.EventType.TEXT_DELTA, "req-1",
+                new String(oversized), "", null),
+                "oversized event text must be rejected");
 
         AgentRunStateMachine.State state = AgentRunStateMachine.State.CREATED;
         state = AgentRunStateMachine.requireTransition(
