@@ -16,11 +16,25 @@ public final class HostRemapRegressionTest {
             check("gt0".equals(HostRemap.raw287("gt0")),
                     "287 raw class names must retain identity mapping");
         }
+        try {
+            Class<?> direct = HostRemap.forDexName("java.lang.String",
+                    HostRemapRegressionTest.class.getClassLoader());
+            check(direct == String.class, "DEX class name must load without symbol remapping");
+            check(!DexInitializationFixture.initialized,
+                    "DEX class loading must not trigger static initialization");
+            Class<?> fixture = HostRemap.forDexName(DexInitializationFixture.class.getName(),
+                    HostRemapRegressionTest.class.getClassLoader());
+            check(fixture == DexInitializationFixture.class, "DEX fixture class mismatch");
+            check(!DexInitializationFixture.initialized,
+                    "forDexName must use initialize=false");
+        } catch (ClassNotFoundException error) {
+            throw new AssertionError("direct DEX class loading failed", error);
+        }
         System.out.println("HostRemap " + code + " mapping regression OK; classes="
                 + HostRemap.classCount());
     }
 
-    private static void check(boolean condition, String message) {
+    public static final class DexInitializationFixture {\n        static boolean initialized;\n        static { initialized = true; }\n    }\n\n    private static void check(boolean condition, String message) {
         if (!condition) throw new AssertionError(message);
     }
 }
