@@ -222,3 +222,12 @@ DeepSeek Hook startup
 | 真机 Completion 验证 | 未证实 |
 
 项目整体状态见 [PROJECT_STATUS.md](PROJECT_STATUS.md)，Gateway 服务层见 [OPEN_LOCAL_API_GATEWAY.md](architecture/OPEN_LOCAL_API_GATEWAY.md)。
+
+
+## 2.7.x 捕获入口复核补充（2026-11-03）
+
+复核 `Main.java` 中约 9312、9327、9337 行的 `HookChatPipeline.hookTransport(...)` 调用后，确认这些并不是独立的 2.7.x 安装入口，而是 `Main.installNetworkPayloadCapture()` 内部的三种旧版 Transport 发现分支（特定版本映射、候选混淆类名、结构签名兜底）。该方法本身由 `network.payload-capture` 安装步骤触发，而该步骤在 `HostCompat.isV271()` 时被显式跳过。
+
+对应地，`HookChatPipeline.hookTransport()` 内对 `Main.liveR92` 的赋值只有在该方法被安装并实际执行时才会发生；`liveQ71` 的已知赋值仍来自 `captureApiManagers()`，其 Hook 安装入口 `installPowManagerCapture()` 同样在 2.7.x 被跳过。由此，本次新增检查没有发现这几处 Main.java 调用构成独立的 2.7.x 捕获通道。
+
+本结论的范围是上述源码安装链与字段写入点；它不等于已取得官方 APK 的完整反编译证明，也不排除未来新增代码路径。后续仍应以完整仓库赋值点检索、各渠道官方 APK 静态证据和受控设备验证收敛结论。
