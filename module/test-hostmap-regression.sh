@@ -38,3 +38,19 @@ javac -source 8 -target 8 -nowarn -d "$CLASSES" \
 for code in 287 289 290; do
     java -cp "$CLASSES:$RESOURCES" ds.dsh.DeepSeek.HostRemapRegressionTest "$code"
 done
+
+python - "$MODULE/src/ds/dsh/DeepSeek/HostCompat.java" <<'PY'
+import pathlib
+import re
+import sys
+
+source = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
+branch = re.search(r"if \\(code271 != 0\\) \\{(.*?)\\n        \\}", source, re.S)
+if branch is None:
+    raise SystemExit("2.7.x host detection branch is missing")
+if not re.search(r"googlePlay\\s*=\\s*code271\\s*==\\s*290", branch.group(1)):
+    raise SystemExit("2.7.2 code290 must set the Google Play channel flag")
+if not re.search(r"return googlePlay;", source):
+    raise SystemExit("isGooglePlay must expose the selected host channel")
+print("HostCompat 2.7.x channel classification regression OK")
+PY
