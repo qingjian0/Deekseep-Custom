@@ -166,7 +166,6 @@ final class OpenNativeCompletionProbe {
                 }
                 line(out, "dex.eligibleClassNameCount", String.valueOf(eligibleClassNames));
                 line(out, "dex.scannedClassCount", String.valueOf(scanned));
-                line(out, "dex.classLoadFailureCount", String.valueOf(classLoadFailures));
                 line(out, "transport.candidateCount", String.valueOf(candidates));
 
                 // q71 in earlier host builds owned an r92 transport in an instance field.
@@ -205,6 +204,7 @@ final class OpenNativeCompletionProbe {
                     }
                 }
                 line(out, "manager.candidateCount", String.valueOf(managerCandidates));
+                line(out, "dex.classLoadFailureCount", String.valueOf(classLoadFailures));
                 // Per-class load failures mean the inventory is partial, not a terminal result.
                 completed = !names.isEmpty() && classLoadFailures == 0;
             }
