@@ -157,7 +157,8 @@ require(probe, r"owner\.getDeclaredMethods\(\).*?catch \(LinkageError \| Securit
 require(probe, r"method\.getParameterTypes\(\).*?catch \(LinkageError \| RuntimeException error\).*?dex\.methodMetadataError", "a single method signature failure is counted and skipped")
 require(probe, r"method\.getGenericReturnType\(\).*?catch \(LinkageError \| RuntimeException error\).*?dex\.genericMetadataError", "generic return metadata failures are reported without aborting candidate inventory")
 require(probe, r"field\.getModifiers\(\).*?field\.getType\(\).*?catch \(LinkageError \| RuntimeException error\).*?manager\.fieldMetadataError", "a single manager field metadata failure is counted and skipped")
-require(probe, r"int fieldIndex = 0;.*?for \\(Field field : declaredFields\\) \\{\\s*int memberIndex = fieldIndex\\+\\+;.*?prefix \\+ \"\\.fieldMetadataError\\.\" \\+ memberIndex", "diagnostic field metadata errors use unique per-member indexes")
+if "int memberIndex = fieldIndex++;" not in probe or 'prefix + ".fieldMetadataError." + memberIndex' not in probe:
+    raise SystemExit("diagnostic field metadata errors must use unique per-member indexes")
 require(probe, r"owner\.getDeclaredFields\(\).*?catch \(LinkageError \| SecurityException error\).*?classLoadFailures\+\+", "a single manager field-metadata failure is counted and skipped")
 require(probe, r"getDeclaredConstructors\(\).*?catch \(LinkageError \| SecurityException error\).*?constructorError", "constructor diagnostics tolerate unavailable metadata")
 require(probe, r"constructor\.getParameterTypes\(\).*?catch \(LinkageError \| RuntimeException error\).*?constructorMetadataError", "a single constructor signature failure does not abort constructor inventory")
