@@ -133,6 +133,24 @@ final class OpenLocalApiGateway {
     }
     static synchronized String setCustomKey(Context context, String candidate) {
         String value = candidate == null ? "" : candidate.trim();
+        if (!value.matches("[A-Za-z0-9._~-]{32,128}")) {
+            return "API Key 必须为 32 到 128 位，仅允许字母、数字及 . _ ~ -";
+        }
+        Context app = context == null ? appContext : context.getApplicationContext();
+        if (app == null) return "DeepSeek 上下文尚未就绪";
+        try {
+            persistToken(app, value);
+            appContext = app;
+            token = value;
+            return null;
+        } catch (Exception error) {
+            Main.log("Open Local API custom key update failed: "
+                    + error.getClass().getSimpleName());
+            return "API Key 保存失败";
+        }
+    }
+    static synchronized String setCustomKey(Context context, String candidate) {
+        String value = candidate == null ? "" : candidate.trim();
         if (value.length() < 24 || value.length() > 128) {
             return "API Key 长度必须为 24 到 128 个字符";
         }
