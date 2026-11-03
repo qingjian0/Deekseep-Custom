@@ -166,12 +166,18 @@ final class OpenLocalApiGateway {
             if (RUNNING.get() && current != null) {
                 stop();
                 start(app, current);
-                if (!RUNNING.get()) {
+                if (!RUNNING.get() || (enabled && boundLanAddress.length() == 0)) {
                     app.getSharedPreferences("dsh_local_api", Context.MODE_PRIVATE)
                             .edit().putBoolean("lan_enabled", previous).commit();
                     lanEnabled = previous;
-                    start(app, current);
-                    return "局域网监听切换失败，已尝试恢复原监听模式";
+                    if (!RUNNING.get()) start(app, current);
+                    else {
+                        stop();
+                        start(app, current);
+                    }
+                    return enabled
+                            ? "未能绑定 192.168.x.x 局域网地址，已恢复原监听模式"
+                            : "局域网监听切换失败，已尝试恢复原监听模式";
                 }
             }
             return null;
