@@ -67,6 +67,14 @@ DeepSeek Hook startup
 
 ### 2.3 命名与类加载风险
 
+- 执行门面请求 `z14.payloadClass(Main.hostApplicationContext, "ds.dsh.DeepSeek.z18")`，随后查找静态方法 `executeLocalApiCompletion(CompletionRequest, DeltaSink)`。
+- 当前仓库普通源码 `module/src/ds/dsh/DeepSeek/z18.java` 定义的是 Android Doze / App Standby 豁免辅助类，公开包内类本身没有上述 Completion 方法。
+- Open 版 `z14.java` 是 stub，`payloadClass()` 固定返回 null；因此 Open 路径 fail-closed，不会解析该类。
+- 这构成一个必须核实的类名碰撞/隔离边界：Closed payload 可能通过独立 ClassLoader 提供同名类，但当前仓库可见源码不足以证明其定义、加载器身份、父子委派策略或实际解析结果。不得将普通源码的 `z18` 误认成 Closed Completion Engine，也不得仅凭类名断言 Closed 路径正确或错误。
+- 在获得 Closed payload 的构建产物和 `z14.payloadClass()` 完整实现之前，执行引擎定位状态记为“未证实”。后续应记录解析所得 Class 的定义加载器、代码来源（若可安全取得）、方法声明类与静态签名；不记录 payload 内容、凭据或用户数据。
+
+### 2.4 旧 Backend 与运行时对象
+
 仓库源码中也存在一个源文件 `module/src/ds/dsh/DeepSeek/z18.java`，其内容是 Android Doze / App Standby 白名单辅助逻辑，并不声明 `executeLocalApiCompletion`。
 
 因此后续实现不得只凭 `z18` 这个短类名或文件名认定执行目标。必须核实：
