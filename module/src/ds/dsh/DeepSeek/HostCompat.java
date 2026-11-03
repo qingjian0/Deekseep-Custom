@@ -52,6 +52,9 @@ public final class HostCompat {
         if (code271 != 0) {
             v271 = true;
             hostCode = code271;
+            // Code290 is the Google Play / international 2.7.2 build. It has no
+            // PairIP marker, so the initial channel probe cannot set this flag for it.
+            googlePlay = code271 == 290;
             v250 = v236 = false;
             legacyUnitUsesTi8 = false;
             // Full mode: run the reviewed 2.4.1 feature code through the generated
