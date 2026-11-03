@@ -38,6 +38,7 @@ final class OpenLocalApiGateway {
     private static volatile Thread acceptThread;
     private static volatile ExecutorService clients;
     private static volatile z2.Backend backend;
+    private static volatile Context appContext;
     private static volatile String token;
     private static volatile int boundPort;
 
@@ -47,6 +48,7 @@ final class OpenLocalApiGateway {
         if (context == null || modelBackend == null || RUNNING.get()) return;
         try {
             Context app = context.getApplicationContext();
+            appContext = app;
             token = loadOrCreateToken(app);
             backend = modelBackend;
             ServerSocket socket = new ServerSocket(DEFAULT_PORT, 16,
@@ -82,6 +84,32 @@ final class OpenLocalApiGateway {
         return RUNNING.get() ? "http://127.0.0.1:" + boundPort : "";
     }
     static String apiKey() { return token == null ? "" : token; }
+    static synchronized String rotateKey(Context context) {
+        try {
+            Context app = context == null ? appContext : context.getApplicationContext();
+            if (app == null) return null;
+            String replacement = generateToken();
+            persistToken(app, replacement);
+            appContext = app;
+            token = replacement;
+            return replacement;
+        } catch (Exception error) {
+            Main.log("Open Local API token rotation failed: " + error.getClass().getSimpleName());
+            return null;
+        }
+    }
+    static String connectionInfo() {
+        if (!RUNNING.get()) return "Open Local API is stopped";
+        return "Base URL: " + endpoint() + "/v1\\n"
+                + "Chat Completions: " + endpoint() + "/v1/chat/completions\\n"
+                + "API Key: " + apiKey() + "\\n"
+                + "Models: deepseek-chat, deepseek-reasoner\\n"
+                + "Binding: 127.0.0.1 only";
+    }
+    static String runtimeStatus() {
+        return RUNNING.get() ? "Running on 127.0.0.1:" + boundPort
+                : "Stopped";
+    }
 
     private static void closeServer() {
         ServerSocket socket = server;
@@ -320,19 +348,28 @@ final class OpenLocalApiGateway {
             String existing = new String(stored.toByteArray(), StandardCharsets.US_ASCII).trim();
             if (existing.matches("[A-Za-z0-9_-]{40,80}")) return existing;
         }
+        String value = generateToken();
+        persistToken(context, value);
+        return value;
+    }
+    private static String generateToken() {
         byte[] random = new byte[32];
         new SecureRandom().nextBytes(random);
-        String value = android.util.Base64.encodeToString(random,
+        return android.util.Base64.encodeToString(random,
                 android.util.Base64.URL_SAFE | android.util.Base64.NO_WRAP
                         | android.util.Base64.NO_PADDING);
+    }
+    private static void persistToken(Context context, String value) throws Exception {
+        File file = new File(context.getFilesDir(), TOKEN_FILE);
         File temp = new File(context.getFilesDir(), TOKEN_FILE + ".tmp");
         try (FileOutputStream stream = new FileOutputStream(temp)) {
             stream.write(value.getBytes(StandardCharsets.US_ASCII));
             stream.getFD().sync();
         }
+        if (file.exists() && !file.delete()) throw new IllegalStateException("Cannot replace API token");
         if (!temp.renameTo(file)) throw new IllegalStateException("Cannot persist API token");
-        return value;
     }
+
     private static void sendJson(OutputStream out, int status, JSONObject body) throws Exception {
         writeHeaders(out, status, "application/json; charset=utf-8");
         out.write(body.toString().getBytes(StandardCharsets.UTF_8)); out.flush();
