@@ -4306,9 +4306,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 || !z16.allowSensitiveFeature(context)) return;
         final Context appContext = context.getApplicationContext();
         if (!new File(HookAccountLoginSecurity.LOCAL_API_ENABLED_FILE).exists()) return;
-        // 2.7.x deliberately skips the older q71/r92 capture hooks. The read-only inventory is
-        // diagnostic only: run it once, and only when Local API is enabled, off the startup/UI
-        // caller thread. It must never delay gateway startup or ordinary host activity.
+        // 2.7.x deliberately skips the older q71/r92 capture hooks. The read-only inventory
+        // is diagnostic only: one daemon worker performs at most three bounded attempts, and
+        // only when Local API is enabled. It never blocks startup/UI or ordinary host activity.
         if (openEdition) OpenNativeCompletionProbe.scheduleHostInspection(hostClassLoader);
         // The Local API payload key is intentionally not persisted.  After a host process
         // restart, re-enroll before resolving z1; otherwise the facade reports port=0/key empty
