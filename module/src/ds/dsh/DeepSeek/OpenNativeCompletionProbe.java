@@ -95,6 +95,8 @@ final class OpenNativeCompletionProbe {
             Class<?> requestType = HostCompat.load(loader, "ew0");
             line(out, "edition", BuildInfo.BUILD_EDITION);
             line(out, "host", HostCompat.diagnosticSummary());
+            appendLoaderChain(out, loader);
+            line(out, "dex.scan.scope", "supplied BaseDexClassLoader pathList.dexElements only; parent and separate split/dynamic loaders are not recursively enumerated");
             line(out, "request.class", requestType.getName());
             line(out, "request.interfaces", interfaces(requestType));
             appendConstructors(out, requestType);
@@ -237,6 +239,18 @@ final class OpenNativeCompletionProbe {
 
     static String status() {
         return report;
+    }
+
+    private static void appendLoaderChain(StringBuilder out, ClassLoader loader) {
+        ClassLoader current = loader;
+        int depth = 0;
+        while (current != null && depth < 8) {
+            line(out, "loader.chain." + depth, current.getClass().getName());
+            current = current.getParent();
+            depth++;
+        }
+        line(out, "loader.chain.depth", String.valueOf(depth));
+        line(out, "loader.chain.bootstrapParent", String.valueOf(current == null));
     }
 
     private static void appendConstructors(StringBuilder out, Class<?> type) {
