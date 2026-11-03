@@ -92,7 +92,7 @@ final class OpenNativeCompletionProbe {
                     eligibleClassNames++;
                     Class<?> owner;
                     try {
-                        owner = HostRemap.forName(name, false, loader);
+                        owner = HostRemap.forDexName(name, loader);
                     } catch (Throwable ignored) {
                         classLoadFailures++;
                         continue;
@@ -132,7 +132,7 @@ final class OpenNativeCompletionProbe {
                         if (name == null || name.indexOf('.') >= 0 || name.length() > 6) continue;
                         Class<?> owner;
                         try {
-                            owner = HostRemap.forName(name, false, loader);
+                            owner = HostRemap.forDexName(name, loader);
                         } catch (Throwable ignored) {
                             continue;
                         }
