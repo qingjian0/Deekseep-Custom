@@ -249,6 +249,9 @@ public final class z13 {
     }
 
     static String setCustomKey(Context context, String candidate) {
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
+            return OpenLocalApiGateway.setCustomKey(context, candidate);
+        }
         try {
             Class<?> g = gateway();
             if (g == null) return null;
