@@ -83,6 +83,10 @@ public final class z13 {
 
     static void start(Context context, z2.Backend backend) {
         appContext = context == null ? null : context.getApplicationContext();
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
+            OpenLocalApiGateway.start(appContext, backend);
+            return;
+        }
         try {
             Class<?> g = gateway();
             if (g == null) return;
@@ -92,14 +96,24 @@ public final class z13 {
     }
 
     static void stop() {
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
+            OpenLocalApiGateway.stop();
+            return;
+        }
         callVoid("stop");
     }
 
     static boolean isRunning() {
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
+            return OpenLocalApiGateway.isRunning();
+        }
         return callBool("isRunning");
     }
 
     static String endpoint() {
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
+            return OpenLocalApiGateway.endpoint();
+        }
         return callString("endpoint");
     }
 
@@ -120,6 +134,9 @@ public final class z13 {
     }
 
     static int port() {
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
+            return OpenLocalApiGateway.port();
+        }
         return callInt("port");
     }
 
@@ -136,6 +153,9 @@ public final class z13 {
     }
 
     static String apiKey() {
+        if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
+            return OpenLocalApiGateway.apiKey();
+        }
         return callString("apiKey");
     }
 
