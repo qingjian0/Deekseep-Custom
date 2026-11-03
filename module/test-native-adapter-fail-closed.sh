@@ -55,6 +55,26 @@ require(
     r"static void inspectHost\(ClassLoader loader\)",
     "Open host inventory entry point remains present",
 )
+require(
+    probe,
+    r'line\(out, "report\.schema", "2"\)',
+    "probe report schema is versioned",
+)
+require(
+    probe,
+    r'line\(out, "dex\.eligibleClassNameCount"',
+    "probe reports eligible class-name coverage",
+)
+require(
+    probe,
+    r'line\(out, "dex\.classLoadFailureCount"',
+    "probe reports class-load failures",
+)
+require(
+    probe,
+    r'line\(out, "probe\.elapsedMs"',
+    "probe reports scan duration",
+)
 inspect = probe.split("static void inspectHost(ClassLoader loader)", 1)[1].split(
     "/** Legacy object-capture entry point", 1
 )[0]
