@@ -157,7 +157,9 @@ final class OpenLocalApiGateway {
                 + "Chat Completions: " + endpoint() + "/v1/chat/completions\n"
                 + "API Key: " + apiKey() + "\n"
                 + "Models: deepseek-chat, deepseek-reasoner\n"
-                + "Binding: 127.0.0.1 only";
+                + "Binding: 127.0.0.1 only\n"
+                + "Backend: " + (backend != null && backend.isReady()
+                        ? "ready" : (backend == null ? "unavailable" : backend.readinessDetail()));
     }
     static String runtimeStatus() {
         return RUNNING.get() ? "Running on 127.0.0.1:" + boundPort
