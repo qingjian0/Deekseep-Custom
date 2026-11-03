@@ -136,11 +136,18 @@ public final class z13 {
         return callString("lanEndpoint");
     }
 
-    static boolean isLanEnabled() {
+    static boolean isLanEnabled(Context context) {
         if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
-            return OpenLocalApiGateway.isLanEnabled();
+            return OpenLocalApiGateway.isLanEnabled(context);
         }
-        return callBool("isLanEnabled");
+        try {
+            Class<?> g = gateway();
+            Method m = g == null ? null : method("isLanEnabledCtx", g,
+                    "isLanEnabled", Context.class);
+            return m != null && (Boolean) m.invoke(null, context);
+        } catch (Throwable ignored) {
+            return callBool("isLanEnabled");
+        }
     }
 
     static String setLanEnabled(Context context, boolean enabled) {
