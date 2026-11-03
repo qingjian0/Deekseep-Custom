@@ -134,18 +134,29 @@ final class OpenLocalApiGateway {
         Context app = context == null ? appContext : context.getApplicationContext();
         if (app == null) return "DeepSeek 上下文尚未就绪";
         z2.Backend current = backend;
+        boolean previous = isLanEnabled(app);
         try {
             app.getSharedPreferences("dsh_local_api", Context.MODE_PRIVATE)
-                    .edit().putBoolean("lan_enabled", enabled).apply();
+                    .edit().putBoolean("lan_enabled", enabled).commit();
             lanEnabled = enabled;
             if (RUNNING.get() && current != null) {
                 stop();
                 start(app, current);
-                if (!RUNNING.get()) return "设置已保存，但监听重启失败；请检查端口占用";
+                if (!RUNNING.get()) {
+                    app.getSharedPreferences("dsh_local_api", Context.MODE_PRIVATE)
+                            .edit().putBoolean("lan_enabled", previous).commit();
+                    lanEnabled = previous;
+                    start(app, current);
+                    return "局域网监听切换失败，已尝试恢复原监听模式";
+                }
             }
             return null;
         } catch (Exception error) {
-            return "局域网设置失败";
+            app.getSharedPreferences("dsh_local_api", Context.MODE_PRIVATE)
+                    .edit().putBoolean("lan_enabled", previous).commit();
+            lanEnabled = previous;
+            if (!RUNNING.get() && current != null) start(app, current);
+            return "局域网设置失败，已恢复原配置";
         }
     }
     static String lanEndpoint() {
