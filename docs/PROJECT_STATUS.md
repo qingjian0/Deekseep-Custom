@@ -1,0 +1,129 @@
+# 项目状态与交付基线
+
+> 状态日期：2026-11-03  
+> 适用分支：`work/roi-agent-core-kotlin`  
+> 当前基线提交：`c87ce1b67e57788ff8f53777f4d583f5a00a6151`  
+> 宿主：官方 DeepSeek Android `com.deepseek.chat`  
+> 宿主版本目标：国内版 2.7.1（versionCode 287）、国内版 2.7.2（289）、Google Play / 国际版 2.7.2（290）
+
+本文记录当前工作分支的实现状态，不代表 `main` 或公开 Release 已包含这些改动。状态只在有源码或 CI 证据时标记为完成。
+
+## 1. 当前结论
+
+项目正从传统 Java Hook 模块逐步演进为 **Kotlin Runtime + Agent Core + Local API Gateway + DeepSeek 原生宿主适配**。这是渐进迁移，不是整体重写：
+
+- 既有 Java/Xposed Hook 与宿主反射边界继续保留。
+- Kotlin 承担新增 Runtime 契约、Agent 调度、确定性策略、持久化与部分 UI。
+- Local API 的 HTTP、认证、请求限制、SSE 和 LAN 监听已有实现。
+- **Open 构建的 DeepSeek 原生 Completion Adapter 尚未打通**。当前 `/v1/models` 与 `/v1/chat/completions` 在适配器不可用时应返回 503；不能把 HTTP 路由可访问描述成模型调用成功。
+
+## 2. 分支与提交
+
+| 项目 | 当前值 |
+|---|---|
+| 工作分支 | `work/roi-agent-core-kotlin` |
+| 当前 HEAD | `c87ce1b67e57788ff8f53777f4d583f5a00a6151` |
+| 前一提交 | `4f80b5a658e9f22910292cf569f403e8b6f540d8` |
+| Kotlin 架构基线 | `refactor/kotlin-hook-architecture` |
+| 与架构基线关系 | 领先 77 个提交、落后 0 个提交（最近一次 compare 结果） |
+| 主干策略 | 不自动合并 `main`；不重置或覆盖工作分支 |
+
+每次批量开发前应重新读取远端 HEAD。本文中的提交和比较数字是本次状态快照，不应被当作永久值。
+
+## 3. 模块状态
+
+### 3.1 Hook 与宿主兼容
+
+- Xposed 入口和现有 Java Hook 继续作为宿主兼容边界。
+- `HostCompat` / `HostRemap` 负责宿主版本识别和混淆映射。
+- 287 / 289 / 290 映射资产存在并纳入回归检查；映射文件存在不等于对应版本真机验证通过。
+- 不整体翻译 `Main.java` 或 `HookChatPipeline.java`。Flow 对象身份、原方法 exactly-once、异常传播、Hook 时序和混淆符号都属于高风险兼容契约。
+
+### 3.2 Kotlin Runtime / Agent Core
+
+主要实现位于 `module-kotlin-runtime/`，包括：
+
+- Agent 请求、事件、模型适配器和运行契约；
+- 运行状态机、deadline、取消和异常隔离；
+- request ID 幂等；
+- 持久化 Repository、版本化存储、恢复与容量限制；
+- 工具权限策略：未知工具默认拒绝；只读工具按策略处理；文件写入、设备控制和外部网络等副作用需要逐次确认。
+
+当前应继续验证故障注入、并发、重复调用、持久化损坏和恢复行为，并确认策略层真正接入执行器。接口和策略存在不等于所有工具已经端到端可执行。
+
+### 3.3 Local API Gateway
+
+实现入口：`module/src/ds/dsh/DeepSeek/OpenLocalApiGateway.java`
+
+| 路由 | 当前状态 |
+|---|---|
+| `GET /v1/models` | HTTP 路由已实现；原生适配器未就绪时返回 503 |
+| `POST /v1/chat/completions` | HTTP/JSON/SSE 路由已实现；原生适配器未就绪时返回 503 |
+| `POST /v1/responses` | 未实现 |
+| `POST /v1/agent/run` | 未实现 |
+
+网络与安全边界：
+
+- 默认关闭；默认只监听 `127.0.0.1`。
+- 用户显式开启 LAN 后，监听当前发现的精确 `192.168.x.x` IPv4 地址，不绑定 `0.0.0.0`。
+- 远端来源限制在 `192.168.0.0/16`；网络变化由 Android 默认网络回调触发重新绑定。
+- 每安装实例独立 Bearer Token，支持轮换；请求体、Prompt、并发与队列均有限制。
+- LAN 使用明文 HTTP，仅适用于可信局域网；不提供 TLS、公网监听或隧道。
+- 不记录 Prompt、Completion、Token 明文或工具参数。
+
+### 3.4 Native Completion Adapter（当前首要阻塞）
+
+现有 Java 侧包含 `z2` Backend/Completion 契约、`z13` 反射门面，以及 `HookAccountLoginSecurity.executeLocalApiCompletion()` 等旧路径。旧路径依赖 Closed 专属 `z18` payload；Open 构建不包含该执行载荷。
+
+因此当前不得：
+
+- 将 `z13` 反射门面描述成已经完成的原生执行引擎；
+- 将 Closed payload 当成 Open 版可复用实现；
+- 仅修改 `BuildInfo.LOCAL_API_INCLUDED` 就宣称完成适配；
+- 将 503 `model_not_ready` 视为模型服务可用。
+
+下一阶段必须追踪官方客户端的请求构造、PoW 管理、网络 Transport、Flow/SSE 事件、响应消费、会话上下文、取消与超时，找出可在 Open 版合法实现的最小原生调用边界。
+
+### 3.5 诊断 UI
+
+最近提交为 Local API 页面加入 Open 原生 Completion Probe 状态与复制诊断入口。位置在 DeepSeek 模块设置的“工程”→“本地 API · 实验性”页面中。诊断只读，不会自动发起 Completion，也不读取聊天正文或账号凭据。
+
+只有安装包含相应提交的 APK 后才会出现该入口；旧安装包不包含此 UI。
+
+## 4. 最近 CI 记录
+
+| Run | Commit | 结果 | 说明 |
+|---|---|---|---|
+| [41647101079](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41647101079) | `4f80b5a` | Failure | Android Open build and lint 成功；Regression 因两条新 Toast 文案缺少精确译文失败 |
+| [41648546478](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41648546478) | `c87ce1b` | Queued（提交时） | 已补齐两条精确译文，等待重新验证 |
+
+修复提交后的 CI 结果必须重新查询，不以代码推断替代工作流结果。
+
+## 5. 下一批任务顺序
+
+1. **CI 回归闭环**：确认 `c87ce1b` 工作流结果；若失败，读取失败 Job 日志并修复根因，不删除测试、不降低断言。
+2. **文档基线校准**：保持 README、架构、功能、构建和验证文档与当前分支一致；旧版发布说明移入上游归档或明确标注历史版本。
+3. **Native Adapter 调查**：围绕 287/289/290 的官方请求链路建立符号、调用顺序、线程与生命周期证据；优先只读诊断和可验证的窄边界。
+4. **Agent Core 验收**：补充故障注入、恢复、幂等、权限确认和执行器集成测试。
+5. **构建矩阵**：Open、Legacy、Universal 分别验证；再分别记录模拟环境与真机结果。
+6. **交付**：提交 SHA、CI Run、构建产物、校验和及未验证范围分开记录。
+
+## 6. 验证口径
+
+遵循 [测试与验证规范](TESTING.md) 的 L0–L5 分级：
+
+- L1 JVM/脚本回归通过，不代表 Android Hook 已生效。
+- L2 Android 构建通过，不代表 APK 已在设备安装。
+- L3 APK 结构检查通过，不代表宿主行为正确。
+- L4 模拟器/沙盒通过，不代表真实 DeepSeek/Xposed 兼容。
+- 只有明确记录设备、宿主渠道与 versionCode、LSPosed 环境和测试步骤的 L5 结果，才可称为对应组合的真机验证。
+
+## 7. 相关文档
+
+- [架构总览](ARCHITECTURE.md)
+- [功能范围](FEATURES.md)
+- [构建说明](BUILDING.md)
+- [分支约定](BRANCHING.md)
+- [测试与验证规范](TESTING.md)
+- [Local API Gateway](architecture/OPEN_LOCAL_API_GATEWAY.md)
+- [ROI Agent Core 与 Gateway](architecture/ROI_AGENT_CORE_GATEWAY.md)
