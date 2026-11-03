@@ -134,7 +134,16 @@ final class OpenNativeCompletionProbe {
                     }
                     scanned++;
                     scannedTypes.add(owner);
-                    for (Method method : owner.getDeclaredMethods()) {
+                    Method[] declaredMethods;
+                    try {
+                        declaredMethods = owner.getDeclaredMethods();
+                    } catch (LinkageError | SecurityException error) {
+                        classLoadFailures++;
+                        line(out, "dex.methodInventoryError." + scanned,
+                                error.getClass().getName());
+                        continue;
+                    }
+                    for (Method method : declaredMethods) {
                         Class<?>[] p = method.getParameterTypes();
                         if (p.length != 2 || p[1] != Long.class
                                 || !p[0].isAssignableFrom(requestType)
@@ -168,7 +177,16 @@ final class OpenNativeCompletionProbe {
                     // name would duplicate class-loader work and could silently make the manager
                     // inventory partial after the DEX scan had already been marked complete.
                     for (Class<?> owner : scannedTypes) {
-                        for (Field field : owner.getDeclaredFields()) {
+                        Field[] declaredFields;
+                        try {
+                            declaredFields = owner.getDeclaredFields();
+                        } catch (LinkageError | SecurityException error) {
+                            classLoadFailures++;
+                            line(out, "manager.fieldInventoryError." + managerCandidates,
+                                    error.getClass().getName());
+                            continue;
+                        }
+                        for (Field field : declaredFields) {
                             if (Modifier.isStatic(field.getModifiers())
                                     || field.getType().isPrimitive()) continue;
                             for (Class<?> transportOwner : transportOwners) {
@@ -253,7 +271,13 @@ final class OpenNativeCompletionProbe {
     }
 
     private static void appendConstructors(StringBuilder out, String prefix, Class<?> type) {
-        Constructor<?>[] constructors = type.getDeclaredConstructors();
+        Constructor<?>[] constructors;
+        try {
+            constructors = type.getDeclaredConstructors();
+        } catch (LinkageError | SecurityException error) {
+            line(out, prefix + ".constructorError", error.getClass().getName());
+            return;
+        }
         line(out, prefix + ".constructorCount", String.valueOf(constructors.length));
         for (int i = 0; i < constructors.length && i < 24; i++) {
             Constructor<?> constructor = constructors[i];
@@ -267,7 +291,17 @@ final class OpenNativeCompletionProbe {
         int depth = 0;
         int count = 0;
         while (current != null && current != Object.class && depth <= maxDepth) {
-            for (Field field : current.getDeclaredFields()) {
+            Field[] declaredFields;
+            try {
+                declaredFields = current.getDeclaredFields();
+            } catch (LinkageError | SecurityException error) {
+                line(out, prefix + ".fieldInventoryError." + depth,
+                        error.getClass().getName());
+                current = current.getSuperclass();
+                depth++;
+                continue;
+            }
+            for (Field field : declaredFields) {
                 if (Modifier.isStatic(field.getModifiers())) continue;
                 line(out, prefix + ".field." + count++,
                         current.getSimpleName() + "." + field.getName()
