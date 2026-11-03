@@ -96,15 +96,15 @@
 | Run | Commit | 结果 | 说明 |
 |---|---|---|---|
 | [41647101079](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41647101079) | `4f80b5a` | Failure | Android Open build and lint 成功；Regression 因两条新 Toast 文案缺少精确译文失败 |
-| [41648546478](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41648546478) | `c87ce1b` | Cancelled | 后续文档提交触发新工作流并取消旧运行；修复尚未获得独立 CI 通过证据 |
-| [41648878672](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41648878672) | `20320a2` | Queued（最近查询） | 当前文档整理批次的工作流；后续提交可能使其被新运行替代 |
+| [41648546478](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41648546478) | `c87ce1b` | Cancelled | 后续同分支提交触发并发取消 |
+| [41649071834](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41649071834) | `c34d8ba` | Success | Regression tests 与 Android Open build and lint 均成功；Open APK 结构、对齐和 CI 临时签名检查通过 |
 
-修复提交后的 CI 结果必须重新查询，不以代码推断替代工作流结果。由于 GitHub Actions concurrency 设置为同一分支新提交会取消旧运行，必须等待最后一个文档/代码提交对应的完整 Run，才能形成最终回归结论。
+Run `41649071834` 是本轮已核实的完整绿色 CI。它验证的是 JVM/脚本回归和 Open Android 构建，不是宿主真机 Completion。
 
 ## 5. 下一批任务顺序
 
 1. **CI 回归闭环**：确认 `c87ce1b` 工作流结果；若失败，读取失败 Job 日志并修复根因，不删除测试、不降低断言。
-2. **文档基线校准**：保持 README、架构、功能、构建和验证文档与当前分支一致；旧版发布说明移入上游归档或明确标注历史版本。
+2. **Native Adapter 证据调查**：见 [NATIVE_ADAPTER.md](NATIVE_ADAPTER.md)，继续核验 287/289/290 的请求、PoW、Transport、Flow 和响应消费。
 3. **Native Adapter 调查**：围绕 287/289/290 的官方请求链路建立符号、调用顺序、线程与生命周期证据；优先只读诊断和可验证的窄边界。
 4. **Agent Core 验收**：补充故障注入、恢复、幂等、权限确认和执行器集成测试。
 5. **构建矩阵**：Open、Legacy、Universal 分别验证；再分别记录模拟环境与真机结果。
@@ -128,4 +128,5 @@
 - [分支约定](BRANCHING.md)
 - [测试与验证规范](TESTING.md)
 - [Local API Gateway](architecture/OPEN_LOCAL_API_GATEWAY.md)
+- [Native Completion Adapter 调查](NATIVE_ADAPTER.md)
 - [ROI Agent Core 与 Gateway](architecture/ROI_AGENT_CORE_GATEWAY.md)
