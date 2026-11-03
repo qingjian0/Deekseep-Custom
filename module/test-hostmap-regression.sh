@@ -45,10 +45,10 @@ import re
 import sys
 
 source = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
-branch = re.search(r"if \\(code271 != 0\\) \\{(.*?)\\n        \\}", source, re.S)
+branch = re.search(r"if \(code271 != 0\) \{(.*?)\n        \}", source, re.S)
 if branch is None:
     raise SystemExit("2.7.x host detection branch is missing")
-if not re.search(r"googlePlay\\s*=\\s*code271\\s*==\\s*290", branch.group(1)):
+if not re.search(r"googlePlay\s*=\s*code271\s*==\s*290", branch.group(1)):
     raise SystemExit("2.7.2 code290 must set the Google Play channel flag")
 if not re.search(r"return googlePlay;", source):
     raise SystemExit("isGooglePlay must expose the selected host channel")
