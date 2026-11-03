@@ -14,13 +14,15 @@ class loader, native transport and PoW objects to become ready before accepting 
 
 | Method | Route | Status |
 |---|---|---|
-| GET | `/v1/models` | Implemented; requires a ready native backend |
-| POST | `/v1/chat/completions` | Implemented for text messages |
+| GET | `/v1/models` | HTTP route implemented; returns 503 until the Open native adapter is connected |
+| POST | `/v1/chat/completions` | HTTP/JSON/SSE route implemented; returns 503 until the Open native adapter is connected |
 | POST | `/v1/responses` | Not implemented |
 | POST | `/v1/agent/run` | Not implemented |
 
-Supported model IDs are `deepseek-chat` and `deepseek-reasoner`. The current adapter maps both
-to the host's default native model lane and enables reasoning mode for the reasoner ID.
+Supported model IDs are `deepseek-chat` and `deepseek-reasoner`. The request mapper selects the host's default native model lane and enables reasoning mode for the
+reasoner ID. This mapping is not yet executable in the Open edition: the existing completion
+method still delegates into the Closed-only payload. The Open backend therefore reports itself
+unavailable rather than falsely advertising model readiness.
 
 ## Security and resource limits
 
@@ -39,8 +41,10 @@ to the host's default native model lane and enables reasoning mode for the reaso
 
 - No Responses API, Anthropic protocol, tools/function calling, image input, or audio input.
 - No LAN access, TLS, external tunnel, or remote port forwarding.
-- Native model readiness still depends on the official DeepSeek host process having initialized
-  its transport and PoW objects.
+- The native completion adapter is not implemented in Open yet. Capturing the official host
+  transport and PoW objects is insufficient because the existing completion method delegates to
+  the Closed-only payload. The Gateway deliberately returns 503 until a public-source adapter is
+  connected.
 - Client disconnect is observed when the next stream write fails; a quiet upstream operation may
   continue until its request deadline.
 - The API response currently omits token usage and several optional OpenAI fields.
