@@ -2879,7 +2879,7 @@ public final class DeekseepUi {
         card.addView(simpleSwitchRow(act, "开放 192.168 局域网访问",
                 "允许同一 192.168.x.x 网段设备访问；仍需 Bearer API Key。关闭后仅本机可访问。"
                         + "局域网使用 HTTP，请只在可信 Wi-Fi 下开启。",
-                Main.isLocalApiLanEnabled(), textColor, subColor, dark,
+                Main.isLocalApiLanEnabled(act), textColor, subColor, dark,
                 new CompoundButton.OnCheckedChangeListener() {
                     private boolean internal;
                     @Override public void onCheckedChanged(CompoundButton button, boolean checked) {
