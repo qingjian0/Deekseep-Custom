@@ -146,6 +146,9 @@ require(probe, r"ATTEMPTS\.incrementAndGet\(\);\s*inspectHost\(loader\)", "each 
 require(probe, r"finally\s*\{\s*SCHEDULED\.set\(false\);", "probe releases scheduling guard after every worker run")
 require(probe, r"completed\s*=\s*!names\.isEmpty\(\)\s*&&\s*classLoadFailures\s*==\s*0", "empty and partial DEX inventories remain retryable")
 require(probe, r"scannedTypes\.add\(owner\).*?for \(Class<\?> owner : scannedTypes\)", "manager inventory reuses successfully loaded classes without a second class-loader pass")
+require(probe, r"field\.getType\(\)\.isAssignableFrom\(transportOwner\)\s*\)", "manager field matching only accepts declared types that can hold the transport owner")
+if "transportOwner\.isAssignableFrom\(field\.getType\(\)\)" in probe:
+    raise SystemExit("Manager matching must reject reverse assignability, which cannot hold the transport instance")
 require(probe, r'appendConstructors\(out, "request", requestType\).*?appendConstructors\(out, "manager" \+ managerCandidates, owner\).*?appendConstructors\(StringBuilder out, String prefix, Class<\?> type\).*?prefix \+ "\.constructorCount".*?prefix \+ "\.ctor\."', "request and manager constructor diagnostics use independent namespaces")
 require(probe, r"if \(completed\) REPORTED\.set\(true\)", "only a complete inventory becomes terminal")
 require(probe, r"MAX_REPORT_CHARS\s*=\s*12_000", "probe report has an explicit size bound")
