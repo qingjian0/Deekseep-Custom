@@ -18,7 +18,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
-import java.util.Base64;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -154,10 +153,10 @@ final class OpenLocalApiGateway {
     }
     static String connectionInfo() {
         if (!RUNNING.get()) return "Open Local API is stopped";
-        return "Base URL: " + endpoint() + "/v1\\n"
-                + "Chat Completions: " + endpoint() + "/v1/chat/completions\\n"
-                + "API Key: " + apiKey() + "\\n"
-                + "Models: deepseek-chat, deepseek-reasoner\\n"
+        return "Base URL: " + endpoint() + "/v1\n"
+                + "Chat Completions: " + endpoint() + "/v1/chat/completions\n"
+                + "API Key: " + apiKey() + "\n"
+                + "Models: deepseek-chat, deepseek-reasoner\n"
                 + "Binding: 127.0.0.1 only";
     }
     static String runtimeStatus() {
@@ -273,7 +272,13 @@ final class OpenLocalApiGateway {
             if (stream) {
                 streamCompletion(out, current, completion, model, requestId);
             } else {
-                z2.CompletionResult result = current.complete(completion, null);
+                z2.CompletionResult result;
+                try {
+                    result = current.complete(completion, null);
+                } catch (Exception upstreamFailure) {
+                    sendError(out, 502, "upstream_error", "Native model execution failed");
+                    return;
+                }
                 JSONObject message = new JSONObject().put("role", "assistant")
                         .put("content", result.text);
                 JSONObject choice = new JSONObject().put("index", 0).put("message", message)
