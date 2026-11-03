@@ -1,10 +1,10 @@
-# YunSeek 架构说明
+# Deekseep-Custom 架构说明
 
-**文档基线：** `dev` 分支建立本规范时的源码结构。本文用于约束后续改动，不代表所有模块已经完成理想化分层。新增或迁移代码时应先核对实际调用关系并更新本文。
+**适用范围：** 当前工作分支 `work/roi-agent-core-kotlin`。本文描述渐进式架构约束；具体实现进度以 [PROJECT_STATUS.md](PROJECT_STATUS.md) 为准。
 
 ## 1. 项目定位
 
-YunSeek 是作用于 DeepSeek Android 客户端（`com.deepseek.chat`）的 LSPosed / Xposed 模块。它不是独立聊天客户端，也不是通用 Android SDK。
+Deekseep-Custom 是作用于 DeepSeek Android 客户端（`com.deepseek.chat`）的 LSPosed / Xposed 模块。它不是独立聊天客户端，也不是通用 Android SDK。
 
 当前工程包含三类主要代码：
 
@@ -16,9 +16,10 @@ YunSeek 是作用于 DeepSeek Android 客户端（`com.deepseek.chat`）的 LSPo
 
 | 路径 | 当前职责 | 修改注意事项 |
 |---|---|---|
-| `module/src/` | Java Hook 核心及功能实现（含独立的 `TargetProcessGuard`） | 修改前追踪入口、调用链和宿主版本条件 |
+| `module/src/` | Java Hook 核心、宿主适配与 Local API Gateway | 修改前追踪入口、调用链和宿主版本条件 |
 | `module/hostmap/` | 宿主版本符号映射 | 不可猜测映射；记录来源并验证 |
-| `module-legacy/` | 旧模块与兼容代码/清单 | 不可假设与当前主构建完全等价 |
+| `module-kotlin-runtime/` | Kotlin Runtime、Agent Core、确定性策略与 JVM 测试 | 新增核心逻辑优先放在此处，避免依赖 Android/Xposed 类型 |
+| `module-legacy/` | Legacy Xposed 构建与兼容代码/清单 | 不可假设与当前主构建完全等价 |
 | `module-universal/` | 通用/旧构建资源及载荷路径 | 先确认目标构建是否实际引用 |
 | `compose-launcher/` | Kotlin Compose 管理应用与 Gradle 工程 | 不要把管理 UI 与宿主内 Hook 生命周期混为一谈 |
 | `scripts/` | 构建、检查及辅助脚本 | 检查路径假设、退出码和 CI 可移植性 |
