@@ -149,6 +149,7 @@ require(probe, r"scannedTypes\.add\(owner\).*?for \(Class<\?> owner : scannedTyp
 require(probe, r"if \(completed\) REPORTED\.set\(true\)", "only a complete inventory becomes terminal")
 require(probe, r"MAX_REPORT_CHARS\\s*=\\s*12_000", "probe report has an explicit size bound")
 require(probe, r"REPORT_TERMINAL_RESERVE\\s*=\\s*64", "probe report reserves space for terminal diagnostics")
+require(probe, r"contentLimit\\s*=\\s*MAX_REPORT_CHARS\\s*-\\s*REPORT_TERMINAL_RESERVE\\s*-\\s*marker\\.length\\(\\)", "probe report reserves room for both truncation marker and terminal timing")
 require(probe, r'"probe\.elapsedMs"\.equals\(key\).*?MAX_REPORT_CHARS.*?return;.*?probe\.truncated=true', "truncated reports retain terminal elapsed time and expose truncation")
 
 print("Native probe bounded-retry regression checks passed")
