@@ -144,7 +144,7 @@ require(probe, r"while\s*\(!REPORTED\.get\(\)\s*&&\s*ATTEMPTS\.get\(\)\s*<\s*MAX
 require(probe, r"Thread\.sleep\(completedAttempts\s*==\s*1\s*\?\s*1000L\s*:\s*3000L\)", "automatic retries use bounded backoff")
 require(probe, r"ATTEMPTS\.incrementAndGet\(\);\s*inspectHost\(loader\)", "each automatic attempt is counted before scanning")
 require(probe, r"finally\s*\{\s*SCHEDULED\.set\(false\);", "probe releases scheduling guard after every worker run")
-require(probe, r"completed\s*=\s*classLoadFailures\s*==\s*0", "partial DEX inventories remain retryable")
+require(probe, r"completed\s*=\s*!names\.isEmpty\(\)\s*&&\s*classLoadFailures\s*==\s*0", "empty and partial DEX inventories remain retryable")
 require(probe, r"scannedTypes\.add\(owner\).*?for \(Class<\?> owner : scannedTypes\)", "manager inventory reuses successfully loaded classes without a second class-loader pass")
 require(probe, r"if \(completed\) REPORTED\.set\(true\)", "only a complete inventory becomes terminal")
 print("Native probe bounded-retry regression checks passed")
