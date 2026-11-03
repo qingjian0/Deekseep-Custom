@@ -46,6 +46,7 @@ public final class AgentCoreContract {
             this.deadlineEpochMs = deadlineEpochMs;
             LinkedHashMap<String, String> copy = new LinkedHashMap<>();
             if (metadata != null) {
+                if (metadata.size() > 32) throw new IllegalArgumentException("too many metadata entries");
                 for (Map.Entry<String, String> entry : metadata.entrySet()) {
                     String key = required(entry.getKey(), "metadata key", 64);
                     String value = entry.getValue() == null ? "" : entry.getValue();
@@ -73,8 +74,19 @@ public final class AgentCoreContract {
             this.requestId = required(requestId, "requestId", 128);
             this.text = text == null ? "" : text;
             this.detail = detail == null ? "" : detail;
+            if (this.text.length() > 64 * 1024 || this.detail.length() > 2048) {
+                throw new IllegalArgumentException("event text or detail exceeds its limit");
+            }
             LinkedHashMap<String, String> copy = new LinkedHashMap<>();
-            if (attributes != null) copy.putAll(attributes);
+            if (attributes != null) {
+                if (attributes.size() > 32) throw new IllegalArgumentException("too many event attributes");
+                for (Map.Entry<String, String> entry : attributes.entrySet()) {
+                    String key = required(entry.getKey(), "attribute key", 64);
+                    String value = entry.getValue() == null ? "" : entry.getValue();
+                    if (value.length() > 2048) throw new IllegalArgumentException("event attribute too long: " + key);
+                    copy.put(key, value);
+                }
+            }
             this.attributes = Collections.unmodifiableMap(copy);
         }
     }
