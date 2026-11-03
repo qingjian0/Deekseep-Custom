@@ -345,8 +345,9 @@ final class OpenNativeCompletionProbe {
             if (out.length() + entry.length() <= MAX_REPORT_CHARS) out.append(entry);
             return;
         }
-        if (out.length() + entry.length() > MAX_REPORT_CHARS - REPORT_TERMINAL_RESERVE) {
-            String marker = "probe.truncated=true\n";
+        String marker = "probe.truncated=true\n";
+        int contentLimit = MAX_REPORT_CHARS - REPORT_TERMINAL_RESERVE - marker.length();
+        if (out.length() + entry.length() > contentLimit) {
             if (out.indexOf("probe.truncated=") < 0
                     && out.length() + marker.length() + REPORT_TERMINAL_RESERVE <= MAX_REPORT_CHARS) {
                 out.append(marker);
