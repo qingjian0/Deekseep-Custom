@@ -74,6 +74,43 @@ class PersistentAgentRunRepositoryTest {
         }
     }
 
+
+    @Test
+    fun failedCreateRestoresTerminalRecordsPrunedForCapacity() {
+        val parent = createTempDirectory()
+        val movedParent = File(parent.parentFile, parent.name + "-moved")
+        try {
+            val file = File(parent, "runs.bin")
+            val repository = PersistentAgentRunRepository(file, maxRecords = 16)
+            assertTrue(repository.create(request("terminal")))
+            assertTrue(repository.transition("terminal", AgentRunState.QUEUED))
+            assertTrue(repository.transition("terminal", AgentRunState.RUNNING))
+            assertTrue(repository.transition("terminal", AgentRunState.COMPLETED))
+            repeat(15) { index ->
+                assertTrue(repository.create(request("active-$index")))
+            }
+            assertEquals(16, repository.size())
+
+            assertTrue(parent.renameTo(movedParent))
+            assertTrue(parent.createNewFile())
+            try {
+                assertFalse(repository.create(request("new-run")))
+            } finally {
+                assertTrue(parent.delete())
+                assertTrue(movedParent.renameTo(parent))
+            }
+
+            assertEquals(16, repository.size())
+            assertEquals(AgentRunState.COMPLETED, repository.stateOf("terminal"))
+            assertNull(repository.stateOf("new-run"))
+            assertFalse(repository.create(request("terminal")))
+        } finally {
+            if (parent.isFile) parent.delete()
+            if (movedParent.exists()) movedParent.renameTo(parent)
+            parent.deleteRecursively()
+        }
+    }
+
     private fun createTempDirectory(): File {
         val file = kotlin.io.path.createTempDirectory("dsh-agent-ledger-").toFile()
         return file
