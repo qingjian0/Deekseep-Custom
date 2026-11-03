@@ -40,7 +40,10 @@ final class OpenLocalApiGateway {
     private static final String TOKEN_FILE = "dsh-local-api-token";
     private static final AtomicBoolean RUNNING = new AtomicBoolean(false);
     private static volatile ServerSocket server;
+    private static volatile ServerSocket lanServer;
     private static volatile Thread acceptThread;
+    private static volatile Thread lanAcceptThread;
+    private static volatile String boundLanAddress = "";
     private static volatile ExecutorService clients;
     private static volatile z2.Backend backend;
     private static volatile Context appContext;
@@ -62,19 +65,40 @@ final class OpenLocalApiGateway {
                     "dsh_local_api", Context.MODE_PRIVATE);
             configuredPort = prefs.getInt("port", DEFAULT_PORT);
             lanEnabled = prefs.getBoolean("lan_enabled", false);
-            InetAddress bindAddress = InetAddress.getByName(
-                    lanEnabled ? "0.0.0.0" : "127.0.0.1");
-            ServerSocket socket = new ServerSocket(configuredPort, 16, bindAddress);
+            ServerSocket socket = new ServerSocket(configuredPort, 16,
+                    InetAddress.getByName("127.0.0.1"));
             server = socket;
             boundPort = socket.getLocalPort();
             clients = new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS,
                     new ArrayBlockingQueue<Runnable>(8));
             RUNNING.set(true);
-            acceptThread = new Thread(() -> acceptLoop(socket), "dsh-local-api-accept");
+            acceptThread = new Thread(() -> acceptLoop(socket), "dsh-local-api-loopback");
             acceptThread.setDaemon(true);
             acceptThread.start();
-            Main.log("Open Local API listening on "
-                    + (lanEnabled ? "LAN interfaces" : "127.0.0.1") + ":" + boundPort);
+            boundLanAddress = "";
+            if (lanEnabled) {
+                String address = firstLanAddress();
+                if (address.length() > 0) {
+                    try {
+                        ServerSocket lanSocket = new ServerSocket(configuredPort, 16,
+                                InetAddress.getByName(address));
+                        lanServer = lanSocket;
+                        boundLanAddress = address;
+                        lanAcceptThread = new Thread(
+                                () -> acceptLoop(lanSocket), "dsh-local-api-lan");
+                        lanAcceptThread.setDaemon(true);
+                        lanAcceptThread.start();
+                    } catch (Exception lanError) {
+                        Main.log("Open Local API LAN bind failed: "
+                                + lanError.getClass().getSimpleName());
+                    }
+                } else {
+                    Main.log("Open Local API LAN enabled but no 192.168.x.x address is available");
+                }
+            }
+            Main.log("Open Local API listening on 127.0.0.1:" + boundPort
+                    + (boundLanAddress.length() == 0 ? ""
+                    : " and " + boundLanAddress + ":" + boundPort));
         } catch (Exception error) {
             RUNNING.set(false);
             closeServer();
@@ -161,8 +185,8 @@ final class OpenLocalApiGateway {
     }
     static String lanEndpoint() {
         if (!RUNNING.get() || !lanEnabled) return "";
-        String address = firstLanAddress();
-        return address.length() == 0 ? "" : "http://" + address + ":" + boundPort + "/v1";
+        return boundLanAddress.length() == 0 ? ""
+                : "http://" + boundLanAddress + ":" + boundPort + "/v1";
     }
     private static String firstLanAddress() {
         try {
@@ -245,8 +269,12 @@ final class OpenLocalApiGateway {
 
     private static void closeServer() {
         ServerSocket socket = server;
+        ServerSocket lanSocket = lanServer;
         server = null;
+        lanServer = null;
+        boundLanAddress = "";
         if (socket != null) try { socket.close(); } catch (Exception ignored) {}
+        if (lanSocket != null) try { lanSocket.close(); } catch (Exception ignored) {}
     }
 
     private static void acceptLoop(ServerSocket socket) {
