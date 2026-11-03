@@ -132,6 +132,26 @@ final class OpenLocalApiGateway {
             return null;
         }
     }
+    static synchronized String setCustomKey(Context context, String candidate) {
+        String value = candidate == null ? "" : candidate.trim();
+        if (value.length() < 24 || value.length() > 128) {
+            return "API Key 长度必须为 24 到 128 个字符";
+        }
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c < 0x21 || c > 0x7e) return "API Key 只能包含可见 ASCII 字符";
+        }
+        Context app = context == null ? appContext : context.getApplicationContext();
+        if (app == null) return "DeepSeek 上下文尚未就绪";
+        try {
+            persistToken(app, value);
+            appContext = app;
+            token = value;
+            return null;
+        } catch (Exception error) {
+            return "API Key 保存失败";
+        }
+    }
     static String connectionInfo() {
         if (!RUNNING.get()) return "Open Local API is stopped";
         return "Base URL: " + endpoint() + "/v1\\n"
