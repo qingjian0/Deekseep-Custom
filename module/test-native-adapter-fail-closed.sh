@@ -9,6 +9,13 @@ PROBE="$ROOT/module/src/ds/dsh/DeepSeek/OpenNativeCompletionProbe.java"
 Z18="$ROOT/module/src/ds/dsh/DeepSeek/z18.java"
 HOST_V271="$ROOT/module/src/ds/dsh/DeepSeek/HostV271.java"
 CHAT="$ROOT/module/src/ds/dsh/DeepSeek/HookChatPipeline.java"
+REPORT="$ROOT/module/src/ds/dsh/DeepSeek/NativeProbeReport.java"
+REPORT_TEST="$ROOT/module/tests/nativeprobe/ds/dsh/DeepSeek/NativeProbeReportTest.java"
+
+REPORT_OUT="$ROOT/module/build/native-probe-report-test"
+mkdir -p "$REPORT_OUT"
+javac -source 8 -target 8 -nowarn -d "$REPORT_OUT" "$REPORT" "$REPORT_TEST"
+java -cp "$REPORT_OUT" ds.dsh.DeepSeek.NativeProbeReportTest
 
 python - "$MAIN" "$STUB" "$FACADE" "$PROBE" "$Z18" "$HOST_V271" "$CHAT" <<'PY'
 import pathlib
