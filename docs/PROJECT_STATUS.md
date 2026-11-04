@@ -337,3 +337,12 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 运行时证据只用于诊断，不进入 `RoiHookResolver` 评分，不改变 role，不批准 adapter，也不授权 Hook 激活。
 - 新增快照不可变性、默认关闭/过期快照为空、脱敏字段测试；跨宿主 request key 隔离测试继续保留。
 - 本批次尚未本地执行脚本、Android 构建或真机验证。CI 状态需按最新提交重新核验；空状态不能视为通过。
+
+
+## R2.5.2 — event-order tie-break for millisecond timestamps (2026-11-05)
+
+- Tightened ordered-chain confirmation to require both recorder event order and non-decreasing callback timestamps: REQUEST_BUILT must be appended before TRANSPORT_ENTERED, which must be appended before RESPONSE_RECEIVED; RESPONSE_PARSED must follow the confirmed receipt.
+- Equal-millisecond callbacks remain eligible only when they appear in the recorder's observed append order. A reverse-order same-millisecond sequence no longer passes merely because all timestamps are equal.
+- Added regression coverage for same-millisecond reverse ordering and timestamp regression, while preserving the valid same-millisecond forward-order case.
+- The append-order tie-break is an observation-order safeguard, not proof of cross-thread causality. The recorder still does not infer parser events, Flow completion, or response success beyond a trusted callback's explicitly observed phase.
+- No host Hook targets or runtime collection scope changed. CI result and real-device evidence remain separate verification requirements.

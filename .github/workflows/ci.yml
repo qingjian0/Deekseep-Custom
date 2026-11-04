@@ -12,7 +12,8 @@ permissions:
 
 concurrency:
   group: yunseek-ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Preserve an active validation run while retaining only the newest queued run.
+  cancel-in-progress: false
 
 jobs:
 

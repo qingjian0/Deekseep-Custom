@@ -16,6 +16,8 @@ public final class RoiRuntimeInvocationRecorderTest {
         testOutOfOrderPhasesDoNotConfirm();
         testParsedPhaseRequiresOrderedReceipt();
         testSameMillisecondPhasesRemainPossible();
+        testSameMillisecondOutOfOrderPhasesDoNotConfirm();
+        testTimestampRegressionDoesNotConfirm();
         testSameRequestKeyAcrossHostsDoesNotMerge();
         testSanitizedEvidenceSnapshot();
         testDisabledAndExpiredEvidenceSnapshotsAreEmpty();
@@ -119,6 +121,30 @@ public final class RoiRuntimeInvocationRecorderTest {
                 RoiRuntimeInvocationRecorder.Phase.RESPONSE_RECEIVED, 100, 3), 100);
         check(r.snapshotChains(100).get(0).confirmsRequestTransportResponse(),
                 "same-millisecond callbacks should not be rejected due to clock granularity");
+    }
+
+    private static void testSameMillisecondOutOfOrderPhasesDoNotConfirm() {
+        RoiRuntimeInvocationRecorder r = recorder(8, 1000);
+        r.record(event(KEY, "LResp;->receive()V",
+                RoiRuntimeInvocationRecorder.Phase.RESPONSE_RECEIVED, 100, 1), 100);
+        r.record(event(KEY, "LNet;->execute()V",
+                RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED, 100, 2), 100);
+        r.record(event(KEY, "LReq;->build()V",
+                RoiRuntimeInvocationRecorder.Phase.REQUEST_BUILT, 100, 3), 100);
+        check(!r.snapshotChains(100).get(0).confirmsRequestTransportResponse(),
+                "same-millisecond out-of-order callbacks incorrectly confirmed");
+    }
+
+    private static void testTimestampRegressionDoesNotConfirm() {
+        RoiRuntimeInvocationRecorder r = recorder(8, 1000);
+        r.record(event(KEY, "LReq;->build()V",
+                RoiRuntimeInvocationRecorder.Phase.REQUEST_BUILT, 100, 1), 100);
+        r.record(event(KEY, "LNet;->execute()V",
+                RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED, 99, 2), 100);
+        r.record(event(KEY, "LResp;->receive()V",
+                RoiRuntimeInvocationRecorder.Phase.RESPONSE_RECEIVED, 101, 3), 101);
+        check(!r.snapshotChains(101).get(0).confirmsRequestTransportResponse(),
+                "timestamp-regressing transport incorrectly confirmed");
     }
 
     private static void testSameRequestKeyAcrossHostsDoesNotMerge() {

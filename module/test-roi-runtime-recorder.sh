@@ -54,3 +54,9 @@ grep -q 'orderedRequestTransportResponse' "$ROOT/module/src/ds/dsh/DeepSeek/RoiR
 grep -q 'confirmsParsedResponse()' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
 grep -q 'testOutOfOrderPhasesDoNotConfirm' "$ROOT/module/tests/roiruntime/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorderTest.java"
 grep -q 'testParsedPhaseRequiresOrderedReceipt' "$ROOT/module/tests/roiruntime/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorderTest.java"
+
+# Equal timestamps are disambiguated by recorder insertion order; reverse-order ties must fail.
+grep -q 'testSameMillisecondOutOfOrderPhasesDoNotConfirm' "$ROOT/module/tests/roiruntime/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorderTest.java"
+grep -q 'testTimestampRegressionDoesNotConfirm' "$ROOT/module/tests/roiruntime/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorderTest.java"
+grep -q 'eventIndex > builtIndex' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
+grep -q 'eventIndex > transportIndex' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"

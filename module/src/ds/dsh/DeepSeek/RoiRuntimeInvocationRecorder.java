@@ -159,13 +159,17 @@ final class RoiRuntimeInvocationRecorder {
             Set<String> transports = new LinkedHashSet<String>();
             Set<String> receivers = new LinkedHashSet<String>();
             Set<String> parsers = new LinkedHashSet<String>();
-            List<Long> builderTimes = new ArrayList<Long>();
-            List<Long> transportTimes = new ArrayList<Long>();
-            List<Long> receiverTimes = new ArrayList<Long>();
-            List<Long> parserTimes = new ArrayList<Long>();
             long first = Long.MAX_VALUE;
             long last = 0;
-            for (Event event : events) {
+            int builtIndex = -1;
+            int transportIndex = -1;
+            int receivedIndex = -1;
+            int parsedIndex = -1;
+            long builtAt = Long.MAX_VALUE;
+            long transportAt = Long.MAX_VALUE;
+            long receivedAt = Long.MAX_VALUE;
+            for (int eventIndex = 0; eventIndex < events.size(); eventIndex++) {
+                Event event = events.get(eventIndex);
                 if (!event.hostFingerprint.equals(seed.hostFingerprint)
                         || !event.requestKey.equals(seed.requestKey)) continue;
                 first = Math.min(first, event.timestampMillis);
@@ -173,30 +177,42 @@ final class RoiRuntimeInvocationRecorder {
                 switch (event.phase) {
                     case REQUEST_BUILT:
                         builders.add(event.candidateDescriptor);
-                        builderTimes.add(Long.valueOf(event.timestampMillis));
+                        if (builtIndex < 0) {
+                            builtIndex = eventIndex;
+                            builtAt = event.timestampMillis;
+                        }
                         break;
                     case TRANSPORT_ENTERED:
                         transports.add(event.candidateDescriptor);
-                        transportTimes.add(Long.valueOf(event.timestampMillis));
+                        if (builtIndex >= 0 && transportIndex < 0
+                                && eventIndex > builtIndex && event.timestampMillis >= builtAt) {
+                            transportIndex = eventIndex;
+                            transportAt = event.timestampMillis;
+                        }
                         break;
                     case RESPONSE_RECEIVED:
                         receivers.add(event.candidateDescriptor);
-                        receiverTimes.add(Long.valueOf(event.timestampMillis));
+                        if (transportIndex >= 0 && receivedIndex < 0
+                                && eventIndex > transportIndex
+                                && event.timestampMillis >= transportAt) {
+                            receivedIndex = eventIndex;
+                            receivedAt = event.timestampMillis;
+                        }
                         break;
                     case RESPONSE_PARSED:
                         parsers.add(event.candidateDescriptor);
-                        parserTimes.add(Long.valueOf(event.timestampMillis));
+                        if (receivedIndex >= 0 && parsedIndex < 0
+                                && eventIndex > receivedIndex
+                                && event.timestampMillis >= receivedAt) {
+                            parsedIndex = eventIndex;
+                        }
                         break;
                     default: break;
                 }
             }
-            long builtAt = earliest(builderTimes);
-            long transportAt = firstAtOrAfter(transportTimes, builtAt);
-            long receivedAt = firstAtOrAfter(receiverTimes, transportAt);
-            long parsedAt = firstAtOrAfter(parserTimes, receivedAt);
-            boolean orderedResponse = builtAt != Long.MAX_VALUE
-                    && transportAt != Long.MAX_VALUE && receivedAt != Long.MAX_VALUE;
-            boolean orderedParsed = orderedResponse && parsedAt != Long.MAX_VALUE;
+            boolean orderedResponse = builtIndex >= 0
+                    && transportIndex > builtIndex && receivedIndex > transportIndex;
+            boolean orderedParsed = orderedResponse && parsedIndex > receivedIndex;
             chains.add(new Chain(seed.requestKey, seed.hostFingerprint, builders,
                     transports, receivers, parsers, first, last,
                     orderedResponse, orderedParsed));
@@ -231,23 +247,6 @@ final class RoiRuntimeInvocationRecorder {
     }
 
     synchronized void clear() { events.clear(); }
-
-    private static long earliest(List<Long> times) {
-        long earliest = Long.MAX_VALUE;
-        for (Long time : times) if (time != null) earliest = Math.min(earliest, time.longValue());
-        return earliest;
-    }
-
-    private static long firstAtOrAfter(List<Long> times, long threshold) {
-        if (threshold == Long.MAX_VALUE) return Long.MAX_VALUE;
-        long match = Long.MAX_VALUE;
-        for (Long time : times) {
-            if (time != null && time.longValue() >= threshold) {
-                match = Math.min(match, time.longValue());
-            }
-        }
-        return match;
-    }
 
     private void prune(long nowMillis) {
         for (int i = events.size() - 1; i >= 0; i--) {
