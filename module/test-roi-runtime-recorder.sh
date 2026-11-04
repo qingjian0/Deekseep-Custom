@@ -32,3 +32,8 @@ grep -q 'hasContinuationParameter(method)' "$OBSERVER"
 grep -q 'kotlin.coroutines.Continuation' "$OBSERVER"
 grep -q 'hasSuspendingEmit(collectorType)' "$OBSERVER"
 grep -q 'Do not proxy its collector' "$OBSERVER"
+# SSE event construction and session-message replacement are not request-correlated parser evidence.
+if grep -q 'Phase.RESPONSE_PARSED' "$CHAT"; then
+  echo "Uncorrelated RESPONSE_PARSED event must not be emitted from HookChatPipeline" >&2
+  exit 1
+fi
