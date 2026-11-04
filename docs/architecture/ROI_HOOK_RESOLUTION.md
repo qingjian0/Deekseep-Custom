@@ -133,3 +133,12 @@ A candidate discovered in one ClassLoader must not be reused for a same-named cl
 - Existing runtime observations are narrow and version-specific; they do not establish general request-chain equivalence.
 - No new automatic Hook installation is enabled by this change.
 - No claim is made that arbitrary future DeepSeek versions can be identified or activated without adapter work.
+
+
+### R1.3 — process-local candidate source identity
+
+- Runtime ClassLoader candidates are scoped by actual loader object identity, not enumeration index.
+- The registry uses weak references and identity comparison; collected loaders are pruned.
+- APK candidates use canonicalized APK paths.
+- Candidate IDs combine source scope, owner, method name, and descriptor.
+- IDs are process-local correlation keys, not durable cross-process IDs or proof of semantic equivalence. Static call edges remain static DEX references; no runtime path or Hook activation is inferred.
