@@ -8,6 +8,10 @@ The system must remain fail-closed: discovery is not permission to install a Hoo
 
 ## Current baseline
 
+- `module/hostmap/extract.py` already performs offline DEX extraction with per-class superclass, interfaces, fields, methods, access flags, strings, obfuscated references, external references, and per-method instruction-derived call/reference tokens.
+- `module/hostmap/match.py` already performs cross-version class matching through unique-string votes, normalized structural signatures, and iterative typed-reference propagation.
+- `module/hostmap/fuzzy.py` adds a second-pass score using mapped incoming/outgoing reference neighborhoods, strings, external references, member signatures, and superclass shape. `members.py` derives field/method mappings after class mappings.
+- This is a meaningful offline semantic-mapping foundation, not a live runtime auto-adapter. The current scripts depend on external APK-derived pickle/JSON intermediates and hard-coded workspace paths; they are not yet a clean, reproducible end-user pipeline.
 - `HostCompat` identifies known host generations and selects a reviewed compatibility path.
 - `HostRemap` supplies generated symbol mappings for known host version codes.
 - `OpenNativeCompletionProbe` performs bounded runtime reflection and DEX inventory inspection for a narrow native-completion use case.
