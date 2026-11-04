@@ -146,6 +146,10 @@ DeepSeek Hook startup
 
 探针结果应作为候选清单，不得作为调用协议的最终证据。
 
+## 2.7.x mapping fallback isolation
+
+The hand-verified `HostV271` whitelist is specific to mainland code287 / 2.7.1. If the generated mapping resource for code289 or code290 is unavailable, the runtime must not fall back to code287 obfuscated names (`sx1`, `ey1`, `gy`, etc.). The Main installer and `HostV271.installFeatureHooks()` both reject that fallback. In that state, the 2.7.2 host is not reported as a maintained feature runtime; the module leaves host hooks disabled rather than guessing symbol identities. A successful 289/290 mapping activation continues through the generated per-version table.
+
 ## 5. 尚未证实的关键环节
 
 | 环节 | 当前证据 | 仍需证明 |
