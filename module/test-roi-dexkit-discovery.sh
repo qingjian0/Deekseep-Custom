@@ -24,6 +24,10 @@ require(discovery, r'DexKitBridge\.create\(apkPaths\.get\(i\)\)', "APK and split
 require(discovery, r'collectApkPaths\(apkPath, splitApkPaths\)', "base and split APK paths are collected")
 require(discovery, r'for \(int i = 0; i < apkPaths\.size\(\); i\+\+\)', "APK paths are scanned independently")
 require(discovery, r'SEMANTIC_ANCHORS', "semantic query anchors are defined")
+require(discovery, r'RoiCandidateIdentity[.]forClassLoader[(]loaders[.]get[(]i[)][)]', "loader identity uses the actual object")
+require(discovery, r'RoiCandidateIdentity[.]forApkPath[(]apkPaths[.]get[(]i[)][)]', "APK identity uses its path")
+require(discovery, r'RoiCandidateIdentity[.]candidateId[(]', "candidate IDs include source scope")
+
 require(discovery, r'MethodMatcher\.create\(\)\.usingStrings', "DexKit semantic method matching is used")
 require(discovery, r'MAX_CANDIDATES_PER_ANCHOR\s*=\s*8', "candidate output is bounded")
 require(discovery, r'MAX_DISCOVERY_PASSES[ ]*=[ ]*3', "runtime rescans are bounded")
