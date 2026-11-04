@@ -167,7 +167,7 @@ final class OpenNativeCompletionProbe {
                             methodIndex++;
                             continue;
                         }
-                        if (candidates < 6) {
+                        if (candidates < 4) {
                             String generic;
                             try {
                                 generic = String.valueOf(method.getGenericReturnType());
@@ -182,7 +182,7 @@ final class OpenNativeCompletionProbe {
                                             + "(" + parameters(p) + ")->"
                                             + returnType.getName()
                                             + " generic=" + generic);
-                            appendFields(out, "transport" + candidates, owner, 1, 8);
+                            appendFields(out, "transport" + candidates, owner, 1, 6);
                             // The returned type is the response/stream boundary candidate.
                             // Record its declared state shape without invoking it.
                             line(out, "transportReturn" + candidates + ".class",
@@ -200,7 +200,7 @@ final class OpenNativeCompletionProbe {
                             }
                             line(out, "transportReturn" + candidates + ".interfaces",
                                     returnInterfaces);
-                            appendFields(out, "transportReturn" + candidates, returnType, 1, 8);
+                            appendFields(out, "transportReturn" + candidates, returnType, 1, 6);
                         }
                         candidates++;
                         transportOwners.add(owner);
@@ -284,12 +284,12 @@ final class OpenNativeCompletionProbe {
                                 supertypeManagerFields++;
                             }
                             if (matchKind != null) {
-                                if (managerCandidates < 24) {
+                                if (managerCandidates < 6) {
                                     line(out, "manager.candidate." + managerCandidates,
                                             owner.getName() + "." + field.getName()
                                                     + ":" + fieldType.getName()
                                                     + " match=" + matchKind);
-                                    appendConstructors(out, "manager" + managerCandidates, owner);
+                                    appendConstructors(out, "manager" + managerCandidates, owner, 8);
                                 }
                                 managerCandidates++;
                             }
@@ -298,6 +298,8 @@ final class OpenNativeCompletionProbe {
                     }
                 }
                 // These are declared field matches, not discovered manager instances.
+                line(out, "transport.detailCount", String.valueOf(Math.min(candidates, 4)));
+                line(out, "manager.detailCount", String.valueOf(Math.min(managerCandidates, 6)));
                 line(out, "manager.candidateUnit", "typed_non_object_fields");
                 line(out, "manager.typedFieldCount", String.valueOf(managerCandidates));
                 line(out, "manager.candidateCount", String.valueOf(managerCandidates));
@@ -377,6 +379,11 @@ final class OpenNativeCompletionProbe {
     }
 
     private static void appendConstructors(StringBuilder out, String prefix, Class<?> type) {
+        appendConstructors(out, prefix, type, 24);
+    }
+
+    private static void appendConstructors(StringBuilder out, String prefix,
+                                           Class<?> type, int maxDetails) {
         Constructor<?>[] constructors;
         try {
             constructors = type.getDeclaredConstructors();
@@ -385,7 +392,7 @@ final class OpenNativeCompletionProbe {
             return;
         }
         line(out, prefix + ".constructorCount", String.valueOf(constructors.length));
-        for (int i = 0; i < constructors.length && i < 24; i++) {
+        for (int i = 0; i < constructors.length && i < maxDetails; i++) {
             Constructor<?> constructor = constructors[i];
             try {
                 line(out, prefix + ".ctor." + i, parameters(constructor.getParameterTypes()));
