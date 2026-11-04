@@ -36,7 +36,12 @@ required = {
     "base URL includes v1": 'return root.length() == 0 ? "" : root + "/v1";',
     "Chinese local address label": "本机地址：",
     "Chinese LAN status label": "局域网状态：",
-    "LAN listener health remains visible when an address is bound": '"局域网监听状态：" + lanBindingStatus',
+    "LAN bind status is independent": '"局域网绑定状态：" + lanBindingStatus',
+    "network monitor status is independently visible": '"网络变化监听：" + lanNetworkMonitorStatus',
+    "monitor registration success is explicit": 'lanNetworkMonitorStatus = "已注册"',
+    "monitor registration failure is isolated": 'lanNetworkMonitorStatus = "注册失败：" + error.getClass().getSimpleName()',
+    "monitor unregister lifecycle is explicit": 'lanNetworkMonitorStatus = RUNNING.get() && lanEnabled ? "未注册" : "已停止"',
+    "LAN binding failure does not overwrite monitor state": 'lanBindingStatus = "绑定失败：" + error.getClass().getSimpleName()',
 }
 missing = [label for label, token in required.items() if token not in source]
 if missing:
