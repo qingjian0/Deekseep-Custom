@@ -326,6 +326,10 @@ final class OpenNativeCompletionProbe {
                 // Per-class load failures mean the inventory is partial, not a terminal result.
                 completed = !names.isEmpty() && classLoadFailures == 0;
             }
+        } catch (VirtualMachineError fatal) {
+            throw fatal;
+        } catch (ThreadDeath fatal) {
+            throw fatal;
         } catch (Throwable error) {
             line(out, "probe.error", error.getClass().getName() + ": "
                     + String.valueOf(error.getMessage()));
@@ -333,12 +337,16 @@ final class OpenNativeCompletionProbe {
             line(out, "probe.elapsedMs", String.valueOf(
                     (System.nanoTime() - startedNanos) / 1_000_000L));
         }
-        installRuntimeObservation(loader);
-        report = out.toString();
-        // Only a complete DEX inventory is terminal. Class-load/scan failures remain retryable.
-        if (completed) REPORTED.set(true);
-        INSPECTING.set(false);
-        Main.extLog("[OPEN_NATIVE_COMPLETION_PROBE]\n" + report);
+        try {
+            installRuntimeObservation(loader);
+            report = out.toString();
+            // Only a complete DEX inventory is terminal. Class-load/scan failures remain retryable.
+            if (completed) REPORTED.set(true);
+            Main.extLog("[OPEN_NATIVE_COMPLETION_PROBE]\n" + report);
+        } finally {
+            // Even fatal observer-install or diagnostic failures must release the inspection guard.
+            INSPECTING.set(false);
+        }
     }
 
 
@@ -535,6 +543,10 @@ final class OpenNativeCompletionProbe {
             appendFields(out, "pow", powManager.getClass(), 2);
             appendPowMethods(out, powManager.getClass());
             completed = true;
+        } catch (VirtualMachineError fatal) {
+            throw fatal;
+        } catch (ThreadDeath fatal) {
+            throw fatal;
         } catch (Throwable error) {
             line(out, "probe.error", error.getClass().getName() + ": "
                     + String.valueOf(error.getMessage()));
