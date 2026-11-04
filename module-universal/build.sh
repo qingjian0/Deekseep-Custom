@@ -9,14 +9,19 @@ ROOT_DIR="$(cd .. && pwd)"
 RUNTIME_DIR="$ROOT_DIR/module-kotlin-runtime"
 GRADLE_BIN="$(bash "$ROOT_DIR/scripts/gradle-bootstrap.sh")"
 "$GRADLE_BIN" --no-daemon --stacktrace -p "$RUNTIME_DIR" \
-  jar stageRuntimeClasspath stageR8Tool
+  jar stageRuntimeClasspath stageR8Tool stageDexKitArtifacts
 KOTLIN_RUNTIME_JAR="$RUNTIME_DIR/build/libs/dsh-kotlin-runtime-0.1.0.jar"
 R8_JAR="$RUNTIME_DIR/build/r8-tool/r8-9.1.29.jar"
+DEXKIT_STAGE="$RUNTIME_DIR/build/dexkit-stage"
+DEXKIT_JAR="$DEXKIT_STAGE/libs/dexkit-2.3.0.jar"
+FLATBUFFERS_JAR="$DEXKIT_STAGE/libs/flatbuffers-java-23.5.26.jar"
 KOTLIN_STDLIB_JAR="$(find "$RUNTIME_DIR/build/runtime-classpath" -maxdepth 1 \
   -type f -name 'kotlin-stdlib-*.jar' -print | sort -V | tail -n 1)"
 test -s "$KOTLIN_RUNTIME_JAR"
 test -s "$KOTLIN_STDLIB_JAR"
 test -s "$R8_JAR"
+test -s "$DEXKIT_JAR"
+test -s "$FLATBUFFERS_JAR"
 java -cp "$R8_JAR" com.android.tools.r8.D8 --version
 RISH_DEX="../third_party/shizuku/rish_shizuku.dex"
 RISH_SHA256="1953c1fd9708904f8fc1f67774843b4cc3d03e5f2a578ff4d654d0625456bc28"
@@ -95,7 +100,7 @@ find "$OUT/generated-src" -name '*.java' >> "$OUT/sources.txt"
 
 echo "[2/7] javac"
 if ! javac -source 8 -target 8 \
-    -cp "$ANDROID_JAR:$ANDROIDX_PATH_PARSER_JAR:$KOTLIN_RUNTIME_JAR:$KOTLIN_STDLIB_JAR" \
+    -cp "$ANDROID_JAR:$ANDROIDX_PATH_PARSER_JAR:$KOTLIN_RUNTIME_JAR:$KOTLIN_STDLIB_JAR:$DEXKIT_JAR:$FLATBUFFERS_JAR" \
     -d "$OUT/classes" @"$OUT/sources.txt" 2> "$OUT/javac.err"; then
   cat "$OUT/javac.err"
   exit 1
@@ -107,7 +112,8 @@ MODCLASSES=$(find "$OUT/classes/ds/dsh/DeepSeek" -name '*.class')
 java -cp "$R8_JAR" com.android.tools.r8.D8 \
   --min-api 24 --output "$OUT/dex" $MODCLASSES \
   "$KOTLIN_RUNTIME_JAR" "$KOTLIN_STDLIB_JAR" \
-  "$ANDROIDX_PATH_PARSER_JAR" --lib "$ANDROID_JAR"
+  "$ANDROIDX_PATH_PARSER_JAR" "$DEXKIT_JAR" "$FLATBUFFERS_JAR" \
+  --lib "$ANDROID_JAR"
 
 echo "[4/7] aapt2"
 $AAPT2 compile --dir res -o "$OUT/res.zip"
@@ -122,12 +128,16 @@ cp assets/xposed_init "$OUT/xstage/assets/xposed_init"
 cp ../module/hostmap/hostmap28[79].txt.gz ../module/hostmap/hostmap290.txt.gz "$OUT/xstage/"
 cp "$RISH_DEX" \
   "$OUT/xstage/META-INF/ds.dsh.DeepSeek.agent/.rish_shizuku_runtime_payload.dat"
+bash "$ROOT_DIR/scripts/package-dexkit-native.sh" "$DEXKIT_STAGE" "$OUT/xstage" "$OUT/unsigned.apk"
 ( cd "$OUT/xstage" && zip -q -9 -r ../unsigned.apk META-INF assets hostmap287.txt.gz hostmap289.txt.gz hostmap290.txt.gz )
 
 echo "[6/7] zipalign"
-$ZIPALIGN -f -p 4 "$OUT/unsigned.apk" "$OUT/aligned.apk"
+$ZIPALIGN -f -P 16 4 "$OUT/unsigned.apk" "$OUT/aligned.apk"
+$ZIPALIGN -c -P 16 4 "$OUT/aligned.apk"
+python3 "$ROOT_DIR/scripts/verify-dexkit-apk.py" "$OUT/aligned.apk" "$DEXKIT_STAGE"
 
 echo "[7/7] sign"
 $APKSIGNER sign --ks ../module/debug.keystore --ks-pass pass:android \
   --key-pass pass:android --out "$APK_NAME" "$OUT/aligned.apk"
+$APKSIGNER verify --verbose "$APK_NAME"
 echo "DONE -> $(pwd)/$APK_NAME"
