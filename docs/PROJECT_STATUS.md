@@ -139,6 +139,8 @@ Run `41649071834` 是本轮已核实的完整绿色 CI。它验证的是 JVM/脚
 
 - DexKit 字符串锚点候选已接入 `RoiHookResolver`，但只提供低置信度、未确认的宿主诊断与方法形状证据；策略仍为 discovery-only，不允许安装 Hook。
 - 候选报告增加 resolver state、score、activationAuthorized 和 reason；新增 DEX 方法描述符解析，提取 owner、method、参数数量和返回描述符。
+- R1.2 增加 DexKit 方法结构观察（access flags、参数/返回类型、opcode 名称）及每个候选最多 12 条 incoming/outgoing 静态调用关系；查询显式初始化 DexKit 的 invoke/caller lazy native indexes，避免未初始化索引时读取 MethodData 关系。
+- 静态调用关系仍未确认运行时执行；宿主身份、调用链执行、参数/返回契约和生命周期证据仍未完成，未知版本继续只读。
 - 描述符解析只证明结构格式有效，不证明业务语义等价；候选仍处于 DISCOVERED，未知宿主不安装 Hook。
 - 新增并行 `roi-fast-audit`，独立运行 Resolver 与 DexKit discovery 回归；完整构建和原有安全回归仍保留。
 - 修复 Resolver 弱候选测试夹具，补充重复证据、角色不匹配、非法置信度和阈值校验。
