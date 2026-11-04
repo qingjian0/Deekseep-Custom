@@ -6,6 +6,13 @@ GATEWAY="$ROOT/module/src/ds/dsh/DeepSeek/OpenLocalApiGateway.java"
 LOCAL_API_UI="$ROOT/module/src/ds/dsh/DeepSeek/DeekseepUi.java"
 for manifest in "$ROOT/module-universal/AndroidManifest.xml" "$ROOT/module-legacy/AndroidManifest.xml"; do
     grep -Fq 'android.permission.ACCESS_NETWORK_STATE' "$manifest"
+    grep -Fq 'android.permission.FOREGROUND_SERVICE' "$manifest"
+    grep -Fq 'android.permission.FOREGROUND_SERVICE_SPECIAL_USE' "$manifest"
+    grep -Fq 'android:name="ds.dsh.DeepSeek.z20"' "$manifest"
+    grep -Fq 'android:exported="true"' "$manifest"
+    grep -Fq 'android:name="ds.dsh.DeepSeek.z21"' "$manifest"
+    grep -Fq 'android:foregroundServiceType="specialUse"' "$manifest"
+    grep -Fq 'android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"' "$manifest"
 done
 
 python - "$GATEWAY" "$LOCAL_API_UI" <<'PY'
@@ -52,6 +59,18 @@ if "InetAddress.getByName(\"0.0.0.0\")" in source:
 # formatting/line wrapping. The address argument is separately asserted above.
 if "new ServerSocket(configuredPort, 16," not in source:
     raise SystemExit("LAN socket must use the configured port and bounded backlog")
+main = (pathlib.Path(sys.argv[1]).parent / "Main.java").read_text(encoding="utf-8")
+security = (pathlib.Path(sys.argv[1]).parent / "HookAccountLoginSecurity.java").read_text(encoding="utf-8")
+if 'localApiFloatingWindowError = "";' not in security:
+    raise SystemExit("Missing independent floating-window error storage")
+if 'localApiFloatingWindowError = "小窗保活启动失败：" + safeThrowableMessage(error);' not in main:
+    raise SystemExit("Floating-window launch failure is not stored independently")
+if 'String error = HookAccountLoginSecurity.localApiKeepAliveError;' not in main:
+    raise SystemExit("Foreground status no longer reads its own error field")
+if 'String error = HookAccountLoginSecurity.localApiFloatingWindowError;' not in main:
+    raise SystemExit("Floating-window status does not read its own error field")
+if 'HookAccountLoginSecurity.localApiKeepAliveError = "小窗保活启动失败：' in main:
+    raise SystemExit("Floating-window failure still contaminates foreground status")
 ui = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
 ui_required = {
     "connection details allow long-press text selection": "connectionInfo.setTextIsSelectable(true);",
