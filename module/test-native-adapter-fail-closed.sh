@@ -83,6 +83,8 @@ require(
     r"Class<\?> cls = z14\.payloadClass\([^;]+;\s*java\.lang\.reflect\.Method m = cls == null \? null",
     "execution facade fails closed when payload class is absent",
 )
+if "installRetiredHostNotice(unsupported)" in main:
+    raise SystemExit("unknown host discovery must not install the retired-version Activity notice hook")
 if "RoiHostDiscovery.schedule(cl," not in main:
     raise SystemExit("unknown hosts must enter ROI read-only discovery before feature bootstrap returns")
 if main.index("if (!HostCompat.supportsMaintainedFeatureRuntime())") > main.index('installHookStep("ui.native-dual-chat-root"'):
