@@ -33,3 +33,15 @@ R1 has started: DexKit candidates now enter the resolver as explicitly weak, unr
 ## Audit outcome
 
 Source changes are committed to the working branch. CI execution status must be read from the GitHub Actions run associated with the resulting commit; an empty status response is not a pass.
+
+## R1.2 — bounded method structure and call neighborhood
+
+- DexKit 2.3.0 MethodData is used through documented getters to observe raw access flags, parameter type names, return type name, opcode names, outgoing invokes, and incoming callers.
+- Each candidate emits at most 12 outgoing and 12 incoming relation descriptors, 16 parameter type names, and 8 opcode names. Omitted counts are reported explicitly.
+- The resulting edges are one-hop static DEX references, not proof that a method executes on a live request path. They are recorded as unconfirmed CALL_GRAPH evidence and cannot satisfy the resolver's confirmed-evidence threshold.
+- No host class is loaded and no host method is invoked. The discovery policy remains discoveryOnly.
+- The static regression assertion was corrected to match the actual descriptor parser contract (0.55 only when descriptor syntax validates), and new assertions cover bounded call relations and method structure accessors.
+
+## Verification boundary
+
+The source and static assertions have been updated on the working branch. The latest queried commit status returned no status entries; this is pending / unverified, not a CI pass. No local Gradle build or device Hook test is claimed.
