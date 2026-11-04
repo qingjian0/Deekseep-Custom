@@ -245,7 +245,8 @@ final class OpenLocalApiGateway {
                         Network network, LinkProperties properties) { refreshLanBinding(); }
             };
             manager.registerNetworkCallback(
-                    new NetworkRequest.Builder().clearCapabilities().build(), callback);
+                    new NetworkRequest.Builder()
+                            .removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN).build(), callback);
             networkManager = manager;
             networkCallback = callback;
         } catch (Exception error) {
