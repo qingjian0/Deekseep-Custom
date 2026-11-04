@@ -227,6 +227,7 @@ final class RoiDexKitDiscovery {
                                 + ".shape.return=" + shape.returnDescriptor);
                     }
                     String candidatePrefix = prefix + ".candidate." + safeKey(anchor) + "." + i;
+                    appendMethodStructure(item, candidatePrefix, out);
                     int relationCount = appendCallRelations(item, candidatePrefix, out);
                     List<RoiHookResolver.Evidence> evidence = Arrays.asList(
                             new RoiHookResolver.Evidence(
@@ -292,6 +293,28 @@ final class RoiDexKitDiscovery {
             rethrowFatal(error);
             return "unavailable";
         }
+    }
+
+    /** Emit bounded, non-loading structural metadata exposed by DexKit MethodData. */
+    private static void appendMethodStructure(Object methodData, String prefix, StringBuilder out) {
+        append(out, prefix + ".shape.accessFlags=" + safe(readString(methodData, "getAccessFlags")));
+        append(out, prefix + ".shape.returnTypeName="
+                + safe(readString(methodData, "getReturnTypeName")));
+        appendBoundedValues(methodData, "getParamTypeNames", prefix + ".shape.paramType", out, 16);
+        appendBoundedValues(methodData, "getOpNames", prefix + ".shape.opName", out, 8);
+    }
+
+    private static void appendBoundedValues(Object owner, String getter, String key,
+                                            StringBuilder out, int limit) {
+        Object values = readObject(owner, getter);
+        int count = invokeSize(values);
+        int emitted = Math.min(count, limit);
+        append(out, key + ".count=" + count);
+        for (int i = 0; i < emitted; i++) {
+            Object value = invokeGet(values, i);
+            append(out, key + "." + i + "=" + safe(String.valueOf(value)));
+        }
+        if (count > emitted) append(out, key + ".omitted=" + (count - emitted));
     }
 
     /**
