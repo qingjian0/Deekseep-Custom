@@ -3,7 +3,7 @@
  > 项目名称：ROI  
 > 状态日期：2026-11-04  
 > 适用分支：`dev`  
-> 最近一次 ROI 扫描预算提交：`96baef4a2d631952fdfaad522e2d90720b7d916b`；Run `41834504879` 完整 CI 通过  
+> 最新核验提交：`c0cec5256e84917781b10591f4268c13a49ab42d`；Run `41836377762` 完整 CI 通过  
 > 宿主：官方 DeepSeek Android `com.deepseek.chat`  
 > 宿主版本目标：国内版 2.7.1（versionCode 287）、国内版 2.7.2（289）、Google Play / 国际版 2.7.2（290）
 
@@ -22,15 +22,15 @@
 
 | 项目 | 当前值 |
 |---|---|
-| 工作分支 | `work/roi-agent-core-kotlin` |
-| 最近一次 Runtime 修复 | `c87ce1b67e57788ff8f53777f4d583f5a00a6151` |
-| 最近一次文档整理提交（提交前快照） | `20320a2d36a2da456f0c768bc36ced15d1fae856` |
-| 前一提交 | `4f80b5a658e9f22910292cf569f403e8b6f540d8` |
-| Kotlin 架构基线 | `refactor/kotlin-hook-architecture` |
-| 与架构基线关系 | 领先 77 个提交、落后 0 个提交（最近一次 compare 结果） |
+| 工作分支 | `dev` |
+| 最近一次 Runtime 观察修复 | `c0cec5256e84917781b10591f4268c13a49ab42d` |
+| 最近一次 ROI 扫描预算实现 | `cca035d6b319a5ed0ab897bee6b1fb2a3c36589b` |
+| 最新完整 CI | [Run `41836377762`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41836377762) — success |
+| Kotlin 架构基线 | `refactor/kotlin-hook-architecture`（历史基线） |
+| 与架构基线关系 | 不作为当前 `dev` 的实时 ahead/behind 指标 |
 | 主干策略 | 不自动合并 `main`；不重置或覆盖工作分支 |
 
-每次批量开发前应重新读取远端 HEAD。本文中的提交和比较数字是本次状态快照，不应被当作永久值。
+每次批量开发前应重新读取远端 HEAD。本文中的提交和比较数字是本次状态快照，不应被当作永久值。旧工作分支和早期 CI 记录仅作历史记录，不代表当前工作分支。
 
 ## 3. 模块状态
 
@@ -100,11 +100,11 @@
 | [41648546478](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41648546478) | `c87ce1b` | Cancelled | 后续同分支提交触发并发取消 |
 | [41649071834](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41649071834) | `c34d8ba` | Success | Regression tests 与 Android Open build and lint 均成功；Open APK 结构、对齐和 CI 临时签名检查通过 |
 
-Run `41649071834` 是本轮已核实的完整绿色 CI。它验证的是 JVM/脚本回归和 Open Android 构建，不是宿主真机 Completion。
+Run `41649071834` 是较早阶段的绿色基线。最新完整绿色 CI 为 [Run `41836377762`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41836377762)，对应 `dev` 提交 `c0cec525`，Regression、ROI fast audit、Android Open build/Lint 均通过。该 Run 验证的是 JVM/脚本回归和 Open Android 构建，不是宿主真机 Completion。
 
 ## 5. 下一批任务顺序
 
-1. **CI 回归闭环**：确认 `c87ce1b` 工作流结果；若失败，读取失败 Job 日志并修复根因，不删除测试、不降低断言。
+1. **R2 运行时证据**：在 code289 真机上验证 `zn3.o` 与 `jw3.g` 是否出现真实嵌套调用，以及同一请求对象是否透传；只记录结构元数据，不读取请求字段。
 2. **Native Adapter 证据调查**：见 [NATIVE_ADAPTER.md](NATIVE_ADAPTER.md)，继续核验 287/289/290 的请求、PoW、Transport、Flow 和响应消费。
 3. **Native Adapter 调查**：围绕 287/289/290 的官方请求链路建立符号、调用顺序、线程与生命周期证据；优先只读诊断和可验证的窄边界。
 4. **Agent Core 验收**：补充故障注入、恢复、幂等、权限确认和执行器集成测试。

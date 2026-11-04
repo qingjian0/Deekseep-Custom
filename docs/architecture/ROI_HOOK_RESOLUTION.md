@@ -146,7 +146,7 @@ A candidate discovered in one ClassLoader must not be reused for a same-named cl
 
 ### R2.2 — synchronous runtime call-stack correlation
 
-- The existing Open, mainland 2.7.2/code289 observer remains limited to the two reviewed candidate methods (zn3.o and jw3.g) and remains behind the existing explicit Local API enablement gate.
+- The existing observer is limited to Open mainland 2.7.2/code289, requires `BuildInfo.LOCAL_API_INCLUDED == false`, a non-null host ClassLoader, and successful request-marker type validation; it observes only the two reviewed candidate methods (`zn3.o` and `jw3.g`). This is a build/host gate, not proof that the Local API adapter is enabled or ready.
 - Runtime logs now include the direct observed parent method, a structural method descriptor, and whether the first argument is the same object reference as the root call's first argument.
 - The root request object is held only in the current thread-local call frame; no fields, toString(), body, headers, prompt, response, or credentials are read or persisted.
 - The frame is synchronous and thread-local. It can establish a nested runtime call edge and same-object pass-through only when the calls occur on the same thread and within the observed call stack.
