@@ -50,7 +50,7 @@ final class RoiRuntimeInvocationRecorder {
 
         Event(String requestKey, String hostFingerprint, String candidateDescriptor,
               Phase phase, long timestampMillis, long threadId, Source source) {
-            this(requestKey, hostFingerprint, "", candidateDescriptor, phase,
+            this(requestKey, hostFingerprint, "loader:test", candidateDescriptor, phase,
                     timestampMillis, threadId, source);
         }
 
@@ -69,7 +69,7 @@ final class RoiRuntimeInvocationRecorder {
 
         boolean isValid() {
             return requestKey.length() > 0 && hostFingerprint.length() > 0
-                    && candidateDescriptor.length() > 0 && phase != null
+                    && sourceScope.length() > 0 && candidateDescriptor.length() > 0 && phase != null
                     && timestampMillis > 0 && threadId >= 0
                     && source == Source.TRUSTED_EXISTING_CALLBACK;
         }
