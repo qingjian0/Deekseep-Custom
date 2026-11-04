@@ -205,3 +205,12 @@ Run `41649071834` 是本轮已核实的完整绿色 CI。它验证的是 JVM/脚
 - [Run 41660387191](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41660387191) — Success。
 - Regression tests、传统 Xposed Core 构建、Host compatibility / feature regression、Android Open build and lint、APK 结构/对齐/签名检查、APK 与 Lint 报告上传全部成功。
 - CI 成功仅代表当前构建和回归通过，不代表 2.7.x Native Completion 已接通或真机验证完成。
+
+## 7C. ROI R1.2 — bounded method structure and call relations (2026-11-04)
+
+- DexKit 2.3.0 MethodData metadata is now read without resolving host classes: raw access flags, parameter type names, return type name, and opcode names.
+- Candidate call neighborhoods now include outgoing invoke descriptors and incoming caller descriptors, each capped at 12 edges per direction. Parameter metadata is capped at 16 values and opcode names at 8; omitted counts are reported.
+- Static call edges are explicitly unconfirmed CALL_GRAPH evidence. They do not prove request-path execution and cannot satisfy the resolver's verified evidence gates.
+- The resolver remains discovery-only; no Hook installer, host method invocation, automatic adapter approval, or unknown-version activation was added.
+- Corrected a stale DexKit discovery assertion that expected the previous method-shape confidence contract. Added static assertions for metadata accessors and bounded call edges.
+- Verification status: GitHub combined status currently returns an empty status list for the queried commit. Treat CI as pending/unverified; no local Gradle execution or real-device verification is claimed.
