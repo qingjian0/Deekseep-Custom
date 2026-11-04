@@ -128,6 +128,13 @@ Run `41649071834` 是本轮已核实的完整绿色 CI。它验证的是 JVM/脚
 - 当前未知版本仍会在功能 Hook 安装前被拒绝；只读发现入口尚未接入，自动发现、结构指纹、调用图分析和自动映射均未实现。
 - 最新探针回归修复提交 `41a569b` 的 CI Run `41783005479` 已通过；架构文档提交 `83f8c9e` 的 CI 正在排队/运行，不能与前一 Run 混为一谈。
 
+## 7A. Version-independent Hook Resolution（2026-11-04）
+
+- 已新增纯 Java `RoiHookResolver` 决策核心：按证据族去重、加权评分、冲突拒绝、关键证据硬门槛，以及默认 discovery-only 策略。
+- 已新增独立可执行回归脚本 `module/test-roi-hook-resolver.sh`，并接入 CI Regression job。
+- 自动激活授权还要求适配规则批准、精确宿主指纹匹配、语义角色 allowlist 与显式开启策略；Resolver 只输出 installer authorization，不把候选标记为 ACTIVE，也不直接安装 Hook。
+- 当前仅完成 R0。真实 DEX 候选接入、跨版本调用链相关性验证、Adapter Registry 集成、安装后验证与回滚仍未完成；不得宣称任意版本自动 Hook 已实现。
+
 ## 8. 相关文档
 
 - [架构总览](ARCHITECTURE.md)
