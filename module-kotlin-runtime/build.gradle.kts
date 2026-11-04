@@ -100,8 +100,9 @@ tasks.register("stageDexKitArtifacts") {
             .filter { it.name == "libdexkit.so" }
             .map { it.parentFile.name }
             .toSortedSet()
-        check("arm64-v8a" in abiNames) {
-            "DexKit AAR is missing arm64-v8a; found ABIs: ${abiNames.joinToString()}"
+        val expectedAbis = setOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+        check(abiNames == expectedAbis) {
+            "DexKit ABI set mismatch; expected: ${expectedAbis.sorted().joinToString()}, found: ${abiNames.joinToString()}"
         }
         check(cxxPrefabFiles.isNotEmpty()) {
             "CXX AAR does not expose the expected Prefab payload"
