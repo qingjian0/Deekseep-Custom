@@ -70,7 +70,7 @@ jobs:
             readelf -d "$native_lib" | grep '(NEEDED)' || true
           done
           echo "CXX Prefab native payload inventory:"
-          find "$DEXKIT_STAGE/cxx-prefab/prefab" -type f \\( -name '*.so' -o -name '*.a' \\) -print | sort
+          find "$DEXKIT_STAGE/cxx-prefab/prefab" -type f \( -name '*.so' -o -name '*.a' \) -print | sort
           bash scripts/test-package-identity.sh
           bash module-legacy/test-adapter-regression.sh
           bash module-legacy/build.sh
