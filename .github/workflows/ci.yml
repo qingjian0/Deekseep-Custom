@@ -57,6 +57,8 @@ jobs:
           DEXKIT_STAGE="module-kotlin-runtime/build/dexkit-stage"
           test -s "$DEXKIT_STAGE/libs/dexkit-2.3.0.jar"
           test -s "$DEXKIT_STAGE/libs/flatbuffers-java-23.5.26.jar"
+          find "$DEXKIT_STAGE/native-dependencies" -type f -name 'cxx-1.2.0.aar' -print -quit | grep -q .
+          test -d "$DEXKIT_STAGE/cxx-prefab/prefab"
           test -s "$DEXKIT_STAGE/jni/arm64-v8a/libdexkit.so"
           find "$DEXKIT_STAGE/jni" -type f -name '*.so' -print
           bash scripts/test-package-identity.sh
