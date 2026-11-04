@@ -408,6 +408,8 @@ dependencies {
         "androidx.compose.material:material-icons-extended-android:1.7.8@aar"
     )
     implementation(platform("androidx.compose:compose-bom:2025.10.00"))
+    // DexKit is compiled and packaged in the Android launcher as well as the manual D8 variants.
+    implementation("org.luckypray:dexkit:2.3.0")
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.core:core:1.18.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0")
