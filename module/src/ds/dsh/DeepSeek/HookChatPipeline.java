@@ -2203,6 +2203,10 @@ final class HookChatPipeline {
                 Object r = chain.proceed();
                 try {
                     Object reqObj = args != null && args.length > 0 ? args[0] : null;
+                    RoiRuntimeInvocationObserver.recordTransportResult(reqObj, r, m);
+                } catch (Throwable ignored) {}
+                try {
+                    Object reqObj = args != null && args.length > 0 ? args[0] : null;
                     // 关键：不能把返回值换成 Proxy（宿主会按声明返回类型强转并闪退）。
                     // 改为：原样返回真实 b41，但把该 b41 实例登记下来；等它被 collect(b41.b) 时再跑中继。
                     registerRelayFlow(reqObj, r, chain.getThisObject());
