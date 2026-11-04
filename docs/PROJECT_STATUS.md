@@ -1,6 +1,7 @@
 # 项目状态与交付基线
 
-> 状态日期：2026-11-03  
+ > 项目名称：ROI  
+> 状态日期：2026-11-04  
 > 适用分支：`work/roi-agent-core-kotlin`  
 > 最近一次 Runtime 修复提交：`c87ce1b67e57788ff8f53777f4d583f5a00a6151`；后续提交用于文档校准  
 > 宿主：官方 DeepSeek Android `com.deepseek.chat`  
@@ -120,9 +121,17 @@ Run `41649071834` 是本轮已核实的完整绿色 CI。它验证的是 JVM/脚
 - L4 模拟器/沙盒通过，不代表真实 DeepSeek/Xposed 兼容。
 - 只有明确记录设备、宿主渠道与 versionCode、LSPosed 环境和测试步骤的 L5 结果，才可称为对应组合的真机验证。
 
-## 7. 相关文档
+## 7. ROI 自动发现引擎
+
+- 项目名称统一为 **ROI**；仓库名、Android 包名、Xposed 入口和既有命名空间保持原样，避免无关的兼容性变更。
+- 已新增 [ROI 自动发现与跨版本 Hook 适配引擎](architecture/ROI_AUTO_DISCOVERY_ENGINE.md) 架构决策草案。
+- 当前未知版本仍会在功能 Hook 安装前被拒绝；只读发现入口尚未接入，自动发现、结构指纹、调用图分析和自动映射均未实现。
+- 最新探针回归修复提交 `41a569b` 的 CI Run `41783005479` 已通过；架构文档提交 `83f8c9e` 的 CI 正在排队/运行，不能与前一 Run 混为一谈。
+
+## 8. 相关文档
 
 - [架构总览](ARCHITECTURE.md)
+- [ROI 自动发现引擎](architecture/ROI_AUTO_DISCOVERY_ENGINE.md)
 - [功能范围](FEATURES.md)
 - [构建说明](BUILDING.md)
 - [分支约定](BRANCHING.md)
