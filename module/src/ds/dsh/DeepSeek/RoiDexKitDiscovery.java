@@ -215,7 +215,7 @@ final class RoiDexKitDiscovery {
                     // R1 integration: feed observed DexKit metadata into the resolver, but do
                     // not promote a string hit into method-shape, call-graph, or runtime proof.
                     String hostKey = "unverified:" + HostCompat.diagnosticSummary()
-                            .replace('\\n', '|').replace('\\r', '|');
+                            .replace('\n', '|').replace('\r', '|');
                     List<RoiHookResolver.Evidence> evidence = Arrays.asList(
                             new RoiHookResolver.Evidence(
                                     RoiHookResolver.EvidenceKind.HOST_IDENTITY,
