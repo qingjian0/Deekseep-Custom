@@ -29,14 +29,14 @@ public final class RoiCandidateGraphTest {
     private static void testBoundsAndUnresolvedReferences() {
         RoiCandidateGraph.Result result = RoiCandidateGraph.build(Arrays.asList(
                 observation("A", "one", Arrays.asList("B", "external"), Collections.<String>emptyList()),
-                observation("B", "two", Collections.<String>emptyList(), Collections.<String>emptyList()),
+                observation("B", "two", Collections.<String>emptyList(), Arrays.asList("A")),
                 observation("C", "three", Collections.<String>emptyList(), Collections.<String>emptyList())
         ), 2, 0);
         equal(2, result.uniqueNodes, "node cap");
         equal(1, result.omittedNodes, "omitted node count");
         equal(1, result.unresolvedReferences, "external reference count");
         equal(0, result.edgeCount, "edge cap");
-        equal(1, result.omittedEdges, "omitted edge count");
+        equal(1, result.omittedEdges, "duplicate overflow edge counted once");
     }
 
     private static void testCyclesAndDisconnectedNodes() {
