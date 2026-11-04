@@ -34,14 +34,17 @@ for required in (
 
 if "param.appInfo.splitSourceDirs" not in main:
     raise SystemExit("runtime discovery must receive installed Split APK paths")
-if "RoiDexKitDiscovery.inspect(root, apkPath, splitApkPaths)" not in inventory:
-    raise SystemExit("DEX inventory must invoke the read-only DexKit inventory")
+if "RoiDexKitDiscovery.registerClassLoader(current)" not in inventory and "RoiDexKitDiscovery.schedule(cl" not in main:
+    raise SystemExit("unknown-host flow must invoke read-only DexKit discovery")
 for required in (
     "DexKitBridge.create(loaders.get(i), true)",
     "DexKitBridge.create(apkPaths.get(i))",
+    "querySemanticAnchors",
     "bridge.close()",
     "hooksInstalled=false",
-    "semanticCandidates=not_queried",
+    "SEMANTIC_ANCHORS",
+    "querySemanticAnchors",
+    "activation=forbidden_without_external_validation",
 ):
     if required not in dexkit:
         raise SystemExit(f"DexKit discovery contract missing: {required}")
