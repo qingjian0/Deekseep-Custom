@@ -61,6 +61,7 @@ final class RoiRuntimeInvocationObserver {
                     Thread.currentThread().getId(),
                     RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), now);
         } catch (Throwable ignored) {
+            rethrowFatal(ignored);
             // Observation must never affect host request construction.
         }
         return request;
@@ -81,6 +82,7 @@ final class RoiRuntimeInvocationObserver {
                     Thread.currentThread().getId(),
                     RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), now);
         } catch (Throwable ignored) {
+            rethrowFatal(ignored);
             // Observation must never affect host transport execution.
         }
     }
@@ -98,6 +100,7 @@ final class RoiRuntimeInvocationObserver {
                 FLOW_REQUEST_KEYS.put(flow, key);
             }
         } catch (Throwable ignored) {
+            rethrowFatal(ignored);
             // A failed correlation must not affect the original Flow.
         }
     }
@@ -142,6 +145,7 @@ final class RoiRuntimeInvocationObserver {
                         }
                     });
         } catch (Throwable ignored) {
+            rethrowFatal(ignored);
             return collector;
         }
     }
@@ -157,8 +161,14 @@ final class RoiRuntimeInvocationObserver {
                     Thread.currentThread().getId(),
                     RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), now);
         } catch (Throwable ignored) {
+            rethrowFatal(ignored);
             // Response observation is strictly best effort.
         }
+    }
+
+    private static void rethrowFatal(Throwable error) {
+        if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+        if (error instanceof ThreadDeath) throw (ThreadDeath) error;
     }
 
     static synchronized void clear() {
