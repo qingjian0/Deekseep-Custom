@@ -36,6 +36,7 @@ required = {
     "base URL includes v1": 'return root.length() == 0 ? "" : root + "/v1";',
     "Chinese local address label": "本机地址：",
     "Chinese LAN status label": "局域网状态：",
+    "LAN listener health remains visible when an address is bound": '"局域网监听状态：" + lanBindingStatus',
 }
 missing = [label for label, token in required.items() if token not in source]
 if missing:
