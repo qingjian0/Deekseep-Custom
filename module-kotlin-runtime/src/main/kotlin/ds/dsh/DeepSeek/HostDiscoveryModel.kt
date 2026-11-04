@@ -132,5 +132,12 @@ data class HostDiscoverySnapshot(
         require(candidates.map { it.id }.distinct().size == candidates.size) {
             "candidate IDs must be unique"
         }
+        require(classLoaders.all { it.dexUnitIds.distinct().size == it.dexUnitIds.size }) {
+            "a class loader must not list the same DEX unit more than once"
+        }
+        val knownDexUnitIds = dexUnits.mapTo(mutableSetOf()) { it.id }
+        require(classLoaders.all { loader -> loader.dexUnitIds.all { it in knownDexUnitIds } }) {
+            "class-loader DEX references must resolve within the snapshot"
+        }
     }
 }
