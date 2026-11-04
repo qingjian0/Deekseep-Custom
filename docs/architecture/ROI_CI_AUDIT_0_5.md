@@ -54,3 +54,10 @@ The source and static assertions have been updated on the working branch. The la
 - Graph limits are 128 nodes and 256 retained edges per bridge scan; diagnostic output emits at most 32 edges. The graph never loads host classes or invokes host methods.
 - Added standalone Java regression coverage for anchor deduplication, edge direction, duplicate edges, edge/node caps, unresolved references, cycles, and disconnected components. The fast audit and full regression workflow both invoke the new test script.
 - Graph connectivity is descriptive static DEX structure only. It does not classify Request/Transport/Response roles, prove a live request path, or authorize Hook activation.
+
+## R2.0 — conservative network role hints
+
+- Added a separate `RoiSemanticRoleHints` classifier over a candidate's directly invoked method descriptors. It recognizes a narrow set of explicit OkHttp / Retrofit / URLConnection / Gson / Moshi / Jackson / JSONObject references as request-builder, transport, or response-parser hints.
+- The classifier emits only positive hints and matched descriptor samples; unknown or obfuscated references remain unresolved. A method may carry multiple hints, and absence of a hint is not evidence that a role is absent.
+- Hints are reported per candidate with provenance `direct_static_invoke_reference`. They are not fed into `RoiHookResolver`, do not change candidate role from `unresolved`, and cannot authorize activation.
+- Added isolated JVM tests for request-builder, transport, response-parser, and unknown-reference cases. Added the test to both the parallel ROI fast audit and full regression job.
