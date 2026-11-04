@@ -641,7 +641,7 @@ final class OpenNativeCompletionProbe {
                             error.getClass().getName());
                 }
             }
-            if (count >= 48) break;
+            if (count >= maxFields) break;
             try {
                 current = current.getSuperclass();
             } catch (LinkageError | RuntimeException error) {
