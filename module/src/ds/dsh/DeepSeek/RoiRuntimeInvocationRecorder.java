@@ -180,6 +180,8 @@ final class RoiRuntimeInvocationRecorder {
             long builtAt = Long.MAX_VALUE;
             long transportAt = Long.MAX_VALUE;
             long receivedAt = Long.MAX_VALUE;
+            String builtScope = "";
+            String transportScope = "";
             for (int eventIndex = 0; eventIndex < events.size(); eventIndex++) {
                 Event event = events.get(eventIndex);
                 if (!event.hostFingerprint.equals(seed.hostFingerprint)
@@ -192,19 +194,23 @@ final class RoiRuntimeInvocationRecorder {
                         if (builtIndex < 0) {
                             builtIndex = eventIndex;
                             builtAt = event.timestampMillis;
+                            builtScope = event.sourceScope;
                         }
                         break;
                     case TRANSPORT_ENTERED:
                         transports.add(event.candidateDescriptor);
                         if (builtIndex >= 0 && transportIndex < 0
+                                && builtScope.equals(event.sourceScope)
                                 && eventIndex > builtIndex && event.timestampMillis >= builtAt) {
                             transportIndex = eventIndex;
                             transportAt = event.timestampMillis;
+                            transportScope = event.sourceScope;
                         }
                         break;
                     case RESPONSE_RECEIVED:
                         receivers.add(event.candidateDescriptor);
                         if (transportIndex >= 0 && receivedIndex < 0
+                                && transportScope.equals(event.sourceScope)
                                 && eventIndex > transportIndex
                                 && event.timestampMillis >= transportAt) {
                             receivedIndex = eventIndex;
@@ -214,6 +220,7 @@ final class RoiRuntimeInvocationRecorder {
                     case RESPONSE_PARSED:
                         parsers.add(event.candidateDescriptor);
                         if (receivedIndex >= 0 && parsedIndex < 0
+                                && transportScope.equals(event.sourceScope)
                                 && eventIndex > receivedIndex
                                 && event.timestampMillis >= receivedAt) {
                             parsedIndex = eventIndex;
