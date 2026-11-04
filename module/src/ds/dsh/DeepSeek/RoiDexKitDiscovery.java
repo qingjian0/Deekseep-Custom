@@ -1,12 +1,16 @@
 package ds.dsh.DeepSeek;
 
 import org.luckypray.dexkit.DexKitBridge;
+import org.luckypray.dexkit.query.FindMethod;
+import org.luckypray.dexkit.query.enums.StringMatchType;
+import org.luckypray.dexkit.query.matchers.MethodMatcher;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
+import java.util.WeakHashMap;
 import java.util.List;
 import java.util.Set;
 
@@ -22,10 +26,25 @@ final class RoiDexKitDiscovery {
     private static final int MAX_LOADERS = 12;
     private static final int MAX_APK_PATHS = 8;
     private static final int MAX_REPORTED_DEX = 256;
+    private static final int MAX_CANDIDATES_PER_ANCHOR = 8;
+    private static final Object LOADER_LOCK = new Object();
+    private static final WeakHashMap<ClassLoader, Boolean> REGISTERED_LOADERS =
+            new WeakHashMap<ClassLoader, Boolean>();
+    private static final String[] SEMANTIC_ANCHORS = {
+            "chat/completions", "application/json", "Authorization", "messages"
+    };
     private static volatile boolean nativeLibraryLoaded;
     private static volatile String nativeLibraryError = "not_attempted";
 
     private RoiDexKitDiscovery() {}
+
+    /** Register a dynamic loader only from a trusted, module-owned observation point. */
+    static void registerClassLoader(ClassLoader loader) {
+        if (loader == null) return;
+        synchronized (LOADER_LOCK) {
+            REGISTERED_LOADERS.put(loader, Boolean.TRUE);
+        }
+    }
 
     static String inspect(ClassLoader root, String apkPath, String[] splitApkPaths) {
         StringBuilder out = new StringBuilder(2048);
@@ -42,6 +61,7 @@ final class RoiDexKitDiscovery {
         }
         append(out, "dexkit.available=true");
 
+        registerClassLoader(root);
         List<ClassLoader> loaders = collectLoaders(root);
         int memorySuccess = 0;
         int memoryFailure = 0;
@@ -55,6 +75,7 @@ final class RoiDexKitDiscovery {
                 append(out, "loader." + (i + 1) + ".dexCount=" + count);
                 memorySuccess++;
                 totalDex += count;
+                candidateCount += querySemanticAnchors(bridge, "loader." + (i + 1), out);
             } catch (Throwable error) {
                 rethrowFatal(error);
                 memoryFailure++;
@@ -70,7 +91,7 @@ final class RoiDexKitDiscovery {
         }
 
         int apkSuccess = 0;
-        if (memorySuccess == 0) {
+        {
             List<String> apkPaths = collectApkPaths(apkPath, splitApkPaths);
             for (int i = 0; i < apkPaths.size(); i++) {
                 DexKitBridge bridge = null;
@@ -82,6 +103,7 @@ final class RoiDexKitDiscovery {
                     append(out, "apk." + (i + 1) + ".dexCount=" + count);
                     apkSuccess++;
                     totalDex += count;
+                    candidateCount += querySemanticAnchors(bridge, "apk." + (i + 1), out);
                 } catch (Throwable error) {
                     rethrowFatal(error);
                     append(out, "apk." + (i + 1) + ".error="
@@ -94,8 +116,6 @@ final class RoiDexKitDiscovery {
                     break;
                 }
             }
-        } else {
-            append(out, "apk.fallback=not_needed");
         }
 
         append(out, "loader.count=" + loaders.size());
@@ -104,9 +124,78 @@ final class RoiDexKitDiscovery {
         append(out, "apk.fallbackSuccess=" + apkSuccess);
         append(out, "dex.totalReported=" + totalDex);
         append(out, "dex.totalCapped=" + (totalDex >= MAX_REPORTED_DEX));
-        append(out, "semanticCandidates=not_queried");
+        append(out, "semanticCandidates=" + candidateCount);
+        append(out, "semanticEvidence=string_anchor_only");
         append(out, "activation=forbidden_without_external_validation");
+        append(out, "dynamicLoaderRegistration=explicit_api_required");
         return out.toString();
+    }
+
+
+    private static int querySemanticAnchors(DexKitBridge bridge, String prefix, StringBuilder out) {
+        int total = 0;
+        for (String anchor : SEMANTIC_ANCHORS) {
+            try {
+                FindMethod query = FindMethod.create().matcher(
+                        MethodMatcher.create().usingStrings(
+                                Collections.singletonList(anchor),
+                                StringMatchType.Contains,
+                                false));
+                Object results = bridge.findMethod(query);
+                int count = invokeSize(results);
+                int emitted = Math.min(count, MAX_CANDIDATES_PER_ANCHOR);
+                append(out, prefix + ".anchor." + safeKey(anchor) + ".matches=" + count);
+                for (int i = 0; i < emitted; i++) {
+                    Object item = invokeGet(results, i);
+                    append(out, prefix + ".candidate." + safeKey(anchor) + "." + i
+                            + ".descriptor=" + safe(readString(item, "getDescriptor")));
+                    append(out, prefix + ".candidate." + safeKey(anchor) + "." + i
+                            + ".owner=" + safe(readString(item, "getClassName")));
+                    append(out, prefix + ".candidate." + safeKey(anchor) + "." + i
+                            + ".method=" + safe(readString(item, "getMethodName")));
+                    append(out, prefix + ".candidate." + safeKey(anchor) + "." + i
+                            + ".evidence=string_anchor_only");
+                    total++;
+                }
+                if (count > emitted) append(out, prefix + ".anchor." + safeKey(anchor)
+                        + ".omitted=" + (count - emitted));
+            } catch (VirtualMachineError fatal) {
+                throw fatal;
+            } catch (ThreadDeath fatal) {
+                throw fatal;
+            } catch (Throwable error) {
+                rethrowFatal(error);
+                append(out, prefix + ".anchor." + safeKey(anchor)
+                        + ".queryError=" + error.getClass().getName());
+            }
+            if (out.length() > 8200) break;
+        }
+        return total;
+    }
+
+    private static int invokeSize(Object value) throws Exception {
+        if (value == null) return 0;
+        Object size = value.getClass().getMethod("size").invoke(value);
+        return size instanceof Number ? ((Number) size).intValue() : 0;
+    }
+
+    private static Object invokeGet(Object value, int index) throws Exception {
+        return value.getClass().getMethod("get", int.class).invoke(value, index);
+    }
+
+    private static String readString(Object value, String getter) {
+        if (value == null) return "unavailable";
+        try {
+            Object result = value.getClass().getMethod(getter).invoke(value);
+            return result == null ? "null" : String.valueOf(result);
+        } catch (Throwable error) {
+            rethrowFatal(error);
+            return "unavailable";
+        }
+    }
+
+    private static String safeKey(String value) {
+        return value.replace('/', '_').replace('.', '_').replace(' ', '_');
     }
 
     private static boolean loadNativeLibrary() {
@@ -131,6 +220,11 @@ final class RoiDexKitDiscovery {
                 new IdentityHashMap<ClassLoader, Boolean>());
         List<ClassLoader> result = new ArrayList<ClassLoader>();
         addLoader(result, seen, root);
+        synchronized (LOADER_LOCK) {
+            for (ClassLoader registered : REGISTERED_LOADERS.keySet()) {
+                addLoader(result, seen, registered);
+            }
+        }
         ClassLoader current = root;
         while (current != null && result.size() < MAX_LOADERS) {
             try {
