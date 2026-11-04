@@ -221,7 +221,7 @@ require(
     r'matchKind = "exact".*?matchRank = 3.*?candidateRank = fieldType\.isInterface\(\) \? 2 : 1.*?matchKind = fieldType\.isInterface\(\)\s*\? "interface" : "supertype"',
     "typed manager candidates select the strongest exact, interface, or supertype match",
 )
-require(probe, r'appendConstructors\(out, "request", requestType\).*?appendConstructors\(out, "manager" \+ managerCandidates, owner\).*?appendConstructors\(StringBuilder out, String prefix, Class<\?> type\).*?prefix \+ "\.constructorCount".*?prefix \+ "\.ctor\."', "request and manager constructor diagnostics use independent namespaces")
+require(probe, r'appendConstructors\(out, "request", requestType\).*?appendConstructors\(out, "manager" \+ managerCandidates, owner, 8\).*?appendConstructors\(StringBuilder out, String prefix, Class<\?> type\).*?appendConstructors\(out, prefix, type, 24\).*?int maxDetails.*?prefix \+ "\.constructorCount".*?prefix \+ "\.ctor\."', "request and manager constructor diagnostics use independent namespaces and explicit bounds")
 require(
     probe,
     r"appendTransportMethods.*?current\.getDeclaredMethods\(\).*?catch \(LinkageError \| SecurityException error\).*?transport\.inventoryError",
