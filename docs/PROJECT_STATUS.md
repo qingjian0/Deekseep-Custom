@@ -292,3 +292,5 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 2.7.x 不在旧版 transport/collect 路径中，仍不具备这条响应观察能力。
 - 记录器仍只保存 opaque request key、已批准适配器/渠道标识、阶段、时间戳、线程 ID 和方法描述符；不采集请求/响应正文、URL、headers、prompt、Authorization 或 token。
 - 静态 CI 检查现要求 transport 返回 Flow 关联、collector interface 防护和成功 emit 观察接线。CI 与真机验证待完成；没有声称本地构建或实时捕获成功。
+
+- 代理会在该次关联 collect 中改变 collector 对象身份；虽然保留接口并逐方法委托原 collector，但宿主 Flow 对 collector identity/context 的假设尚未经过真机验证。受控运行验证完成前必须保持显式 opt-in。
