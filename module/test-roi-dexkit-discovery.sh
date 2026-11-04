@@ -27,6 +27,12 @@ require(discovery, r'SEMANTIC_ANCHORS', "semantic query anchors are defined")
 require(discovery, r'RoiCandidateIdentity[.]forClassLoader[(]loaders[.]get[(]i[)][)]', "loader identity uses the actual object")
 require(discovery, r'RoiCandidateIdentity[.]forApkPath[(]apkPaths[.]get[(]i[)][)]', "APK identity uses its path")
 require(discovery, r'RoiCandidateIdentity[.]candidateId[(]', "candidate IDs include source scope")
+require(discovery, r'RoiHookResolver[.]Candidate[(][^;]*sourceScope, candidateId', "resolver candidate retains source identity")
+require(discovery, r'appendCallRelations[(][^;]*sourceScope', "call relation observations retain source scope")
+require(discovery, r'new RoiCandidateGraph[.]Observation[(]sourceScope, descriptor, anchor', "graph observations are scoped to their source")
+require(graph, r'qualify[(]node[.]sourceScope, target[)]', "outgoing references cannot cross source scopes")
+require(graph, r'qualify[(]node[.]sourceScope, caller[)]', "incoming references cannot cross source scopes")
+
 
 require(discovery, r'MethodMatcher\.create\(\)\.usingStrings', "DexKit semantic method matching is used")
 require(discovery, r'MAX_CANDIDATES_PER_ANCHOR\s*=\s*8', "candidate output is bounded")
