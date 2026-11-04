@@ -86,6 +86,17 @@ DeepSeek Hook startup
 
 **判定：** 这是源码层面的捕获链断层，不是“2.7.x 运行时等待初始化慢”。在找到并证明其他赋值路径之前，不能声称 287/289/290 的 Local API Backend 已具备就绪条件。后续应为 2.7.x 建立独立的 Request / Challenge / Transport 发现与对象绑定路径，或明确禁用该版本 Local API；不得通过删除 readiness 条件、填充伪对象或复用旧版字段名绕过。
 
+### 2.6 Request 构造观察不等于真实 Transport 捕获
+
+进一步逐行检查 `HookChatPipeline.hookChatRequest()` 与 `OpenNativeCompletionProbe.inspectHost()`：
+
+- `hookChatRequest()` 在 Request 构造器上安装 Hook，读取并可能改写 prompt 参数，再执行原构造器；当前实现没有把构造完成的 Request 实例保存为可关联的运行时对象，也没有记录该实例随后进入哪个调用者。
+- `inspectHost()` 从已加载 DEX 类中筛选两参数方法：第一个参数可接收当前 Request 类型，第二个参数为 `Long`，返回值为非 primitive / 非 void。它只输出方法声明、泛型返回类型和候选类字段；不实例化类、不读取实例字段、不调用候选方法，也不证明候选方法在真实发送路径上被执行。
+- 因此 `transport.candidateCount > 0` 只能说明存在符合结构过滤条件的方法，不能说明它是实际 Transport；`manager.candidateCount > 0` 也不能说明存在真实存活的 Manager 实例。
+- 当前尚无 Request 实例身份与 Transport 方法调用之间的关联 ID，也没有真实 Challenge / PoW 对象、网络请求边界或响应流事件的同一会话证据。
+
+**下一阶段的正确顺序：** 先在真实 Request 构造完成处记录受限的实例身份（仅进程内 identity，不输出对象内容）；再对静态候选方法安装只读、限量的运行时观察，确认哪些方法实际收到同一 Request 实例；随后追踪其返回对象 / Flow 的订阅与消费点。Challenge / PoW 必须从实际调用参数和对象关系独立确认。观察 Hook 不得修改参数、返回值、认证数据或网络行为；未获得设备日志前，所有候选继续保持未验证状态。
+
 ### 2.4 旧 Backend 与运行时对象
 
 仓库源码中也存在一个源文件 `module/src/ds/dsh/DeepSeek/z18.java`，其内容是 Android Doze / App Standby 白名单辅助逻辑，并不声明 `executeLocalApiCompletion`。
