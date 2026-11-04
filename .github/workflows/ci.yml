@@ -37,8 +37,10 @@ jobs:
           set -euo pipefail
           bash -n module/test-roi-hook-resolver.sh
           bash -n module/test-roi-dexkit-discovery.sh
+          bash -n module/test-roi-candidate-graph.sh
           bash module/test-roi-hook-resolver.sh
           bash module/test-roi-dexkit-discovery.sh
+          bash module/test-roi-candidate-graph.sh
 
   regression:
     name: Regression tests
@@ -75,7 +77,7 @@ jobs:
               module-legacy/test-adapter-regression.sh module/test-target-process-guard.sh \
               module/test-hostmap-regression.sh module/test-local-api-network-regression.sh \
               module/test-native-adapter-fail-closed.sh module/test-roi-hook-resolver.sh scripts/package-dexkit-native.sh scripts/test-dexkit-integration.sh \
-              module/test-roi-dexkit-discovery.sh; do
+              module/test-roi-dexkit-discovery.sh module/test-roi-candidate-graph.sh; do
             bash -n "$script"
           done
           GRADLE_BIN="$(bash scripts/gradle-bootstrap.sh)"
@@ -90,6 +92,7 @@ jobs:
           python3 -m py_compile scripts/verify-elf-load-alignment.py scripts/verify-dexkit-apk.py scripts/verify-dexkit-gradle-apk.py
           bash scripts/test-dexkit-integration.sh
           bash module/test-roi-dexkit-discovery.sh
+          bash module/test-roi-candidate-graph.sh
           bash module/test-roi-hook-resolver.sh
           mapfile -t DEXKIT_NATIVE_LIBS < <(find "$DEXKIT_STAGE/jni" -type f -name 'libdexkit.so' | sort)
           test "${#DEXKIT_NATIVE_LIBS[@]}" -gt 0
