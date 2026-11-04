@@ -29,6 +29,7 @@ final class RoiDexKitDiscovery {
     private static final int MAX_APK_PATHS = 8;
     private static final int MAX_REPORTED_DEX = 256;
     private static final int MAX_CANDIDATES_PER_ANCHOR = 8;
+    private static final int MAX_RELATIONS_PER_CANDIDATE = 12;
     private static final int MAX_DISCOVERY_PASSES = 3;
     private static final Object LOADER_LOCK = new Object();
     private static final WeakHashMap<ClassLoader, Boolean> REGISTERED_LOADERS =
@@ -225,6 +226,8 @@ final class RoiDexKitDiscovery {
                         append(out, prefix + ".candidate." + safeKey(anchor) + "." + i
                                 + ".shape.return=" + shape.returnDescriptor);
                     }
+                    String candidatePrefix = prefix + ".candidate." + safeKey(anchor) + "." + i;
+                    int relationCount = appendCallRelations(item, candidatePrefix, out);
                     List<RoiHookResolver.Evidence> evidence = Arrays.asList(
                             new RoiHookResolver.Evidence(
                                     RoiHookResolver.EvidenceKind.HOST_IDENTITY,
@@ -235,13 +238,17 @@ final class RoiDexKitDiscovery {
                             new RoiHookResolver.Evidence(
                                     RoiHookResolver.EvidenceKind.METHOD_SHAPE,
                                     shape == null ? 0.0 : 0.55, shape != null,
-                                    shape == null ? "descriptor_invalid" : "dex_descriptor_shape_validated"));
+                                    shape == null ? "descriptor_invalid" : "dex_descriptor_shape_validated"),
+                            new RoiHookResolver.Evidence(
+                                    RoiHookResolver.EvidenceKind.CALL_GRAPH,
+                                    relationCount == 0 ? 0.0 : 0.30, false,
+                                    relationCount == 0 ? "no_static_call_edges_observed"
+                                            : "dexkit_method_data_invokes_and_callers"));
                     RoiHookResolver.Candidate candidate = new RoiHookResolver.Candidate(
                             hostKey, "unresolved", owner, method, descriptor,
                             false, false, Collections.<String>emptySet(), evidence);
                     RoiHookResolver.Decision decision = RoiHookResolver.resolve(
                             candidate, RoiHookResolver.Policy.discoveryOnly());
-                    String candidatePrefix = prefix + ".candidate." + safeKey(anchor) + "." + i;
                     append(out, candidatePrefix + ".resolver.state=" + decision.state.name());
                     append(out, candidatePrefix + ".resolver.score="
                             + String.format(java.util.Locale.ROOT, "%.3f", decision.score));
@@ -284,6 +291,48 @@ final class RoiDexKitDiscovery {
         } catch (Throwable error) {
             rethrowFatal(error);
             return "unavailable";
+        }
+    }
+
+    /**
+     * Read a bounded one-hop call neighborhood from DexKit MethodData. These are static DEX
+     * references only; they do not prove that an edge executes on a live request path.
+     */
+    private static int appendCallRelations(Object methodData, String prefix, StringBuilder out) {
+        Object invokes = readObject(methodData, "getInvokes");
+        Object callers = readObject(methodData, "getCallers");
+        int invokeCount = invokeSize(invokes);
+        int callerCount = invokeSize(callers);
+        int invokeEmitted = Math.min(invokeCount, MAX_RELATIONS_PER_CANDIDATE);
+        int callerEmitted = Math.min(callerCount, MAX_RELATIONS_PER_CANDIDATE);
+        append(out, prefix + ".callGraph.invokes.count=" + invokeCount);
+        append(out, prefix + ".callGraph.callers.count=" + callerCount);
+        for (int i = 0; i < invokeEmitted; i++) {
+            Object edge = invokeGet(invokes, i);
+            append(out, prefix + ".callGraph.edge.invoke." + i + "="
+                    + safe(readString(edge, "getDescriptor")));
+        }
+        for (int i = 0; i < callerEmitted; i++) {
+            Object edge = invokeGet(callers, i);
+            append(out, prefix + ".callGraph.edge.caller." + i + "="
+                    + safe(readString(edge, "getDescriptor")));
+        }
+        if (invokeCount > invokeEmitted) {
+            append(out, prefix + ".callGraph.invokes.omitted=" + (invokeCount - invokeEmitted));
+        }
+        if (callerCount > callerEmitted) {
+            append(out, prefix + ".callGraph.callers.omitted=" + (callerCount - callerEmitted));
+        }
+        return invokeEmitted + callerEmitted;
+    }
+
+    private static Object readObject(Object value, String getter) {
+        if (value == null) return null;
+        try {
+            return value.getClass().getMethod(getter).invoke(value);
+        } catch (Throwable error) {
+            rethrowFatal(error);
+            return null;
         }
     }
 
