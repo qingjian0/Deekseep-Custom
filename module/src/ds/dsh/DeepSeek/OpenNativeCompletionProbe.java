@@ -119,6 +119,10 @@ final class OpenNativeCompletionProbe {
                 int scanned = 0;
                 int candidates = 0;
                 int managerCandidates = 0;
+                int exactManagerFields = 0;
+                int interfaceManagerFields = 0;
+                int supertypeManagerFields = 0;
+                int weakObjectFields = 0;
                 List<Class<?>> scannedTypes = new java.util.ArrayList<Class<?>>();
                 java.util.HashSet<Class<?>> transportOwners =
                         new java.util.HashSet<Class<?>>();
@@ -225,23 +229,51 @@ final class OpenNativeCompletionProbe {
                                 fieldIndex++;
                                 continue;
                             }
+                            // Object accepts every transport instance and made the old manager
+                            // inventory report thousands of unrelated classes. Keep that weak
+                            // signal visible, but never count it as a typed manager candidate.
+                            if (fieldType == Object.class) {
+                                weakObjectFields++;
+                                fieldIndex++;
+                                continue;
+                            }
+                            String matchKind = null;
                             for (Class<?> transportOwner : transportOwners) {
-                                if (fieldType.isAssignableFrom(transportOwner)) {
-                                    if (managerCandidates < 24) {
-                                        line(out, "manager.candidate." + managerCandidates,
-                                                owner.getName() + "." + field.getName()
-                                                        + ":" + fieldType.getName());
-                                        appendConstructors(out, "manager" + managerCandidates, owner);
-                                    }
-                                    managerCandidates++;
+                                if (fieldType == transportOwner) {
+                                    matchKind = "exact";
+                                    exactManagerFields++;
                                     break;
                                 }
+                                if (fieldType.isAssignableFrom(transportOwner)) {
+                                    if (fieldType.isInterface()) {
+                                        matchKind = "interface";
+                                        interfaceManagerFields++;
+                                    } else {
+                                        matchKind = "supertype";
+                                        supertypeManagerFields++;
+                                    }
+                                    break;
+                                }
+                            }
+                            if (matchKind != null) {
+                                if (managerCandidates < 24) {
+                                    line(out, "manager.candidate." + managerCandidates,
+                                            owner.getName() + "." + field.getName()
+                                                    + ":" + fieldType.getName()
+                                                    + " match=" + matchKind);
+                                    appendConstructors(out, "manager" + managerCandidates, owner);
+                                }
+                                managerCandidates++;
                             }
                             fieldIndex++;
                         }
                     }
                 }
                 line(out, "manager.candidateCount", String.valueOf(managerCandidates));
+                line(out, "manager.exactFieldCount", String.valueOf(exactManagerFields));
+                line(out, "manager.interfaceFieldCount", String.valueOf(interfaceManagerFields));
+                line(out, "manager.supertypeFieldCount", String.valueOf(supertypeManagerFields));
+                line(out, "manager.objectFieldCount", String.valueOf(weakObjectFields));
                 line(out, "dex.classLoadFailureCount", String.valueOf(classLoadFailures));
                 // Per-class load failures mean the inventory is partial, not a terminal result.
                 completed = !names.isEmpty() && classLoadFailures == 0;

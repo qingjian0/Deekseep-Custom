@@ -166,6 +166,21 @@ require(probe, r"getDeclaredFields\(\).*?catch \(LinkageError \| SecurityExcepti
 require(probe, r"fieldType\.isAssignableFrom\(transportOwner\)", "manager field matching only accepts declared types that can hold the transport owner")
 if "transportOwner.isAssignableFrom(field.getType())" in probe:
     raise SystemExit("Manager matching must reject reverse assignability, which cannot hold the transport instance")
+require(
+    probe,
+    r"if \(fieldType == Object.class\)\s*\{\s*weakObjectFields\+\+;.*?continue;",
+    "Object-typed fields are reported separately and excluded from manager candidates",
+)
+require(
+    probe,
+    r'manager\.exactFieldCount.*?manager\.interfaceFieldCount.*?manager\.supertypeFieldCount.*?manager\.objectFieldCount',
+    "manager candidates expose exact, interface, supertype, and weak Object counts",
+)
+require(
+    probe,
+    r'matchKind = "exact".*?matchKind = "interface".*?matchKind = "supertype"',
+    "typed manager candidates identify their match strength",
+)
 require(probe, r'appendConstructors\(out, "request", requestType\).*?appendConstructors\(out, "manager" \+ managerCandidates, owner\).*?appendConstructors\(StringBuilder out, String prefix, Class<\?> type\).*?prefix \+ "\.constructorCount".*?prefix \+ "\.ctor\."', "request and manager constructor diagnostics use independent namespaces")
 require(
     probe,
