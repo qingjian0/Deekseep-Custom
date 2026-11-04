@@ -56,6 +56,8 @@ grep -q 'RoiCandidateIdentity.forClassLoader(emitMethod.getDeclaringClass().getC
 grep -q 'candidateSourceScope.equals(item.sourceScope)' "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexKitDiscovery.java"
 grep -q 'builtScope.equals(event.sourceScope)' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
 grep -q 'transportScope.equals(event.sourceScope)' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
+grep -q 'sourceScope.length() > 0' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
+grep -q 'empty source scope accepted' "$ROOT/module/tests/roiruntime/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorderTest.java"
 grep -q 'testSameDescriptorDifferentLoaderScopesRemainDistinct' "$ROOT/module/tests/roiruntime/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorderTest.java"
 grep -q 'testCrossLoaderPhasesDoNotConfirm' "$ROOT/module/tests/roiruntime/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorderTest.java"
 
