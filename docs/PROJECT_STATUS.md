@@ -138,7 +138,8 @@ Run `41649071834` 是本轮已核实的完整绿色 CI。它验证的是 JVM/脚
 ## 7B. ROI R1 / CI Audit 0.5（2026-11-04）
 
 - DexKit 字符串锚点候选已接入 `RoiHookResolver`，但只提供低置信度、未确认的宿主诊断与方法形状证据；策略仍为 discovery-only，不允许安装 Hook。
-- 候选报告增加 resolver state、score、activationAuthorized 和 reason。
+- 候选报告增加 resolver state、score、activationAuthorized 和 reason；新增 DEX 方法描述符解析，提取 owner、method、参数数量和返回描述符。
+- 描述符解析只证明结构格式有效，不证明业务语义等价；候选仍处于 DISCOVERED，未知宿主不安装 Hook。
 - 新增并行 `roi-fast-audit`，独立运行 Resolver 与 DexKit discovery 回归；完整构建和原有安全回归仍保留。
 - 修复 Resolver 弱候选测试夹具，补充重复证据、角色不匹配、非法置信度和阈值校验。
 - CI Audit 0.5 仅降低非关键审查摩擦，不豁免编译、核心测试、ABI/ELF、APK 校验或 Hook 安全门槛。
