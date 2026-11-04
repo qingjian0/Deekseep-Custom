@@ -2,8 +2,8 @@
 
  > 项目名称：ROI  
 > 状态日期：2026-11-04  
-> 适用分支：`work/roi-agent-core-kotlin`  
-> 最近一次 Runtime 修复提交：`c87ce1b67e57788ff8f53777f4d583f5a00a6151`；后续提交用于文档校准  
+> 适用分支：`dev`  
+> 最近一次 ROI 扫描预算提交：`96baef4a2d631952fdfaad522e2d90720b7d916b`；Run `41834504879` 完整 CI 通过  
 > 宿主：官方 DeepSeek Android `com.deepseek.chat`  
 > 宿主版本目标：国内版 2.7.1（versionCode 287）、国内版 2.7.2（289）、Google Play / 国际版 2.7.2（290）
 
@@ -249,3 +249,22 @@ Run `41649071834` 是本轮已核实的完整绿色 CI。它验证的是 JVM/脚
 ### ROI R1.3 source identity
 
 Added process-local source scopes for runtime ClassLoader and APK observations. Candidate IDs combine source scope and method signature, allowing same-process rescans to correlate while separating identical signatures from different live loaders or APK sources. IDs are not claimed to persist across process restarts. Discovery remains read-only; activation remains disabled.
+
+
+## 7G. ROI R1.4 — per-scan DexKit work budgets (2026-11-04)
+
+- Each DexKit scan pass now shares a bounded work budget across ClassLoader and APK bridges: at most 32 native query starts, 96 emitted candidate inspections, and a 45-second soft deadline.
+- Query admission is checked before each native query; candidate admission is checked before each candidate is inspected. Budget stop reason and counters are included in the read-only report.
+- The last admitted query is allowed to finish processing its bounded candidate results even when it reaches the query-count limit.
+- The deadline is soft: it prevents additional work from starting but cannot interrupt a JNI query already in progress. Bridge creation and individual native query latency therefore remain non-preemptible.
+- Added pure-Java tests for query/candidate caps, zero limits, deadline behavior, independent counters, and the final admitted query edge case. Tests are wired into ROI fast audit and full Regression.
+- Full CI Run 41834504879 on 96baef4a passed ROI fast audit, Regression, traditional Xposed Core build, Android Open build/Lint, APK structure/alignment/signature checks, and artifact upload.
+
+## 7H. ROI R2.2 — synchronous runtime call-stack correlation (2026-11-04)
+
+- Extended the existing narrowly scoped Open mainland 2.7.2/code289 runtime observer. No additional host methods are hooked.
+- The observer now reports the direct parent method descriptor and whether the first argument is the same object reference as the root call's first argument.
+- The root request reference is retained only inside the current thread-local call frame; only object identity comparison and class/member metadata are used. No request fields or payload values are read.
+- This can establish a synchronous nested runtime call edge and same-object pass-through if the two existing observed methods nest on the same thread.
+- It does not establish asynchronous Flow execution, socket/network entry, response receipt/parsing, or a complete request chain. No Hook activation or adapter readiness is implied.
+- CI for this R2.2 change is pending until its own commit's workflow completes; no device observation is claimed.

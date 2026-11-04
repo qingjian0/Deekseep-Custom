@@ -343,6 +343,39 @@ require(report, r"REPORT_TERMINAL_RESERVE\s*=\s*64", "probe report reserves spac
 require(report, r"contentLimit\s*=\s*MAX_REPORT_CHARS\s*-\s*REPORT_TERMINAL_RESERVE\s*-\s*marker\.length\(\)", "probe report reserves room for both truncation marker and terminal timing")
 require(report, r'"probe\.elapsedMs"\.equals\(key\).*?MAX_REPORT_CHARS.*?return;.*?probe\.truncated=true', "truncated reports retain terminal elapsed time and expose truncation")
 
+require(
+    probe,
+    r'hostCode271\(\) != 289.*?installObservedMethod\(loader, "jw3", "g".*?installObservedMethod\(loader, "zn3", "o"',
+    "runtime observation remains limited to the two reviewed 2.7.2/code289 candidate methods",
+)
+require(
+    probe,
+    r'final Deque<String> callStack.*?Object rootRequest.*?boolean hasRootRequest',
+    "runtime observer keeps only a thread-local call stack and opaque root request reference",
+)
+require(
+    probe,
+    r'parentMethod = frame\.callStack\.isEmpty\(\).*?frame\.callStack\.addLast\(currentMethod\)',
+    "runtime observer records the direct synchronous parent method",
+)
+require(
+    probe,
+    r'sameRequestObjectAsRoot = frame\.hasRootRequest\s*&&\s*requestArg == frame\.rootRequest',
+    "runtime observer correlates argument object identity without reading its fields",
+)
+require(
+    probe,
+    r'frame\.callStack\.removeLast\(\).*?if \(root\) OBSERVATION_FRAME\.remove\(\)',
+    "runtime call-stack state is removed on normal and observer-error exits",
+)
+require(
+    probe,
+    r'observedMethodDescriptor\(Method method\).*?method\.getParameterTypes\(\).*?method\.getReturnType\(\)',
+    "runtime trace records a structural method descriptor only",
+)
+if "requestArg.toString()" in probe or "String.valueOf(requestArg)" in probe:
+    raise SystemExit("runtime observer must not serialize request objects")
+
 print("Native probe bounded-retry regression checks passed")
 print("Native adapter fail-closed and read-only probe source checks passed")
 PY

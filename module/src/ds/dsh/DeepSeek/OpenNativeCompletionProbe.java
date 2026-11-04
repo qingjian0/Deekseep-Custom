@@ -5,6 +5,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -34,6 +36,9 @@ final class OpenNativeCompletionProbe {
 
     private static final class ObservationFrame {
         final long id;
+        final Deque<String> callStack = new ArrayDeque<String>();
+        Object rootRequest;
+        boolean hasRootRequest;
         int depth;
         ObservationFrame(long id) { this.id = id; }
     }
@@ -414,7 +419,11 @@ final class OpenNativeCompletionProbe {
                     ObservationFrame frame = null;
                     boolean root = false;
                     boolean depthIncremented = false;
+                    boolean stackPushed = false;
                     int depth = 0;
+                    String currentMethod = observedMethodDescriptor(target);
+                    String parentMethod = "none";
+                    boolean sameRequestObjectAsRoot = false;
                     try {
                         frame = OBSERVATION_FRAME.get();
                         root = frame == null;
@@ -427,19 +436,34 @@ final class OpenNativeCompletionProbe {
                         depth = frame.depth;
                         String thread = Thread.currentThread().getName() + "#"
                                 + Thread.currentThread().getId();
-                        String args = observedArgumentTypes(chain.getArgs());
+                        List<?> arguments = chain.getArgs();
+                        String args = observedArgumentTypes(arguments);
+                        Object requestArg = arguments != null && !arguments.isEmpty()
+                                ? arguments.get(0) : null;
+                        if (root) {
+                            frame.rootRequest = requestArg;
+                            frame.hasRootRequest = requestArg != null;
+                        }
+                        sameRequestObjectAsRoot = frame.hasRootRequest
+                                && requestArg == frame.rootRequest;
+                        parentMethod = frame.callStack.isEmpty()
+                                ? "none" : frame.callStack.peekLast();
+                        frame.callStack.addLast(currentMethod);
+                        stackPushed = true;
                         if (root) {
                             Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] enter id=" + frame.id
-                                    + " role=" + role + " method=" + target.getDeclaringClass().getName()
-                                    + "." + target.getName() + " modifiers="
-                                    + Modifier.toString(target.getModifiers())
+                                    + " role=" + role + " method=" + currentMethod
+                                    + " parent=" + parentMethod
+                                    + " sameRequestObjectAsRoot=" + sameRequestObjectAsRoot
+                                    + " modifiers=" + Modifier.toString(target.getModifiers())
                                     + " thread=" + thread + " depth=" + depth + " args=" + args
                                     + " stack=" + observedStack());
                         } else {
                             Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] enter id=" + frame.id
-                                    + " role=" + role + " method=" + target.getDeclaringClass().getName()
-                                    + "." + target.getName() + " thread=" + thread
-                                    + " depth=" + depth + " args=" + args);
+                                    + " role=" + role + " method=" + currentMethod
+                                    + " parent=" + parentMethod
+                                    + " sameRequestObjectAsRoot=" + sameRequestObjectAsRoot
+                                    + " thread=" + thread + " depth=" + depth + " args=" + args);
                         }
                     } catch (VirtualMachineError fatal) {
                         throw fatal;
@@ -447,17 +471,25 @@ final class OpenNativeCompletionProbe {
                         throw fatal;
                     } catch (Throwable observerError) {
                         // Diagnostics must never prevent the original host method from running.
+                        if (stackPushed && frame != null && !frame.callStack.isEmpty()) {
+                            frame.callStack.removeLast();
+                        }
                         if (depthIncremented && frame != null) frame.depth--;
                         if (root) OBSERVATION_FRAME.remove();
                         frame = null;
                         root = false;
+                        stackPushed = false;
+                        depthIncremented = false;
                     }
                     try {
                         Object result = chain.proceed();
                         try {
                             Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] exit id="
                                     + (frame == null ? "unknown" : frame.id)
-                                    + " role=" + role + " depth=" + depth + " result="
+                                    + " role=" + role + " method=" + currentMethod
+                                    + " parent=" + parentMethod
+                                    + " sameRequestObjectAsRoot=" + sameRequestObjectAsRoot
+                                    + " depth=" + depth + " result="
                                     + (result == null ? "null" : result.getClass().getName()));
                         } catch (Throwable ignored) {}
                         return result;
@@ -465,13 +497,19 @@ final class OpenNativeCompletionProbe {
                         try {
                             Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] throw id="
                                     + (frame == null ? "unknown" : frame.id)
-                                    + " role=" + role + " depth=" + depth + " exception="
+                                    + " role=" + role + " method=" + currentMethod
+                                    + " parent=" + parentMethod
+                                    + " sameRequestObjectAsRoot=" + sameRequestObjectAsRoot
+                                    + " depth=" + depth + " exception="
                                     + original.getClass().getName());
                         } catch (Throwable ignored) {}
                         throw original;
                     } finally {
-                        if (frame != null && depthIncremented) {
-                            frame.depth--;
+                        if (frame != null) {
+                            if (stackPushed && !frame.callStack.isEmpty()) {
+                                frame.callStack.removeLast();
+                            }
+                            if (depthIncremented) frame.depth--;
                             if (root) OBSERVATION_FRAME.remove();
                         }
                     }
@@ -488,6 +526,12 @@ final class OpenNativeCompletionProbe {
             Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] install failed role=" + role
                     + " exception=" + error.getClass().getName());
         }
+    }
+
+    private static String observedMethodDescriptor(Method method) {
+        return method.getDeclaringClass().getName() + "." + method.getName()
+                + "(" + parameters(method.getParameterTypes()) + ")->"
+                + method.getReturnType().getName();
     }
 
     private static String observedArgumentTypes(List<?> args) {
