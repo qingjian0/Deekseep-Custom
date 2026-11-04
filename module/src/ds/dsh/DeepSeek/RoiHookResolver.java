@@ -49,6 +49,8 @@ final class RoiHookResolver {
 
     static final class Candidate {
         final String hostFingerprint;
+        final String sourceScope;
+        final String candidateId;
         final String role;
         final String className;
         final String methodName;
@@ -61,7 +63,17 @@ final class RoiHookResolver {
         Candidate(String hostFingerprint, String role, String className, String methodName,
                   String descriptor, boolean contradictoryEvidence, boolean adapterApproved,
                   Set<String> approvedFingerprints, Iterable<Evidence> evidence) {
+            this(hostFingerprint, role, className, methodName, descriptor, "", "",
+                    contradictoryEvidence, adapterApproved, approvedFingerprints, evidence);
+        }
+
+        Candidate(String hostFingerprint, String role, String className, String methodName,
+                  String descriptor, String sourceScope, String candidateId,
+                  boolean contradictoryEvidence, boolean adapterApproved,
+                  Set<String> approvedFingerprints, Iterable<Evidence> evidence) {
             this.hostFingerprint = safe(hostFingerprint);
+            this.sourceScope = safe(sourceScope);
+            this.candidateId = safe(candidateId);
             this.role = safe(role);
             this.className = safe(className);
             this.methodName = safe(methodName);
