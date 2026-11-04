@@ -1,6 +1,6 @@
-# Deekseep-Custom
+# ROI
 
-面向官方 DeepSeek Android 客户端（`com.deepseek.chat`）的 LSPosed / Xposed 模块。当前开发分支正在渐进引入 Kotlin Runtime、Agent Core 与本地 API Gateway，同时保留既有 Java Hook 和宿主兼容边界。
+ROI 是面向官方 DeepSeek Android 客户端（`com.deepseek.chat`）的 LSPosed / Xposed 项目。当前开发分支正在渐进引入 Kotlin Runtime、Agent Core 与本地 API Gateway，同时保留既有 Java Hook 和宿主兼容边界。
 
 > **开发状态提醒：** 本 README 对应当前工作分支，不等同于稳定 Release。Local API 的 HTTP 服务层已经实现，但 Open 构建的 DeepSeek 原生 Completion Adapter 尚未打通；当前模型路由在适配器不可用时返回 HTTP 503。请勿将“端口可连接”理解为“已经能够调用 DeepSeek 模型”。
 
@@ -16,7 +16,7 @@
 | 目标宿主 | DeepSeek Android 2.7.1 / 2.7.2（versionCode 287 / 289 / 290） |
 | 开发架构基线 | `refactor/kotlin-hook-architecture` |
 
-当前工作分支的精确提交和 CI 状态见 [项目状态与交付基线](docs/PROJECT_STATUS.md)。
+当前工作分支的精确提交和 CI 状态见 [项目状态与交付基线](docs/PROJECT_STATUS.md)。自动发现与跨版本适配方案见 [ROI 自动发现引擎](docs/architecture/ROI_AUTO_DISCOVERY_ENGINE.md)。
 
 ## 核心模块
 
