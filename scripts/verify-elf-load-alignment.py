@@ -14,7 +14,7 @@ MIN_ALIGNMENT = 1 << 14
 
 def inspect(path: pathlib.Path) -> list[int]:
     data = path.read_bytes()
-    if len(data) < 16 or data[:4] != b"\\x7fELF":
+    if len(data) < 16 or data[:4] != b"\x7fELF":
         raise ValueError("not an ELF file")
     elf_class, encoding = data[4], data[5]
     if elf_class not in (1, 2) or encoding not in (1, 2):
