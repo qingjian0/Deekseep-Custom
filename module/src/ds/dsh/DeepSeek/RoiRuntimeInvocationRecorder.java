@@ -104,6 +104,25 @@ final class RoiRuntimeInvocationRecorder {
         }
     }
 
+    /** Sanitized per-descriptor evidence; deliberately excludes request keys. */
+    static final class EvidenceSnapshot {
+        final String adapterIdentity;
+        final String candidateDescriptor;
+        final Phase phase;
+        final boolean orderedRequestTransportResponse;
+        final boolean orderedParsedResponse;
+
+        EvidenceSnapshot(String adapterIdentity, String candidateDescriptor, Phase phase,
+                         boolean orderedRequestTransportResponse,
+                         boolean orderedParsedResponse) {
+            this.adapterIdentity = adapterIdentity;
+            this.candidateDescriptor = candidateDescriptor;
+            this.phase = phase;
+            this.orderedRequestTransportResponse = orderedRequestTransportResponse;
+            this.orderedParsedResponse = orderedParsedResponse;
+        }
+    }
+
     private final Policy policy;
     private final int capacity;
     private final long ttlMillis;
@@ -183,6 +202,27 @@ final class RoiRuntimeInvocationRecorder {
                     orderedResponse, orderedParsed));
         }
         return Collections.unmodifiableList(chains);
+    }
+
+    synchronized List<EvidenceSnapshot> snapshotEvidence(long nowMillis) {
+        if (nowMillis <= 0 || !policy.allowsRecording()) return Collections.emptyList();
+        List<Chain> chains = snapshotChains(nowMillis);
+        List<EvidenceSnapshot> result = new ArrayList<EvidenceSnapshot>();
+        for (Chain chain : chains) {
+            addEvidence(result, chain, chain.requestBuilders, Phase.REQUEST_BUILT);
+            addEvidence(result, chain, chain.transports, Phase.TRANSPORT_ENTERED);
+            addEvidence(result, chain, chain.responseReceivers, Phase.RESPONSE_RECEIVED);
+            addEvidence(result, chain, chain.responseParsers, Phase.RESPONSE_PARSED);
+        }
+        return Collections.unmodifiableList(result);
+    }
+
+    private static void addEvidence(List<EvidenceSnapshot> out, Chain chain,
+                                    Set<String> descriptors, Phase phase) {
+        for (String descriptor : descriptors) {
+            out.add(new EvidenceSnapshot(chain.hostFingerprint, descriptor, phase,
+                    chain.confirmsRequestTransportResponse(), chain.confirmsParsedResponse()));
+        }
     }
 
     synchronized int size(long nowMillis) {
