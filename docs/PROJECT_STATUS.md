@@ -139,6 +139,7 @@ Run `41649071834` 是本轮已核实的完整绿色 CI。它验证的是 JVM/脚
 
 - [架构总览](ARCHITECTURE.md)
 - [ROI 自动发现引擎](architecture/ROI_AUTO_DISCOVERY_ENGINE.md)
+- [ROI Version-independent Hook Resolution](architecture/ROI_HOOK_RESOLUTION.md)
 - [功能范围](FEATURES.md)
 - [构建说明](BUILDING.md)
 - [分支约定](BRANCHING.md)
