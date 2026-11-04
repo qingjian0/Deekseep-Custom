@@ -7,6 +7,7 @@ import org.luckypray.dexkit.query.matchers.MethodMatcher;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
@@ -205,8 +206,38 @@ final class RoiDexKitDiscovery {
                             + ".owner=" + safe(readString(item, "getClassName")));
                     append(out, prefix + ".candidate." + safeKey(anchor) + "." + i
                             + ".method=" + safe(readString(item, "getMethodName")));
+                    String descriptor = safe(readString(item, "getDescriptor"));
+                    String owner = safe(readString(item, "getClassName"));
+                    String method = safe(readString(item, "getMethodName"));
                     append(out, prefix + ".candidate." + safeKey(anchor) + "." + i
                             + ".evidence=string_anchor_only");
+
+                    // R1 integration: feed observed DexKit metadata into the resolver, but do
+                    // not promote a string hit into method-shape, call-graph, or runtime proof.
+                    String hostKey = "unverified:" + HostCompat.diagnosticSummary()
+                            .replace('\\n', '|').replace('\\r', '|');
+                    List<RoiHookResolver.Evidence> evidence = Arrays.asList(
+                            new RoiHookResolver.Evidence(
+                                    RoiHookResolver.EvidenceKind.HOST_IDENTITY,
+                                    0.25, false, "host_diagnostic_only"),
+                            new RoiHookResolver.Evidence(
+                                    RoiHookResolver.EvidenceKind.SEMANTIC_MARKER,
+                                    0.35, true, "dexkit.string_anchor:" + anchor),
+                            new RoiHookResolver.Evidence(
+                                    RoiHookResolver.EvidenceKind.METHOD_SHAPE,
+                                    0.20, false, "descriptor_observed_not_validated"));
+                    RoiHookResolver.Candidate candidate = new RoiHookResolver.Candidate(
+                            hostKey, "unresolved", owner, method, descriptor,
+                            false, false, Collections.<String>emptySet(), evidence);
+                    RoiHookResolver.Decision decision = RoiHookResolver.resolve(
+                            candidate, RoiHookResolver.Policy.discoveryOnly());
+                    String candidatePrefix = prefix + ".candidate." + safeKey(anchor) + "." + i;
+                    append(out, candidatePrefix + ".resolver.state=" + decision.state.name());
+                    append(out, candidatePrefix + ".resolver.score="
+                            + String.format(java.util.Locale.ROOT, "%.3f", decision.score));
+                    append(out, candidatePrefix + ".resolver.activationAuthorized="
+                            + decision.activationAuthorized);
+                    append(out, candidatePrefix + ".resolver.reason=" + decision.reason);
                     total++;
                 }
                 if (count > emitted) append(out, prefix + ".anchor." + safeKey(anchor)
