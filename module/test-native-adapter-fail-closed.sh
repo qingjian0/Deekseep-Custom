@@ -113,6 +113,11 @@ require(
     "probe reports scan duration",
 )
 require(
+    probe,
+    r'transportReturn.*?\.class.*?returnType\.getName\(\).*?appendFields\(out, "transportReturn"',
+    "probe inventories transport response type fields without invoking the response",
+)
+require(
     facade,
     r'z14\.payloadClass\(Main\.hostApplicationContext, "ds\.dsh\.DeepSeek\.z18"\)',
     "execution facade payload class target remains explicit",
