@@ -107,3 +107,5 @@ The source and static assertions have been updated on the working branch. The la
 - 这会使标准 Kotlin suspend Flow 的响应阶段保持未确认；R2.3 的“普通聊天响应项可观察”结论应收窄为：Flow identity 关联与 collector 代理接线已实现，但异步 emit 成功交付尚未被可靠证明。
 - 未实现 RESPONSE_PARSED，也未证明流完成。代理改变 collector identity 的真机兼容性风险仍然存在，开关继续默认关闭且必须显式 opt-in。
 - 新增静态回归断言，要求 Continuation guard 保留。尚未运行本地测试、Android 构建或真机验证；CI 状态需以本提交对应的 Actions 结果为准。
+
+- 进一步收紧：若 collector 接口暴露带 `kotlin.coroutines.Continuation` 参数的 `emit`，观察器现在直接原样传递 collector，不创建代理。当前实现没有包装 continuation 的成功恢复语义，因此也不应为了一个无法确认的事件改变 collector identity。
