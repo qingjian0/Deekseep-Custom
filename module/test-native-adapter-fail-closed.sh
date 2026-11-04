@@ -118,6 +118,16 @@ require(
     "probe inventories transport response type fields without invoking the response",
 )
 require(
+    probe,
+    r'if \(candidates < 6\).*?appendFields\(out, "transport" \+ candidates, owner, 1, 8\).*?appendFields\(out, "transportReturn" \+ candidates, returnType, 1, 8\)',
+    "transport candidate detail is bounded to six methods and eight fields per class",
+)
+require(
+    probe,
+    r'appendFields\(out, prefix, type, maxDepth, 48\).*?int maxFields',
+    "bounded field inventory preserves the wider default for primary request and manager details",
+)
+require(
     facade,
     r'z14\.payloadClass\(Main\.hostApplicationContext, "ds\.dsh\.DeepSeek\.z18"\)',
     "execution facade payload class target remains explicit",
