@@ -90,7 +90,27 @@ public final class RoiHookResolverTest {
             }
         }, "NaN thresholds must be rejected");
 
+        testMethodShapeParsing();
+
         System.out.println("RoiHookResolver executable tests passed");
+    }
+
+    private static void testMethodShapeParsing() {
+        RoiMethodShape shape = RoiMethodShape.parse(
+                "Lcom/example/Request;->build(Ljava/lang/String;[I)Ljava/lang/Object;");
+        check(shape != null, "valid method descriptor must parse");
+        check(shape.parameterCount == 2, "parameter arity must be counted");
+        check("Ljava/lang/Object;".equals(shape.returnDescriptor), "return descriptor must be preserved");
+        check("build".equals(shape.methodName), "method name must be extracted");
+
+        RoiMethodShape noArgs = RoiMethodShape.parse("Lx/Y;->create()V");
+        check(noArgs != null && noArgs.parameterCount == 0, "zero-argument void descriptor must parse");
+        check(RoiMethodShape.parse("Lx/Y;->bad(V)V") == null, "void must not be accepted as a parameter");
+        check(RoiMethodShape.parse("Lx/Y;->bad(Ljava/lang/String;)") == null,
+                "missing return descriptor must be rejected");
+        check(RoiMethodShape.parse("Lx/Y;->bad([)V") == null,
+                "incomplete array descriptor must be rejected");
+        check(RoiMethodShape.parse("not-a-method") == null, "non-method descriptor must be rejected");
     }
 
     private static RoiHookResolver.Candidate candidate(boolean conflict, boolean approved, boolean fullEvidence) {
