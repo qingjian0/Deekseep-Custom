@@ -123,6 +123,7 @@ final class RoiCandidateGraph {
         }
 
         Set<Edge> edges = new LinkedHashSet<Edge>();
+        Set<Edge> seenEdges = new LinkedHashSet<Edge>();
         int unresolved = 0;
         int omittedEdges = 0;
         for (Node node : nodes.values()) {
@@ -133,7 +134,7 @@ final class RoiCandidateGraph {
                 }
                 if (node.descriptor.equals(target)) continue;
                 Edge edge = new Edge(node.descriptor, target);
-                if (!edges.contains(edge)) {
+                if (seenEdges.add(edge)) {
                     if (edges.size() >= maxEdges) omittedEdges++;
                     else edges.add(edge);
                 }
@@ -145,7 +146,7 @@ final class RoiCandidateGraph {
                 }
                 if (node.descriptor.equals(caller)) continue;
                 Edge edge = new Edge(caller, node.descriptor);
-                if (!edges.contains(edge)) {
+                if (seenEdges.add(edge)) {
                     if (edges.size() >= maxEdges) omittedEdges++;
                     else edges.add(edge);
                 }
