@@ -7,9 +7,6 @@ plugins {
 group = "ds.dsh"
 version = "0.1.0"
 
-repositories {
-    mavenCentral()
-}
 
 base {
     archivesName.set("dsh-kotlin-runtime")
