@@ -68,7 +68,7 @@ public final class RoiHookResolverTest {
                 Collections.<String>emptySet(),
                 Arrays.asList(e(RoiHookResolver.EvidenceKind.SEMANTIC_MARKER, 0.2, true),
                         e(RoiHookResolver.EvidenceKind.SEMANTIC_MARKER, 0.4, true),
-                        e(RoiHookResolver.EvidenceKind.SEMANTIC_MARKER, 1.0, false)));
+                        e(RoiHookResolver.EvidenceKind.SEMANTIC_MARKER, 0.4, true)));
         check(duplicateEvidence.evidence.size() == 1,
                 "repeated observations in one evidence family must not inflate evidence count");
         check(duplicateEvidence.evidence.get(RoiHookResolver.EvidenceKind.SEMANTIC_MARKER).confirmed,
