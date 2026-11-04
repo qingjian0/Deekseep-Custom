@@ -49,6 +49,16 @@ grep -q 'runtimeEvidence.resolverContribution=none' "$ROOT/module/src/ds/dsh/Dee
 grep -q 'testSanitizedEvidenceSnapshot' "$ROOT/module/tests/roiruntime/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorderTest.java"
 grep -q 'testDisabledAndExpiredEvidenceSnapshotsAreEmpty' "$ROOT/module/tests/roiruntime/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorderTest.java"
 
+# Runtime evidence must be bound to the exact process-local class-loader scope.
+grep -q 'RoiCandidateIdentity.forClassLoader(constructor.getDeclaringClass().getClassLoader())' "$OBSERVER"
+grep -q 'RoiCandidateIdentity.forClassLoader(method.getDeclaringClass().getClassLoader())' "$OBSERVER"
+grep -q 'RoiCandidateIdentity.forClassLoader(emitMethod.getDeclaringClass().getClassLoader())' "$OBSERVER"
+grep -q 'candidateSourceScope.equals(item.sourceScope)' "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexKitDiscovery.java"
+grep -q 'builtScope.equals(event.sourceScope)' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
+grep -q 'transportScope.equals(event.sourceScope)' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
+grep -q 'testSameDescriptorDifferentLoaderScopesRemainDistinct' "$ROOT/module/tests/roiruntime/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorderTest.java"
+grep -q 'testCrossLoaderPhasesDoNotConfirm' "$ROOT/module/tests/roiruntime/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorderTest.java"
+
 # Ordered evidence tiers must be implemented and covered by recorder tests.
 grep -q 'orderedRequestTransportResponse' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
 grep -q 'confirmsParsedResponse()' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
