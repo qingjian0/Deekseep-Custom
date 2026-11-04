@@ -145,8 +145,8 @@ tasks.register("stageDexKitArtifacts") {
             appendLine("cxx.version=1.2.0")
             appendLine("cxx.aar=${cxxArchive.name}")
             appendLine("cxx.prefab.files=${cxxPrefabFiles.size}")
-            appendLine("apk.integration=disabled")
-            appendLine("note=JNI payload staged only; manual APK integration remains gated")
+            appendLine("apk.integration=manual_legacy_and_universal_scripts")
+            appendLine("note=staging is separate; both manual APK scripts consume DexKit bytecode and JNI payloads")
         }
         destination.resolve("metadata.txt").writeText(metadata)
     }
