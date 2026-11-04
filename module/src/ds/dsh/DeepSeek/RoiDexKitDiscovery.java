@@ -243,7 +243,7 @@ final class RoiDexKitDiscovery {
                     append(out, candidatePrefix + ".candidateId=" + safe(candidateId));
                     appendMethodStructure(item, candidatePrefix, out);
                     RoiCandidateGraph.Observation graphObservation = appendCallRelations(
-                            item, candidatePrefix, descriptor, anchor, out);
+                            item, candidatePrefix, sourceScope, descriptor, anchor, out);
                     graphObservations.add(graphObservation);
                     appendSemanticRoleHints(candidatePrefix, graphObservation.invokes, out);
                     int relationCount = graphObservation.invokes.size()
@@ -390,7 +390,7 @@ final class RoiDexKitDiscovery {
      * references only; they do not prove that an edge executes on a live request path.
      */
     private static RoiCandidateGraph.Observation appendCallRelations(Object methodData,
-            String prefix, String descriptor, String anchor, StringBuilder out) throws Exception {
+            String prefix, String sourceScope, String descriptor, String anchor, StringBuilder out) throws Exception {
         Object invokes = readObject(methodData, "getInvokes");
         Object callers = readObject(methodData, "getCallers");
         int invokeCount = invokeSize(invokes);
@@ -419,7 +419,7 @@ final class RoiDexKitDiscovery {
         if (callerCount > callerEmitted) {
             append(out, prefix + ".callGraph.callers.omitted=" + (callerCount - callerEmitted));
         }
-        return new RoiCandidateGraph.Observation(descriptor, anchor,
+        return new RoiCandidateGraph.Observation(sourceScope, descriptor, anchor,
                 invokeDescriptors, callerDescriptors);
     }
 
