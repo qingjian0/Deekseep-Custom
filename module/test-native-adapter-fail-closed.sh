@@ -11,18 +11,19 @@ HOST_V271="$ROOT/module/src/ds/dsh/DeepSeek/HostV271.java"
 CHAT="$ROOT/module/src/ds/dsh/DeepSeek/HookChatPipeline.java"
 REPORT="$ROOT/module/src/ds/dsh/DeepSeek/NativeProbeReport.java"
 REPORT_TEST="$ROOT/module/tests/nativeprobe/ds/dsh/DeepSeek/NativeProbeReportTest.java"
+DISCOVERY="$ROOT/module/src/ds/dsh/DeepSeek/RoiHostDiscovery.java"
 
 REPORT_OUT="$ROOT/module/build/native-probe-report-test"
 mkdir -p "$REPORT_OUT"
 javac -source 8 -target 8 -nowarn -d "$REPORT_OUT" "$REPORT" "$REPORT_TEST"
 java -cp "$REPORT_OUT" ds.dsh.DeepSeek.NativeProbeReportTest
 
-python - "$MAIN" "$STUB" "$FACADE" "$PROBE" "$Z18" "$HOST_V271" "$CHAT" "$REPORT" <<'PY'
+python - "$MAIN" "$STUB" "$FACADE" "$PROBE" "$Z18" "$HOST_V271" "$CHAT" "$REPORT" "$DISCOVERY" <<'PY'
 import pathlib
 import re
 import sys
 
-main, stub, facade, probe, z18, host_v271, chat, report = [
+main, stub, facade, probe, z18, host_v271, chat, report, discovery = [
     pathlib.Path(path).read_text(encoding="utf-8") for path in sys.argv[1:]
 ]
 
@@ -82,6 +83,18 @@ require(
     r"Class<\?> cls = z14\.payloadClass\([^;]+;\s*java\.lang\.reflect\.Method m = cls == null \? null",
     "execution facade fails closed when payload class is absent",
 )
+if "RoiHostDiscovery.schedule(cl," not in main:
+    raise SystemExit("unknown hosts must enter ROI read-only discovery before feature bootstrap returns")
+if main.index("if (!HostCompat.supportsMaintainedFeatureRuntime())") > main.index('installHookStep("ui.native-dual-chat-root"'):
+    raise SystemExit("generic Compose host hook must remain behind the maintained-host compatibility gate")
+if "MAX_TOTAL_CLASS_ENTRIES = 100000" not in discovery or "MAX_CLASS_NAMES = 60000" not in discovery:
+    raise SystemExit("unknown host DEX inventory must have hard entry and unique-name bounds")
+if "current.getParent()" not in discovery or "BaseDexClassLoader" not in discovery or "dexElements" not in discovery:
+    raise SystemExit("unknown host discovery must inventory the visible ClassLoader parent chain and DEX elements")
+if "current.loadClass(" in discovery or "Class.forName(name" in discovery:
+    raise SystemExit("unknown host discovery must not load arbitrary host classes")
+if "Main.MODULE.hook(" in discovery or "hookNativeDualChatRoot" in discovery:
+    raise SystemExit("unknown host discovery must not install hooks")
 require(
     probe,
     r"Read-only runtime inventory",
