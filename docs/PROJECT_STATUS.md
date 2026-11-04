@@ -4,7 +4,7 @@
 > 状态日期：2026-11-05  
 > 适用分支：`dev`  
 > 最近一次历史完整 CI 成功：`c0cec5256e84917781b10591f4268c13a49ab42d`；Run `41836377762`（历史记录，不代表当前 HEAD）  
-> R2.5.3 当前代码提交：`d0e331b2f2d50bf171e528f28d4ed5769d03bb9e`；GitHub Actions Run `41889799111` pending，尚无完成结果  
+> R2.5.3 当前代码已提交至 `dev`；以分支最新 HEAD 为准。最新 GitHub Actions 检查仍在排队，尚无完成结果  
 > 宿主：官方 DeepSeek Android `com.deepseek.chat`  
 > 宿主版本目标：国内版 2.7.1（versionCode 287）、国内版 2.7.2（289）、Google Play / 国际版 2.7.2（290）
 
