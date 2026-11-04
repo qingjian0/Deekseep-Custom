@@ -74,9 +74,9 @@ if 'String error = HookAccountLoginSecurity.localApiFloatingWindowError;' not in
     raise SystemExit("Floating-window status does not read its own error field")
 if 'HookAccountLoginSecurity.localApiKeepAliveError = "小窗保活启动失败：' in main:
     raise SystemExit("Floating-window failure still contaminates foreground status")
-if 'if (context == null) {\\n            HookAccountLoginSecurity.localApiKeepAliveError = "DeepSeek 上下文尚未就绪";' not in main:
+if 'if (context == null) {\n            HookAccountLoginSecurity.localApiKeepAliveError = "DeepSeek 上下文尚未就绪";' not in main:
     raise SystemExit("Foreground keepalive null-context failure is not stored independently")
-if 'if (context == null) {\\n            HookAccountLoginSecurity.localApiFloatingWindowError = "DeepSeek 上下文尚未就绪";' not in main:
+if 'if (context == null) {\n            HookAccountLoginSecurity.localApiFloatingWindowError = "DeepSeek 上下文尚未就绪";' not in main:
     raise SystemExit("Floating-window null-context failure is not stored independently")
 ui = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
 ui_required = {
