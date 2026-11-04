@@ -127,3 +127,15 @@ The source and static assertions have been updated on the working branch. The la
 - 同毫秒事件允许非递减，避免毫秒时钟粒度造成正常快速回调被误拒；这不是严格的因果顺序证明，仍依赖可信 callback 的真实调用顺序与同一 opaque request key。
 - 本次只收紧纯 Java recorder 的证据判定，不新增宿主 Hook，不产生任何新的 `RESPONSE_PARSED` 事件，也不宣称流完成、成功终止或取消状态已被观察。
 - 新增乱序、解析先后关系和同毫秒阶段测试，并在脚本中增加静态断言。当前工具环境未执行该脚本、Android 构建或真机验证；Actions 结果待核验。
+
+
+## R2.5.2 — sanitized runtime evidence snapshots and exact candidate matching
+
+- Added a read-only `snapshotEvidence()` surface to the existing opt-in runtime observer. It is unavailable unless the maintained host adapter is approved and the explicit runtime-observation enable file was present at initialization.
+- The recorder exposes immutable per-descriptor evidence entries only: adapter identity label, exact method descriptor, phase, and ordered-chain flags. It does not expose request keys, request/response content, URLs, headers, prompts, or credentials.
+- Evidence remains bounded by the existing 512-event capacity and 120-second TTL; snapshots prune expired events before returning.
+- DexKit reports a separate runtime-evidence section. Matching requires both exact method-descriptor equality and exact adapter-identity equality. No method-name, prefix, approximate descriptor, or cross-host matching is permitted.
+- The identity label `adapter:generation:channel` identifies the maintained adapter generation/channel only; it is not an APK or DEX fingerprint.
+- Runtime evidence is diagnostic only and is not added to `RoiHookResolver` scoring, role resolution, adapter approval, or Hook activation. Resolver remains discovery-only.
+- Tests were added for immutable sanitized snapshots, disabled-policy gating, TTL expiry, and no request-key field exposure; existing cross-host isolation coverage remains.
+- Verification boundary: source was updated on `dev`, but this batch has not been run locally or on a device. GitHub CI must be checked for the resulting commit; an empty status/run response is not a pass.
