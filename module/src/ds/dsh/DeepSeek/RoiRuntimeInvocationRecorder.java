@@ -202,7 +202,7 @@ final class RoiRuntimeInvocationRecorder {
         if (threshold == Long.MAX_VALUE) return Long.MAX_VALUE;
         long match = Long.MAX_VALUE;
         for (Long time : times) {
-            if (time != null && time.longValue() >= threshold.longValue()) {
+            if (time != null && time.longValue() >= threshold) {
                 match = Math.min(match, time.longValue());
             }
         }
