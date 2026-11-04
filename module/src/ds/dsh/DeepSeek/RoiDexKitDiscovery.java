@@ -373,15 +373,12 @@ final class RoiDexKitDiscovery {
             }
         }
         append(out, prefix + ".runtimeEvidence.exactDescriptorMatches=" + matches);
-        append(out, prefix + ".runtimeEvidence.requestBuilt=" + requestBuilt);
-        append(out, prefix + ".runtimeEvidence.transportEntered=" + transportEntered);
-        append(out, prefix + ".runtimeEvidence.responseReceived=" + responseReceived);
-        append(out, prefix + ".runtimeEvidence.responseParsed=" + responseParsed);
+        append(out, prefix + ".runtimeEvidence.phaseCounts=requestBuilt:" + requestBuilt
+                + ",transportEntered:" + transportEntered + ",responseReceived:" + responseReceived
+                + ",responseParsed:" + responseParsed);
         append(out, prefix + ".runtimeEvidence.orderedRequestTransportResponse="
                 + orderedRequestTransportResponse);
         append(out, prefix + ".runtimeEvidence.orderedParsedResponse=" + orderedParsedResponse);
-        append(out, prefix + ".runtimeEvidence.provenance=trusted_existing_callback_exact_match");
-        append(out, prefix + ".runtimeEvidence.resolverContribution=none");
     }
 
     private static void appendSemanticRoleHints(String prefix, List<String> invokes,
