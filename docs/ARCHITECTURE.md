@@ -59,7 +59,11 @@ ROI 是作用于 DeepSeek Android 客户端（`com.deepseek.chat`）的 LSPosed 
 
 ROI 自动发现引擎的目标架构、模块边界、候选状态机与实施阶段见 [ROI 自动发现与跨版本 Hook 适配引擎](architecture/ROI_AUTO_DISCOVERY_ENGINE.md)。当前文档是架构决策草案，不代表自动发现或自动 Hook 已经实现。
 
-## 8. Version-independent Hook Resolution\n\n跨版本 Hook 解析器的证据模型、状态机、激活门槛与实施阶段见 [ROI Version-independent Hook Resolution](architecture/ROI_HOOK_RESOLUTION.md)。当前 R0 仅提供纯 Java 决策核心；尚未接入真实 DEX 候选、通用调用链验证或自动 Hook 安装。\n\n## 9. 架构变更要求
+## 8. Version-independent Hook Resolution
+
+跨版本 Hook 解析器的证据模型、状态机、激活门槛与实施阶段见 [ROI Version-independent Hook Resolution](architecture/ROI_HOOK_RESOLUTION.md)。当前 R0 仅提供纯 Java 决策核心；尚未接入真实 DEX 候选、通用调用链验证或自动 Hook 安装。
+
+## 9. 架构变更要求
 
 任何跨模块重构必须先提供：
 1. 现状调用图或关键调用链；
