@@ -119,8 +119,18 @@ require(
 )
 require(
     probe,
-    r'if \(candidates < 6\).*?appendFields\(out, "transport" \+ candidates, owner, 1, 8\).*?appendFields\(out, "transportReturn" \+ candidates, returnType, 1, 8\)',
-    "transport candidate detail is bounded to six methods and eight fields per class",
+    r'if \(candidates < 4\).*?appendFields\(out, "transport" \+ candidates, owner, 1, 6\).*?appendFields\(out, "transportReturn" \+ candidates, returnType, 1, 6\)',
+    "transport candidate detail is bounded to four methods and six fields per class",
+)
+require(
+    probe,
+    r'if \(managerCandidates < 6\).*?appendConstructors\(out, "manager" \+ managerCandidates, owner, 8\).*?manager\.detailCount.*?Math\.min\(managerCandidates, 6\)',
+    "manager constructor detail is bounded while the complete typed-field count remains available",
+)
+require(
+    probe,
+    r'appendConstructors\(StringBuilder out, String prefix, Class<\?> type\).*?appendConstructors\(out, prefix, type, 24\).*?int maxDetails',
+    "primary request constructor diagnostics retain their existing full detail bound",
 )
 require(
     probe,
