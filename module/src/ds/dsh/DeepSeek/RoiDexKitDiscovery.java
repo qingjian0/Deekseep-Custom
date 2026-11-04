@@ -126,7 +126,9 @@ final class RoiDexKitDiscovery {
                 append(out, "loader." + (i + 1) + ".dexCount=" + count);
                 memorySuccess++;
                 totalDex += count;
-                candidateCount += querySemanticAnchors(bridge, "loader." + (i + 1), out);
+                String sourceScope = RoiCandidateIdentity.forClassLoader(loaders.get(i));
+                append(out, "loader." + (i + 1) + ".sourceScope=" + sourceScope);
+                candidateCount += querySemanticAnchors(bridge, "loader." + (i + 1), sourceScope, out);
             } catch (Throwable error) {
                 rethrowFatal(error);
                 memoryFailure++;
@@ -154,7 +156,9 @@ final class RoiDexKitDiscovery {
                     append(out, "apk." + (i + 1) + ".dexCount=" + count);
                     apkSuccess++;
                     totalDex += count;
-                    candidateCount += querySemanticAnchors(bridge, "apk." + (i + 1), out);
+                    String sourceScope = RoiCandidateIdentity.forApkPath(apkPaths.get(i));
+                    append(out, "apk." + (i + 1) + ".sourceScope=" + sourceScope);
+                    candidateCount += querySemanticAnchors(bridge, "apk." + (i + 1), sourceScope, out);
                 } catch (Throwable error) {
                     rethrowFatal(error);
                     append(out, "apk." + (i + 1) + ".error="
@@ -187,7 +191,7 @@ final class RoiDexKitDiscovery {
     }
 
 
-    private static int querySemanticAnchors(DexKitBridge bridge, String prefix, StringBuilder out) {
+    private static int querySemanticAnchors(DexKitBridge bridge, String prefix, String sourceScope, StringBuilder out) {
         int total = 0;
         List<RoiCandidateGraph.Observation> graphObservations =
                 new ArrayList<RoiCandidateGraph.Observation>();
@@ -234,6 +238,9 @@ final class RoiDexKitDiscovery {
                                 + ".shape.return=" + shape.returnDescriptor);
                     }
                     String candidatePrefix = prefix + ".candidate." + safeKey(anchor) + "." + i;
+                    String candidateId = RoiCandidateIdentity.candidateId(sourceScope, owner, method, descriptor);
+                    append(out, candidatePrefix + ".sourceScope=" + safe(sourceScope));
+                    append(out, candidatePrefix + ".candidateId=" + safe(candidateId));
                     appendMethodStructure(item, candidatePrefix, out);
                     RoiCandidateGraph.Observation graphObservation = appendCallRelations(
                             item, candidatePrefix, descriptor, anchor, out);
