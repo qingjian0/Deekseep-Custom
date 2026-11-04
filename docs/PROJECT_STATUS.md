@@ -4,7 +4,7 @@
 > 状态日期：2026-11-05  
 > 适用分支：`dev`  
 > 最近一次历史完整 CI 成功：`c0cec5256e84917781b10591f4268c13a49ab42d`；Run `41836377762`（历史记录，不代表当前 HEAD）  
-> R2.5.2 当前代码提交：`f09db0ca91103c3e803aea973f65f8cc11b5dfa6`；当前 HEAD 尚无 GitHub check runs/status checks 结果  
+> R2.5.3 当前代码提交：`d0e331b2f2d50bf171e528f28d4ed5769d03bb9e`；GitHub Actions Run `41889799111` pending，尚无完成结果  
 > 宿主：官方 DeepSeek Android `com.deepseek.chat`  
 > 宿主版本目标：国内版 2.7.1（versionCode 287）、国内版 2.7.2（289）、Google Play / 国际版 2.7.2（290）
 
@@ -24,9 +24,9 @@
 | 项目 | 当前值 |
 |---|---|
 | 工作分支 | `dev` |
-| 最近一次 Runtime 观察修复 | `c0cec5256e84917781b10591f4268c13a49ab42d` |
+| 最近一次 Runtime 观察修复 | R2.5.3 sourceScope 精确归属（见当前 HEAD） |
 | 最近一次 ROI 扫描预算实现 | `cca035d6b319a5ed0ab897bee6b1fb2a3c36589b` |
-| 最新完整 CI | [Run `41836377762`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41836377762) — success |
+| 最近一次历史完整 CI | [Run `41836377762`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41836377762) — success；R2.5.3 CI pending |
 | Kotlin 架构基线 | `refactor/kotlin-hook-architecture`（历史基线） |
 | 与架构基线关系 | 不作为当前 `dev` 的实时 ahead/behind 指标 |
 | 主干策略 | 不自动合并 `main`；不重置或覆盖工作分支 |
