@@ -127,7 +127,7 @@ final class RoiDexKitDiscovery {
         append(out, "runtimeEvidence.enabled="
                 + RoiRuntimeInvocationObserver.isObservationEnabled());
         append(out, "runtimeEvidence.adapterIdentityKind=adapter_generation_channel_not_apk_fingerprint");
-        append(out, "runtimeEvidence.matching=exact_method_descriptor_and_adapter_identity_only");
+        append(out, "runtimeEvidence.matching=exact_method_descriptor_adapter_identity_and_classloader_scope");
         append(out, "runtimeEvidence.snapshotEntries=" + runtimeEvidence.size());
         append(out, "runtimeEvidence.resolverContribution=none_read_only_diagnostic_only");
 
@@ -294,7 +294,7 @@ final class RoiDexKitDiscovery {
                             item, candidatePrefix, sourceScope, descriptor, anchor, out);
                     graphObservations.add(graphObservation);
                     appendSemanticRoleHints(candidatePrefix, graphObservation.invokes, out);
-                    appendRuntimeEvidence(candidatePrefix, hostKey, descriptor,
+                    appendRuntimeEvidence(candidatePrefix, hostKey, sourceScope, descriptor,
                             runtimeEvidence, adapterIdentity, out);
                     int relationCount = graphObservation.invokes.size()
                             + graphObservation.callers.size();
@@ -345,7 +345,7 @@ final class RoiDexKitDiscovery {
     }
 
     private static void appendRuntimeEvidence(String prefix, String candidateHostIdentity,
-            String candidateDescriptor,
+            String candidateSourceScope, String candidateDescriptor,
             List<RoiRuntimeInvocationRecorder.EvidenceSnapshot> snapshots,
             String adapterIdentity, StringBuilder out) {
         int matches = 0;
@@ -360,6 +360,7 @@ final class RoiDexKitDiscovery {
                 && candidateDescriptor.length() > 0) {
             for (RoiRuntimeInvocationRecorder.EvidenceSnapshot item : snapshots) {
                 if (!adapterIdentity.equals(item.adapterIdentity)
+                        || !candidateSourceScope.equals(item.sourceScope)
                         || !candidateDescriptor.equals(item.candidateDescriptor)) continue;
                 matches++;
                 switch (item.phase) {
@@ -373,7 +374,7 @@ final class RoiDexKitDiscovery {
                 orderedParsedResponse |= item.orderedParsedResponse;
             }
         }
-        append(out, prefix + ".runtimeEvidence.exactDescriptorMatches=" + matches);
+        append(out, prefix + ".runtimeEvidence.exactScopedDescriptorMatches=" + matches);
         append(out, prefix + ".runtimeEvidence.phaseCounts=requestBuilt:" + requestBuilt
                 + ",transportEntered:" + transportEntered + ",responseReceived:" + responseReceived
                 + ",responseParsed:" + responseParsed);
