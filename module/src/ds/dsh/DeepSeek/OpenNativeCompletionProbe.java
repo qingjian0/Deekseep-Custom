@@ -23,6 +23,21 @@ final class OpenNativeCompletionProbe {
             new java.util.concurrent.atomic.AtomicInteger();
     private static final int MAX_ATTEMPTS = 3;
     private static volatile String report = "not-run";
+    private static final java.util.concurrent.atomic.AtomicBoolean OBSERVATION_JW3 =
+            new java.util.concurrent.atomic.AtomicBoolean();
+    private static final java.util.concurrent.atomic.AtomicBoolean OBSERVATION_ZN3 =
+            new java.util.concurrent.atomic.AtomicBoolean();
+    private static final java.util.concurrent.atomic.AtomicLong OBSERVATION_IDS =
+            new java.util.concurrent.atomic.AtomicLong();
+    private static final ThreadLocal<ObservationFrame> OBSERVATION_FRAME =
+            new ThreadLocal<ObservationFrame>();
+
+    private static final class ObservationFrame {
+        final long id;
+        int depth;
+        ObservationFrame(long id) { this.id = id; }
+    }
+
 
     private OpenNativeCompletionProbe() {}
 
@@ -318,11 +333,145 @@ final class OpenNativeCompletionProbe {
             line(out, "probe.elapsedMs", String.valueOf(
                     (System.nanoTime() - startedNanos) / 1_000_000L));
         }
+        if (completed) installRuntimeObservation(loader);
         report = out.toString();
         // Only a complete DEX inventory is terminal. Class-load/scan failures remain retryable.
         if (completed) REPORTED.set(true);
         INSPECTING.set(false);
         Main.extLog("[OPEN_NATIVE_COMPLETION_PROBE]\n" + report);
+    }
+
+
+    /**
+     * Passive call-boundary observation for the verified mainland 2.7.2/code289 host only.
+     * Never invokes candidates itself and never serializes request/response objects or values.
+     */
+    private static void installRuntimeObservation(ClassLoader loader) {
+        if (!"Open".equals(BuildInfo.BUILD_EDITION) || BuildInfo.LOCAL_API_INCLUDED
+                || HostCompat.hostCode271() != 289 || loader == null || Main.MODULE == null) {
+            return;
+        }
+        try {
+            Class<?> requestType = Class.forName("ly1", false, loader);
+            Class<?> requestMarker = Class.forName("wu1", false, loader);
+            if (!requestMarker.isAssignableFrom(requestType)) return;
+            installObservedMethod(loader, "jw3", "g", requestType,
+                    OBSERVATION_JW3, "transport-low-level");
+            installObservedMethod(loader, "zn3", "o", requestType,
+                    OBSERVATION_ZN3, "transport-dispatch");
+        } catch (Throwable error) {
+            Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] setup failed: "
+                    + error.getClass().getName());
+        }
+    }
+
+    private static void installObservedMethod(ClassLoader loader, String ownerName,
+            String methodName, Class<?> requestType,
+            java.util.concurrent.atomic.AtomicBoolean installed, String role) {
+        if (installed.get()) return;
+        try {
+            Class<?> owner = Class.forName(ownerName, false, loader);
+            Method selected = null;
+            for (Method method : owner.getDeclaredMethods()) {
+                Class<?>[] parameters = method.getParameterTypes();
+                if (methodName.equals(method.getName()) && parameters.length == 2
+                        && parameters[0].isAssignableFrom(requestType)
+                        && parameters[1] == Long.class
+                        && !method.getReturnType().isPrimitive()
+                        && method.getReturnType() != Void.TYPE) {
+                    if (selected != null) {
+                        Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] ambiguous "
+                                + ownerName + "." + methodName);
+                        return;
+                    }
+                    selected = method;
+                }
+            }
+            if (selected == null) {
+                Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] method unavailable "
+                        + ownerName + "." + methodName);
+                return;
+            }
+            final Method target = selected;
+            Main.MODULE.hook(target).intercept(new LegacyXposedModule.Hooker() {
+                @Override public Object intercept(LegacyXposedModule.Chain chain)
+                        throws Throwable {
+                    ObservationFrame frame = OBSERVATION_FRAME.get();
+                    boolean root = frame == null;
+                    if (root) {
+                        frame = new ObservationFrame(OBSERVATION_IDS.incrementAndGet());
+                        OBSERVATION_FRAME.set(frame);
+                    }
+                    frame.depth++;
+                    int depth = frame.depth;
+                    String thread = Thread.currentThread().getName() + "#"
+                            + Thread.currentThread().getId();
+                    String args = observedArgumentTypes(chain.getArgs());
+                    if (root) {
+                        Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] enter id=" + frame.id
+                                + " role=" + role + " method=" + target.getDeclaringClass().getName()
+                                + "." + target.getName() + " modifiers="
+                                + Modifier.toString(target.getModifiers())
+                                + " thread=" + thread + " depth=" + depth + " args=" + args
+                                + " stack=" + observedStack());
+                    } else {
+                        Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] enter id=" + frame.id
+                                + " role=" + role + " method=" + target.getDeclaringClass().getName()
+                                + "." + target.getName() + " thread=" + thread
+                                + " depth=" + depth + " args=" + args);
+                    }
+                    try {
+                        Object result = chain.proceed();
+                        Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] exit id=" + frame.id
+                                + " role=" + role + " depth=" + depth + " result="
+                                + (result == null ? "null" : result.getClass().getName()));
+                        return result;
+                    } catch (Throwable error) {
+                        Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] throw id=" + frame.id
+                                + " role=" + role + " depth=" + depth + " exception="
+                                + error.getClass().getName());
+                        throw error;
+                    } finally {
+                        frame.depth--;
+                        if (root) OBSERVATION_FRAME.remove();
+                    }
+                }
+            });
+            installed.set(true);
+            Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] installed role=" + role
+                    + " method=" + target.getDeclaringClass().getName() + "."
+                    + target.getName() + " return=" + target.getReturnType().getName());
+        } catch (Throwable error) {
+            Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] install failed role=" + role
+                    + " exception=" + error.getClass().getName());
+        }
+    }
+
+    private static String observedArgumentTypes(List<?> args) {
+        StringBuilder out = new StringBuilder("[");
+        for (int i = 0; i < args.size(); i++) {
+            if (i > 0) out.append(',');
+            Object value = args.get(i);
+            out.append(value == null ? "null" : value.getClass().getName());
+        }
+        return out.append(']').toString();
+    }
+
+    private static String observedStack() {
+        StringBuilder out = new StringBuilder("[");
+        StackTraceElement[] stack = Thread.currentThread().getStackTrace();
+        int count = 0;
+        for (StackTraceElement element : stack) {
+            String name = element.getClassName();
+            if (name.startsWith("java.") || name.startsWith("android.")
+                    || name.startsWith("dalvik.") || name.startsWith("ds.dsh.DeepSeek.")) {
+                continue;
+            }
+            if (count > 0) out.append(',');
+            out.append(name).append('#').append(element.getMethodName());
+            if (++count >= 8) break;
+        }
+        return out.append(']').toString();
     }
 
     /** Legacy object-capture entry point, retained for hosts with the older q71 mapping. */
