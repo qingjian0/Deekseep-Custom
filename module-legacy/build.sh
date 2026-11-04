@@ -9,14 +9,19 @@ ROOT_DIR="$(cd .. && pwd)"
 RUNTIME_DIR="$ROOT_DIR/module-kotlin-runtime"
 GRADLE_BIN="$(bash "$ROOT_DIR/scripts/gradle-bootstrap.sh")"
 "$GRADLE_BIN" --no-daemon --stacktrace -p "$RUNTIME_DIR" \
-  jar stageRuntimeClasspath stageR8Tool
+  jar stageRuntimeClasspath stageR8Tool stageDexKitArtifacts
 KOTLIN_RUNTIME_JAR="$RUNTIME_DIR/build/libs/dsh-kotlin-runtime-0.1.0.jar"
 R8_JAR="$RUNTIME_DIR/build/r8-tool/r8-9.1.29.jar"
+DEXKIT_STAGE="$RUNTIME_DIR/build/dexkit-stage"
+DEXKIT_JAR="$DEXKIT_STAGE/libs/dexkit-2.3.0.jar"
+FLATBUFFERS_JAR="$DEXKIT_STAGE/libs/flatbuffers-java-23.5.26.jar"
 KOTLIN_STDLIB_JAR="$(find "$RUNTIME_DIR/build/runtime-classpath" -maxdepth 1 \
   -type f -name 'kotlin-stdlib-*.jar' -print | sort -V | tail -n 1)"
 test -s "$KOTLIN_RUNTIME_JAR"
 test -s "$KOTLIN_STDLIB_JAR"
 test -s "$R8_JAR"
+test -s "$DEXKIT_JAR"
+test -s "$FLATBUFFERS_JAR"
 java -cp "$R8_JAR" com.android.tools.r8.D8 --version
 OUT=build
 rm -rf "$OUT"
@@ -67,7 +72,7 @@ find src/de -name '*.java' >> "$OUT/sources.txt"
 find "$OUT/generated-src" -name '*.java' >> "$OUT/sources.txt"
 
 if ! javac -source 8 -target 8 \
-    -cp "$ANDROID_JAR:$ANDROIDX_PATH_PARSER_JAR:$KOTLIN_RUNTIME_JAR:$KOTLIN_STDLIB_JAR" \
+    -cp "$ANDROID_JAR:$ANDROIDX_PATH_PARSER_JAR:$KOTLIN_RUNTIME_JAR:$KOTLIN_STDLIB_JAR:$DEXKIT_JAR:$FLATBUFFERS_JAR" \
     -d "$OUT/classes" @"$OUT/sources.txt" 2> "$OUT/javac.err"; then
   cat "$OUT/javac.err"
   exit 1
@@ -76,7 +81,8 @@ MODCLASSES=$(find "$OUT/classes/ds/dsh/DeepSeek" -name '*.class')
 java -cp "$R8_JAR" com.android.tools.r8.D8 \
   --min-api 24 --output "$OUT/dex" $MODCLASSES \
   "$KOTLIN_RUNTIME_JAR" "$KOTLIN_STDLIB_JAR" \
-  "$ANDROIDX_PATH_PARSER_JAR" --lib "$ANDROID_JAR"
+  "$ANDROIDX_PATH_PARSER_JAR" "$DEXKIT_JAR" "$FLATBUFFERS_JAR" \
+  --lib "$ANDROID_JAR"
 $AAPT2 compile --dir res -o "$OUT/res.zip"
 $AAPT2 link -o "$OUT/base.apk" -I "$ANDROID_JAR" \
   --manifest AndroidManifest.xml -R "$OUT/res.zip" --auto-add-overlay
@@ -84,8 +90,11 @@ cp "$OUT/base.apk" "$OUT/unsigned.apk"
 ( cd "$OUT/dex" && zip -q ../unsigned.apk classes*.dex )
 mkdir -p "$OUT/xstage/assets"
 cp assets/xposed_init "$OUT/xstage/assets/xposed_init"
+bash "$ROOT_DIR/scripts/package-dexkit-native.sh" "$DEXKIT_STAGE" "$OUT/xstage" "$OUT/unsigned.apk"
 ( cd "$OUT/xstage" && zip -q -9 -r ../unsigned.apk assets )
-$ZIPALIGN -f -p 4 "$OUT/unsigned.apk" "$OUT/aligned.apk"
+$ZIPALIGN -f -P 16 4 "$OUT/unsigned.apk" "$OUT/aligned.apk"
+$ZIPALIGN -c -P 16 4 "$OUT/aligned.apk"
+python3 "$ROOT_DIR/scripts/verify-dexkit-apk.py" "$OUT/aligned.apk" "$DEXKIT_STAGE"
 if [ ! -f legacy.keystore ]; then
   keytool -genkeypair -keystore legacy.keystore -storepass deekseep \
     -keypass deekseep -alias deekseeplegacy \
