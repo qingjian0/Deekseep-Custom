@@ -134,7 +134,7 @@ require(
 )
 require(
     probe,
-    r'transportReturn.*?interfaceMetadataError.*?interfaces\(returnType\)',
+    r'interfaces\(returnType\).*?interfaceMetadataError.*?returnInterfaces.*?appendFields\(out, "transportReturn"',
     "response interface metadata failures are isolated and reported without aborting the probe",
 )
 require(
