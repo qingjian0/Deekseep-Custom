@@ -1164,7 +1164,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     + unsupported + ", detected=" + HostCompat.generationName());
             RoiHostDiscovery.schedule(cl,
                     param.appInfo == null ? null : param.appInfo.sourceDir);
-            installRetiredHostNotice(unsupported);
+            // Do not install even the retired-version Activity notice hook here: unknown hosts
+            // remain strictly hook-free while the asynchronous inventory runs.
             log("host symbol table is not maintained; feature bootstrap suppressed version="
                     + unsupported + ", detected=" + HostCompat.generationName());
             return;
