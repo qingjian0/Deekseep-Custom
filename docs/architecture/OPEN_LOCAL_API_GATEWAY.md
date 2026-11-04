@@ -28,8 +28,9 @@ unavailable rather than falsely advertising model readiness.
 
 - Disabled by default; the existing Local API enable switch is the opt-in.
 - Defaults to `127.0.0.1`. An explicit UI opt-in creates a second listener bound only to the currently detected `192.168.x.x` interface address; the original listener remains bound to `127.0.0.1`. The LAN listener also validates that the remote IPv4 source is in `192.168.0.0/16`. It never binds to `0.0.0.0`. Other private ranges, public IPv4, and IPv6 are rejected.
-- Uses a per-install random Bearer token stored in the host app's private files directory.
-- Supports token rotation from the existing Local API controls.
+- Uses a per-install cryptographically random Bearer token stored in the host app's private files directory. The token is rendered as `sk-` followed by 32 random bytes encoded with URL-safe Base64 (43 characters); the prefix is a format convention, not an assertion that the token belongs to DeepSeek's hosted API.
+- Legacy persisted tokens without the `sk-` prefix are replaced with a newly generated token on gateway startup. Custom tokens must use the same `sk-` + URL-safe token format.
+- Supports token rotation from the existing Local API controls; rotation immediately replaces the in-memory and persisted credential.
 - Default port is 8765; the existing port setting persists a custom port in private preferences.
 - Accepts request bodies up to 1 MiB and prompt text up to 128 KiB.
 - Uses two active request workers and a bounded queue of eight requests.
@@ -41,7 +42,8 @@ unavailable rather than falsely advertising model readiness.
 
 - No Responses API, Anthropic protocol, tools/function calling, image input, or audio input.
 - LAN access is limited to `192.168.0.0/16`; it uses plain HTTP, so enable it only on a trusted Wi-Fi/LAN. No TLS, external tunnel, or remote port forwarding.
-- While LAN access is enabled, the gateway observes Android's default-network callbacks and re-reads the active network's link properties. It binds a replacement socket to the new exact `192.168.x.x` address before closing the previous listener; loss of an eligible address closes the LAN listener while preserving loopback. Callback registration or rebind failures are logged and do not stop the loopback API.
+- While LAN access is enabled, the gateway observes Android's default-network callbacks and re-reads the active network's link properties. It binds a replacement socket to the new exact `192.168.x.x` address before closing the previous listener; loss of an eligible address closes the LAN listener while preserving loopback. Callback registration or rebind failures are logged and do not stop the loopback API. Connection diagnostics expose the current LAN binding state and the exception class on bind failure.
+- The connection information reports the loopback Base URL as `http://127.0.0.1:<port>/v1`; the raw listener root remains an internal compatibility value.
 - The native completion adapter is not implemented in Open yet. Capturing the official host
   transport and PoW objects is insufficient because the existing completion method delegates to
   the Closed-only payload. The Gateway deliberately returns 503 until a public-source adapter is
