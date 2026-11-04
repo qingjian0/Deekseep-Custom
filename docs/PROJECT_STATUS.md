@@ -234,3 +234,13 @@ Run `41649071834` 是本轮已核实的完整绿色 CI。它验证的是 JVM/脚
 - 提示带 `direct_static_invoke_reference` 来源，不写入 Resolver 证据，不改变 candidate role=`unresolved`，不授权 Hook。
 - 新增独立 JVM 测试覆盖三类提示及未知引用，并接入 ROI fast audit 与完整 Regression。
 - 验证边界：GitHub Actions 尚未返回本批次可核实的成功状态；未声称本地编译或真机验证通过。
+
+## 7F. ROI R2.1 — bounded runtime invocation evidence (2026-11-04)
+
+- 新增纯 Java `RoiRuntimeInvocationRecorder`：只接受显式可信既有回调来源的事件，不安装 Hook、不加载宿主类、不调用宿主方法。
+- 事件仅含 opaque request key、已批准宿主指纹、候选方法描述符、阶段、时间戳、线程 ID 和来源标记；不接受或保存 prompt、请求/响应正文、headers、Authorization 或 token。
+- 默认关闭；必须同时满足已知且批准的宿主身份、显式启用可信观察入口。只读策略拒绝所有事件，未知版本保持只读。
+- 记录器采用同步有界缓冲，按容量与 TTL 清理；允许异步调用跨线程，但必须以相同 request key 和宿主指纹关联。
+- 只有真实记录到 REQUEST_BUILT、TRANSPORT_ENTERED、RESPONSE_RECEIVED 三个阶段，才确认最小请求链；RESPONSE_PARSED 是补充阶段。缺失任一必要阶段均不确认。
+- 已新增独立 JVM 测试覆盖只读拒绝、跨线程关联、缺失阶段、容量、TTL、无效/非可信事件及并发写入，并接入 ROI fast audit 与完整 Regression。
+- 当前尚未接入任何宿主回调，不能声称已捕获真实请求链；本批次 CI 尚待核验，未声称本地或真机测试通过。
