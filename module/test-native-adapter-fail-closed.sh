@@ -124,6 +124,11 @@ require(
 )
 require(
     probe,
+    r'transportReturn.*?interfaceMetadataError.*?interfaces\(returnType\)',
+    "response interface metadata failures are isolated and reported without aborting the probe",
+)
+require(
+    probe,
     r'appendFields\(out, prefix, type, maxDepth, 48\).*?int maxFields',
     "bounded field inventory preserves the wider default for primary request and manager details",
 )
