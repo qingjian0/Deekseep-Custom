@@ -42,6 +42,11 @@ val dexkitFlatbuffers = configurations.create("dexkitFlatbuffers") {
     isCanBeResolved = true
 }
 
+val dexkitCxxAar = configurations.create("dexkitCxxAar") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+}
+
 val r8Tool = configurations.create("r8Tool") {
     isCanBeConsumed = false
     isCanBeResolved = true
@@ -51,6 +56,7 @@ dependencies {
     add(r8Tool.name, "com.android.tools:r8:9.1.29")
     add(dexkitAar.name, "org.luckypray:dexkit:2.3.0@aar")
     add(dexkitFlatbuffers.name, "com.google.flatbuffers:flatbuffers-java:23.5.26")
+    add(dexkitCxxAar.name, "dev.rikka.ndk.thirdparty:cxx:1.2.0@aar")
 
     testImplementation(kotlin("test-junit5"))
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
@@ -76,9 +82,12 @@ tasks.register("stageDexKitArtifacts") {
     doLast {
         val dexkitArchive = dexkitAar.singleFile
         val flatbuffersArchive = dexkitFlatbuffers.singleFile
+        val cxxArchive = dexkitCxxAar.singleFile
         val dexkitTree = zipTree(dexkitArchive)
+        val cxxTree = zipTree(cxxArchive)
         val classesJars = dexkitTree.matching { include("classes.jar") }.files
         val nativeLibraries = dexkitTree.matching { include("jni/**/*.so") }.files
+        val cxxPrefabFiles = cxxTree.matching { include("prefab/**") }.files
 
         check(classesJars.size == 1) {
             "Expected exactly one classes.jar in DexKit 2.3.0 AAR; found ${classesJars.size}"
@@ -94,6 +103,9 @@ tasks.register("stageDexKitArtifacts") {
         check("arm64-v8a" in abiNames) {
             "DexKit AAR is missing arm64-v8a; found ABIs: ${abiNames.joinToString()}"
         }
+        check(cxxPrefabFiles.isNotEmpty()) {
+            "CXX AAR does not expose the expected Prefab payload"
+        }
 
         val destination = stageDirectory.get().asFile
         delete(destination)
@@ -105,6 +117,16 @@ tasks.register("stageDexKitArtifacts") {
         copy {
             from(flatbuffersArchive)
             into(destination.resolve("libs"))
+        }
+        copy {
+            from(cxxArchive)
+            into(destination.resolve("native-dependencies"))
+        }
+        copy {
+            from(cxxTree) {
+                include("prefab/**")
+            }
+            into(destination.resolve("cxx-prefab"))
         }
         copy {
             from(dexkitTree) {
@@ -119,6 +141,9 @@ tasks.register("stageDexKitArtifacts") {
             appendLine("dexkit.abis=${abiNames.joinToString(",")}")
             appendLine("dexkit.aar=${dexkitArchive.name}")
             appendLine("flatbuffers.jar=${flatbuffersArchive.name}")
+            appendLine("cxx.version=1.2.0")
+            appendLine("cxx.aar=${cxxArchive.name}")
+            appendLine("cxx.prefab.files=${cxxPrefabFiles.size}")
             appendLine("apk.integration=disabled")
             appendLine("note=JNI payload staged only; manual APK integration remains gated")
         }
