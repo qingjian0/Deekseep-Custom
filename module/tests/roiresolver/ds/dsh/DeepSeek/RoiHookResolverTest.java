@@ -66,7 +66,7 @@ public final class RoiHookResolverTest {
         RoiHookResolver.Candidate duplicateEvidence = new RoiHookResolver.Candidate(
                 "fp-289", "request", "a1", "b", "(X)Y", false, false,
                 Collections.<String>emptySet(),
-                Arrays.asList(e(RoiHookResolver.EvidenceKind.SEMANTIC_MARKER, 0.2, true),
+                Arrays.asList(e(RoiHookResolver.EvidenceKind.SEMANTIC_MARKER, 0.4, false),
                         e(RoiHookResolver.EvidenceKind.SEMANTIC_MARKER, 0.4, true),
                         e(RoiHookResolver.EvidenceKind.SEMANTIC_MARKER, 0.4, true)));
         check(duplicateEvidence.evidence.size() == 1,
@@ -84,6 +84,11 @@ public final class RoiHookResolverTest {
                 new RoiHookResolver.Policy(true, Collections.singleton("request"), 0.9, 0.8);
             }
         }, "verified threshold below correlated threshold must be rejected");
+        expectIllegalArgument(new Runnable() {
+            @Override public void run() {
+                new RoiHookResolver.Policy(true, Collections.singleton("request"), Double.NaN, 0.9);
+            }
+        }, "NaN thresholds must be rejected");
 
         System.out.println("RoiHookResolver executable tests passed");
     }
