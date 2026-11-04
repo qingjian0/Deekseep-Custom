@@ -1172,6 +1172,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         }
         // This host-level Compose hook is deliberately installed only after the verified
         // compatibility gate. Unknown hosts stay in read-only discovery mode.
+        // Use the same stable registry ID and adapter scope as the later feature pass.
         if (!HostCompat.isV271Limited()) {
             try {
                 installHookStep("ui.native-dual-chat-root",
