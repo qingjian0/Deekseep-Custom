@@ -3895,7 +3895,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     static boolean setLocalApiFloatingWindowEnabled(Context context, boolean enabled) {
         if (enabled && isLocalApiKeepAliveDisabled()) {
-            HookAccountLoginSecurity.localApiKeepAliveError =
+            HookAccountLoginSecurity.localApiFloatingWindowError =
                     "已关闭保活；恢复保活后才能启用小窗";
             return false;
         }
@@ -3924,7 +3924,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             if (enabled) overwriteTextFile(LOCAL_API_FLOATING_WINDOW_FILE, "1");
             else new File(LOCAL_API_FLOATING_WINDOW_FILE).delete();
         } catch (Throwable error) {
-            HookAccountLoginSecurity.localApiKeepAliveError = "小窗设置保存失败：" + safeThrowableMessage(error);
+            HookAccountLoginSecurity.localApiFloatingWindowError = "小窗设置保存失败：" + safeThrowableMessage(error);
             return false;
         }
         boolean launched = requestLocalApiFloatingWindow(context, enabled);
@@ -3948,6 +3948,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     "小窗保活：等待悬浮窗权限（已打开系统授权页）",
                     "Floating keeper: waiting for overlay permission");
         }
+        String error = HookAccountLoginSecurity.localApiFloatingWindowError;
+        if (error != null && error.length() > 0) return UiLanguage.text(
+                "小窗保活：异常 ", "Floating keeper: Failed ") + error;
         if (HookAccountLoginSecurity.localApiFloatingWindowRequested) {
             return UiLanguage.text(
                     "小窗保活：已显示；拖动可吸附屏幕边缘",
@@ -6815,7 +6818,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     private static boolean requestLocalApiKeepAlive(
             Context context, boolean enabled, boolean forceControl) {
         if (context == null) {
-            HookAccountLoginSecurity.localApiKeepAliveError = "DeepSeek 上下文尚未就绪";
+            HookAccountLoginSecurity.localApiFloatingWindowError = "DeepSeek 上下文尚未就绪";
             return false;
         }
         if (enabled && isLocalApiKeepAliveDisabled()) {
@@ -6941,10 +6944,11 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             context.startActivity(control);
             localApiFloatingWindowLaunchAt = now;
             HookAccountLoginSecurity.localApiFloatingWindowRequested = enabled;
+            HookAccountLoginSecurity.localApiFloatingWindowError = "";
             log(adapter + " local API floating keeper requested enabled=" + enabled);
             return true;
         } catch (Throwable error) {
-            HookAccountLoginSecurity.localApiKeepAliveError = "小窗保活启动失败：" + safeThrowableMessage(error);
+            HookAccountLoginSecurity.localApiFloatingWindowError = "小窗保活启动失败：" + safeThrowableMessage(error);
             log("local API floating keeper launch failed: " + error);
             return false;
         }
