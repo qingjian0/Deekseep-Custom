@@ -5,6 +5,7 @@ import android.net.ConnectivityManager;
 import android.net.LinkAddress;
 import android.net.LinkProperties;
 import android.net.Network;
+import android.net.NetworkRequest;
 import android.util.AtomicFile;
 
 import org.json.JSONArray;
@@ -188,6 +189,20 @@ final class OpenLocalApiGateway {
         return boundLanAddress.length() == 0 ? ""
                 : "http://" + boundLanAddress + ":" + boundPort + "/v1";
     }
+    private static String lanAddress(LinkProperties properties) {
+        if (properties == null) return "";
+        for (LinkAddress linkAddress : properties.getLinkAddresses()) {
+            InetAddress address = linkAddress.getAddress();
+            if (!(address instanceof Inet4Address) || address.isLoopbackAddress()
+                    || address.isLinkLocalAddress()) continue;
+            byte[] bytes = address.getAddress();
+            if ((bytes[0] & 255) == 192 && (bytes[1] & 255) == 168) {
+                return address.getHostAddress();
+            }
+        }
+        return "";
+    }
+
     private static String firstLanAddress() {
         Context app = appContext;
         if (app == null) return "";
@@ -196,19 +211,19 @@ final class OpenLocalApiGateway {
                     Context.CONNECTIVITY_SERVICE);
             if (manager == null) return "";
             Network active = manager.getActiveNetwork();
-            LinkProperties properties = active == null ? null : manager.getLinkProperties(active);
-            if (properties == null) return "";
-            for (LinkAddress linkAddress : properties.getLinkAddresses()) {
-                InetAddress address = linkAddress.getAddress();
-                if (!(address instanceof Inet4Address) || address.isLoopbackAddress()
-                        || address.isLinkLocalAddress()) continue;
-                byte[] bytes = address.getAddress();
-                if ((bytes[0] & 255) == 192 && (bytes[1] & 255) == 168) {
-                    return address.getHostAddress();
-                }
+            String activeAddress = active == null ? ""
+                    : lanAddress(manager.getLinkProperties(active));
+            if (activeAddress.length() > 0) return activeAddress;
+
+            // A VPN may be Android's active/default network while Wi-Fi still owns the
+            // reachable 192.168.x.x interface. Search all live networks as a fallback.
+            for (Network network : manager.getAllNetworks()) {
+                if (network.equals(active)) continue;
+                String address = lanAddress(manager.getLinkProperties(network));
+                if (address.length() > 0) return address;
             }
         } catch (Exception error) {
-            Main.log("Open Local API active network lookup failed: "
+            Main.log("Open Local API network address lookup failed: "
                     + error.getClass().getSimpleName());
         }
         return "";
@@ -219,17 +234,22 @@ final class OpenLocalApiGateway {
         try {
             ConnectivityManager manager = (ConnectivityManager) app.getSystemService(
                     Context.CONNECTIVITY_SERVICE);
-            if (manager == null) return;
+            if (manager == null) {
+                lanBindingStatus = "无法获取 Android 网络服务";
+                return;
+            }
             ConnectivityManager.NetworkCallback callback = new ConnectivityManager.NetworkCallback() {
                 @Override public void onAvailable(Network network) { refreshLanBinding(); }
                 @Override public void onLost(Network network) { refreshLanBinding(); }
                 @Override public void onLinkPropertiesChanged(
                         Network network, LinkProperties properties) { refreshLanBinding(); }
             };
-            manager.registerDefaultNetworkCallback(callback);
+            manager.registerNetworkCallback(
+                    new NetworkRequest.Builder().clearCapabilities().build(), callback);
             networkManager = manager;
             networkCallback = callback;
         } catch (Exception error) {
+            lanBindingStatus = "网络变化监听注册失败：" + error.getClass().getSimpleName();
             Main.log("Open Local API network callback registration failed: "
                     + error.getClass().getSimpleName());
         }
