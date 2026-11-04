@@ -1163,7 +1163,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             log("unknown/unmaintained host: entering ROI read-only discovery version="
                     + unsupported + ", detected=" + HostCompat.generationName());
             RoiHostDiscovery.schedule(cl,
-                    param.appInfo == null ? null : param.appInfo.sourceDir);
+                    param.appInfo == null ? null : param.appInfo.sourceDir,
+                    param.appInfo == null ? null : param.appInfo.splitSourceDirs);
             // Do not install even the retired-version Activity notice hook here: unknown hosts
             // remain strictly hook-free while the asynchronous inventory runs.
             log("host symbol table is not maintained; feature bootstrap suppressed version="
