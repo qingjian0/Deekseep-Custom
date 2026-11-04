@@ -15,6 +15,8 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
@@ -53,6 +55,26 @@
             android:exported="true"
             android:excludeFromRecents="true"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+
+        <!-- Explicit cross-package trampoline used by the host process to control module services. -->
+        <activity
+            android:name="ds.dsh.DeepSeek.z20"
+            android:enabled="true"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- User-visible local API keepalive; restricted to this module package. -->
+        <service
+            android:name="ds.dsh.DeepSeek.z21"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keep the user-enabled local API gateway available and maintain its host-process heartbeat." />
+        </service>
 
         <!-- Optional framework activation provider used by the launcher status page. -->
         <provider
