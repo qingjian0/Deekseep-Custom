@@ -45,3 +45,12 @@ Source changes are committed to the working branch. CI execution status must be 
 ## Verification boundary
 
 The source and static assertions have been updated on the working branch. The latest queried commit status returned no status entries; this is pending / unverified, not a CI pass. No local Gradle build or device Hook test is claimed.
+
+## R1.3 — bounded candidate graph aggregation
+
+- Added a pure-Java candidate graph builder scoped to one DexKit bridge scan. Repeated string-anchor observations for the same method descriptor merge into one node while retaining their anchor set and unioning bounded invoke/caller references.
+- Static edges are oriented caller → callee. An invoke relation contributes candidate → target; a caller relation contributes caller → candidate. Duplicate edges are deduplicated even when the edge cap has already been reached.
+- The graph reports observed candidates, unique nodes, duplicate observations, retained edges, unresolved external references, connected components, and omitted node/edge counts.
+- Graph limits are 128 nodes and 256 retained edges per bridge scan; diagnostic output emits at most 32 edges. The graph never loads host classes or invokes host methods.
+- Added standalone Java regression coverage for anchor deduplication, edge direction, duplicate edges, edge/node caps, unresolved references, cycles, and disconnected components. The fast audit and full regression workflow both invoke the new test script.
+- Graph connectivity is descriptive static DEX structure only. It does not classify Request/Transport/Response roles, prove a live request path, or authorize Hook activation.
