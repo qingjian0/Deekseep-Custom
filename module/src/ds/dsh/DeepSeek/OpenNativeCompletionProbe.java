@@ -183,6 +183,13 @@ final class OpenNativeCompletionProbe {
                                             + returnType.getName()
                                             + " generic=" + generic);
                             appendFields(out, "transport" + candidates, owner, 1);
+                            // The returned type is the response/stream boundary candidate.
+                            // Record its declared state shape without invoking it.
+                            line(out, "transportReturn" + candidates + ".class",
+                                    returnType.getName());
+                            line(out, "transportReturn" + candidates + ".interfaces",
+                                    interfaces(returnType));
+                            appendFields(out, "transportReturn" + candidates, returnType, 1);
                         }
                         candidates++;
                         transportOwners.add(owner);
