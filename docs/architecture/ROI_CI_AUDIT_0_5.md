@@ -1,7 +1,7 @@
 # ROI CI Audit Profile 0.5
 
-Date: 2026-11-04
-Branch: `work/roi-agent-core-kotlin`
+Date: 2026-11-05
+Branch: `dev`
 
 ## Policy
 
