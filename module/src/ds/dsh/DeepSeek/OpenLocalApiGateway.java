@@ -46,6 +46,7 @@ final class OpenLocalApiGateway {
     private static volatile Thread acceptThread;
     private static volatile Thread lanAcceptThread;
     private static volatile String boundLanAddress = "";
+    private static volatile String lanBindingStatus = "未启用";
     private static volatile ExecutorService clients;
     private static volatile z2.Backend backend;
     private static volatile Context appContext;
@@ -136,6 +137,10 @@ final class OpenLocalApiGateway {
     }
     static String endpoint() {
         return RUNNING.get() ? "http://127.0.0.1:" + boundPort : "";
+    }
+    static String baseUrl() {
+        String root = endpoint();
+        return root.length() == 0 ? "" : root + "/v1";
     }
     static boolean isLanEnabled() { return lanEnabled; }
     static boolean isLanEnabled(Context context) {
@@ -247,6 +252,7 @@ final class OpenLocalApiGateway {
         if (address.length() == 0) {
             lanServer = null;
             boundLanAddress = "";
+            lanBindingStatus = "未找到可用的 192.168.x.x 局域网 IPv4 地址";
             if (current != null) try { current.close(); } catch (Exception ignored) {}
             Main.log("Open Local API LAN unavailable: no active 192.168.x.x address");
             return;
@@ -262,8 +268,10 @@ final class OpenLocalApiGateway {
             lanAcceptThread = thread;
             thread.start();
             if (current != null) try { current.close(); } catch (Exception ignored) {}
+            lanBindingStatus = "已绑定 " + address + ":" + boundPort;
             Main.log("Open Local API LAN rebound to " + address + ":" + boundPort);
         } catch (Exception error) {
+            lanBindingStatus = "绑定失败：" + error.getClass().getSimpleName();
             Main.log("Open Local API LAN rebind failed: "
                     + error.getClass().getSimpleName());
             if (current == null || current.isClosed() || !address.equals(boundLanAddress)) {
@@ -299,8 +307,8 @@ final class OpenLocalApiGateway {
     }
     static synchronized String setCustomKey(Context context, String candidate) {
         String value = candidate == null ? "" : candidate.trim();
-        if (!value.matches("[A-Za-z0-9._~-]{32,128}")) {
-            return "API Key 必须为 32 到 128 位，仅允许字母、数字及 . _ ~ -";
+        if (!value.matches("sk-[A-Za-z0-9_-]{40,80}")) {
+            return "本地 API Key 必须以 sk- 开头，后接 40 到 80 位字母、数字、下划线或连字符";
         }
         Context app = context == null ? appContext : context.getApplicationContext();
         if (app == null) return "DeepSeek 上下文尚未就绪";
@@ -316,20 +324,19 @@ final class OpenLocalApiGateway {
         }
     }
     static String connectionInfo() {
-        if (!RUNNING.get()) return "Open Local API is stopped";
-        return "Base URL: " + endpoint() + "/v1\n"
-                + "Chat Completions: " + endpoint() + "/v1/chat/completions\n"
-                + "API Key: " + apiKey() + "\n"
-                + "Models: deepseek-chat, deepseek-reasoner\n"
-                + "Loopback URL: " + endpoint() + "/v1\n"
+        if (!RUNNING.get()) return "本地 API 服务尚未启动";
+        return "本机地址：" + baseUrl() + "\n"
+                + "聊天接口：" + endpoint() + "/v1/chat/completions\n"
+                + "本地 API Key：" + apiKey() + "\n"
+                + "可用模型：deepseek-chat、deepseek-reasoner\n"
                 + (lanEnabled
                         ? (boundLanAddress.length() > 0
-                                ? "LAN URL: " + lanEndpoint() + "\n"
-                                : "LAN access: enabled but no 192.168.x.x interface is bound\n")
-                        : "LAN access: disabled\n")
-                + "Allowed remote range: 192.168.0.0/16\n"
-                + "Backend: " + (backend != null && backend.isReady()
-                        ? "ready" : (backend == null ? "unavailable" : backend.readinessDetail()));
+                                ? "局域网地址：" + lanEndpoint() + "\n"
+                                : "局域网状态：" + lanBindingStatus + "\n")
+                        : "局域网状态：未启用\n")
+                + "允许的局域网范围：192.168.0.0/16\n"
+                + "后端状态：" + (backend != null && backend.isReady()
+                        ? "就绪" : (backend == null ? "不可用" : backend.readinessDetail()));
     }
     static String runtimeStatus() {
         return RUNNING.get() ? "Running on 127.0.0.1"
@@ -603,7 +610,7 @@ final class OpenLocalApiGateway {
                 }
             }
             String existing = new String(stored.toByteArray(), StandardCharsets.US_ASCII).trim();
-            if (existing.matches("[A-Za-z0-9_-]{40,80}")) return existing;
+            if (existing.matches("sk-[A-Za-z0-9_-]{40,80}")) return existing;
         }
         String value = generateToken();
         persistToken(context, value);
@@ -612,7 +619,7 @@ final class OpenLocalApiGateway {
     private static String generateToken() {
         byte[] random = new byte[32];
         new SecureRandom().nextBytes(random);
-        return android.util.Base64.encodeToString(random,
+        return "sk-" + android.util.Base64.encodeToString(random,
                 android.util.Base64.URL_SAFE | android.util.Base64.NO_WRAP
                         | android.util.Base64.NO_PADDING);
     }
