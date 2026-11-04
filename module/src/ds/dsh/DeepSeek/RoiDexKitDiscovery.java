@@ -124,7 +124,8 @@ final class RoiDexKitDiscovery {
         List<RoiRuntimeInvocationRecorder.EvidenceSnapshot> runtimeEvidence =
                 RoiRuntimeInvocationObserver.snapshotEvidence();
         String adapterIdentity = RoiRuntimeInvocationObserver.currentAdapterIdentity();
-        append(out, "runtimeEvidence.enabled=" + !runtimeEvidence.isEmpty());
+        append(out, "runtimeEvidence.enabled="
+                + RoiRuntimeInvocationObserver.isObservationEnabled());
         append(out, "runtimeEvidence.adapterIdentityKind=adapter_generation_channel_not_apk_fingerprint");
         append(out, "runtimeEvidence.matching=exact_method_descriptor_and_adapter_identity_only");
         append(out, "runtimeEvidence.snapshotEntries=" + runtimeEvidence.size());
