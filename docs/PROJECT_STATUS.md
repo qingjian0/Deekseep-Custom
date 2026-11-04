@@ -294,3 +294,13 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 静态 CI 检查现要求 transport 返回 Flow 关联、collector interface 防护和成功 emit 观察接线。CI 与真机验证待完成；没有声称本地构建或实时捕获成功。
 
 - 代理会在该次关联 collect 中改变 collector 对象身份；虽然保留接口并逐方法委托原 collector，但宿主 Flow 对 collector identity/context 的假设尚未经过真机验证。受控运行验证完成前必须保持显式 opt-in。
+
+
+## R2.4.1 — suspend emit evidence guard (2026-11-05)
+
+- 审计 R2.3 collector proxy 后发现 Kotlin suspend 方法的反射调用可能返回 `COROUTINE_SUSPENDED`；这只表示控制权已挂起，不表示响应项已经成功交付。
+- 观察器现检查实际 emit 方法参数。若参数包含 `kotlin.coroutines.Continuation`，不再仅凭反射调用返回就记录 `RESPONSE_RECEIVED`。在尚未安全观察 continuation 成功恢复之前，宁可不产生响应证据。
+- 对无 Continuation 参数的同步 emit，仍仅在原 collector 委托调用成功返回后记录；异常继续原样传播，不产生事件。
+- 这会使标准 Kotlin suspend Flow 的响应阶段保持未确认；R2.3 的“普通聊天响应项可观察”结论应收窄为：Flow identity 关联与 collector 代理接线已实现，但异步 emit 成功交付尚未被可靠证明。
+- 未实现 RESPONSE_PARSED，也未证明流完成。代理改变 collector identity 的真机兼容性风险仍然存在，开关继续默认关闭且必须显式 opt-in。
+- 新增静态回归断言，要求 Continuation guard 保留。尚未运行本地测试、Android 构建或真机验证；CI 状态需以本提交对应的 Actions 结果为准。
