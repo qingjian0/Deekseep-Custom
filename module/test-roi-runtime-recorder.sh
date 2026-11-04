@@ -37,3 +37,9 @@ if grep -q 'Phase.RESPONSE_PARSED' "$CHAT"; then
   echo "Uncorrelated RESPONSE_PARSED event must not be emitted from HookChatPipeline" >&2
   exit 1
 fi
+
+# Ordered evidence tiers must be implemented and covered by recorder tests.
+grep -q 'orderedRequestTransportResponse' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
+grep -q 'confirmsParsedResponse()' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
+grep -q 'testOutOfOrderPhasesDoNotConfirm' "$ROOT/module/tests/roiruntime/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorderTest.java"
+grep -q 'testParsedPhaseRequiresOrderedReceipt' "$ROOT/module/tests/roiruntime/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorderTest.java"
