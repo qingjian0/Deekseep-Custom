@@ -176,7 +176,6 @@ final class RoiHostDiscovery {
             out.append("\nreport.truncated=true");
         }
         Main.log("[ROI_DISCOVERY]\n" + out);
-        Main.log("[ROI_DEXKIT]\n" + RoiDexKitDiscovery.inspect(root, apkPath, splitApkPaths));
     }
 
     private static void appendApkFingerprint(StringBuilder out, String apkPath) {
