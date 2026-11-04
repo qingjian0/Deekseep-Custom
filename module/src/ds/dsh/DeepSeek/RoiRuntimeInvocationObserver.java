@@ -19,6 +19,7 @@ final class RoiRuntimeInvocationObserver {
             new IdentityHashMap<Object, String>();
     private static volatile RoiRuntimeInvocationRecorder recorder;
     private static volatile String hostFingerprint = "";
+    private static volatile boolean recordingEnabled;
 
     private RoiRuntimeInvocationObserver() {}
 
@@ -26,6 +27,7 @@ final class RoiRuntimeInvocationObserver {
         clear();
         boolean approved = HostCompat.supportsMaintainedFeatureRuntime();
         boolean enabled = approved && new File(ENABLE_FILE).isFile();
+        recordingEnabled = enabled;
         hostFingerprint = approved
                 ? "adapter:" + HostCompat.generationName() + ":"
                         + (HostCompat.isInternationalChannel() ? "international" : "mainland")
@@ -74,6 +76,7 @@ final class RoiRuntimeInvocationObserver {
                     RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED, now,
                     Thread.currentThread().getId(),
                     RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), now);
+            synchronized (REQUEST_KEYS) { REQUEST_KEYS.remove(request); }
         } catch (Throwable ignored) {
             // Observation must never affect host transport execution.
         }
@@ -85,12 +88,11 @@ final class RoiRuntimeInvocationObserver {
         synchronized (REQUEST_KEYS) { REQUEST_KEYS.clear(); }
         recorder = null;
         hostFingerprint = "";
+        recordingEnabled = false;
     }
 
     private static boolean activeEnabled(RoiRuntimeInvocationRecorder active) {
-        return active != null && !active.snapshotChains(System.currentTimeMillis()).isEmpty()
-                || active != null && new File(ENABLE_FILE).isFile()
-                        && HostCompat.supportsMaintainedFeatureRuntime();
+        return active != null && recordingEnabled && active == recorder;
     }
 
     private static String constructorDescriptor(Constructor<?> constructor) {
