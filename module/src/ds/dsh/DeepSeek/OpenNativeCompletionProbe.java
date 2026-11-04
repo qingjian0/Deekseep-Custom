@@ -167,7 +167,7 @@ final class OpenNativeCompletionProbe {
                             methodIndex++;
                             continue;
                         }
-                        if (candidates < 24) {
+                        if (candidates < 6) {
                             String generic;
                             try {
                                 generic = String.valueOf(method.getGenericReturnType());
@@ -182,14 +182,14 @@ final class OpenNativeCompletionProbe {
                                             + "(" + parameters(p) + ")->"
                                             + returnType.getName()
                                             + " generic=" + generic);
-                            appendFields(out, "transport" + candidates, owner, 1);
+                            appendFields(out, "transport" + candidates, owner, 1, 8);
                             // The returned type is the response/stream boundary candidate.
                             // Record its declared state shape without invoking it.
                             line(out, "transportReturn" + candidates + ".class",
                                     returnType.getName());
                             line(out, "transportReturn" + candidates + ".interfaces",
                                     interfaces(returnType));
-                            appendFields(out, "transportReturn" + candidates, returnType, 1);
+                            appendFields(out, "transportReturn" + candidates, returnType, 1, 8);
                         }
                         candidates++;
                         transportOwners.add(owner);
@@ -387,6 +387,12 @@ final class OpenNativeCompletionProbe {
 
     private static void appendFields(StringBuilder out, String prefix,
                                      Class<?> type, int maxDepth) {
+        appendFields(out, prefix, type, maxDepth, 48);
+    }
+
+    /** Bounded variant for noisy candidate inventories so summary fields remain reportable. */
+    private static void appendFields(StringBuilder out, String prefix,
+                                     Class<?> type, int maxDepth, int maxFields) {
         Class<?> current = type;
         int depth = 0;
         int count = 0;
@@ -415,7 +421,7 @@ final class OpenNativeCompletionProbe {
                     line(out, prefix + ".field." + count++,
                             current.getSimpleName() + "." + field.getName()
                                     + ":" + field.getType().getName());
-                    if (count >= 48) break;
+                    if (count >= maxFields) break;
                 } catch (LinkageError | RuntimeException error) {
                     line(out, prefix + ".fieldMetadataError." + memberIndex,
                             error.getClass().getName());
