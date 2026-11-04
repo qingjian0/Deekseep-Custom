@@ -26,3 +26,7 @@ grep -q '"emit".equals(method.getName())' "$OBSERVER"
 grep -q 'recordResponseReceived(key, method)' "$OBSERVER"
 grep -q 'rethrowFatal(ignored)' "$OBSERVER"
 grep -q 'RoiRuntimeInvocationObserver.initialize()' "$MAIN"
+
+# A suspending Kotlin emit is not confirmed merely because the reflective call returned.
+grep -q 'hasContinuationParameter(method)' "$OBSERVER"
+grep -q 'kotlin.coroutines.Continuation' "$OBSERVER"
