@@ -3,6 +3,9 @@ package ds.dsh.DeepSeek;
 import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -16,6 +19,8 @@ final class RoiRuntimeInvocationObserver {
             "/data/data/com.deepseek.chat/files/deekseep_roi_runtime_observation_enabled";
     private static final AtomicLong REQUEST_SEQUENCE = new AtomicLong();
     private static final Map<Object, String> REQUEST_KEYS =
+            new IdentityHashMap<Object, String>();
+    private static final Map<Object, String> FLOW_REQUEST_KEYS =
             new IdentityHashMap<Object, String>();
     private static volatile RoiRuntimeInvocationRecorder recorder;
     private static volatile String hostFingerprint = "";
@@ -75,9 +80,84 @@ final class RoiRuntimeInvocationObserver {
                     RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED, now,
                     Thread.currentThread().getId(),
                     RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), now);
-            synchronized (REQUEST_KEYS) { REQUEST_KEYS.remove(request); }
         } catch (Throwable ignored) {
             // Observation must never affect host transport execution.
+        }
+    }
+
+    static void recordTransportResult(Object request, Object flow, Method transportMethod) {
+        try {
+            RoiRuntimeInvocationRecorder active = recorder;
+            if (request == null || flow == null || transportMethod == null || active == null
+                    || !activeEnabled(active)) return;
+            String key;
+            synchronized (REQUEST_KEYS) { key = REQUEST_KEYS.remove(request); }
+            if (key == null) return;
+            synchronized (FLOW_REQUEST_KEYS) {
+                if (FLOW_REQUEST_KEYS.size() >= 512) FLOW_REQUEST_KEYS.clear();
+                FLOW_REQUEST_KEYS.put(flow, key);
+            }
+        } catch (Throwable ignored) {
+            // A failed correlation must not affect the original Flow.
+        }
+    }
+
+    static Object wrapFlowCollector(final Object flow, final Object collector,
+                                    Class<?> collectorType) {
+        try {
+            RoiRuntimeInvocationRecorder active = recorder;
+            if (flow == null || collector == null || collectorType == null
+                    || !collectorType.isInterface() || !collectorType.isInstance(collector)
+                    || active == null || !activeEnabled(active)) return collector;
+            final String key;
+            synchronized (FLOW_REQUEST_KEYS) { key = FLOW_REQUEST_KEYS.remove(flow); }
+            if (key == null) return collector;
+            ClassLoader loader = collectorType.getClassLoader();
+            if (loader == null) loader = collector.getClass().getClassLoader();
+            return Proxy.newProxyInstance(loader, new Class<?>[]{collectorType},
+                    new InvocationHandler() {
+                        @Override public Object invoke(Object proxy, Method method, Object[] args)
+                                throws Throwable {
+                            if (method.getDeclaringClass() == Object.class) {
+                                if ("equals".equals(method.getName())) {
+                                    return Boolean.valueOf(proxy == (args == null ? null : args[0]));
+                                }
+                                if ("hashCode".equals(method.getName())) {
+                                    return Integer.valueOf(System.identityHashCode(proxy));
+                                }
+                                if ("toString".equals(method.getName())) {
+                                    return "RoiObservedFlowCollector";
+                                }
+                            }
+                            try {
+                                Object result = method.invoke(collector, args);
+                                if ("emit".equals(method.getName()) && args != null
+                                        && args.length > 0) {
+                                    recordResponseReceived(key, method);
+                                }
+                                return result;
+                            } catch (InvocationTargetException error) {
+                                throw error.getCause() == null ? error : error.getCause();
+                            }
+                        }
+                    });
+        } catch (Throwable ignored) {
+            return collector;
+        }
+    }
+
+    private static void recordResponseReceived(String key, Method emitMethod) {
+        try {
+            RoiRuntimeInvocationRecorder active = recorder;
+            if (active == null || !activeEnabled(active)) return;
+            long now = System.currentTimeMillis();
+            active.record(new RoiRuntimeInvocationRecorder.Event(key, hostFingerprint,
+                    methodDescriptor(emitMethod),
+                    RoiRuntimeInvocationRecorder.Phase.RESPONSE_RECEIVED, now,
+                    Thread.currentThread().getId(),
+                    RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), now);
+        } catch (Throwable ignored) {
+            // Response observation is strictly best effort.
         }
     }
 
@@ -85,6 +165,7 @@ final class RoiRuntimeInvocationObserver {
         RoiRuntimeInvocationRecorder previous = recorder;
         if (previous != null) previous.clear();
         synchronized (REQUEST_KEYS) { REQUEST_KEYS.clear(); }
+        synchronized (FLOW_REQUEST_KEYS) { FLOW_REQUEST_KEYS.clear(); }
         recorder = null;
         hostFingerprint = "";
         recordingEnabled = false;
