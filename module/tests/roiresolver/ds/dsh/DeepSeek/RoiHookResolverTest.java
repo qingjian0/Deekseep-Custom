@@ -10,6 +10,16 @@ public final class RoiHookResolverTest {
     private RoiHookResolverTest() {}
 
     public static void main(String[] args) {
+        RoiHookResolver.Candidate scoped = new RoiHookResolver.Candidate(
+                "fp-289", "unresolved", "a1", "b", "(X)Y",
+                "loader:process-7:test.Loader", "loader:process-7:test.Loader|a1->b(X)Y",
+                false, false, Collections.<String>emptySet(),
+                Collections.<RoiHookResolver.Evidence>emptyList());
+        check("loader:process-7:test.Loader".equals(scoped.sourceScope),
+                "resolver candidate must retain source scope");
+        check("loader:process-7:test.Loader|a1->b(X)Y".equals(scoped.candidateId),
+                "resolver candidate must retain candidate ID");
+
         RoiHookResolver.Candidate weak = candidate(false, false, false);
         RoiHookResolver.Decision discovered =
                 RoiHookResolver.resolve(weak, RoiHookResolver.Policy.discoveryOnly());
