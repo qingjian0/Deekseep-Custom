@@ -151,7 +151,7 @@ require(
 )
 require(
     inspect,
-    r"try \{\s*installRuntimeObservation\(loader\);.*?finally \{\s*INSPECTING\.set\(false\);",
+    r"try \{\s*installRuntimeObservation\(loader\);.*?finally \{\s*(?:(?://[^\n]*|/\*.*?\*/)\s*)*INSPECTING\.set\(false\);",
     "runtime inventory always releases its inspection guard after observer setup and reporting",
 )
 legacy_inspect = probe.split("static void inspect(ClassLoader loader, Object powManager", 1)[1].split(
