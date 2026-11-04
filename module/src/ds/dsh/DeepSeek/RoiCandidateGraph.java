@@ -17,12 +17,19 @@ final class RoiCandidateGraph {
     static final int DEFAULT_MAX_EDGES = 512;
 
     static final class Observation {
+        final String sourceScope;
         final String descriptor;
         final String anchor;
         final List<String> invokes;
         final List<String> callers;
 
         Observation(String descriptor, String anchor, List<String> invokes, List<String> callers) {
+            this("", descriptor, anchor, invokes, callers);
+        }
+
+        Observation(String sourceScope, String descriptor, String anchor,
+                    List<String> invokes, List<String> callers) {
+            this.sourceScope = clean(sourceScope);
             this.descriptor = clean(descriptor);
             this.anchor = clean(anchor);
             this.invokes = immutableCopy(invokes);
@@ -80,12 +87,18 @@ final class RoiCandidateGraph {
     }
 
     private static final class Node {
+        final String sourceScope;
         final String descriptor;
+        final String key;
         final Set<String> anchors = new LinkedHashSet<String>();
         final Set<String> invokes = new LinkedHashSet<String>();
         final Set<String> callers = new LinkedHashSet<String>();
 
-        Node(String descriptor) { this.descriptor = descriptor; }
+        Node(String sourceScope, String descriptor) {
+            this.sourceScope = sourceScope;
+            this.descriptor = descriptor;
+            this.key = qualify(sourceScope, descriptor);
+        }
     }
 
     private RoiCandidateGraph() {}
@@ -105,14 +118,15 @@ final class RoiCandidateGraph {
         if (observations != null) {
             for (Observation observation : observations) {
                 if (observation == null || observation.descriptor.length() == 0) continue;
-                Node node = nodes.get(observation.descriptor);
+                String nodeKey = qualify(observation.sourceScope, observation.descriptor);
+                Node node = nodes.get(nodeKey);
                 if (node == null) {
                     if (nodes.size() >= maxNodes) {
                         omittedNodes++;
                         continue;
                     }
-                    node = new Node(observation.descriptor);
-                    nodes.put(observation.descriptor, node);
+                    node = new Node(observation.sourceScope, observation.descriptor);
+                    nodes.put(nodeKey, node);
                 } else {
                     duplicates++;
                 }
@@ -128,24 +142,26 @@ final class RoiCandidateGraph {
         int omittedEdges = 0;
         for (Node node : nodes.values()) {
             for (String target : node.invokes) {
-                if (!nodes.containsKey(target)) {
+                String targetKey = qualify(node.sourceScope, target);
+                if (!nodes.containsKey(targetKey)) {
                     unresolved++;
                     continue;
                 }
-                if (node.descriptor.equals(target)) continue;
-                Edge edge = new Edge(node.descriptor, target);
+                if (node.key.equals(targetKey)) continue;
+                Edge edge = new Edge(node.key, targetKey);
                 if (seenEdges.add(edge)) {
                     if (edges.size() >= maxEdges) omittedEdges++;
                     else edges.add(edge);
                 }
             }
             for (String caller : node.callers) {
-                if (!nodes.containsKey(caller)) {
+                String callerKey = qualify(node.sourceScope, caller);
+                if (!nodes.containsKey(callerKey)) {
                     unresolved++;
                     continue;
                 }
-                if (node.descriptor.equals(caller)) continue;
-                Edge edge = new Edge(caller, node.descriptor);
+                if (node.key.equals(callerKey)) continue;
+                Edge edge = new Edge(callerKey, node.key);
                 if (seenEdges.add(edge)) {
                     if (edges.size() >= maxEdges) omittedEdges++;
                     else edges.add(edge);
@@ -183,6 +199,12 @@ final class RoiCandidateGraph {
             }
         }
         return components;
+    }
+
+    private static String qualify(String sourceScope, String descriptor) {
+        String scope = clean(sourceScope);
+        String method = clean(descriptor);
+        return scope.length() == 0 ? method : scope + "|" + method;
     }
 
     private static List<String> immutableCopy(List<String> values) {
