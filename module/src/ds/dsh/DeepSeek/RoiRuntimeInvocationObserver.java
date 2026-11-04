@@ -115,6 +115,10 @@ final class RoiRuntimeInvocationObserver {
             final String key;
             synchronized (FLOW_REQUEST_KEYS) { key = FLOW_REQUEST_KEYS.remove(flow); }
             if (key == null) return collector;
+            // Kotlin FlowCollector.emit is a suspend method. Do not proxy its collector:
+            // the current observer does not wrap Continuation completion, and proxy identity
+            // changes are unnecessary when no trustworthy response event can be emitted.
+            if (hasSuspendingEmit(collectorType)) return collector;
             ClassLoader loader = collectorType.getClassLoader();
             if (loader == null) loader = collector.getClass().getClassLoader();
             return Proxy.newProxyInstance(loader, new Class<?>[]{collectorType},
@@ -152,6 +156,13 @@ final class RoiRuntimeInvocationObserver {
             rethrowFatal(ignored);
             return collector;
         }
+    }
+
+    private static boolean hasSuspendingEmit(Class<?> collectorType) {
+        for (Method method : collectorType.getMethods()) {
+            if ("emit".equals(method.getName()) && hasContinuationParameter(method)) return true;
+        }
+        return false;
     }
 
     private static boolean hasContinuationParameter(Method method) {
