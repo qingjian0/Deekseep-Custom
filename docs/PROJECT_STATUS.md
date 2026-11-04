@@ -244,3 +244,8 @@ Run `41649071834` 是本轮已核实的完整绿色 CI。它验证的是 JVM/脚
 - 只有真实记录到 REQUEST_BUILT、TRANSPORT_ENTERED、RESPONSE_RECEIVED 三个阶段，才确认最小请求链；RESPONSE_PARSED 是补充阶段。缺失任一必要阶段均不确认。
 - 已新增独立 JVM 测试覆盖只读拒绝、跨线程关联、缺失阶段、容量、TTL、无效/非可信事件及并发写入，并接入 ROI fast audit 与完整 Regression。
 - 当前尚未接入任何宿主回调，不能声称已捕获真实请求链；本批次 CI 尚待核验，未声称本地或真机测试通过。
+
+
+### ROI R1.3 source identity
+
+Added process-local source scopes for runtime ClassLoader and APK observations. Candidate IDs combine source scope and method signature, allowing same-process rescans to correlate while separating identical signatures from different live loaders or APK sources. IDs are not claimed to persist across process restarts. Discovery remains read-only; activation remains disabled.
