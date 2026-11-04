@@ -75,11 +75,14 @@ final class RoiRuntimeInvocationRecorder {
         final Set<String> responseParsers;
         final long firstTimestampMillis;
         final long lastTimestampMillis;
+        final boolean orderedRequestTransportResponse;
+        final boolean orderedParsedResponse;
 
         Chain(String requestKey, String hostFingerprint, Set<String> requestBuilders,
               Set<String> transports, Set<String> responseReceivers,
               Set<String> responseParsers, long firstTimestampMillis,
-              long lastTimestampMillis) {
+              long lastTimestampMillis, boolean orderedRequestTransportResponse,
+              boolean orderedParsedResponse) {
             this.requestKey = requestKey;
             this.hostFingerprint = hostFingerprint;
             this.requestBuilders = immutable(requestBuilders);
@@ -88,11 +91,16 @@ final class RoiRuntimeInvocationRecorder {
             this.responseParsers = immutable(responseParsers);
             this.firstTimestampMillis = firstTimestampMillis;
             this.lastTimestampMillis = lastTimestampMillis;
+            this.orderedRequestTransportResponse = orderedRequestTransportResponse;
+            this.orderedParsedResponse = orderedParsedResponse;
         }
 
         boolean confirmsRequestTransportResponse() {
-            return !requestBuilders.isEmpty() && !transports.isEmpty()
-                    && !responseReceivers.isEmpty();
+            return orderedRequestTransportResponse;
+        }
+
+        boolean confirmsParsedResponse() {
+            return orderedParsedResponse;
         }
     }
 
@@ -132,6 +140,10 @@ final class RoiRuntimeInvocationRecorder {
             Set<String> transports = new LinkedHashSet<String>();
             Set<String> receivers = new LinkedHashSet<String>();
             Set<String> parsers = new LinkedHashSet<String>();
+            List<Long> builderTimes = new ArrayList<Long>();
+            List<Long> transportTimes = new ArrayList<Long>();
+            List<Long> receiverTimes = new ArrayList<Long>();
+            List<Long> parserTimes = new ArrayList<Long>();
             long first = Long.MAX_VALUE;
             long last = 0;
             for (Event event : events) {
@@ -140,15 +152,35 @@ final class RoiRuntimeInvocationRecorder {
                 first = Math.min(first, event.timestampMillis);
                 last = Math.max(last, event.timestampMillis);
                 switch (event.phase) {
-                    case REQUEST_BUILT: builders.add(event.candidateDescriptor); break;
-                    case TRANSPORT_ENTERED: transports.add(event.candidateDescriptor); break;
-                    case RESPONSE_RECEIVED: receivers.add(event.candidateDescriptor); break;
-                    case RESPONSE_PARSED: parsers.add(event.candidateDescriptor); break;
+                    case REQUEST_BUILT:
+                        builders.add(event.candidateDescriptor);
+                        builderTimes.add(Long.valueOf(event.timestampMillis));
+                        break;
+                    case TRANSPORT_ENTERED:
+                        transports.add(event.candidateDescriptor);
+                        transportTimes.add(Long.valueOf(event.timestampMillis));
+                        break;
+                    case RESPONSE_RECEIVED:
+                        receivers.add(event.candidateDescriptor);
+                        receiverTimes.add(Long.valueOf(event.timestampMillis));
+                        break;
+                    case RESPONSE_PARSED:
+                        parsers.add(event.candidateDescriptor);
+                        parserTimes.add(Long.valueOf(event.timestampMillis));
+                        break;
                     default: break;
                 }
             }
+            long builtAt = earliest(builderTimes);
+            long transportAt = firstAtOrAfter(transportTimes, builtAt);
+            long receivedAt = firstAtOrAfter(receiverTimes, transportAt);
+            long parsedAt = firstAtOrAfter(parserTimes, receivedAt);
+            boolean orderedResponse = builtAt != Long.MAX_VALUE
+                    && transportAt != Long.MAX_VALUE && receivedAt != Long.MAX_VALUE;
+            boolean orderedParsed = orderedResponse && parsedAt != Long.MAX_VALUE;
             chains.add(new Chain(seed.requestKey, seed.hostFingerprint, builders,
-                    transports, receivers, parsers, first, last));
+                    transports, receivers, parsers, first, last,
+                    orderedResponse, orderedParsed));
         }
         return Collections.unmodifiableList(chains);
     }
@@ -159,6 +191,23 @@ final class RoiRuntimeInvocationRecorder {
     }
 
     synchronized void clear() { events.clear(); }
+
+    private static long earliest(List<Long> times) {
+        long earliest = Long.MAX_VALUE;
+        for (Long time : times) if (time != null) earliest = Math.min(earliest, time.longValue());
+        return earliest;
+    }
+
+    private static long firstAtOrAfter(List<Long> times, long threshold) {
+        if (threshold == Long.MAX_VALUE) return Long.MAX_VALUE;
+        long match = Long.MAX_VALUE;
+        for (Long time : times) {
+            if (time != null && time.longValue() >= threshold.longValue()) {
+                match = Math.min(match, time.longValue());
+            }
+        }
+        return match;
+    }
 
     private void prune(long nowMillis) {
         for (int i = events.size() - 1; i >= 0; i--) {
