@@ -22,6 +22,7 @@ final class RoiHostDiscovery {
     private static final int MAX_LOADERS = 12;
     private static final int MAX_DEX_ELEMENTS_PER_LOADER = 64;
     private static final int MAX_CLASS_NAMES = 60000;
+    private static final int MAX_TOTAL_CLASS_ENTRIES = 100000;
     private static final int MAX_REPORT_CHARS = 7000;
 
     private RoiHostDiscovery() {}
@@ -126,7 +127,7 @@ final class RoiHostDiscovery {
                     @SuppressWarnings("unchecked")
                     Enumeration<String> entries = (Enumeration<String>) value;
                     int count = 0;
-                    while (entries.hasMoreElements()) {
+                    while (entries.hasMoreElements() && classNameCount < MAX_TOTAL_CLASS_ENTRIES) {
                         String name = entries.nextElement();
                         count++;
                         if (name != null && classNames.size() < MAX_CLASS_NAMES) {
@@ -137,6 +138,10 @@ final class RoiHostDiscovery {
                     }
                     classNameCount += count;
                     append(out, prefix + ".dex." + i + ".classCount=" + count);
+                    if (classNameCount >= MAX_TOTAL_CLASS_ENTRIES) {
+                        append(out, "dex.entryLimitReached=true");
+                        break;
+                    }
                 } catch (Throwable error) {
                     rethrowFatal(error);
                     dexReadFailures++;
