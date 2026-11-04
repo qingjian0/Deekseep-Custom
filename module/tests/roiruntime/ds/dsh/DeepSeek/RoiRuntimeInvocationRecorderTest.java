@@ -21,6 +21,7 @@ public final class RoiRuntimeInvocationRecorderTest {
         testSameRequestKeyAcrossHostsDoesNotMerge();
         testSanitizedEvidenceSnapshot();
         testSameDescriptorDifferentLoaderScopesRemainDistinct();
+        testCrossLoaderPhasesDoNotConfirm();
         testDisabledAndExpiredEvidenceSnapshotsAreEmpty();
         testCapacityAndTtl();
         testInvalidAndWrongSourceRejected();
@@ -170,10 +171,10 @@ public final class RoiRuntimeInvocationRecorderTest {
         r.record(new RoiRuntimeInvocationRecorder.Event(privateKey, adapter, "loader:process-1:HostLoader",
                 "LReq;->build()V", RoiRuntimeInvocationRecorder.Phase.REQUEST_BUILT, 100, 1,
                 RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 100);
-        r.record(new RoiRuntimeInvocationRecorder.Event(privateKey, adapter, "loader:process-2:HostLoader",
+        r.record(new RoiRuntimeInvocationRecorder.Event(privateKey, adapter, "loader:process-1:HostLoader",
                 "LNet;->execute()V", RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED, 110, 2,
                 RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 110);
-        r.record(new RoiRuntimeInvocationRecorder.Event(privateKey, adapter, "loader:process-3:HostLoader",
+        r.record(new RoiRuntimeInvocationRecorder.Event(privateKey, adapter, "loader:process-1:HostLoader",
                 "LResp;->emit()V", RoiRuntimeInvocationRecorder.Phase.RESPONSE_RECEIVED, 120, 3,
                 RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 120);
         List<RoiRuntimeInvocationRecorder.EvidenceSnapshot> snapshots = r.snapshotEvidence(120);
@@ -220,6 +221,26 @@ public final class RoiRuntimeInvocationRecorderTest {
         check(snapshots.size() == 2, "same descriptor across loaders was collapsed");
         check(!snapshots.get(0).sourceScope.equals(snapshots.get(1).sourceScope),
                 "loader scopes were merged");
+    }
+
+    private static void testCrossLoaderPhasesDoNotConfirm() {
+        RoiRuntimeInvocationRecorder r = recorder(8, 1000);
+        String key = "cross-loader-request";
+        String adapter = "adapter:generation-27:mainland";
+        r.record(new RoiRuntimeInvocationRecorder.Event(key, adapter,
+                "loader:process-1:HostLoader", "LReq;->build()V",
+                RoiRuntimeInvocationRecorder.Phase.REQUEST_BUILT, 100, 1,
+                RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 100);
+        r.record(new RoiRuntimeInvocationRecorder.Event(key, adapter,
+                "loader:process-2:HostLoader", "LNet;->execute()V",
+                RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED, 110, 2,
+                RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 110);
+        r.record(new RoiRuntimeInvocationRecorder.Event(key, adapter,
+                "loader:process-1:HostLoader", "LResp;->emit()V",
+                RoiRuntimeInvocationRecorder.Phase.RESPONSE_RECEIVED, 120, 3,
+                RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 120);
+        check(!r.snapshotChains(120).get(0).confirmsRequestTransportResponse(),
+                "cross-loader phases incorrectly confirmed one scoped chain");
     }
 
     private static void testDisabledAndExpiredEvidenceSnapshotsAreEmpty() {
