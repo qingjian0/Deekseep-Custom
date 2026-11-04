@@ -6,13 +6,14 @@ DISCOVERY="$ROOT/module/src/ds/dsh/DeepSeek/RoiDexKitDiscovery.java"
 HOST_DISCOVERY="$ROOT/module/src/ds/dsh/DeepSeek/RoiHostDiscovery.java"
 MAIN="$ROOT/module/src/ds/dsh/DeepSeek/Main.java"
 GRAPH="$ROOT/module/src/ds/dsh/DeepSeek/RoiCandidateGraph.java"
+ROLE_HINTS="$ROOT/module/src/ds/dsh/DeepSeek/RoiSemanticRoleHints.java"
 
-python3 - "$DISCOVERY" "$HOST_DISCOVERY" "$MAIN" "$GRAPH" <<'PY'
+python3 - "$DISCOVERY" "$HOST_DISCOVERY" "$MAIN" "$GRAPH" "$ROLE_HINTS" <<'PY'
 import pathlib
 import re
 import sys
 
-discovery, host_discovery, main, graph = [pathlib.Path(p).read_text(encoding="utf-8") for p in sys.argv[1:]]
+discovery, host_discovery, main, graph, role_hints = [pathlib.Path(p).read_text(encoding="utf-8") for p in sys.argv[1:]]
 
 def require(source, pattern, label):
     if not re.search(pattern, source, re.S):
@@ -61,6 +62,11 @@ require(graph, r'DEFAULT_MAX_NODES = 128', "candidate graph node cap is fixed")
 require(graph, r'DEFAULT_MAX_EDGES = 512', "candidate graph edge cap is fixed")
 require(graph, r'countComponents[(]', "graph connected components are computed")
 require(graph, r'unresolvedReferences', "unresolved external references are counted")
+require(discovery, r'appendSemanticRoleHints[(]', "candidate invokes are checked for conservative role hints")
+require(discovery, r'semanticHints[.]provenance=direct_static_invoke_reference', "role hint provenance is explicit")
+require(role_hints, r'REQUEST_BUILDER', "request builder hint family exists")
+require(role_hints, r'TRANSPORT', "transport hint family exists")
+require(role_hints, r'RESPONSE_PARSER', "response parser hint family exists")
 require(discovery, r'resolver[.]activationAuthorized=', "resolver authorization is reported explicitly")
 require(discovery, r'RoiHookResolver[.]EvidenceKind[.]SEMANTIC_MARKER', "semantic anchor evidence is typed")
 require(discovery, r'0[.]25, false, "host_diagnostic_only"', "host identity is not falsely confirmed")
