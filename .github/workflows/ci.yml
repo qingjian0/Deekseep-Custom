@@ -15,6 +15,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+
+  roi-fast-audit:
+    name: ROI fast audit (0.5)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 21
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Run focused ROI audit
+        run: |
+          set -euo pipefail
+          bash -n module/test-roi-hook-resolver.sh module/test-roi-dexkit-discovery.sh
+          bash module/test-roi-hook-resolver.sh
+          bash module/test-roi-dexkit-discovery.sh
+
   regression:
     name: Regression tests
     runs-on: ubuntu-latest
@@ -49,7 +73,7 @@ jobs:
               scripts/test-package-identity.sh scripts/test-universal-feature-parity.sh \
               module-legacy/test-adapter-regression.sh module/test-target-process-guard.sh \
               module/test-hostmap-regression.sh module/test-local-api-network-regression.sh \
-              module/test-native-adapter-fail-closed.sh module/test-roi-hook-resolver.sh scripts/package-dexkit-native.sh scripts/test-dexkit-integration.sh \
+              module/test-native-adapter-fail-closed.sh module/test-roi-hook-resolver.sh module/test-roi-dexkit-discovery.sh scripts/package-dexkit-native.sh scripts/test-dexkit-integration.sh \
               module/test-roi-dexkit-discovery.sh; do
             bash -n "$script"
           done
