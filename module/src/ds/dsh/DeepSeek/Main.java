@@ -6818,7 +6818,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     private static boolean requestLocalApiKeepAlive(
             Context context, boolean enabled, boolean forceControl) {
         if (context == null) {
-            HookAccountLoginSecurity.localApiFloatingWindowError = "DeepSeek 上下文尚未就绪";
+            HookAccountLoginSecurity.localApiKeepAliveError = "DeepSeek 上下文尚未就绪";
             return false;
         }
         if (enabled && isLocalApiKeepAliveDisabled()) {
@@ -6919,7 +6919,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     private static boolean requestLocalApiFloatingWindowExact(
             Context context, boolean enabled, String adapter) {
         if (context == null) {
-            HookAccountLoginSecurity.localApiKeepAliveError = "DeepSeek 上下文尚未就绪";
+            HookAccountLoginSecurity.localApiFloatingWindowError = "DeepSeek 上下文尚未就绪";
             return false;
         }
         long now = SystemClock.elapsedRealtime();
