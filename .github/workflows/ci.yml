@@ -61,6 +61,16 @@ jobs:
           test -d "$DEXKIT_STAGE/cxx-prefab/prefab"
           test -s "$DEXKIT_STAGE/jni/arm64-v8a/libdexkit.so"
           find "$DEXKIT_STAGE/jni" -type f -name '*.so' -print
+          python3 -m py_compile scripts/verify-elf-load-alignment.py
+          mapfile -t DEXKIT_NATIVE_LIBS < <(find "$DEXKIT_STAGE/jni" -type f -name 'libdexkit.so' | sort)
+          test "${#DEXKIT_NATIVE_LIBS[@]}" -gt 0
+          python3 scripts/verify-elf-load-alignment.py "${DEXKIT_NATIVE_LIBS[@]}"
+          for native_lib in "${DEXKIT_NATIVE_LIBS[@]}"; do
+            echo "Dynamic dependencies for $native_lib:"
+            readelf -d "$native_lib" | grep '(NEEDED)' || true
+          done
+          echo "CXX Prefab native payload inventory:"
+          find "$DEXKIT_STAGE/cxx-prefab/prefab" -type f \\( -name '*.so' -o -name '*.a' \\) -print | sort
           bash scripts/test-package-identity.sh
           bash module-legacy/test-adapter-regression.sh
           bash module-legacy/build.sh
