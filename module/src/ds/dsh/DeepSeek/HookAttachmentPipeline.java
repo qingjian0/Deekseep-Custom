@@ -1905,10 +1905,16 @@ final class HookAttachmentPipeline {
                     Object self = chain.getThisObject();
                     Object[] entry;
                     synchronized (relayFlowMap) { entry = relayFlowMap.remove(self); }
-                    if (entry == null) return chain.proceed();          // 非中继流，原样放行
                     Object[] a = chain.getArgs().toArray();
                     Object collector = a.length > 0 ? a[0] : null;
                     Object cont = a.length > 1 ? a[1] : null;
+                    if (entry == null) {
+                        Object observed = RoiRuntimeInvocationObserver.wrapFlowCollector(
+                                self, collector, q03);
+                        if (observed == collector) return chain.proceed();
+                        a[0] = observed;
+                        return chain.proceed(a);
+                    }
                     final Object expertReq = entry[0];
                     final Object r92 = entry[1];
                     try {
