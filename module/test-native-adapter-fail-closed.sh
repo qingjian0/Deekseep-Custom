@@ -373,6 +373,11 @@ require(
     r'observedMethodDescriptor\(Method method\).*?method\.getParameterTypes\(\).*?method\.getReturnType\(\)',
     "runtime trace records a structural method descriptor only",
 )
+require(
+    probe,
+    r'observedMethodDescriptor\(Method method\).*?catch \(Throwable ignored\).*?method-descriptor-unavailable',
+    "method metadata failures degrade to a marker instead of blocking the host call",
+)
 if "requestArg.toString()" in probe or "String.valueOf(requestArg)" in probe:
     raise SystemExit("runtime observer must not serialize request objects")
 

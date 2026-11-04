@@ -529,9 +529,18 @@ final class OpenNativeCompletionProbe {
     }
 
     private static String observedMethodDescriptor(Method method) {
-        return method.getDeclaringClass().getName() + "." + method.getName()
-                + "(" + parameters(method.getParameterTypes()) + ")->"
-                + method.getReturnType().getName();
+        try {
+            return method.getDeclaringClass().getName() + "." + method.getName()
+                    + "(" + parameters(method.getParameterTypes()) + ")->"
+                    + method.getReturnType().getName();
+        } catch (VirtualMachineError fatal) {
+            throw fatal;
+        } catch (ThreadDeath fatal) {
+            throw fatal;
+        } catch (Throwable ignored) {
+            // Metadata diagnostics must never prevent the original host method from running.
+            return "method-descriptor-unavailable";
+        }
     }
 
     private static String observedArgumentTypes(List<?> args) {
