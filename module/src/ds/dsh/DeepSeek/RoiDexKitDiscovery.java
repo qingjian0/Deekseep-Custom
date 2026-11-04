@@ -238,6 +238,7 @@ final class RoiDexKitDiscovery {
                     RoiCandidateGraph.Observation graphObservation = appendCallRelations(
                             item, candidatePrefix, descriptor, anchor, out);
                     graphObservations.add(graphObservation);
+                    appendSemanticRoleHints(candidatePrefix, graphObservation.invokes, out);
                     int relationCount = graphObservation.invokes.size()
                             + graphObservation.callers.size();
                     List<RoiHookResolver.Evidence> evidence = Arrays.asList(
@@ -284,6 +285,27 @@ final class RoiDexKitDiscovery {
         }
         appendCandidateGraph(prefix, graphObservations, out);
         return total;
+    }
+
+    private static void appendSemanticRoleHints(String prefix, List<String> invokes,
+                                                StringBuilder out) {
+        RoiSemanticRoleHints.Result hints = RoiSemanticRoleHints.classify(invokes);
+        append(out, prefix + ".semanticHints.requestBuilder="
+                + hints.has(RoiSemanticRoleHints.Hint.REQUEST_BUILDER));
+        append(out, prefix + ".semanticHints.transport="
+                + hints.has(RoiSemanticRoleHints.Hint.TRANSPORT));
+        append(out, prefix + ".semanticHints.responseParser="
+                + hints.has(RoiSemanticRoleHints.Hint.RESPONSE_PARSER));
+        append(out, prefix + ".semanticHints.provenance=direct_static_invoke_reference");
+        int emitted = Math.min(hints.matchedReferences.size(), 6);
+        for (int i = 0; i < emitted; i++) {
+            append(out, prefix + ".semanticHints.match." + i + "="
+                    + safe(hints.matchedReferences.get(i)));
+        }
+        if (hints.matchedReferences.size() > emitted) {
+            append(out, prefix + ".semanticHints.omitted="
+                    + (hints.matchedReferences.size() - emitted));
+        }
     }
 
     private static void appendCandidateGraph(String prefix,
