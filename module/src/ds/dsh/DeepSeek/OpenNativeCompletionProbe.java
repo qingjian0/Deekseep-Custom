@@ -355,9 +355,9 @@ final class OpenNativeCompletionProbe {
             Class<?> requestType = Class.forName("ly1", false, loader);
             Class<?> requestMarker = Class.forName("wu1", false, loader);
             if (!requestMarker.isAssignableFrom(requestType)) return;
-            installObservedMethod(loader, "jw3", "g", requestType,
+            installObservedMethod(loader, "jw3", "g", requestMarker,
                     OBSERVATION_JW3, "transport-low-level");
-            installObservedMethod(loader, "zn3", "o", requestType,
+            installObservedMethod(loader, "zn3", "o", requestMarker,
                     OBSERVATION_ZN3, "transport-dispatch");
         } catch (Throwable error) {
             Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] setup failed: "
@@ -366,16 +366,17 @@ final class OpenNativeCompletionProbe {
     }
 
     private static void installObservedMethod(ClassLoader loader, String ownerName,
-            String methodName, Class<?> requestType,
+            String methodName, Class<?> requestMarker,
             java.util.concurrent.atomic.AtomicBoolean installed, String role) {
-        if (installed.get()) return;
+        // At-most-once attempt: a partially registered Hook must never be duplicated on retry.
+        if (!installed.compareAndSet(false, true)) return;
         try {
             Class<?> owner = Class.forName(ownerName, false, loader);
             Method selected = null;
             for (Method method : owner.getDeclaredMethods()) {
                 Class<?>[] parameters = method.getParameterTypes();
                 if (methodName.equals(method.getName()) && parameters.length == 2
-                        && parameters[0].isAssignableFrom(requestType)
+                        && parameters[0] == requestMarker
                         && parameters[1] == Long.class
                         && !method.getReturnType().isPrimitive()
                         && method.getReturnType() != Void.TYPE) {
@@ -396,48 +397,68 @@ final class OpenNativeCompletionProbe {
             Main.MODULE.hook(target).intercept(new LegacyXposedModule.Hooker() {
                 @Override public Object intercept(LegacyXposedModule.Chain chain)
                         throws Throwable {
-                    ObservationFrame frame = OBSERVATION_FRAME.get();
-                    boolean root = frame == null;
-                    if (root) {
-                        frame = new ObservationFrame(OBSERVATION_IDS.incrementAndGet());
-                        OBSERVATION_FRAME.set(frame);
-                    }
-                    frame.depth++;
-                    int depth = frame.depth;
-                    String thread = Thread.currentThread().getName() + "#"
-                            + Thread.currentThread().getId();
-                    String args = observedArgumentTypes(chain.getArgs());
-                    if (root) {
-                        Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] enter id=" + frame.id
-                                + " role=" + role + " method=" + target.getDeclaringClass().getName()
-                                + "." + target.getName() + " modifiers="
-                                + Modifier.toString(target.getModifiers())
-                                + " thread=" + thread + " depth=" + depth + " args=" + args
-                                + " stack=" + observedStack());
-                    } else {
-                        Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] enter id=" + frame.id
-                                + " role=" + role + " method=" + target.getDeclaringClass().getName()
-                                + "." + target.getName() + " thread=" + thread
-                                + " depth=" + depth + " args=" + args);
+                    ObservationFrame frame = null;
+                    boolean root = false;
+                    boolean depthIncremented = false;
+                    int depth = 0;
+                    try {
+                        frame = OBSERVATION_FRAME.get();
+                        root = frame == null;
+                        if (root) {
+                            frame = new ObservationFrame(OBSERVATION_IDS.incrementAndGet());
+                            OBSERVATION_FRAME.set(frame);
+                        }
+                        frame.depth++;
+                        depthIncremented = true;
+                        depth = frame.depth;
+                        String thread = Thread.currentThread().getName() + "#"
+                                + Thread.currentThread().getId();
+                        String args = observedArgumentTypes(chain.getArgs());
+                        if (root) {
+                            Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] enter id=" + frame.id
+                                    + " role=" + role + " method=" + target.getDeclaringClass().getName()
+                                    + "." + target.getName() + " modifiers="
+                                    + Modifier.toString(target.getModifiers())
+                                    + " thread=" + thread + " depth=" + depth + " args=" + args
+                                    + " stack=" + observedStack());
+                        } else {
+                            Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] enter id=" + frame.id
+                                    + " role=" + role + " method=" + target.getDeclaringClass().getName()
+                                    + "." + target.getName() + " thread=" + thread
+                                    + " depth=" + depth + " args=" + args);
+                        }
+                    } catch (Throwable observerError) {
+                        // Diagnostics must never prevent the original host method from running.
+                        if (depthIncremented && frame != null) frame.depth--;
+                        if (root) OBSERVATION_FRAME.remove();
+                        frame = null;
+                        root = false;
                     }
                     try {
                         Object result = chain.proceed();
-                        Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] exit id=" + frame.id
-                                + " role=" + role + " depth=" + depth + " result="
-                                + (result == null ? "null" : result.getClass().getName()));
+                        try {
+                            Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] exit id="
+                                    + (frame == null ? "unknown" : frame.id)
+                                    + " role=" + role + " depth=" + depth + " result="
+                                    + (result == null ? "null" : result.getClass().getName()));
+                        } catch (Throwable ignored) {}
                         return result;
-                    } catch (Throwable error) {
-                        Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] throw id=" + frame.id
-                                + " role=" + role + " depth=" + depth + " exception="
-                                + error.getClass().getName());
-                        throw error;
+                    } catch (Throwable original) {
+                        try {
+                            Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] throw id="
+                                    + (frame == null ? "unknown" : frame.id)
+                                    + " role=" + role + " depth=" + depth + " exception="
+                                    + original.getClass().getName());
+                        } catch (Throwable ignored) {}
+                        throw original;
                     } finally {
-                        frame.depth--;
-                        if (root) OBSERVATION_FRAME.remove();
+                        if (frame != null && depthIncremented) {
+                            frame.depth--;
+                            if (root) OBSERVATION_FRAME.remove();
+                        }
                     }
                 }
             });
-            installed.set(true);
             Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] installed role=" + role
                     + " method=" + target.getDeclaringClass().getName() + "."
                     + target.getName() + " return=" + target.getReturnType().getName());
