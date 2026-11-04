@@ -178,6 +178,16 @@ require(
 )
 require(
     probe,
+    r'manager\.candidateUnit.*?typed_non_object_fields.*?manager\.typedFieldCount',
+    "manager candidate counts are explicitly typed as non-Object declared fields, not instances",
+)
+require(
+    probe,
+    r'candidateRank = fieldType\.isInterface\(\) \? 2 : 1.*?candidateRank > matchRank',
+    "manager field match strength is independent of HashSet iteration order",
+)
+require(
+    probe,
     r'matchKind = "exact".*?matchKind = "interface".*?matchKind = "supertype"',
     "typed manager candidates identify their match strength",
 )
