@@ -324,3 +324,15 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 同毫秒事件允许非递减，避免毫秒时钟粒度造成正常快速回调被误拒；这不是严格的因果顺序证明，仍依赖可信 callback 的真实调用顺序与同一 opaque request key。
 - 本次只收紧纯 Java recorder 的证据判定，不新增宿主 Hook，不产生任何新的 `RESPONSE_PARSED` 事件，也不宣称流完成、成功终止或取消状态已被观察。
 - 新增乱序、解析先后关系和同毫秒阶段测试，并在脚本中增加静态断言。当前工具环境未执行该脚本、Android 构建或真机验证；Actions 结果待核验。
+
+
+## 7K — R2.5.2 只读运行时证据快照（2026-11-05）
+
+- `RoiRuntimeInvocationObserver.snapshotEvidence()` 仅在维护版宿主适配器获准、且用户显式启用运行时观察后返回快照；默认关闭时返回空列表。
+- 快照为不可变、脱敏的逐描述符条目，只包含适配器身份标签、精确方法描述符、阶段和有序证据标志；不暴露 requestKey、Prompt、请求/响应正文、URL、Header 或 Token。
+- 继续沿用 Recorder 的 512 事件容量和 120 秒 TTL；快照前执行过期清理。
+- DexKit 候选报告新增独立 runtimeEvidence 区段。仅当适配器身份和完整方法描述符都精确相等时才关联；不使用方法名、前缀或近似描述符匹配。
+- `adapter:generation:channel` 只是适配器代际/渠道标签，不是 APK/DEX 指纹。
+- 运行时证据只用于诊断，不进入 `RoiHookResolver` 评分，不改变 role，不批准 adapter，也不授权 Hook 激活。
+- 新增快照不可变性、默认关闭/过期快照为空、脱敏字段测试；跨宿主 request key 隔离测试继续保留。
+- 本批次尚未本地执行脚本、Android 构建或真机验证。CI 状态需按最新提交重新核验；空状态不能视为通过。
