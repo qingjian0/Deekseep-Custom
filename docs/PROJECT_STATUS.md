@@ -135,6 +135,15 @@ Run `41649071834` 是本轮已核实的完整绿色 CI。它验证的是 JVM/脚
 - 自动激活授权还要求适配规则批准、精确宿主指纹匹配、语义角色 allowlist 与显式开启策略；Resolver 只输出 installer authorization，不把候选标记为 ACTIVE，也不直接安装 Hook。
 - 当前仅完成 R0。真实 DEX 候选接入、跨版本调用链相关性验证、Adapter Registry 集成、安装后验证与回滚仍未完成；不得宣称任意版本自动 Hook 已实现。
 
+## 7B. ROI R1 / CI Audit 0.5（2026-11-04）
+
+- DexKit 字符串锚点候选已接入 `RoiHookResolver`，但只提供低置信度、未确认的宿主诊断与方法形状证据；策略仍为 discovery-only，不允许安装 Hook。
+- 候选报告增加 resolver state、score、activationAuthorized 和 reason。
+- 新增并行 `roi-fast-audit`，独立运行 Resolver 与 DexKit discovery 回归；完整构建和原有安全回归仍保留。
+- 修复 Resolver 弱候选测试夹具，补充重复证据、角色不匹配、非法置信度和阈值校验。
+- CI Audit 0.5 仅降低非关键审查摩擦，不豁免编译、核心测试、ABI/ELF、APK 校验或 Hook 安全门槛。
+- 详细记录见 [ROI CI Audit 0.5](architecture/ROI_CI_AUDIT_0_5.md)。CI 是否通过以本批次 GitHub Actions 实际运行结果为准。
+
 ## 8. 相关文档
 
 - [架构总览](ARCHITECTURE.md)
