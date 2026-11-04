@@ -71,3 +71,15 @@ The source and static assertions have been updated on the working branch. The la
 - RESPONSE_PARSED is supplemental and is not required for the minimum chain. Missing phases remain unconfirmed. The recorder is not yet connected to a host callback; no live runtime evidence is claimed.
 - Added standalone JVM tests for read-only/unknown host rejection, cross-thread correlation, missing phases, capacity, TTL, invalid/untrusted events, and concurrent recording. The test script is wired into ROI fast audit and full regression.
 - Verification remains pending until the associated GitHub Actions run is inspected; no local or device execution is claimed.
+
+
+## R2.2 follow-up — trusted callback connection (2026-11-05)
+
+- Connected the bounded recorder to two already-existing callbacks: the non-synthetic completion-request constructor hook and the legacy transport hook. No new host Hook target was introduced.
+- A successful request-constructor return emits REQUEST_BUILT using the actual reflected constructor descriptor. The transport callback emits TRANSPORT_ENTERED only when the exact same request object is found in an IdentityHashMap correlation table; correlation uses a process-local monotonic opaque key.
+- Observation is disabled by default. It requires a maintained host adapter and the explicit file switch `/data/data/com.deepseek.chat/files/deekseep_roi_runtime_observation_enabled`. Unknown/unmaintained hosts remain read-only. The host identity string is an adapter/channel label, not a cryptographic APK fingerprint.
+- The observer records no URL, request/response body, headers, prompt, authorization value, or token. Observer exceptions are isolated from constructor and transport execution.
+- The legacy network-payload installation is skipped for the 2.7.x family. Therefore those builds do not gain a transport observation from this path. The expert Flow collect hook is limited to registered expert-image relay flows and is not treated as a general response callback.
+- RESPONSE_RECEIVED and RESPONSE_PARSED are not emitted by this integration. The recorder can currently show a partial build→transport trace only; it cannot confirm a complete request/transport/response chain.
+- Added a regression assertion that same request keys from different host identities never merge, plus static integration guards for opt-in, identity correlation, constructor callback, transport callback, and initialization wiring.
+- CI and device verification for these commits remain pending until the actual workflow result and controlled device evidence are available. No local build or real-device capture is claimed.
