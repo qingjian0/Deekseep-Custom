@@ -280,3 +280,15 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 本轮没有发出 RESPONSE_RECEIVED 或 RESPONSE_PARSED。当前最多形成 build→transport 部分轨迹，不能确认完整请求/transport/response 链。
 - 增加同 request key 不同 host identity 不得合并的回归测试，以及开关、对象身份关联、构造器回调、transport 回调和初始化接线的静态检查。
 - 本轮 CI 与真机验证待对应工作流和受控设备证据；没有声称本地构建或真机捕获成功。
+
+
+## 7J. ROI R2.3 — correlated Flow response-item observation (2026-11-05)
+
+- 旧版 network-payload 路径已经安装一个范围较窄的宿主 completion Flow collect hook（b41；code257 映射为 d81），collector 接口为 q03（code257 映射为 ja3）。此前它仅用于识别已登记的 Expert 图片中继 Flow。
+- 扩展现有 collect 回调，不新增宿主 Hook 目标。transport 方法返回原始 Flow 后，以 Flow 对象身份把它与请求 opaque key 关联；collect 时只有 identity 匹配的 Flow 才可进入观察路径。
+- 对非中继 Flow，仅当宿主 collector 类型确实是 interface，且原 collector 是该接口实例时，才使用代理包装。代理把 emit 委托给原 collector；只有委托成功返回后，才使用实际反射 emit 描述符记录 RESPONSE_RECEIVED。不读取、序列化、记录或保存 emit 的值。
+- collector 类型不是 interface、代理创建失败或 Flow identity 不匹配时，原 collector 原样传递，不记录响应事件。Expert 图片中继 Flow 保留既有处理路径，不错误归因到原请求 Flow。
+- 该事件仅表示至少一个响应项成功进入关联 collector，不表示整个流已完成。当前仍不发出 RESPONSE_PARSED。旧版已安装该 Flow collect hook 的宿主现在可观察 request→transport→response-item 链；parser 层确认和流完成状态仍未实现。
+- 2.7.x 不在旧版 transport/collect 路径中，仍不具备这条响应观察能力。
+- 记录器仍只保存 opaque request key、已批准适配器/渠道标识、阶段、时间戳、线程 ID 和方法描述符；不采集请求/响应正文、URL、headers、prompt、Authorization 或 token。
+- 静态 CI 检查现要求 transport 返回 Flow 关联、collector interface 防护和成功 emit 观察接线。CI 与真机验证待完成；没有声称本地构建或实时捕获成功。
