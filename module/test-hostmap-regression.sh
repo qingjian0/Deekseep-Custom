@@ -62,12 +62,14 @@ print("HostCompat 2.7.x channel classification regression OK")
 
 main = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
 host_v271 = pathlib.Path(sys.argv[1]).with_name("HostV271.java").read_text(encoding="utf-8")
-if not re.search(r"static boolean isV271LimitedWhitelistSupported\\(\\)\\s*\\{\\s*return isV271Limited\\(\\) && hostCode == 287;", source):
+if "static boolean isV271LimitedWhitelistSupported() {\n        return isV271Limited() && hostCode == 287;" not in source:
     raise SystemExit("the limited 2.7.x fallback whitelist must be restricted to code287")
-if not re.search(r"return \\(v271 && \\(HostRemap\\.active\\(\\) \\|\\| hostCode == 287\\)\\)", source):
+if "return (v271 && (HostRemap.active() || hostCode == 287))" not in source:
     raise SystemExit("2.7.2 without its mapping table must not be reported as a maintained feature runtime")
-limited = re.search(r"if \\(HostCompat\\.isV271Limited\\(\\)\\) \\{(.*?)\\n        \\}", main, re.S)
-if limited is None or "isV271LimitedWhitelistSupported()" not in limited.group(1):
+main_start = main.find("public synchronized void installAllFeatureHooks(")
+limited_start = main.find("if (HostCompat.isV271Limited()) {", main_start)
+full_start = main.find("if (HostCompat.isV271Full()) {", limited_start)
+if limited_start < 0 or full_start < 0 or "isV271LimitedWhitelistSupported()" not in main[limited_start:full_start]:
     raise SystemExit("Main must refuse the 2.7.1 whitelist when a 2.7.2 mapping is unavailable")
 if "if (!HostCompat.isV271LimitedWhitelistSupported())" not in host_v271:
     raise SystemExit("HostV271 must independently guard its code287-only fallback")
