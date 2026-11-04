@@ -53,7 +53,12 @@ jobs:
             bash -n "$script"
           done
           GRADLE_BIN="$(bash scripts/gradle-bootstrap.sh)"
-          "$GRADLE_BIN" --no-daemon --stacktrace -p module-kotlin-runtime test
+          "$GRADLE_BIN" --no-daemon --stacktrace -p module-kotlin-runtime test stageDexKitArtifacts
+          DEXKIT_STAGE="module-kotlin-runtime/build/dexkit-stage"
+          test -s "$DEXKIT_STAGE/libs/dexkit-2.3.0.jar"
+          test -s "$DEXKIT_STAGE/libs/flatbuffers-java-23.5.26.jar"
+          test -s "$DEXKIT_STAGE/jni/arm64-v8a/libdexkit.so"
+          find "$DEXKIT_STAGE/jni" -type f -name '*.so' -print
           bash scripts/test-package-identity.sh
           bash module-legacy/test-adapter-regression.sh
           bash module-legacy/build.sh

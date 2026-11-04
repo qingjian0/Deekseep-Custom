@@ -139,5 +139,22 @@ data class HostDiscoverySnapshot(
         require(classLoaders.all { loader -> loader.dexUnitIds.all { it in knownDexUnitIds } }) {
             "class-loader DEX references must resolve within the snapshot"
         }
+
+        val classLoadersById = classLoaders.associateBy { it.id }
+        require(classLoaders.all { loader ->
+            loader.parentId == null || loader.parentId in classLoadersById
+        }) {
+            "class-loader parent references must resolve within the snapshot"
+        }
+        for (loader in classLoaders) {
+            val visited = mutableSetOf<String>()
+            var currentId: String? = loader.id
+            while (currentId != null) {
+                require(visited.add(currentId)) {
+                    "class-loader parent references must not contain cycles"
+                }
+                currentId = classLoadersById[currentId]?.parentId
+            }
+        }
     }
 }

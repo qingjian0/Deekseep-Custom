@@ -111,6 +111,56 @@ class HostDiscoveryModelTest {
     }
 
     @Test
+    fun snapshotRejectsDanglingClassLoaderParentReferences() {
+        val host = HostArtifactIdentity(
+            packageName = "com.deepseek.chat",
+            versionName = "2.7.2",
+            versionCode = 289L,
+            flavor = "mainland",
+            dexInventoryFingerprint = null
+        )
+        assertFailsWith<IllegalArgumentException> {
+            HostDiscoverySnapshot(
+                host = host,
+                classLoaders = listOf(
+                    DiscoveredClassLoader("loader-1", "dalvik.system.PathClassLoader",
+                        "missing-parent", emptyList(), false)
+                ),
+                dexUnits = emptyList(),
+                candidates = emptyList(),
+                completed = true,
+                diagnostics = emptyList()
+            )
+        }
+    }
+
+    @Test
+    fun snapshotRejectsClassLoaderParentCycles() {
+        val host = HostArtifactIdentity(
+            packageName = "com.deepseek.chat",
+            versionName = "2.7.2",
+            versionCode = 289L,
+            flavor = "mainland",
+            dexInventoryFingerprint = null
+        )
+        assertFailsWith<IllegalArgumentException> {
+            HostDiscoverySnapshot(
+                host = host,
+                classLoaders = listOf(
+                    DiscoveredClassLoader("loader-1", "dalvik.system.PathClassLoader",
+                        "loader-2", emptyList(), false),
+                    DiscoveredClassLoader("loader-2", "dalvik.system.PathClassLoader",
+                        "loader-1", emptyList(), false)
+                ),
+                dexUnits = emptyList(),
+                candidates = emptyList(),
+                completed = true,
+                diagnostics = emptyList()
+            )
+        }
+    }
+
+    @Test
     fun snapshotRejectsDanglingDexReferences() {
         val host = HostArtifactIdentity(
             packageName = "com.deepseek.chat",
