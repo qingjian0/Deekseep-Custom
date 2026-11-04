@@ -35,7 +35,8 @@ jobs:
       - name: Run focused ROI audit
         run: |
           set -euo pipefail
-          bash -n module/test-roi-hook-resolver.sh module/test-roi-dexkit-discovery.sh
+          bash -n module/test-roi-hook-resolver.sh
+          bash -n module/test-roi-dexkit-discovery.sh
           bash module/test-roi-hook-resolver.sh
           bash module/test-roi-dexkit-discovery.sh
 
@@ -73,7 +74,7 @@ jobs:
               scripts/test-package-identity.sh scripts/test-universal-feature-parity.sh \
               module-legacy/test-adapter-regression.sh module/test-target-process-guard.sh \
               module/test-hostmap-regression.sh module/test-local-api-network-regression.sh \
-              module/test-native-adapter-fail-closed.sh module/test-roi-hook-resolver.sh module/test-roi-dexkit-discovery.sh scripts/package-dexkit-native.sh scripts/test-dexkit-integration.sh \
+              module/test-native-adapter-fail-closed.sh module/test-roi-hook-resolver.sh scripts/package-dexkit-native.sh scripts/test-dexkit-integration.sh \
               module/test-roi-dexkit-discovery.sh; do
             bash -n "$script"
           done
