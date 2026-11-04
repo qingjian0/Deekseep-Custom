@@ -1,10 +1,10 @@
-# Deekseep-Custom 架构说明
+# ROI 架构说明
 
 **适用范围：** 当前工作分支 `work/roi-agent-core-kotlin`。本文描述渐进式架构约束；具体实现进度以 [PROJECT_STATUS.md](PROJECT_STATUS.md) 为准。
 
 ## 1. 项目定位
 
-Deekseep-Custom 是作用于 DeepSeek Android 客户端（`com.deepseek.chat`）的 LSPosed / Xposed 模块。它不是独立聊天客户端，也不是通用 Android SDK。
+ROI 是作用于 DeepSeek Android 客户端（`com.deepseek.chat`）的 LSPosed / Xposed 模块。它不是独立聊天客户端，也不是通用 Android SDK。
 
 当前工程包含三类主要代码：
 
@@ -55,7 +55,11 @@ Deekseep-Custom 是作用于 DeepSeek Android 客户端（`com.deepseek.chat`）
 
 `Main.java` 仍承担较多入口、生命周期和功能协调职责。拆分必须以可独立验证的职责边界为单位，不允许仅按行数或方法数量机械拆分。当前已将目标包名准入和同进程重复注入抑制提取到 `TargetProcessGuard`，并提供纯 JVM 回归测试。后续拆分边界、顺序和验收条件见 [MAIN_DECOMPOSITION.md](MAIN_DECOMPOSITION.md)。
 
-## 7. 架构变更要求
+## 7. 自动发现与跨版本适配
+
+ROI 自动发现引擎的目标架构、模块边界、候选状态机与实施阶段见 [ROI 自动发现与跨版本 Hook 适配引擎](architecture/ROI_AUTO_DISCOVERY_ENGINE.md)。当前文档是架构决策草案，不代表自动发现或自动 Hook 已经实现。
+
+## 8. 架构变更要求
 
 任何跨模块重构必须先提供：
 1. 现状调用图或关键调用链；
