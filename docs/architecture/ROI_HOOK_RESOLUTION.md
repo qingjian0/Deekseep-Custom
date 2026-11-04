@@ -92,10 +92,11 @@ A candidate discovered in one ClassLoader must not be reused for a same-named cl
 
 ### R1 — Discovery evidence adapters
 
-- Convert existing DEX and probe reports into typed evidence records.
+- Convert existing DEX and probe reports into typed evidence records. (In progress: bounded DexKit string-anchor candidates now enter the resolver.)
+- Parse and validate DEX method descriptors for owner/name/parameter arity/return descriptor; this is structural syntax evidence, not semantic equivalence.
 - Add stable method descriptors and loader-scoped candidate identities.
-- Keep unknown-host discovery read-only.
-- Do not infer runtime evidence from static scans.
+- Keep unknown-host discovery read-only and use the default discovery-only policy.
+- Do not infer runtime evidence from static scans; host identity and call-graph/runtime evidence remain unconfirmed.
 
 ### R2 — Call graph and runtime correlation
 
