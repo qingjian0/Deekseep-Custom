@@ -1644,7 +1644,14 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 && !FEATURE_HOOK_INSTALL_REGISTRY.hasRetryableFailures()) return;
         final ClassLoader hookLoader = cl;
         if (HostCompat.isV271Limited()) {
-            // 2.7.1/code287: only the re-verified whitelist is installed. See HostV271.
+            // The fallback whitelist is verified only against code287. Never apply its obfuscated
+            // symbols to code289/290 when their own generated mapping resource is unavailable.
+            if (!HostCompat.isV271LimitedWhitelistSupported()) {
+                log("installAllFeatureHooks: refusing 2.7.1 whitelist; 2.7.2 mapping unavailable for code"
+                        + HostCompat.hostCode271());
+                FEATURE_HOOKS_INSTALLED.set(true);
+                return;
+            }
             log("installAllFeatureHooks: 2.7.1 whitelist");
             HostV271.installFeatureHooks(hookLoader);
             FEATURE_HOOKS_INSTALLED.set(!FEATURE_HOOK_INSTALL_REGISTRY.hasRequiredFailures());
