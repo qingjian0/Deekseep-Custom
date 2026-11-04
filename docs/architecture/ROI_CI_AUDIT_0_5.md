@@ -13,8 +13,9 @@ Profile 0.5 is a moderate, faster-feedback audit profile. It relaxes only non-cr
 - The fast job syntax-checks and runs the resolver and DexKit discovery regression scripts independently of the full Android/native regression job.
 - Added the resolver test script to the full CI shell syntax preflight.
 - Connected each bounded DexKit string-anchor candidate to `RoiHookResolver`.
+- Added a bounded DEX method-descriptor parser for owner/name/parameter arity/return descriptor; parser evidence is explicitly structural and does not establish semantic equivalence.
 - The current adapter deliberately emits only low-confidence host diagnostic, observed string-marker, and unvalidated descriptor evidence. It uses the default discovery-only policy and reports state, score, authorization flag, and reason.
-- Extended static discovery checks to assert the resolver connection and fail-closed evidence provenance.
+- Extended static discovery checks to assert the resolver connection, descriptor parsing, and fail-closed evidence provenance.
 - Fixed a resolver test fixture defect: the `fullEvidence=false` branch previously still supplied the complete evidence set, invalidating the weak-candidate test.
 
 ## What profile 0.5 does not do
