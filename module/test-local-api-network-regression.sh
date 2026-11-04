@@ -24,6 +24,12 @@ required = {
     "LAN-only address range": "(bytes[0] & 255) == 192 && (bytes[1] & 255) == 168",
     "LAN bind refresh": "refreshLanBinding()",
     "network-loss listener close": "current.close()",
+    "local API key prefix": '"sk-" + android.util.Base64.encodeToString(random',
+    "custom key requires official-style prefix": 'sk-[A-Za-z0-9_-]{40,80}',
+    "persisted key migration accepts only prefixed keys": 'existing.matches("sk-[A-Za-z0-9_-]{40,80}")',
+    "base URL includes v1": 'return root.length() == 0 ? "" : root + "/v1";',
+    "Chinese local address label": "本机地址：",
+    "Chinese LAN status label": "局域网状态：",
 }
 missing = [label for label, token in required.items() if token not in source]
 if missing:
