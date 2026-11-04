@@ -81,14 +81,15 @@ DexKit has been evaluated but is **not yet integrated**. Do not mark runtime dis
 
 The current Legacy and Universal build scripts compile Java/Kotlin runtime sources manually, invoke D8 with an explicit JAR list, and assemble the APK with ZIP operations. A Gradle dependency declaration alone will not place DexKit classes or JNI libraries into these APKs.
 
-Before implementation, the packaging slice must:
-1. Resolve and stage the DexKit AAR's `classes.jar` and the pinned FlatBuffers Java JAR (`23.5.26`). The project already stages its resolved Kotlin standard library; do not add a second copy.
-2. Inspect the DexKit AAR's actual JNI entries and stage `libdexkit.so` for every ABI shipped by each APK. At minimum, the ARM64 ABI used by the current test device must be present.
-3. Account for CXX correctly. DexKit's Android CMake configuration disables the default Android STL and links `cxx::cxx`; this is a native link-time dependency, not proof that a separate `libc++_shared.so` must be copied into the APK. Inspect the final library's `DT_NEEDED` entries and package only real runtime dependencies.
-4. Merge Java bytecode into the D8 input set without duplicate classes.
-5. Package native libraries uncompressed under `lib/<abi>/`. The DexKit 2.3.0 native build uses a 16 KiB ELF maximum page size; the manually assembled APK must use `zipalign -P 16 -f 4` and CI must verify with `zipalign -c -P 16 -v 4`. The current `-p 4` path is only legacy 4 KiB alignment and is not sufficient for this native integration.
-6. Verify final APK contents, ABI coverage, ELF dependencies/alignment, APK ZIP alignment, and native load behavior for both Legacy and Universal variants.
-7. Include third-party license notices. DexKit publishes Apache-2.0 licensing outside `Core/` and LGPL-3.0 for `Core/`; preserve the corresponding notices and review the final distribution obligations. Include the applicable FlatBuffers and CXX notices as well.
+A staging-only prototype is now implemented as `stageDexKitArtifacts` in `module-kotlin-runtime`. It resolves the DexKit AAR, FlatBuffers Java JAR, and CXX Prefab AAR; stages DexKit bytecode, all JNI entries, and the CXX Prefab payload; and checks that ARM64 `libdexkit.so` is present. CI checks the staged artifacts. This prototype does not add any DexKit classes or native libraries to the shipped APKs.
+
+Before APK integration, the remaining packaging gates are:
+1. Inspect the actual DexKit AAR JNI entries for every ABI intended for each APK; ARM64 is mandatory for the current test device.
+2. Inspect the final `libdexkit.so` `DT_NEEDED` entries. CXX is a native link-time Prefab dependency; do not assume that a separate `libc++_shared.so` must be copied into the APK. Package only runtime dependencies proven by ELF inspection.
+3. Merge DexKit and FlatBuffers bytecode into the D8 input set without duplicate classes. Reuse the Kotlin standard library already staged by the project.
+4. Package native libraries uncompressed under `lib/<abi>/`. The DexKit 2.3.0 native build uses a 16 KiB ELF maximum page size; the manually assembled APK must use `zipalign -P 16 -f 4` and CI must verify with `zipalign -c -P 16 -v 4`. The current `-p 4` path is only legacy 4 KiB alignment and is not sufficient for this native integration.
+5. Verify final APK contents, ABI coverage, ELF dependencies/alignment, APK ZIP alignment, and native load behavior for both Legacy and Universal variants.
+6. Include third-party license notices. DexKit publishes Apache-2.0 licensing outside `Core/` and LGPL-3.0 for `Core/`; preserve the corresponding notices and review the final distribution obligations. Include the applicable FlatBuffers and CXX notices as well.
 
 The project currently targets a minimum API above DexKit's documented minimum API 21 / recommended API 23. The documented Xposed native-library packaging warning for minSdk below 23 is therefore not expected to be the limiting issue. However, manual APK assembly must still store JNI libraries uncompressed, align them to 16 KiB, and verify their loadability. Android's current zipalign guidance explicitly recommends `-P 16` for APKs containing shared libraries.
 
