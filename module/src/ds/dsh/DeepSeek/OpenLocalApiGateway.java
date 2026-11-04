@@ -353,8 +353,8 @@ final class OpenLocalApiGateway {
                 + "可用模型：deepseek-chat、deepseek-reasoner\n"
                 + (lanEnabled
                         ? (boundLanAddress.length() > 0
-                                ? "局域网地址：" + lanEndpoint() + "\n"
-                                : "局域网状态：" + lanBindingStatus + "\n")
+                                ? "局域网地址：" + lanEndpoint() + "\n" : "")
+                                + "局域网监听状态：" + lanBindingStatus + "\n"
                         : "局域网状态：未启用\n")
                 + "允许的局域网范围：192.168.0.0/16\n"
                 + "后端状态：" + (backend != null && backend.isReady()
