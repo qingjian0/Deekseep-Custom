@@ -2,7 +2,6 @@ package ds.dsh.DeepSeek;
 
 import java.util.Collections;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -97,7 +96,8 @@ final class RoiHookResolver {
 
         Policy(boolean automaticActivationEnabled, Set<String> allowedRoles,
                double correlatedThreshold, double verifiedThreshold) {
-            if (correlatedThreshold < 0 || correlatedThreshold > 1
+            if (Double.isNaN(correlatedThreshold) || Double.isNaN(verifiedThreshold)
+                    || correlatedThreshold < 0 || correlatedThreshold > 1
                     || verifiedThreshold < correlatedThreshold || verifiedThreshold > 1) {
                 throw new IllegalArgumentException("invalid resolver thresholds");
             }
