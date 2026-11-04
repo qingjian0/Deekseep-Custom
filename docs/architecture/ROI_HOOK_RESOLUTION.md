@@ -92,11 +92,12 @@ A candidate discovered in one ClassLoader must not be reused for a same-named cl
 
 ### R1 — Discovery evidence adapters
 
-- Convert existing DEX and probe reports into typed evidence records. (In progress: bounded DexKit string-anchor candidates now enter the resolver.)
-- Parse and validate DEX method descriptors for owner/name/parameter arity/return descriptor; this is structural syntax evidence, not semantic equivalence.
-- Add stable method descriptors and loader-scoped candidate identities.
-- Keep unknown-host discovery read-only and use the default discovery-only policy.
-- Do not infer runtime evidence from static scans; host identity and call-graph/runtime evidence remain unconfirmed.
+- Bounded DexKit string-anchor candidates enter the resolver as typed evidence under the default discovery-only policy.
+- Parse DEX method descriptors and report owner/name/parameter arity/return descriptor; also report bounded access flags, parameter/return type names, and opcode names. These are static structural observations, not proof of semantic equivalence.
+- Collect a bounded one-hop static call neighborhood (up to 12 incoming and 12 outgoing edges per emitted candidate). The query explicitly requests DexKit invoke/caller matchers so the lazy native relation indexes are initialized before reading `MethodData.invokes` and `MethodData.callers`.
+- Static call edges remain unconfirmed evidence: they do not prove that an edge executes on a live request path. Runtime invocation, return, and lifecycle evidence are not inferred from DEX.
+- Loader-scoped stable candidate identity remains in progress; report prefixes currently identify the source pass/loader/APK, but there is not yet a persisted cross-pass candidate registry.
+- Unknown-host discovery remains read-only. Host identity is diagnostic-only/unconfirmed, and the resolver cannot authorize activation from this evidence.
 
 ### R2 — Call graph and runtime correlation
 
