@@ -4,6 +4,7 @@ import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.enums.StringMatchType;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
+import org.luckypray.dexkit.query.matchers.MethodsMatcher;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -194,7 +195,11 @@ final class RoiDexKitDiscovery {
                         MethodMatcher.create().usingStrings(
                                 Collections.singletonList(anchor),
                                 StringMatchType.Contains,
-                                false));
+                                false)
+                                // MethodData.invokes/callers are backed by lazy native indexes.
+                                // Request both indexes in this query before reading those accessors.
+                                .invokeMethods(MethodsMatcher.create().countMin(0))
+                                .callerMethods(MethodsMatcher.create().countMin(0)));
                 Object results = bridge.findMethod(query);
                 int count = invokeSize(results);
                 int emitted = Math.min(count, MAX_CANDIDATES_PER_ANCHOR);
