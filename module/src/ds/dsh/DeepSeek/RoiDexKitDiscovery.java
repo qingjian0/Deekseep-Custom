@@ -301,7 +301,8 @@ final class RoiDexKitDiscovery {
     }
 
     /** Emit bounded, non-loading structural metadata exposed by DexKit MethodData. */
-    private static void appendMethodStructure(Object methodData, String prefix, StringBuilder out) {
+    private static void appendMethodStructure(Object methodData, String prefix, StringBuilder out)
+            throws Exception {
         append(out, prefix + ".shape.accessFlags=" + safe(readString(methodData, "getAccessFlags")));
         append(out, prefix + ".shape.returnTypeName="
                 + safe(readString(methodData, "getReturnTypeName")));
@@ -310,7 +311,7 @@ final class RoiDexKitDiscovery {
     }
 
     private static void appendBoundedValues(Object owner, String getter, String key,
-                                            StringBuilder out, int limit) {
+                                            StringBuilder out, int limit) throws Exception {
         Object values = readObject(owner, getter);
         int count = invokeSize(values);
         int emitted = Math.min(count, limit);
@@ -326,7 +327,8 @@ final class RoiDexKitDiscovery {
      * Read a bounded one-hop call neighborhood from DexKit MethodData. These are static DEX
      * references only; they do not prove that an edge executes on a live request path.
      */
-    private static int appendCallRelations(Object methodData, String prefix, StringBuilder out) {
+    private static int appendCallRelations(Object methodData, String prefix, StringBuilder out)
+            throws Exception {
         Object invokes = readObject(methodData, "getInvokes");
         Object callers = readObject(methodData, "getCallers");
         int invokeCount = invokeSize(invokes);
