@@ -1144,19 +1144,6 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         try { new FileWriter(LOG_PATH, false).close(); } catch (Throwable ignored) {}
         HookLogOverlay.resetSession();
         HostCompat.initialize(cl);
-        if (!HostCompat.isV271Limited()) {
-            try {
-                // Use the same stable registry ID and adapter scope as the later feature pass.
-                // If this early attempt partially registers and then fails, the Activity-resume
-                // retry skips completed occurrences instead of appending duplicate callbacks.
-                installHookStep("ui.native-dual-chat-root",
-                        () -> HookUiSurface.INSTANCE.hookNativeDualChatRoot(cl));
-            } catch (Throwable t) {
-                if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
-                if (t instanceof ThreadDeath) throw (ThreadDeath) t;
-                log("early native dual root hook failed: " + safeThrowableMessage(t));
-            }
-        }
         // SSL trust bypass intentionally removed: was diagnostic-only for GP 2.5.0 symbol capture.
         final String bootstrapVersion = AndroidManifestVersion.readFromApk(
                 param.appInfo == null ? null : param.appInfo.sourceDir);
@@ -1173,10 +1160,26 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         if (!HostCompat.supportsMaintainedFeatureRuntime()) {
             String unsupported = bootstrapVersion == null || bootstrapVersion.length() == 0
                     ? HostCompat.generationName() : bootstrapVersion;
+            log("unknown/unmaintained host: entering ROI read-only discovery version="
+                    + unsupported + ", detected=" + HostCompat.generationName());
+            RoiHostDiscovery.schedule(cl,
+                    param.appInfo == null ? null : param.appInfo.sourceDir);
             installRetiredHostNotice(unsupported);
             log("host symbol table is not maintained; feature bootstrap suppressed version="
                     + unsupported + ", detected=" + HostCompat.generationName());
             return;
+        }
+        // This host-level Compose hook is deliberately installed only after the verified
+        // compatibility gate. Unknown hosts stay in read-only discovery mode.
+        if (!HostCompat.isV271Limited()) {
+            try {
+                installHookStep("ui.native-dual-chat-root",
+                        () -> HookUiSurface.INSTANCE.hookNativeDualChatRoot(cl));
+            } catch (Throwable t) {
+                if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+                if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+                log("early native dual root hook failed: " + safeThrowableMessage(t));
+            }
         }
         Looper mainLooper = Looper.getMainLooper();
         if (mainLooper == null) {
