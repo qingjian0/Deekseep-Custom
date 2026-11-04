@@ -111,6 +111,11 @@ public final class HostCompat {
         return v271 && !HostRemap.active();
     }
 
+    /** Only code287 has a hand-verified fallback whitelist when its mapping table is unavailable. */
+    static boolean isV271LimitedWhitelistSupported() {
+        return isV271Limited() && hostCode == 287;
+    }
+
     /** 2.7.1 running the 2.4.1 feature code through HostRemap. */
     static boolean isV271Full() {
         return v271 && HostRemap.active();
@@ -142,7 +147,8 @@ public final class HostCompat {
      * would install stale hooks and can make the protected watchdog terminate the host.
      */
     static boolean supportsMaintainedFeatureRuntime() {
-        return v271 || v250 || v234 || v236 || v241;
+        return (v271 && (HostRemap.active() || hostCode == 287))
+                || v250 || v234 || v236 || v241;
     }
 
     static String diagnosticSummary() {
