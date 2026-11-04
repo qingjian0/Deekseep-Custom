@@ -88,11 +88,11 @@ final class RoiRuntimeInvocationObserver {
     static void recordTransportResult(Object request, Object flow, Method transportMethod) {
         try {
             RoiRuntimeInvocationRecorder active = recorder;
-            if (request == null || flow == null || transportMethod == null || active == null
+            if (request == null || transportMethod == null || active == null
                     || !activeEnabled(active)) return;
             String key;
             synchronized (REQUEST_KEYS) { key = REQUEST_KEYS.remove(request); }
-            if (key == null) return;
+            if (key == null || flow == null) return;
             synchronized (FLOW_REQUEST_KEYS) {
                 if (FLOW_REQUEST_KEYS.size() >= 512) FLOW_REQUEST_KEYS.clear();
                 FLOW_REQUEST_KEYS.put(flow, key);
