@@ -49,7 +49,7 @@ jobs:
               scripts/test-package-identity.sh scripts/test-universal-feature-parity.sh \
               module-legacy/test-adapter-regression.sh module/test-target-process-guard.sh \
               module/test-hostmap-regression.sh module/test-local-api-network-regression.sh \
-              module/test-native-adapter-fail-closed.sh scripts/package-dexkit-native.sh; do
+              module/test-native-adapter-fail-closed.sh scripts/package-dexkit-native.sh scripts/test-dexkit-integration.sh; do
             bash -n "$script"
           done
           GRADLE_BIN="$(bash scripts/gradle-bootstrap.sh)"
@@ -62,6 +62,7 @@ jobs:
           test -s "$DEXKIT_STAGE/jni/arm64-v8a/libdexkit.so"
           find "$DEXKIT_STAGE/jni" -type f -name '*.so' -print
           python3 -m py_compile scripts/verify-elf-load-alignment.py scripts/verify-dexkit-apk.py
+          bash scripts/test-dexkit-integration.sh
           mapfile -t DEXKIT_NATIVE_LIBS < <(find "$DEXKIT_STAGE/jni" -type f -name 'libdexkit.so' | sort)
           test "${#DEXKIT_NATIVE_LIBS[@]}" -gt 0
           python3 scripts/verify-elf-load-alignment.py "${DEXKIT_NATIVE_LIBS[@]}"
