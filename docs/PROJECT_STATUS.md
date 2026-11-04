@@ -1,9 +1,10 @@
 # 项目状态与交付基线
 
  > 项目名称：ROI  
-> 状态日期：2026-11-04  
+> 状态日期：2026-11-05  
 > 适用分支：`dev`  
-> 最新核验提交：`c0cec5256e84917781b10591f4268c13a49ab42d`；Run `41836377762` 完整 CI 通过  
+> 最近一次历史完整 CI 成功：`c0cec5256e84917781b10591f4268c13a49ab42d`；Run `41836377762`（历史记录，不代表当前 HEAD）  
+> R2.5.2 当前代码提交：`f09db0ca91103c3e803aea973f65f8cc11b5dfa6`；当前 HEAD 尚无 GitHub check runs/status checks 结果  
 > 宿主：官方 DeepSeek Android `com.deepseek.chat`  
 > 宿主版本目标：国内版 2.7.1（versionCode 287）、国内版 2.7.2（289）、Google Play / 国际版 2.7.2（290）
 
