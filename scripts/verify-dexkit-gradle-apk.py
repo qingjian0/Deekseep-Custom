@@ -27,9 +27,10 @@ def load_elf_verifier(path: pathlib.Path):
 
 
 def zip_data_offset(archive: zipfile.ZipFile, info: zipfile.ZipInfo) -> int:
-    with archive.fp as stream:
-        stream.seek(info.header_offset)
-        header = stream.read(30)
+    if archive.fp is None:
+        raise ValueError("ZIP archive is not open")
+    archive.fp.seek(info.header_offset)
+    header = archive.fp.read(30)
     if len(header) != 30:
         raise ValueError("truncated local ZIP header for " + info.filename)
     values = struct.unpack("<IHHHHHIIIHH", header)
