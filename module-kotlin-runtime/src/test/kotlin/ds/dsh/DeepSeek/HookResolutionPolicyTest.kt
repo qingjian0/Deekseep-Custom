@@ -71,11 +71,11 @@ class HookResolutionPolicyTest {
 
     @Test
     fun duplicateEvidenceWithinOneCategoryCannotInflateScore() {
-        val evidence = completeEvidence(10) +
-            listOf(evidence("semantic_anchor", 100), evidence("semantic_anchor", 100))
+        val observations = completeEvidence(10) +
+            listOf(evidence("semantic_anchor", 10), evidence("semantic_anchor", 10))
         val decision = policy.resolve(
             "completion_transport",
-            listOf(candidate(evidence = evidence))
+            listOf(candidate(evidence = observations))
         )
 
         assertEquals(HookResolutionPolicy.Status.INSUFFICIENT_EVIDENCE, decision.status)
@@ -85,10 +85,10 @@ class HookResolutionPolicyTest {
 
     @Test
     fun runtimeMismatchBlocksCandidateEvenWhenScoreIsHigh() {
-        val evidence = completeEvidence(30) + evidence("runtime_mismatch", 100)
+        val observations = completeEvidence(30) + evidence("runtime_mismatch", 100)
         val decision = policy.resolve(
             "completion_transport",
-            listOf(candidate(evidence = evidence))
+            listOf(candidate(evidence = observations))
         )
 
         assertEquals(HookResolutionPolicy.Status.INSUFFICIENT_EVIDENCE, decision.status)
