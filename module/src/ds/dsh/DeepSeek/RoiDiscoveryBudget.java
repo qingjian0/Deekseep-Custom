@@ -23,7 +23,7 @@ final class RoiDiscoveryBudget {
     }
 
     synchronized boolean tryStartQuery(long nowNanos) {
-        if (!canContinueLocked(nowNanos)) return false;
+        if (!checkDeadlineLocked(nowNanos)) return false;
         if (queriesStarted >= maxQueries) {
             stopReason = "query_limit";
             return false;
@@ -33,7 +33,7 @@ final class RoiDiscoveryBudget {
     }
 
     synchronized boolean tryAcceptCandidate(long nowNanos) {
-        if (!canContinueLocked(nowNanos)) return false;
+        if (!checkDeadlineLocked(nowNanos)) return false;
         if (candidatesAccepted >= maxCandidates) {
             stopReason = "candidate_limit";
             return false;
@@ -43,15 +43,7 @@ final class RoiDiscoveryBudget {
     }
 
     synchronized boolean canContinue(long nowNanos) {
-        return canContinueLocked(nowNanos);
-    }
-
-    private boolean canContinueLocked(long nowNanos) {
-        if (!"none".equals(stopReason)) return false;
-        if (nowNanos >= deadlineNanos) {
-            stopReason = "soft_deadline";
-            return false;
-        }
+        if (!checkDeadlineLocked(nowNanos)) return false;
         if (queriesStarted >= maxQueries) {
             stopReason = "query_limit";
             return false;
@@ -63,8 +55,17 @@ final class RoiDiscoveryBudget {
         return true;
     }
 
+    private boolean checkDeadlineLocked(long nowNanos) {
+        if (!"none".equals(stopReason)) return false;
+        if (nowNanos >= deadlineNanos) {
+            stopReason = "soft_deadline";
+            return false;
+        }
+        return true;
+    }
+
     synchronized boolean isExhausted(long nowNanos) {
-        return !canContinueLocked(nowNanos);
+        return !canContinue(nowNanos);
     }
 
     synchronized int queriesStarted() { return queriesStarted; }
