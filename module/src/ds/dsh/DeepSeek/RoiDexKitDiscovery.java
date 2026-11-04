@@ -216,6 +216,15 @@ final class RoiDexKitDiscovery {
                     // not promote a string hit into method-shape, call-graph, or runtime proof.
                     String hostKey = "unverified:" + HostCompat.diagnosticSummary()
                             .replace('\n', '|').replace('\r', '|');
+                    RoiMethodShape shape = RoiMethodShape.parse(descriptor);
+                    append(out, prefix + ".candidate." + safeKey(anchor) + "." + i
+                            + ".shape.valid=" + (shape != null));
+                    if (shape != null) {
+                        append(out, prefix + ".candidate." + safeKey(anchor) + "." + i
+                                + ".shape.parameterCount=" + shape.parameterCount);
+                        append(out, prefix + ".candidate." + safeKey(anchor) + "." + i
+                                + ".shape.return=" + shape.returnDescriptor);
+                    }
                     List<RoiHookResolver.Evidence> evidence = Arrays.asList(
                             new RoiHookResolver.Evidence(
                                     RoiHookResolver.EvidenceKind.HOST_IDENTITY,
@@ -225,7 +234,8 @@ final class RoiDexKitDiscovery {
                                     0.35, true, "dexkit.string_anchor:" + anchor),
                             new RoiHookResolver.Evidence(
                                     RoiHookResolver.EvidenceKind.METHOD_SHAPE,
-                                    0.20, false, "descriptor_observed_not_validated"));
+                                    shape == null ? 0.0 : 0.55, shape != null,
+                                    shape == null ? "descriptor_invalid" : "dex_descriptor_shape_validated"));
                     RoiHookResolver.Candidate candidate = new RoiHookResolver.Candidate(
                             hostKey, "unresolved", owner, method, descriptor,
                             false, false, Collections.<String>emptySet(), evidence);
