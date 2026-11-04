@@ -266,6 +266,7 @@ final class RoiDexKitDiscovery {
                                             : "dexkit_method_data_invokes_and_callers"));
                     RoiHookResolver.Candidate candidate = new RoiHookResolver.Candidate(
                             hostKey, "unresolved", owner, method, descriptor,
+                            sourceScope, candidateId,
                             false, false, Collections.<String>emptySet(), evidence);
                     RoiHookResolver.Decision decision = RoiHookResolver.resolve(
                             candidate, RoiHookResolver.Policy.discoveryOnly());
