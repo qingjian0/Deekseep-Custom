@@ -49,6 +49,7 @@ final class OpenLocalApiGateway {
     private static volatile Thread lanAcceptThread;
     private static volatile String boundLanAddress = "";
     private static volatile String lanBindingStatus = "未启用";
+    private static volatile String lanNetworkMonitorStatus = "未注册";
     private static volatile ExecutorService clients;
     private static volatile z2.Backend backend;
     private static volatile Context appContext;
@@ -83,6 +84,8 @@ final class OpenLocalApiGateway {
             acceptThread.setDaemon(true);
             acceptThread.start();
             boundLanAddress = "";
+            lanBindingStatus = lanEnabled ? "等待绑定" : "未启用";
+            lanNetworkMonitorStatus = lanEnabled ? "等待注册" : "未启用";
             if (lanEnabled) {
                 refreshLanBinding();
                 registerLanNetworkCallback(app);
@@ -101,6 +104,7 @@ final class OpenLocalApiGateway {
         RUNNING.set(false);
         unregisterLanNetworkCallback();
         closeServer();
+        lanBindingStatus = lanEnabled ? "已停止" : "未启用";
         ExecutorService pool = clients;
         clients = null;
         if (pool != null) pool.shutdownNow();
@@ -236,7 +240,7 @@ final class OpenLocalApiGateway {
             ConnectivityManager manager = (ConnectivityManager) app.getSystemService(
                     Context.CONNECTIVITY_SERVICE);
             if (manager == null) {
-                lanBindingStatus = "无法获取 Android 网络服务";
+                lanNetworkMonitorStatus = "无法获取 Android 网络服务";
                 return;
             }
             ConnectivityManager.NetworkCallback callback = new ConnectivityManager.NetworkCallback() {
@@ -250,8 +254,9 @@ final class OpenLocalApiGateway {
                             .removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN).build(), callback);
             networkManager = manager;
             networkCallback = callback;
+            lanNetworkMonitorStatus = "已注册";
         } catch (Exception error) {
-            lanBindingStatus = "网络变化监听注册失败：" + error.getClass().getSimpleName();
+            lanNetworkMonitorStatus = "注册失败：" + error.getClass().getSimpleName();
             Main.log("Open Local API network callback registration failed: "
                     + error.getClass().getSimpleName());
         }
@@ -265,6 +270,7 @@ final class OpenLocalApiGateway {
         if (manager != null && callback != null) {
             try { manager.unregisterNetworkCallback(callback); } catch (Exception ignored) {}
         }
+        lanNetworkMonitorStatus = RUNNING.get() && lanEnabled ? "未注册" : "已停止";
     }
 
     private static synchronized void refreshLanBinding() {
@@ -354,7 +360,8 @@ final class OpenLocalApiGateway {
                 + (lanEnabled
                         ? (boundLanAddress.length() > 0
                                 ? "局域网地址：" + lanEndpoint() + "\n" : "")
-                                + "局域网监听状态：" + lanBindingStatus + "\n"
+                                + "局域网绑定状态：" + lanBindingStatus + "\n"
+                                + "网络变化监听：" + lanNetworkMonitorStatus + "\n"
                         : "局域网状态：未启用\n")
                 + "允许的局域网范围：192.168.0.0/16\n"
                 + "后端状态：" + (backend != null && backend.isReady()
