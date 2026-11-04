@@ -16,6 +16,8 @@ public final class RoiRuntimeInvocationRecorderTest {
         testParsedPhaseRequiresOrderedReceipt();
         testSameMillisecondPhasesRemainPossible();
         testSameRequestKeyAcrossHostsDoesNotMerge();
+        testSanitizedEvidenceSnapshot();
+        testDisabledAndExpiredEvidenceSnapshotsAreEmpty();
         testCapacityAndTtl();
         testInvalidAndWrongSourceRejected();
         testConcurrentRecording();
@@ -131,6 +133,54 @@ public final class RoiRuntimeInvocationRecorderTest {
             check(!chain.confirmsRequestTransportResponse(),
                     "cross-host phases incorrectly confirmed a request chain");
         }
+    }
+
+    private static void testSanitizedEvidenceSnapshot() {
+        RoiRuntimeInvocationRecorder r = recorder(8, 1000);
+        String privateKey = "secret-request-key-must-not-escape";
+        String adapter = "adapter:generation-27:mainland";
+        r.record(new RoiRuntimeInvocationRecorder.Event(privateKey, adapter, "LReq;->build()V",
+                RoiRuntimeInvocationRecorder.Phase.REQUEST_BUILT, 100, 1,
+                RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 100);
+        r.record(new RoiRuntimeInvocationRecorder.Event(privateKey, adapter, "LNet;->execute()V",
+                RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED, 110, 2,
+                RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 110);
+        r.record(new RoiRuntimeInvocationRecorder.Event(privateKey, adapter, "LResp;->emit()V",
+                RoiRuntimeInvocationRecorder.Phase.RESPONSE_RECEIVED, 120, 3,
+                RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 120);
+        List<RoiRuntimeInvocationRecorder.EvidenceSnapshot> snapshots = r.snapshotEvidence(120);
+        check(snapshots.size() == 3, "expected one sanitized entry per observed descriptor");
+        boolean exactResponse = false;
+        for (RoiRuntimeInvocationRecorder.EvidenceSnapshot item : snapshots) {
+            check(adapter.equals(item.adapterIdentity), "adapter identity missing");
+            check(item.candidateDescriptor.length() > 0, "candidate descriptor missing");
+            check(item.orderedRequestTransportResponse, "ordered chain flag missing");
+            check(item.candidateDescriptor.indexOf(privateKey) < 0,
+                    "request key leaked through descriptor");
+            if ("LResp;->emit()V".equals(item.candidateDescriptor)
+                    && item.phase == RoiRuntimeInvocationRecorder.Phase.RESPONSE_RECEIVED) {
+                exactResponse = true;
+            }
+        }
+        check(exactResponse, "exact response descriptor not present");
+        try {
+            snapshots.clear();
+            throw new AssertionError("snapshot list is mutable");
+        } catch (UnsupportedOperationException expected) {
+            // immutable snapshot contract
+        }
+    }
+
+    private static void testDisabledAndExpiredEvidenceSnapshotsAreEmpty() {
+        RoiRuntimeInvocationRecorder disabled = new RoiRuntimeInvocationRecorder(
+                RoiRuntimeInvocationRecorder.Policy.disabled(), 8, 1000);
+        check(disabled.snapshotEvidence(100).isEmpty(),
+                "disabled recorder exposed runtime evidence");
+        RoiRuntimeInvocationRecorder r = recorder(8, 50);
+        r.record(event(KEY, "LReq;->build()V",
+                RoiRuntimeInvocationRecorder.Phase.REQUEST_BUILT, 100, 1), 100);
+        check(r.snapshotEvidence(151).isEmpty(),
+                "expired runtime evidence remained visible");
     }
 
     private static void testCapacityAndTtl() {
