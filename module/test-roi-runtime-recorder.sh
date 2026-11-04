@@ -30,3 +30,5 @@ grep -q 'RoiRuntimeInvocationObserver.initialize()' "$MAIN"
 # A suspending Kotlin emit is not confirmed merely because the reflective call returned.
 grep -q 'hasContinuationParameter(method)' "$OBSERVER"
 grep -q 'kotlin.coroutines.Continuation' "$OBSERVER"
+grep -q 'hasSuspendingEmit(collectorType)' "$OBSERVER"
+grep -q 'Do not proxy its collector' "$OBSERVER"
