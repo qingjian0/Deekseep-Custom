@@ -49,7 +49,7 @@ jobs:
               scripts/test-package-identity.sh scripts/test-universal-feature-parity.sh \
               module-legacy/test-adapter-regression.sh module/test-target-process-guard.sh \
               module/test-hostmap-regression.sh module/test-local-api-network-regression.sh \
-              module/test-native-adapter-fail-closed.sh scripts/package-dexkit-native.sh scripts/test-dexkit-integration.sh \
+              module/test-native-adapter-fail-closed.sh module/test-roi-hook-resolver.sh scripts/package-dexkit-native.sh scripts/test-dexkit-integration.sh \
               module/test-roi-dexkit-discovery.sh; do
             bash -n "$script"
           done
@@ -65,6 +65,7 @@ jobs:
           python3 -m py_compile scripts/verify-elf-load-alignment.py scripts/verify-dexkit-apk.py scripts/verify-dexkit-gradle-apk.py
           bash scripts/test-dexkit-integration.sh
           bash module/test-roi-dexkit-discovery.sh
+          bash module/test-roi-hook-resolver.sh
           mapfile -t DEXKIT_NATIVE_LIBS < <(find "$DEXKIT_STAGE/jni" -type f -name 'libdexkit.so' | sort)
           test "${#DEXKIT_NATIVE_LIBS[@]}" -gt 0
           python3 scripts/verify-elf-load-alignment.py "${DEXKIT_NATIVE_LIBS[@]}"
