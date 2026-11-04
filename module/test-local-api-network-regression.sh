@@ -3,11 +3,12 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 GATEWAY="$ROOT/module/src/ds/dsh/DeepSeek/OpenLocalApiGateway.java"
+LOCAL_API_UI="$ROOT/module/src/ds/dsh/DeepSeek/DeekseepUi.java"
 for manifest in "$ROOT/module-universal/AndroidManifest.xml" "$ROOT/module-legacy/AndroidManifest.xml"; do
     grep -Fq 'android.permission.ACCESS_NETWORK_STATE' "$manifest"
 done
 
-python - "$GATEWAY" <<'PY'
+python - "$GATEWAY" "$LOCAL_API_UI" <<'PY'
 import pathlib
 import sys
 
@@ -40,5 +41,14 @@ if "InetAddress.getByName(\"0.0.0.0\")" in source:
 # formatting/line wrapping. The address argument is separately asserted above.
 if "new ServerSocket(configuredPort, 16," not in source:
     raise SystemExit("LAN socket must use the configured port and bounded backlog")
-print("LAN network callback, exact-address binding, and lifecycle source checks passed")
+ui = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
+ui_required = {
+    "connection details allow long-press text selection": "connectionInfo.setTextIsSelectable(true);",
+    "OpenAI URL copy includes /v1": "Main.localApiCopyEndpoint()",
+    "Anthropic URL copy retains root endpoint": "Main.localApiRootEndpoint()",
+}
+missing_ui = [label for label, token in ui_required.items() if token not in ui]
+if missing_ui:
+    raise SystemExit("Missing local API UI contract: " + ", ".join(missing_ui))
+print("LAN lifecycle, key, URL, and selectable-connection UI source checks passed")
 PY
