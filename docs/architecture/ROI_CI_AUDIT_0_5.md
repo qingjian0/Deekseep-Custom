@@ -139,3 +139,14 @@ The source and static assertions have been updated on the working branch. The la
 - Runtime evidence is diagnostic only and is not added to `RoiHookResolver` scoring, role resolution, adapter approval, or Hook activation. Resolver remains discovery-only.
 - Tests were added for immutable sanitized snapshots, disabled-policy gating, TTL expiry, and no request-key field exposure; existing cross-host isolation coverage remains.
 - Verification boundary: source was updated on `dev`, but this batch has not been run locally or on a device. GitHub CI must be checked for the resulting commit; an empty status/run response is not a pass.
+
+## R2.5.3 — exact ClassLoader attribution for runtime evidence
+
+- Runtime events and sanitized snapshots now carry a process-local `sourceScope` derived from the actual callback declaring class's ClassLoader via `RoiCandidateIdentity.forClassLoader()`.
+- DexKit candidates can display runtime evidence only when adapter identity, full method descriptor, and process-local ClassLoader source scope all match exactly.
+- APK-path scans have no provable runtime ClassLoader identity and are intentionally excluded from runtime evidence matching; in-memory ClassLoader scans remain eligible.
+- Ordered REQUEST_BUILT → TRANSPORT_ENTERED → RESPONSE_RECEIVED / RESPONSE_PARSED confirmation now requires all phases to share the same ClassLoader scope. Events across loaders are not joined into a complete chain.
+- Added tests for same-descriptor loader isolation and rejection of cross-loader phase joins; static script checks the source-scope gates.
+- This deliberately permits false negatives: if transport or collector callbacks are defined by a different ClassLoader, the chain is not promoted even if it belongs to the same request. No approximate merging is attempted.
+- The suspend Flow Continuation completion gap remains; no new Hook or Continuation proxy was added.
+- Verification boundary: local Java tests, Android build, and device validation have not been run for this batch; current HEAD CI must be checked independently.
