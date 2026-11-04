@@ -27,11 +27,11 @@ final class RoiHostDiscovery {
 
     private RoiHostDiscovery() {}
 
-    static void schedule(final ClassLoader root, final String apkPath) {
+    static void schedule(final ClassLoader root, final String apkPath, final String[] splitApkPaths) {
         if (root == null || !SCHEDULED.compareAndSet(false, true)) return;
         Thread worker = new Thread(() -> {
             try {
-                inspect(root, apkPath);
+                inspect(root, apkPath, splitApkPaths);
             } catch (VirtualMachineError fatal) {
                 throw fatal;
             } catch (ThreadDeath fatal) {
@@ -51,7 +51,7 @@ final class RoiHostDiscovery {
         }
     }
 
-    private static void inspect(ClassLoader root, String apkPath) {
+    private static void inspect(ClassLoader root, String apkPath, String[] splitApkPaths) {
         final long started = System.nanoTime();
         StringBuilder out = new StringBuilder(4096);
         Set<ClassLoader> seen = Collections.newSetFromMap(
@@ -176,6 +176,7 @@ final class RoiHostDiscovery {
             out.append("\nreport.truncated=true");
         }
         Main.log("[ROI_DISCOVERY]\n" + out);
+        Main.log("[ROI_DEXKIT]\n" + RoiDexKitDiscovery.inspect(root, apkPath, splitApkPaths));
     }
 
     private static void appendApkFingerprint(StringBuilder out, String apkPath) {
