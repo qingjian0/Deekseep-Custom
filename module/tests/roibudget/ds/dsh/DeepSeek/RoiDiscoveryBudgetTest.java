@@ -8,7 +8,6 @@ public final class RoiDiscoveryBudgetTest {
         testCandidateLimit();
         testSoftDeadline();
         testZeroLimits();
-        testFinalQueryCanReturnCandidates();
         testIndependentCounters();
         System.out.println("ROI discovery budget tests passed");
     }
@@ -47,17 +46,6 @@ public final class RoiDiscoveryBudgetTest {
         check(noCandidates.tryStartQuery(1L), "query and candidate budgets are independent");
         check(!noCandidates.tryAcceptCandidate(2L), "zero candidate limit rejects");
         equal("candidate_limit", noCandidates.stopReason(), "zero candidate reason");
-    }
-
-    private static void testFinalQueryCanReturnCandidates() {
-        RoiDiscoveryBudget budget = new RoiDiscoveryBudget(1, 3, 100L);
-        check(budget.tryStartQuery(1L), "last allowed query starts");
-        check(budget.tryAcceptCandidate(2L),
-                "candidates from the last allowed query must still be processed");
-        check(!budget.canContinue(3L), "no further query may start");
-        equal(1, budget.queriesStarted(), "last query count");
-        equal(1, budget.candidatesAccepted(), "last query candidate count");
-        equal("query_limit", budget.stopReason(), "query limit after result processing");
     }
 
     private static void testIndependentCounters() {

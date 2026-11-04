@@ -65,7 +65,7 @@ final class RoiDiscoveryBudget {
     }
 
     synchronized boolean isExhausted(long nowNanos) {
-        return !canContinueLocked(nowNanos);
+        return !canContinue(nowNanos);
     }
 
     synchronized int queriesStarted() { return queriesStarted; }
