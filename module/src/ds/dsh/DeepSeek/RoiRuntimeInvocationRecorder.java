@@ -41,6 +41,8 @@ final class RoiRuntimeInvocationRecorder {
     static final class Event {
         final String requestKey;
         final String hostFingerprint;
+        final String sourceScope;
+        final String sourceScope;
         final String candidateDescriptor;
         final Phase phase;
         final long timestampMillis;
@@ -49,8 +51,16 @@ final class RoiRuntimeInvocationRecorder {
 
         Event(String requestKey, String hostFingerprint, String candidateDescriptor,
               Phase phase, long timestampMillis, long threadId, Source source) {
+            this(requestKey, hostFingerprint, "", candidateDescriptor, phase,
+                    timestampMillis, threadId, source);
+        }
+
+        Event(String requestKey, String hostFingerprint, String sourceScope,
+              String candidateDescriptor, Phase phase, long timestampMillis,
+              long threadId, Source source) {
             this.requestKey = clean(requestKey, 128);
             this.hostFingerprint = clean(hostFingerprint, 256);
+            this.sourceScope = clean(sourceScope, 256);
             this.candidateDescriptor = clean(candidateDescriptor, 512);
             this.phase = phase;
             this.timestampMillis = timestampMillis;
@@ -112,10 +122,12 @@ final class RoiRuntimeInvocationRecorder {
         final boolean orderedRequestTransportResponse;
         final boolean orderedParsedResponse;
 
-        EvidenceSnapshot(String adapterIdentity, String candidateDescriptor, Phase phase,
+        EvidenceSnapshot(String adapterIdentity, String sourceScope,
+                         String candidateDescriptor, Phase phase,
                          boolean orderedRequestTransportResponse,
                          boolean orderedParsedResponse) {
             this.adapterIdentity = adapterIdentity;
+            this.sourceScope = sourceScope;
             this.candidateDescriptor = candidateDescriptor;
             this.phase = phase;
             this.orderedRequestTransportResponse = orderedRequestTransportResponse;
@@ -225,20 +237,15 @@ final class RoiRuntimeInvocationRecorder {
         List<Chain> chains = snapshotChains(nowMillis);
         List<EvidenceSnapshot> result = new ArrayList<EvidenceSnapshot>();
         for (Chain chain : chains) {
-            addEvidence(result, chain, chain.requestBuilders, Phase.REQUEST_BUILT);
-            addEvidence(result, chain, chain.transports, Phase.TRANSPORT_ENTERED);
-            addEvidence(result, chain, chain.responseReceivers, Phase.RESPONSE_RECEIVED);
-            addEvidence(result, chain, chain.responseParsers, Phase.RESPONSE_PARSED);
+            for (Event event : events) {
+                if (!chain.hostFingerprint.equals(event.hostFingerprint)
+                        || !chain.requestKey.equals(event.requestKey)) continue;
+                result.add(new EvidenceSnapshot(event.hostFingerprint, event.sourceScope,
+                        event.candidateDescriptor, event.phase,
+                        chain.confirmsRequestTransportResponse(), chain.confirmsParsedResponse()));
+            }
         }
         return Collections.unmodifiableList(result);
-    }
-
-    private static void addEvidence(List<EvidenceSnapshot> out, Chain chain,
-                                    Set<String> descriptors, Phase phase) {
-        for (String descriptor : descriptors) {
-            out.add(new EvidenceSnapshot(chain.hostFingerprint, descriptor, phase,
-                    chain.confirmsRequestTransportResponse(), chain.confirmsParsedResponse()));
-        }
     }
 
     synchronized int size(long nowMillis) {
