@@ -16,7 +16,10 @@ source = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
 required = {
     "active Android network lookup": "manager.getActiveNetwork()",
     "active network link properties": "manager.getLinkProperties(active)",
-    "default network callback registration": "manager.registerDefaultNetworkCallback(callback)",
+    "all-network callback registration": "manager.registerNetworkCallback(",
+    "all-network callback request": "new NetworkRequest.Builder().clearCapabilities().build()",
+    "secondary network fallback": "manager.getAllNetworks()",
+    "per-network link properties lookup": "manager.getLinkProperties(network)",
     "network available callback": "onAvailable(Network network)",
     "network lost callback": "onLost(Network network)",
     "link properties callback": "onLinkPropertiesChanged(",
