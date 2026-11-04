@@ -60,7 +60,47 @@ This is a contract layer, not yet a live scanner. The next implementation slice 
 
 ## DEX parsing strategy
 
-Do not add a parser dependency until its Android runtime compatibility, API surface, licensing, APK/native-library footprint, and maintenance status have been checked. Keep the first inventory adapter reflection-based and read-only. A dedicated DEX analysis library can later be introduced behind an adapter if it materially improves method/call-site analysis.
+### Selected runtime parser: DexKit 2.3.0
+
+DexKit is the preferred candidate for the Android-side semantic DEX adapter:
+
+- Artifact: `org.luckypray:dexkit:2.3.0` (Android AAR).
+- It supports loading from an APK path, DEX byte arrays, or a `ClassLoader`.
+- The ClassLoader memory-DEX mode (`DexKitBridge.create(loader, true)`) attempts to read DEX through ART runtime cookies and falls back to file-backed DEX when an OatDex cannot be parsed. This is useful for code already visible to ART; it is not a general decryptor for encrypted code that has not been loaded.
+- Query capabilities include class, method, and field structure; strings; numeric constants; opcodes; and invoked methods. These features can express semantic signatures without relying on obfuscated names.
+- The 2.3.0 release adds numeric-literal matching and raw DEX access-flag matching, and improves string matching and eligible zero-copy DEX loading.
+
+Official references:
+- https://github.com/LuckyPray/DexKit
+- https://github.com/LuckyPray/DexKit/releases/tag/2.3.0
+- https://luckypray.org/DexKit/zh-cn/guide/quick-start
+
+### Integration status and build constraints
+
+DexKit has been evaluated but is **not yet integrated**. Do not mark runtime discovery complete until both distributable APK variants build and load the parser on-device.
+
+The current Legacy and Universal build scripts compile Java/Kotlin runtime sources manually, invoke D8 with an explicit JAR list, and assemble the APK with ZIP operations. A Gradle dependency declaration alone will not place DexKit classes or JNI libraries into these APKs.
+
+Before implementation, the packaging slice must:
+1. Resolve and stage the DexKit AAR's `classes.jar`.
+2. Resolve and stage its runtime dependencies, including the published FlatBuffers Java and `cxx` artifacts, using the exact versions declared by the selected DexKit release.
+3. Merge Java bytecode into the D8 input set without duplicate classes.
+4. Package `libdexkit.so` and every required transitive JNI library for the ABIs actually supported by each APK.
+5. Verify the final APK contents and native load path for both Legacy and Universal variants.
+6. Include third-party license notices. DexKit publishes Apache-2.0 licensing outside `Core/` and LGPL-3.0 for `Core/`; preserve the corresponding notices and review the final distribution obligations.
+
+The project currently targets a minimum API above DexKit's documented minimum API 21 / recommended API 23. The documented Xposed native-library packaging warning for minSdk below 23 is therefore not expected to be the limiting issue, but manual APK assembly still requires explicit verification of JNI library placement and loadability.
+
+### Adapter design
+
+Implement DexKit behind an Android-only adapter (for example, `RoiDexKitDiscovery`); keep `module-kotlin-runtime` free of Android, Xposed, and native parser dependencies.
+
+- Create one bridge per bounded analysis scope, off the main thread, and always close it.
+- Prefer ClassLoader memory-DEX inspection; record whether each result came from memory or file fallback.
+- Bound query count, result count, execution time, and retained evidence.
+- Emit candidates and evidence only. Do not install Hooks from parser results.
+- Preserve explicit coverage gaps for inaccessible parent, split, or dynamic loaders.
+- Do not describe DexKit as arbitrary DEX decryption. It can inspect DEX exposed through files or the ART runtime; code not yet available to ART remains outside this capability.
 
 ## Safety and operational limits
 
