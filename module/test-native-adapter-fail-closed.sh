@@ -102,6 +102,30 @@ require(
     r"Read-only runtime inventory",
     "probe remains explicitly read-only",
 )
+
+require(
+    probe,
+    r'HostCompat\.hostCode271\(\) != 289.*?Class\.forName\("ly1", false, loader\).*?Class\.forName\("wu1", false, loader\)',
+    "runtime call observer is gated to the verified mainland 2.7.2/code289 request contract",
+)
+require(
+    probe,
+    r'installObservedMethod\(loader, "jw3", "g".*?installObservedMethod\(loader, "zn3", "o"',
+    "runtime observer targets both independently discovered code289 call boundaries",
+)
+require(
+    probe,
+    r'Main\.MODULE\.hook\(target\)\.intercept\(new LegacyXposedModule\.Hooker\(\).*?chain\.proceed\(\).*?OBSERVATION_FRAME\.remove\(\)',
+    "runtime observer is passive, preserves original execution, and clears per-thread correlation",
+)
+require(
+    probe,
+    r'observedArgumentTypes.*?value\.getClass\(\)\.getName\(\).*?observedStack.*?getClassName\(\).*?getMethodName\(\)',
+    "runtime observer records argument types and stack symbols only",
+)
+for forbidden in ("getResult().toString()", "chain.getArg(0).toString()", "Authorization", "prompt", "requestBody"):
+    if forbidden in probe:
+        raise SystemExit("runtime observer must not serialize sensitive request data: " + forbidden)
 require(
     probe,
     r"static void inspectHost\(ClassLoader loader\)",
