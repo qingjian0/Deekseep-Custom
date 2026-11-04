@@ -168,7 +168,8 @@ jobs:
           test -s "$APK"
           unzip -t "$APK" >/dev/null
           unzip -Z1 "$APK" | grep -Fxq "AndroidManifest.xml"
-          unzip -Z1 "$APK" | grep -E '^classes([0-9]+)?[.]dex          "$ANDROID_SDK_ROOT/build-tools/37.0.0/zipalign" -c -p 4 "$APK"
+          unzip -Z1 "$APK" | grep -E '^classes([0-9]+)?[.]dex$' >/dev/null
+          python3 scripts/verify-dexkit-gradle-apk.py "$APK" compose-launcher/app/build.gradle.kts scripts/verify-elf-load-alignment.py
           "$ANDROID_SDK_ROOT/build-tools/37.0.0/apksigner" verify --verbose "$APK"
           echo "Open release APK passed structural, alignment, and CI-key signature checks."
 
