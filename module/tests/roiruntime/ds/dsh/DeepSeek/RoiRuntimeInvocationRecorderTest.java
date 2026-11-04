@@ -2,6 +2,7 @@ package ds.dsh.DeepSeek;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.lang.reflect.Field;
 import java.util.concurrent.CountDownLatch;
 
 public final class RoiRuntimeInvocationRecorderTest {
@@ -151,6 +152,10 @@ public final class RoiRuntimeInvocationRecorderTest {
         List<RoiRuntimeInvocationRecorder.EvidenceSnapshot> snapshots = r.snapshotEvidence(120);
         check(snapshots.size() == 3, "expected one sanitized entry per observed descriptor");
         boolean exactResponse = false;
+        for (Field field : RoiRuntimeInvocationRecorder.EvidenceSnapshot.class.getDeclaredFields()) {
+            check(!field.getName().toLowerCase(java.util.Locale.ROOT).contains("requestkey"),
+                    "snapshot type exposes a request-key field");
+        }
         for (RoiRuntimeInvocationRecorder.EvidenceSnapshot item : snapshots) {
             check(adapter.equals(item.adapterIdentity), "adapter identity missing");
             check(item.candidateDescriptor.length() > 0, "candidate descriptor missing");
