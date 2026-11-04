@@ -30,7 +30,7 @@ require(discovery, r'REGISTERED_LOADERS', "dynamic loader registration API exist
 require(discovery, r'activation=forbidden_without_external_validation', "candidate activation remains gated")
 require(discovery, r'hooksInstalled=false', "discovery does not install hooks")
 require(main, r'RoiDexKitDiscovery\.schedule\(cl,.*?splitSourceDirs\)', "unknown-host path schedules DexKit discovery")
-require(host_discovery, r'RoiHostDiscovery\.schedule', "DEX inventory remains a separate first layer")
+require(host_discovery, r"static void schedule", "DEX inventory remains a separate first layer")
 
 for forbidden in ("getMethodInstance(", "getConstructorInstance(", "Main.MODULE.hook(", "XposedBridge.hookMethod("):
     if forbidden in discovery:
