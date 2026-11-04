@@ -226,3 +226,11 @@ Run `41649071834` 是本轮已核实的完整绿色 CI。它验证的是 JVM/脚
 - 新增独立 Java 回归测试：跨锚点去重、边方向、重复边、节点/边上限、外部引用、循环和孤立节点。ROI fast audit 与完整 Regression 均执行新脚本。
 - 当前图只反映静态 DEX 引用关系，不负责 Request / Transport / Response 语义分类，不证明真实请求路径，也不授权 Hook 激活。
 - 验证边界：源码与 CI 工作流已更新；尚未取得本批次 GitHub Actions 成功结果，也未在本地或真机执行。
+
+## 7E. ROI R2.0 — conservative network role hints (2026-11-04)
+
+- 新增 `RoiSemanticRoleHints`，仅检查候选方法直接调用的 DEX 方法描述符，对少量可识别的 OkHttp / Retrofit / URLConnection / Gson / Moshi / Jackson / JSONObject API 输出 Request Builder、Transport、Response Parser 提示。
+- 只输出正向静态提示和命中的外部 API 描述符；未知或混淆引用保持 unresolved。一个方法可有多个提示；没有命中不代表其不属于该角色。
+- 提示带 `direct_static_invoke_reference` 来源，不写入 Resolver 证据，不改变 candidate role=`unresolved`，不授权 Hook。
+- 新增独立 JVM 测试覆盖三类提示及未知引用，并接入 ROI fast audit 与完整 Regression。
+- 验证边界：GitHub Actions 尚未返回本批次可核实的成功状态；未声称本地编译或真机验证通过。
