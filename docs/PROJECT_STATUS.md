@@ -346,3 +346,14 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - Added regression coverage for same-millisecond reverse ordering and timestamp regression, while preserving the valid same-millisecond forward-order case.
 - The append-order tie-break is an observation-order safeguard, not proof of cross-thread causality. The recorder still does not infer parser events, Flow completion, or response success beyond a trusted callback's explicitly observed phase.
 - No host Hook targets or runtime collection scope changed. CI result and real-device evidence remain separate verification requirements.
+
+## 7L — R2.5.3 运行时证据的 ClassLoader 精确归属（2026-11-05）
+
+- 运行时 Event 和脱敏 EvidenceSnapshot 新增 process-local `sourceScope`，由实际 callback 方法/构造器所属 ClassLoader 经 `RoiCandidateIdentity.forClassLoader()` 生成。
+- DexKit 候选只有在 adapter identity、完整方法描述符、process-local ClassLoader sourceScope 三项全部精确相等时，才会显示匹配的运行时证据。
+- APK 路径扫描没有可证明的运行时 ClassLoader 身份，因此不与运行时证据关联；只有内存 ClassLoader scan scope 可进行精确归属。
+- 有序 REQUEST_BUILT → TRANSPORT_ENTERED → RESPONSE_RECEIVED / RESPONSE_PARSED 链现在还要求各阶段来自同一个 ClassLoader scope。跨 loader 事件不再拼接为完整证据链。
+- 新增同描述符跨 loader 保持分离、跨 loader 阶段不能确认完整链的测试；静态脚本增加 sourceScope 关联检查。
+- 这会有意产生 false negatives：若真实 transport/collector callback 由不同 ClassLoader 定义，即使属于同一请求，也不会升级为完整链。安全优先，不做近似归并。
+- suspend Flow 的 Continuation 成功完成仍未观察；没有引入新 Hook 或代理 Continuation。
+- 本批次尚未本地执行 Java 测试脚本、Android 构建或真机验证；当前 HEAD 的 CI 需重新核验。
