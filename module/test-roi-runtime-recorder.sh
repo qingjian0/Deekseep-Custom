@@ -38,6 +38,17 @@ if grep -q 'Phase.RESPONSE_PARSED' "$CHAT"; then
   exit 1
 fi
 
+# Sanitized read-only snapshots must remain gated, bounded, TTL-pruned and payload-free.
+grep -q 'snapshotEvidence(long nowMillis)' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
+grep -q 'snapshotEvidence()' "$OBSERVER"
+grep -q 'activeEnabled(active)' "$OBSERVER"
+grep -q 'currentAdapterIdentity()' "$OBSERVER"
+grep -q 'candidateDescriptor.equals(item.candidateDescriptor)' "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexKitDiscovery.java"
+grep -q 'adapterIdentity.equals(item.adapterIdentity)' "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexKitDiscovery.java"
+grep -q 'runtimeEvidence.resolverContribution=none' "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexKitDiscovery.java"
+grep -q 'testSanitizedEvidenceSnapshot' "$ROOT/module/tests/roiruntime/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorderTest.java"
+grep -q 'testDisabledAndExpiredEvidenceSnapshotsAreEmpty' "$ROOT/module/tests/roiruntime/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorderTest.java"
+
 # Ordered evidence tiers must be implemented and covered by recorder tests.
 grep -q 'orderedRequestTransportResponse' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
 grep -q 'confirmsParsedResponse()' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
