@@ -60,7 +60,7 @@ public final class RoiHookResolverTest {
 
     private static RoiHookResolver.Candidate candidate(boolean conflict, boolean approved, boolean fullEvidence) {
         Set<String> fingerprints = Collections.singleton("fp-289");
-        RoiHookResolver.Evidence[] all = {
+        RoiHookResolver.Evidence[] all = fullEvidence ? new RoiHookResolver.Evidence[] {
                 e(RoiHookResolver.EvidenceKind.HOST_IDENTITY, 1, true),
                 e(RoiHookResolver.EvidenceKind.DEX_FINGERPRINT, 1, true),
                 e(RoiHookResolver.EvidenceKind.SEMANTIC_MARKER, 1, true),
@@ -69,6 +69,9 @@ public final class RoiHookResolverTest {
                 e(RoiHookResolver.EvidenceKind.RUNTIME_INVOCATION, 1, true),
                 e(RoiHookResolver.EvidenceKind.RETURN_CONTRACT, 1, true),
                 e(RoiHookResolver.EvidenceKind.LIFECYCLE_CONTRACT, 1, true)
+        } : new RoiHookResolver.Evidence[] {
+                e(RoiHookResolver.EvidenceKind.HOST_IDENTITY, 1, true),
+                e(RoiHookResolver.EvidenceKind.METHOD_SHAPE, 1, true)
         };
         return new RoiHookResolver.Candidate("fp-289", "request", "a1", "b", "(X)Y",
                 conflict, approved, fingerprints, Arrays.asList(all));
