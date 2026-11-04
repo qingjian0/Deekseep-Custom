@@ -135,7 +135,11 @@ final class RoiRuntimeInvocationObserver {
                             try {
                                 Object result = method.invoke(collector, args);
                                 if ("emit".equals(method.getName()) && args != null
-                                        && args.length > 0) {
+                                        && args.length > 0
+                                        && !hasContinuationParameter(method)) {
+                                    // A Kotlin suspend emit may return COROUTINE_SUSPENDED before
+                                    // delivery completes. Without observing continuation success,
+                                    // that return is not response-receipt evidence.
                                     recordResponseReceived(key, method);
                                 }
                                 return result;
@@ -148,6 +152,13 @@ final class RoiRuntimeInvocationObserver {
             rethrowFatal(ignored);
             return collector;
         }
+    }
+
+    private static boolean hasContinuationParameter(Method method) {
+        for (Class<?> parameter : method.getParameterTypes()) {
+            if ("kotlin.coroutines.Continuation".equals(parameter.getName())) return true;
+        }
+        return false;
     }
 
     private static void recordResponseReceived(String key, Method emitMethod) {
