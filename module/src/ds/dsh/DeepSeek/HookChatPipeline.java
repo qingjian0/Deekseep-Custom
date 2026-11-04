@@ -594,6 +594,7 @@ final class HookChatPipeline {
                 // Never hook kotlinx serialization/copy construction. It is not a send boundary
                 // and modifying it corrupts host request restoration state.
                 if (isSynthetic) continue;
+                final Constructor<?> requestConstructor = ctor;
                 Main.MODULE.hook(ctor).intercept(new Hooker() {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         try {
@@ -616,7 +617,7 @@ final class HookChatPipeline {
                                 HookLogOverlay.event("HOST", "Local API request passed",
                                         "body_chars=" + originalBody.length()
                                                 + " prompt_injection=skip");
-                                Object localRequest = chain.proceed();
+                                Object localRequest = RoiRuntimeInvocationObserver.recordBuilt(chain.proceed(), requestConstructor);
                                 if (HostCompat.isV241() && localRequest != null) {
                                     V241_LOCAL_API_REQUEST_OBJECTS.put(localRequest, Boolean.TRUE);
                                 }
@@ -674,7 +675,7 @@ final class HookChatPipeline {
                                     && originalBody.length() > 0) {
                                 originalArgs[promptIdx] = "\u2026";
                                 dispatchChatProxy(conversationId, originalBody);
-                                return chain.proceed(originalArgs);
+                                return RoiRuntimeInvocationObserver.recordBuilt(chain.proceed(originalArgs), requestConstructor);
                             }
                             HookLogOverlay.event("HOST", "Message send started",
                                     "sid=" + conversationId
@@ -815,7 +816,7 @@ final class HookChatPipeline {
                                                 + " system_chars=" + combinedPrompt.length()
                                                 + " tools=" + (heartbeatTools.length() > 0)
                                                 + " cost_ms=" + injectCost);
-                                return chain.proceed(args);
+                                return RoiRuntimeInvocationObserver.recordBuilt(chain.proceed(args), requestConstructor);
                             }
                             if (forcedNativeReasoning) {
                                 return chain.proceed(originalArgs);
@@ -2194,6 +2195,10 @@ final class HookChatPipeline {
                         if (fps != null) ew0Fps.put(req, fps);
                         if (effectiveModel != null) ew0EffectiveModels.put(req, effectiveModel);
                     }
+                } catch (Throwable ignored) {}
+                try {
+                    Object request = args != null && args.length > 0 ? args[0] : null;
+                    RoiRuntimeInvocationObserver.recordTransport(request, m);
                 } catch (Throwable ignored) {}
                 Object r = chain.proceed();
                 try {
