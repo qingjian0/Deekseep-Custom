@@ -33,6 +33,8 @@ final class RoiDexKitDiscovery {
     private static final String[] SEMANTIC_ANCHORS = {
             "chat/completions", "application/json", "Authorization", "messages"
     };
+    private static final java.util.concurrent.atomic.AtomicBoolean SCHEDULED =
+            new java.util.concurrent.atomic.AtomicBoolean();
     private static volatile boolean nativeLibraryLoaded;
     private static volatile String nativeLibraryError = "not_attempted";
 
@@ -43,6 +45,32 @@ final class RoiDexKitDiscovery {
         if (loader == null) return;
         synchronized (LOADER_LOCK) {
             REGISTERED_LOADERS.put(loader, Boolean.TRUE);
+        }
+    }
+
+    static void schedule(final ClassLoader root, final String apkPath,
+                         final String[] splitApkPaths) {
+        if (root == null || !SCHEDULED.compareAndSet(false, true)) return;
+        registerClassLoader(root);
+        Thread worker = new Thread(() -> {
+            try {
+                Main.log("[ROI_DEXKIT]\\n" + inspect(root, apkPath, splitApkPaths));
+            } catch (VirtualMachineError fatal) {
+                throw fatal;
+            } catch (ThreadDeath fatal) {
+                throw fatal;
+            } catch (Throwable error) {
+                Main.log("[ROI_DEXKIT] fatal=" + error.getClass().getName());
+            } finally {
+                SCHEDULED.set(false);
+            }
+        }, "roi-dexkit-discovery");
+        worker.setDaemon(true);
+        try {
+            worker.start();
+        } catch (RuntimeException | Error error) {
+            SCHEDULED.set(false);
+            throw error;
         }
     }
 
