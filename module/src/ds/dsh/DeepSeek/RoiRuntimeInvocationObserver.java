@@ -50,6 +50,10 @@ final class RoiRuntimeInvocationObserver {
                 + (HostCompat.isInternationalChannel() ? "international" : "mainland");
     }
 
+    static boolean isObservationEnabled() {
+        return activeEnabled(recorder);
+    }
+
     /** Read-only, opt-in, bounded and TTL-pruned evidence with no request-key exposure. */
     static List<RoiRuntimeInvocationRecorder.EvidenceSnapshot> snapshotEvidence() {
         RoiRuntimeInvocationRecorder active = recorder;
