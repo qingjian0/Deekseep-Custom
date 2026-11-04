@@ -39,7 +39,7 @@ if [[ -z "$GRADLE_BIN" ]]; then
             --output "$TEMP_HOME/gradle.zip" \
             "https://services.gradle.org/distributions/gradle-$GRADLE_VERSION-bin.zip"
         printf '%s  %s\n' "$GRADLE_SHA256" "$TEMP_HOME/gradle.zip" \
-            | sha256sum --check -
+            | sha256sum --check - >&2
         unzip -q "$TEMP_HOME/gradle.zip" -d "$TEMP_HOME"
 
         rm -rf "$GRADLE_HOME"
