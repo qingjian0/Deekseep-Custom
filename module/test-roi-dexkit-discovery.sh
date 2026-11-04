@@ -5,13 +5,14 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DISCOVERY="$ROOT/module/src/ds/dsh/DeepSeek/RoiDexKitDiscovery.java"
 HOST_DISCOVERY="$ROOT/module/src/ds/dsh/DeepSeek/RoiHostDiscovery.java"
 MAIN="$ROOT/module/src/ds/dsh/DeepSeek/Main.java"
+GRAPH="$ROOT/module/src/ds/dsh/DeepSeek/RoiCandidateGraph.java"
 
-python3 - "$DISCOVERY" "$HOST_DISCOVERY" "$MAIN" <<'PY'
+python3 - "$DISCOVERY" "$HOST_DISCOVERY" "$MAIN" "$GRAPH" <<'PY'
 import pathlib
 import re
 import sys
 
-discovery, host_discovery, main = [pathlib.Path(p).read_text(encoding="utf-8") for p in sys.argv[1:]]
+discovery, host_discovery, main, graph = [pathlib.Path(p).read_text(encoding="utf-8") for p in sys.argv[1:]]
 
 def require(source, pattern, label):
     if not re.search(pattern, source, re.S):
@@ -52,6 +53,14 @@ require(discovery, r'callGraph[.]edge[.]invoke[.]', "outgoing call edges are rep
 require(discovery, r'callGraph[.]edge[.]caller[.]', "incoming call edges are reported")
 require(discovery, r'EvidenceKind[.]CALL_GRAPH', "static call relations are typed as call-graph evidence")
 require(discovery, r'dexkit_method_data_invokes_and_callers', "call graph evidence provenance is explicit")
+require(discovery, r'appendCandidateGraph[(]', "per-anchor observations are merged into a graph")
+require(discovery, r'candidateGraph[.]duplicates=', "duplicate method observations are reported")
+require(discovery, r'candidateGraph[.]components=', "candidate graph connectivity is reported")
+require(discovery, r'candidateGraph[.]edgeSemantics=static_dex_reference_only', "graph edges are not misrepresented as runtime paths")
+require(graph, r'DEFAULT_MAX_NODES = 128', "candidate graph node cap is fixed")
+require(graph, r'DEFAULT_MAX_EDGES = 512', "candidate graph edge cap is fixed")
+require(graph, r'countComponents[(]', "graph connected components are computed")
+require(graph, r'unresolvedReferences', "unresolved external references are counted")
 require(discovery, r'resolver[.]activationAuthorized=', "resolver authorization is reported explicitly")
 require(discovery, r'RoiHookResolver[.]EvidenceKind[.]SEMANTIC_MARKER', "semantic anchor evidence is typed")
 require(discovery, r'0[.]25, false, "host_diagnostic_only"', "host identity is not falsely confirmed")
