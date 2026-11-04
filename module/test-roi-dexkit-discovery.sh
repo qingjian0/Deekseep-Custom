@@ -36,6 +36,12 @@ require(graph, r'qualify[(]node[.]sourceScope, caller[)]', "incoming references 
 
 require(discovery, r'MethodMatcher\.create\(\)\.usingStrings', "DexKit semantic method matching is used")
 require(discovery, r'MAX_CANDIDATES_PER_ANCHOR\s*=\s*8', "candidate output is bounded")
+require(discovery, r'MAX_TOTAL_QUERIES_PER_SCAN\s*=\s*32', "per-scan native query count is bounded")
+require(discovery, r'MAX_TOTAL_CANDIDATES_PER_SCAN\s*=\s*96', "per-scan candidate processing is bounded")
+require(discovery, r'SCAN_BUDGET_NANOS\s*=\s*45_000_000_000L', "per-scan soft deadline is fixed")
+require(discovery, r'budget[.]tryStartQuery[(]System[.]nanoTime[(][)][)]', "budget checked before native query start")
+require(discovery, r'budget[.]tryAcceptCandidate[(]System[.]nanoTime[(][)][)]', "budget checked during candidate iteration")
+require(discovery, r'scan[.]budget[.]enforcement=query_start_and_candidate_iteration_only', "native query non-interruptibility is explicit")
 require(discovery, r'MAX_DISCOVERY_PASSES[ ]*=[ ]*3', "runtime rescans are bounded")
 require(discovery, r'Thread[.]sleep[(]pass == 1 [?] 5000L : 10000L[)]', "late DEX rescan cadence is bounded")
 require(discovery, r'inspect[(]root, apkPath, splitApkPaths, pass == 0[)]', "APK scans run only on the initial pass")

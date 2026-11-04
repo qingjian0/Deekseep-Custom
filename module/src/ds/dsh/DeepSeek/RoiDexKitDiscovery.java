@@ -32,6 +32,9 @@ final class RoiDexKitDiscovery {
     private static final int MAX_CANDIDATES_PER_ANCHOR = 8;
     private static final int MAX_RELATIONS_PER_CANDIDATE = 12;
     private static final int MAX_DISCOVERY_PASSES = 3;
+    private static final int MAX_TOTAL_QUERIES_PER_SCAN = 32;
+    private static final int MAX_TOTAL_CANDIDATES_PER_SCAN = 96;
+    private static final long SCAN_BUDGET_NANOS = 45_000_000_000L;
     private static final Object LOADER_LOCK = new Object();
     private static final WeakHashMap<ClassLoader, Boolean> REGISTERED_LOADERS =
             new WeakHashMap<ClassLoader, Boolean>();
@@ -97,7 +100,14 @@ final class RoiDexKitDiscovery {
     private static String inspect(ClassLoader root, String apkPath, String[] splitApkPaths,
                                   boolean includeApkPaths) {
         StringBuilder out = new StringBuilder(2048);
+        RoiDiscoveryBudget budget = new RoiDiscoveryBudget(
+                MAX_TOTAL_QUERIES_PER_SCAN,
+                MAX_TOTAL_CANDIDATES_PER_SCAN,
+                System.nanoTime() + SCAN_BUDGET_NANOS);
         append(out, "scan.apkPathsIncluded=" + includeApkPaths);
+        append(out, "scan.budget.maxQueries=" + MAX_TOTAL_QUERIES_PER_SCAN);
+        append(out, "scan.budget.maxCandidates=" + MAX_TOTAL_CANDIDATES_PER_SCAN);
+        append(out, "scan.budget.softDeadlineMs=" + (SCAN_BUDGET_NANOS / 1_000_000L));
         append(out, "schema=1");
         append(out, "mode=read_only");
         append(out, "loader.discovery=root_parent_and_thread_context_snapshot");
@@ -118,6 +128,10 @@ final class RoiDexKitDiscovery {
         int totalDex = 0;
         int candidateCount = 0;
         for (int i = 0; i < loaders.size(); i++) {
+            if (!budget.canContinue(System.nanoTime())) {
+                append(out, "scan.budget.stopBeforeLoader=" + budget.stopReason());
+                break;
+            }
             DexKitBridge bridge = null;
             try {
                 bridge = DexKitBridge.create(loaders.get(i), true);
@@ -128,7 +142,8 @@ final class RoiDexKitDiscovery {
                 totalDex += count;
                 String sourceScope = RoiCandidateIdentity.forClassLoader(loaders.get(i));
                 append(out, "loader." + (i + 1) + ".sourceScope=" + sourceScope);
-                candidateCount += querySemanticAnchors(bridge, "loader." + (i + 1), sourceScope, out);
+                candidateCount += querySemanticAnchors(
+                        bridge, "loader." + (i + 1), sourceScope, out, budget);
             } catch (Throwable error) {
                 rethrowFatal(error);
                 memoryFailure++;
@@ -147,6 +162,10 @@ final class RoiDexKitDiscovery {
         if (includeApkPaths) {
             List<String> apkPaths = collectApkPaths(apkPath, splitApkPaths);
             for (int i = 0; i < apkPaths.size(); i++) {
+                if (!budget.canContinue(System.nanoTime())) {
+                    append(out, "scan.budget.stopBeforeApk=" + budget.stopReason());
+                    break;
+                }
                 DexKitBridge bridge = null;
                 try {
                     bridge = DexKitBridge.create(apkPaths.get(i));
@@ -158,7 +177,8 @@ final class RoiDexKitDiscovery {
                     totalDex += count;
                     String sourceScope = RoiCandidateIdentity.forApkPath(apkPaths.get(i));
                     append(out, "apk." + (i + 1) + ".sourceScope=" + sourceScope);
-                    candidateCount += querySemanticAnchors(bridge, "apk." + (i + 1), sourceScope, out);
+                    candidateCount += querySemanticAnchors(
+                            bridge, "apk." + (i + 1), sourceScope, out, budget);
                 } catch (Throwable error) {
                     rethrowFatal(error);
                     append(out, "apk." + (i + 1) + ".error="
@@ -183,6 +203,11 @@ final class RoiDexKitDiscovery {
         append(out, "dex.totalReported=" + totalDex);
         append(out, "dex.totalCapped=" + (totalDex >= MAX_REPORTED_DEX));
         append(out, "semanticCandidates=" + candidateCount);
+        append(out, "scan.budget.queriesStarted=" + budget.queriesStarted());
+        append(out, "scan.budget.candidatesAccepted=" + budget.candidatesAccepted());
+        append(out, "scan.budget.exhausted=" + budget.isExhausted(System.nanoTime()));
+        append(out, "scan.budget.stopReason=" + budget.stopReason());
+        append(out, "scan.budget.enforcement=query_start_and_candidate_iteration_only");
         append(out, "semanticEvidence=string_anchor_only");
         append(out, "activation=forbidden_without_external_validation");
         append(out, "dynamicLoaderRegistration=trusted_callers_only");
@@ -191,11 +216,16 @@ final class RoiDexKitDiscovery {
     }
 
 
-    private static int querySemanticAnchors(DexKitBridge bridge, String prefix, String sourceScope, StringBuilder out) {
+    private static int querySemanticAnchors(DexKitBridge bridge, String prefix, String sourceScope,
+                                            StringBuilder out, RoiDiscoveryBudget budget) {
         int total = 0;
         List<RoiCandidateGraph.Observation> graphObservations =
                 new ArrayList<RoiCandidateGraph.Observation>();
         for (String anchor : SEMANTIC_ANCHORS) {
+            if (!budget.tryStartQuery(System.nanoTime())) {
+                append(out, prefix + ".budget.querySkipped=" + budget.stopReason());
+                break;
+            }
             try {
                 FindMethod query = FindMethod.create().matcher(
                         MethodMatcher.create().usingStrings(
@@ -208,10 +238,13 @@ final class RoiDexKitDiscovery {
                                 .callerMethods(MethodsMatcher.create().countMin(0)));
                 Object results = bridge.findMethod(query);
                 int count = invokeSize(results);
-                int emitted = Math.min(count, MAX_CANDIDATES_PER_ANCHOR);
+                int emittedLimit = Math.min(count, MAX_CANDIDATES_PER_ANCHOR);
+                int emitted = 0;
                 append(out, prefix + ".anchor." + safeKey(anchor) + ".matches=" + count);
-                for (int i = 0; i < emitted; i++) {
+                for (int i = 0; i < emittedLimit; i++) {
+                    if (!budget.tryAcceptCandidate(System.nanoTime())) break;
                     Object item = invokeGet(results, i);
+                    emitted++;
                     append(out, prefix + ".candidate." + safeKey(anchor) + "." + i
                             + ".descriptor=" + safe(readString(item, "getDescriptor")));
                     append(out, prefix + ".candidate." + safeKey(anchor) + "." + i
@@ -257,8 +290,7 @@ final class RoiDexKitDiscovery {
                                     0.35, true, "dexkit.string_anchor:" + anchor),
                             new RoiHookResolver.Evidence(
                                     RoiHookResolver.EvidenceKind.METHOD_SHAPE,
-                                    shape == null ? 0.0 : 0.55, shape != null,
-                                    shape == null ? "descriptor_invalid" : "dex_descriptor_shape_validated"),
+                                    shape == null ? 0.0 : 0.55, shape != null,                                    shape == null ? "descriptor_invalid" : "dex_descriptor_shape_validated"),
                             new RoiHookResolver.Evidence(
                                     RoiHookResolver.EvidenceKind.CALL_GRAPH,
                                     relationCount == 0 ? 0.0 : 0.30, false,
@@ -289,7 +321,7 @@ final class RoiDexKitDiscovery {
                 append(out, prefix + ".anchor." + safeKey(anchor)
                         + ".queryError=" + error.getClass().getName());
             }
-            if (out.length() > 8200) break;
+            if (out.length() > 8200 || !budget.canContinue(System.nanoTime())) break;
         }
         appendCandidateGraph(prefix, graphObservations, out);
         return total;
