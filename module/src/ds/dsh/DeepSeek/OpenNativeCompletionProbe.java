@@ -333,7 +333,7 @@ final class OpenNativeCompletionProbe {
             line(out, "probe.elapsedMs", String.valueOf(
                     (System.nanoTime() - startedNanos) / 1_000_000L));
         }
-        if (completed) installRuntimeObservation(loader);
+        installRuntimeObservation(loader);
         report = out.toString();
         // Only a complete DEX inventory is terminal. Class-load/scan failures remain retryable.
         if (completed) REPORTED.set(true);
