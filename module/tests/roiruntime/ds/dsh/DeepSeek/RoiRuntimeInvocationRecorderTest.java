@@ -20,6 +20,7 @@ public final class RoiRuntimeInvocationRecorderTest {
         testTimestampRegressionDoesNotConfirm();
         testSameRequestKeyAcrossHostsDoesNotMerge();
         testSanitizedEvidenceSnapshot();
+        testSameDescriptorDifferentLoaderScopesRemainDistinct();
         testDisabledAndExpiredEvidenceSnapshotsAreEmpty();
         testCapacityAndTtl();
         testInvalidAndWrongSourceRejected();
@@ -166,14 +167,14 @@ public final class RoiRuntimeInvocationRecorderTest {
         RoiRuntimeInvocationRecorder r = recorder(8, 1000);
         String privateKey = "secret-request-key-must-not-escape";
         String adapter = "adapter:generation-27:mainland";
-        r.record(new RoiRuntimeInvocationRecorder.Event(privateKey, adapter, "LReq;->build()V",
-                RoiRuntimeInvocationRecorder.Phase.REQUEST_BUILT, 100, 1,
+        r.record(new RoiRuntimeInvocationRecorder.Event(privateKey, adapter, "loader:process-1:HostLoader",
+                "LReq;->build()V", RoiRuntimeInvocationRecorder.Phase.REQUEST_BUILT, 100, 1,
                 RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 100);
-        r.record(new RoiRuntimeInvocationRecorder.Event(privateKey, adapter, "LNet;->execute()V",
-                RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED, 110, 2,
+        r.record(new RoiRuntimeInvocationRecorder.Event(privateKey, adapter, "loader:process-2:HostLoader",
+                "LNet;->execute()V", RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED, 110, 2,
                 RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 110);
-        r.record(new RoiRuntimeInvocationRecorder.Event(privateKey, adapter, "LResp;->emit()V",
-                RoiRuntimeInvocationRecorder.Phase.RESPONSE_RECEIVED, 120, 3,
+        r.record(new RoiRuntimeInvocationRecorder.Event(privateKey, adapter, "loader:process-3:HostLoader",
+                "LResp;->emit()V", RoiRuntimeInvocationRecorder.Phase.RESPONSE_RECEIVED, 120, 3,
                 RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 120);
         List<RoiRuntimeInvocationRecorder.EvidenceSnapshot> snapshots = r.snapshotEvidence(120);
         check(snapshots.size() == 3, "expected one sanitized entry per observed descriptor");
@@ -184,6 +185,7 @@ public final class RoiRuntimeInvocationRecorderTest {
         }
         for (RoiRuntimeInvocationRecorder.EvidenceSnapshot item : snapshots) {
             check(adapter.equals(item.adapterIdentity), "adapter identity missing");
+            check(item.sourceScope.startsWith("loader:process-"), "class-loader source scope missing");
             check(item.candidateDescriptor.length() > 0, "candidate descriptor missing");
             check(item.orderedRequestTransportResponse, "ordered chain flag missing");
             check(item.candidateDescriptor.indexOf(privateKey) < 0,
@@ -200,6 +202,24 @@ public final class RoiRuntimeInvocationRecorderTest {
         } catch (UnsupportedOperationException expected) {
             // immutable snapshot contract
         }
+    }
+
+    private static void testSameDescriptorDifferentLoaderScopesRemainDistinct() {
+        RoiRuntimeInvocationRecorder r = recorder(8, 1000);
+        String adapter = "adapter:generation-27:mainland";
+        String descriptor = "LShared;->execute()V";
+        r.record(new RoiRuntimeInvocationRecorder.Event("key-a", adapter,
+                "loader:process-1:HostLoader", descriptor,
+                RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED, 100, 1,
+                RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 100);
+        r.record(new RoiRuntimeInvocationRecorder.Event("key-b", adapter,
+                "loader:process-2:HostLoader", descriptor,
+                RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED, 101, 2,
+                RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 101);
+        List<RoiRuntimeInvocationRecorder.EvidenceSnapshot> snapshots = r.snapshotEvidence(101);
+        check(snapshots.size() == 2, "same descriptor across loaders was collapsed");
+        check(!snapshots.get(0).sourceScope.equals(snapshots.get(1).sourceScope),
+                "loader scopes were merged");
     }
 
     private static void testDisabledAndExpiredEvidenceSnapshotsAreEmpty() {
