@@ -213,6 +213,11 @@ require(
     "bounded field inventory preserves the wider default for primary request and manager details",
 )
 require(
+    probe,
+    r"if \(count >= maxFields\) break;.*?\}\s*if \(count >= maxFields\) break;",
+    "candidate field detail limits are enforced across both the field loop and superclass traversal",
+)
+require(
     facade,
     r'z14\.payloadClass\(Main\.hostApplicationContext, "ds\.dsh\.DeepSeek\.z18"\)',
     "execution facade payload class target remains explicit",
