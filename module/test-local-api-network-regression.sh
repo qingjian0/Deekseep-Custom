@@ -49,6 +49,9 @@ required = {
     "monitor registration failure is isolated": 'lanNetworkMonitorStatus = "注册失败：" + error.getClass().getSimpleName()',
     "monitor unregister lifecycle is explicit": 'lanNetworkMonitorStatus = RUNNING.get() && lanEnabled ? "未注册" : "已停止"',
     "LAN binding failure does not overwrite monitor state": 'lanBindingStatus = "绑定失败：" + error.getClass().getSimpleName()',
+    "unsupported model reports the actual requested model": "不支持的模型名称：",
+    "unsupported model is logged without request content": 'Main.log("Open Local API rejected model id: " + reportedModel)',
+    "unsupported model diagnostics are bounded": "reportedModel.length() > 128",
 }
 missing = [label for label, token in required.items() if token not in source]
 if missing:
