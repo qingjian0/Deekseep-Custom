@@ -56,21 +56,55 @@ public final class RoiHookResolverTest {
         check(!RoiHookResolver.resolve(wrongFingerprint, autoPolicy()).activationAuthorized,
                 "adapter approval for another host fingerprint must not transfer");
 
+        RoiHookResolver.Candidate roleMismatch = new RoiHookResolver.Candidate(
+                authorized.hostFingerprint, "response", authorized.className, authorized.methodName,
+                authorized.descriptor, false, true, Collections.singleton("fp-289"),
+                authorized.evidence.values());
+        check(!RoiHookResolver.resolve(roleMismatch, autoPolicy()).activationAuthorized,
+                "adapter authorization must be scoped to its semantic role");
+
+        RoiHookResolver.Candidate duplicateEvidence = new RoiHookResolver.Candidate(
+                "fp-289", "request", "a1", "b", "(X)Y", false, false,
+                Collections.<String>emptySet(),
+                Arrays.asList(e(RoiHookResolver.EvidenceKind.SEMANTIC_MARKER, 0.2, true),
+                        e(RoiHookResolver.EvidenceKind.SEMANTIC_MARKER, 0.4, true),
+                        e(RoiHookResolver.EvidenceKind.SEMANTIC_MARKER, 1.0, false)));
+        check(duplicateEvidence.evidence.size() == 1,
+                "repeated observations in one evidence family must not inflate evidence count");
+        check(duplicateEvidence.evidence.get(RoiHookResolver.EvidenceKind.SEMANTIC_MARKER).confirmed,
+                "equal-confidence confirmed evidence must win deterministic deduplication");
+
+        expectIllegalArgument(new Runnable() {
+            @Override public void run() {
+                e(RoiHookResolver.EvidenceKind.HOST_IDENTITY, 1.01, true);
+            }
+        }, "out-of-range evidence confidence must be rejected");
+        expectIllegalArgument(new Runnable() {
+            @Override public void run() {
+                new RoiHookResolver.Policy(true, Collections.singleton("request"), 0.9, 0.8);
+            }
+        }, "verified threshold below correlated threshold must be rejected");
+
         System.out.println("RoiHookResolver executable tests passed");
     }
 
     private static RoiHookResolver.Candidate candidate(boolean conflict, boolean approved, boolean fullEvidence) {
         Set<String> fingerprints = Collections.singleton("fp-289");
-        RoiHookResolver.Evidence[] all = {
-                e(RoiHookResolver.EvidenceKind.HOST_IDENTITY, 1, true),
-                e(RoiHookResolver.EvidenceKind.DEX_FINGERPRINT, 1, true),
-                e(RoiHookResolver.EvidenceKind.SEMANTIC_MARKER, 1, true),
-                e(RoiHookResolver.EvidenceKind.METHOD_SHAPE, 1, true),
-                e(RoiHookResolver.EvidenceKind.CALL_GRAPH, 1, true),
-                e(RoiHookResolver.EvidenceKind.RUNTIME_INVOCATION, 1, true),
-                e(RoiHookResolver.EvidenceKind.RETURN_CONTRACT, 1, true),
-                e(RoiHookResolver.EvidenceKind.LIFECYCLE_CONTRACT, 1, true)
-        };
+        RoiHookResolver.Evidence[] all = fullEvidence
+                ? new RoiHookResolver.Evidence[] {
+                        e(RoiHookResolver.EvidenceKind.HOST_IDENTITY, 1, true),
+                        e(RoiHookResolver.EvidenceKind.DEX_FINGERPRINT, 1, true),
+                        e(RoiHookResolver.EvidenceKind.SEMANTIC_MARKER, 1, true),
+                        e(RoiHookResolver.EvidenceKind.METHOD_SHAPE, 1, true),
+                        e(RoiHookResolver.EvidenceKind.CALL_GRAPH, 1, true),
+                        e(RoiHookResolver.EvidenceKind.RUNTIME_INVOCATION, 1, true),
+                        e(RoiHookResolver.EvidenceKind.RETURN_CONTRACT, 1, true),
+                        e(RoiHookResolver.EvidenceKind.LIFECYCLE_CONTRACT, 1, true)
+                }
+                : new RoiHookResolver.Evidence[] {
+                        e(RoiHookResolver.EvidenceKind.HOST_IDENTITY, 0.25, false),
+                        e(RoiHookResolver.EvidenceKind.SEMANTIC_MARKER, 0.35, true)
+                };
         return new RoiHookResolver.Candidate("fp-289", "request", "a1", "b", "(X)Y",
                 conflict, approved, fingerprints, Arrays.asList(all));
     }
@@ -81,6 +115,15 @@ public final class RoiHookResolverTest {
 
     private static RoiHookResolver.Policy autoPolicy() {
         return new RoiHookResolver.Policy(true, new HashSet<String>(Collections.singleton("request")), 0.45, 0.82);
+    }
+
+    private static void expectIllegalArgument(Runnable action, String message) {
+        try {
+            action.run();
+        } catch (IllegalArgumentException expected) {
+            return;
+        }
+        throw new AssertionError(message);
     }
 
     private static void check(boolean value, String message) {
