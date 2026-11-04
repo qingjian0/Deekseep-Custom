@@ -359,6 +359,10 @@ final class OpenNativeCompletionProbe {
                     OBSERVATION_JW3, "transport-low-level");
             installObservedMethod(loader, "zn3", "o", requestMarker,
                     OBSERVATION_ZN3, "transport-dispatch");
+        } catch (VirtualMachineError fatal) {
+            throw fatal;
+        } catch (ThreadDeath fatal) {
+            throw fatal;
         } catch (Throwable error) {
             Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] setup failed: "
                     + error.getClass().getName());
@@ -368,8 +372,7 @@ final class OpenNativeCompletionProbe {
     private static void installObservedMethod(ClassLoader loader, String ownerName,
             String methodName, Class<?> requestMarker,
             java.util.concurrent.atomic.AtomicBoolean installed, String role) {
-        // At-most-once attempt: a partially registered Hook must never be duplicated on retry.
-        if (!installed.compareAndSet(false, true)) return;
+        if (installed.get()) return;
         try {
             Class<?> owner = Class.forName(ownerName, false, loader);
             Method selected = null;
@@ -393,6 +396,9 @@ final class OpenNativeCompletionProbe {
                         + ownerName + "." + methodName);
                 return;
             }
+            // Mark before registration: if the framework partially registers and then throws,
+            // a later probe pass must not append a duplicate callback.
+            if (!installed.compareAndSet(false, true)) return;
             final Method target = selected;
             Main.MODULE.hook(target).intercept(new LegacyXposedModule.Hooker() {
                 @Override public Object intercept(LegacyXposedModule.Chain chain)
@@ -427,6 +433,10 @@ final class OpenNativeCompletionProbe {
                                     + "." + target.getName() + " thread=" + thread
                                     + " depth=" + depth + " args=" + args);
                         }
+                    } catch (VirtualMachineError fatal) {
+                        throw fatal;
+                    } catch (ThreadDeath fatal) {
+                        throw fatal;
                     } catch (Throwable observerError) {
                         // Diagnostics must never prevent the original host method from running.
                         if (depthIncremented && frame != null) frame.depth--;
@@ -462,6 +472,10 @@ final class OpenNativeCompletionProbe {
             Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] installed role=" + role
                     + " method=" + target.getDeclaringClass().getName() + "."
                     + target.getName() + " return=" + target.getReturnType().getName());
+        } catch (VirtualMachineError fatal) {
+            throw fatal;
+        } catch (ThreadDeath fatal) {
+            throw fatal;
         } catch (Throwable error) {
             Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] install failed role=" + role
                     + " exception=" + error.getClass().getName());
