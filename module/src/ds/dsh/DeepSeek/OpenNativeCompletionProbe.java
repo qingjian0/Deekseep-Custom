@@ -237,23 +237,33 @@ final class OpenNativeCompletionProbe {
                                 fieldIndex++;
                                 continue;
                             }
+                            // A field can accept more than one discovered transport owner.
+                            // Select its strongest match deterministically instead of letting
+                            // HashSet iteration order decide whether it is reported as exact,
+                            // interface, or supertype.
                             String matchKind = null;
+                            int matchRank = 0;
                             for (Class<?> transportOwner : transportOwners) {
                                 if (fieldType == transportOwner) {
                                     matchKind = "exact";
-                                    exactManagerFields++;
+                                    matchRank = 3;
                                     break;
                                 }
                                 if (fieldType.isAssignableFrom(transportOwner)) {
-                                    if (fieldType.isInterface()) {
-                                        matchKind = "interface";
-                                        interfaceManagerFields++;
-                                    } else {
-                                        matchKind = "supertype";
-                                        supertypeManagerFields++;
+                                    int candidateRank = fieldType.isInterface() ? 2 : 1;
+                                    if (candidateRank > matchRank) {
+                                        matchKind = fieldType.isInterface()
+                                                ? "interface" : "supertype";
+                                        matchRank = candidateRank;
                                     }
-                                    break;
                                 }
+                            }
+                            if ("exact".equals(matchKind)) {
+                                exactManagerFields++;
+                            } else if ("interface".equals(matchKind)) {
+                                interfaceManagerFields++;
+                            } else if ("supertype".equals(matchKind)) {
+                                supertypeManagerFields++;
                             }
                             if (matchKind != null) {
                                 if (managerCandidates < 24) {
@@ -269,6 +279,9 @@ final class OpenNativeCompletionProbe {
                         }
                     }
                 }
+                // These are declared field matches, not discovered manager instances.
+                line(out, "manager.candidateUnit", "typed_non_object_fields");
+                line(out, "manager.typedFieldCount", String.valueOf(managerCandidates));
                 line(out, "manager.candidateCount", String.valueOf(managerCandidates));
                 line(out, "manager.exactFieldCount", String.valueOf(exactManagerFields));
                 line(out, "manager.interfaceFieldCount", String.valueOf(interfaceManagerFields));
