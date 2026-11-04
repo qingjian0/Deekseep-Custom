@@ -7,3 +7,15 @@ javac -source 8 -target 8 -nowarn -d "$OUT" \
   "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java" \
   "$ROOT/module/tests/roiruntime/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorderTest.java"
 java -cp "$OUT" ds.dsh.DeepSeek.RoiRuntimeInvocationRecorderTest
+
+# Static integration guard: the observer must remain opt-in and use existing callbacks only.
+OBSERVER="$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationObserver.java"
+CHAT="$ROOT/module/src/ds/dsh/DeepSeek/HookChatPipeline.java"
+MAIN="$ROOT/module/src/ds/dsh/DeepSeek/Main.java"
+grep -q 'deekseep_roi_runtime_observation_enabled' "$OBSERVER"
+grep -q 'new IdentityHashMap<Object, String>()' "$OBSERVER"
+grep -q 'recordBuilt(chain.proceed()' "$CHAT"
+grep -q 'recordBuilt(chain.proceed(originalArgs)' "$CHAT"
+grep -q 'recordBuilt(chain.proceed(args)' "$CHAT"
+grep -q 'recordTransport(request, m)' "$CHAT"
+grep -q 'RoiRuntimeInvocationObserver.initialize()' "$MAIN"
