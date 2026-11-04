@@ -189,6 +189,8 @@ final class RoiDexKitDiscovery {
 
     private static int querySemanticAnchors(DexKitBridge bridge, String prefix, StringBuilder out) {
         int total = 0;
+        List<RoiCandidateGraph.Observation> graphObservations =
+                new ArrayList<RoiCandidateGraph.Observation>();
         for (String anchor : SEMANTIC_ANCHORS) {
             try {
                 FindMethod query = FindMethod.create().matcher(
@@ -233,7 +235,11 @@ final class RoiDexKitDiscovery {
                     }
                     String candidatePrefix = prefix + ".candidate." + safeKey(anchor) + "." + i;
                     appendMethodStructure(item, candidatePrefix, out);
-                    int relationCount = appendCallRelations(item, candidatePrefix, out);
+                    RoiCandidateGraph.Observation graphObservation = appendCallRelations(
+                            item, candidatePrefix, descriptor, anchor, out);
+                    graphObservations.add(graphObservation);
+                    int relationCount = graphObservation.invokes.size()
+                            + graphObservation.callers.size();
                     List<RoiHookResolver.Evidence> evidence = Arrays.asList(
                             new RoiHookResolver.Evidence(
                                     RoiHookResolver.EvidenceKind.HOST_IDENTITY,
@@ -276,7 +282,33 @@ final class RoiDexKitDiscovery {
             }
             if (out.length() > 8200) break;
         }
+        appendCandidateGraph(prefix, graphObservations, out);
         return total;
+    }
+
+    private static void appendCandidateGraph(String prefix,
+            List<RoiCandidateGraph.Observation> observations, StringBuilder out) {
+        RoiCandidateGraph.Result graph = RoiCandidateGraph.build(observations, 128, 256);
+        append(out, prefix + ".candidateGraph.observed=" + graph.observed);
+        append(out, prefix + ".candidateGraph.nodes=" + graph.uniqueNodes);
+        append(out, prefix + ".candidateGraph.duplicates=" + graph.duplicateObservations);
+        append(out, prefix + ".candidateGraph.edges=" + graph.edgeCount);
+        append(out, prefix + ".candidateGraph.unresolvedReferences="
+                + graph.unresolvedReferences);
+        append(out, prefix + ".candidateGraph.components=" + graph.connectedComponents);
+        append(out, prefix + ".candidateGraph.omittedNodes=" + graph.omittedNodes);
+        append(out, prefix + ".candidateGraph.omittedEdges=" + graph.omittedEdges);
+        append(out, prefix + ".candidateGraph.edgeSemantics=static_dex_reference_only");
+        int emitted = Math.min(graph.edges.size(), 32);
+        for (int i = 0; i < emitted; i++) {
+            RoiCandidateGraph.Edge edge = graph.edges.get(i);
+            append(out, prefix + ".candidateGraph.edge." + i + ".caller=" + safe(edge.caller));
+            append(out, prefix + ".candidateGraph.edge." + i + ".callee=" + safe(edge.callee));
+        }
+        if (graph.edges.size() > emitted) {
+            append(out, prefix + ".candidateGraph.reportOmitted="
+                    + (graph.edges.size() - emitted));
+        }
     }
 
     private static int invokeSize(Object value) throws Exception {
@@ -327,25 +359,29 @@ final class RoiDexKitDiscovery {
      * Read a bounded one-hop call neighborhood from DexKit MethodData. These are static DEX
      * references only; they do not prove that an edge executes on a live request path.
      */
-    private static int appendCallRelations(Object methodData, String prefix, StringBuilder out)
-            throws Exception {
+    private static RoiCandidateGraph.Observation appendCallRelations(Object methodData,
+            String prefix, String descriptor, String anchor, StringBuilder out) throws Exception {
         Object invokes = readObject(methodData, "getInvokes");
         Object callers = readObject(methodData, "getCallers");
         int invokeCount = invokeSize(invokes);
         int callerCount = invokeSize(callers);
+        List<String> invokeDescriptors = new ArrayList<String>();
+        List<String> callerDescriptors = new ArrayList<String>();
         int invokeEmitted = Math.min(invokeCount, MAX_RELATIONS_PER_CANDIDATE);
         int callerEmitted = Math.min(callerCount, MAX_RELATIONS_PER_CANDIDATE);
         append(out, prefix + ".callGraph.invokes.count=" + invokeCount);
         append(out, prefix + ".callGraph.callers.count=" + callerCount);
         for (int i = 0; i < invokeEmitted; i++) {
             Object edge = invokeGet(invokes, i);
-            append(out, prefix + ".callGraph.edge.invoke." + i + "="
-                    + safe(readString(edge, "getDescriptor")));
+            String edgeDescriptor = safe(readString(edge, "getDescriptor"));
+            invokeDescriptors.add(edgeDescriptor);
+            append(out, prefix + ".callGraph.edge.invoke." + i + "=" + edgeDescriptor);
         }
         for (int i = 0; i < callerEmitted; i++) {
             Object edge = invokeGet(callers, i);
-            append(out, prefix + ".callGraph.edge.caller." + i + "="
-                    + safe(readString(edge, "getDescriptor")));
+            String edgeDescriptor = safe(readString(edge, "getDescriptor"));
+            callerDescriptors.add(edgeDescriptor);
+            append(out, prefix + ".callGraph.edge.caller." + i + "=" + edgeDescriptor);
         }
         if (invokeCount > invokeEmitted) {
             append(out, prefix + ".callGraph.invokes.omitted=" + (invokeCount - invokeEmitted));
@@ -353,7 +389,8 @@ final class RoiDexKitDiscovery {
         if (callerCount > callerEmitted) {
             append(out, prefix + ".callGraph.callers.omitted=" + (callerCount - callerEmitted));
         }
-        return invokeEmitted + callerEmitted;
+        return new RoiCandidateGraph.Observation(descriptor, anchor,
+                invokeDescriptors, callerDescriptors);
     }
 
     private static Object readObject(Object value, String getter) {
