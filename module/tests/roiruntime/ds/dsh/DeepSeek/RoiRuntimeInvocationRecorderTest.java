@@ -273,6 +273,10 @@ public final class RoiRuntimeInvocationRecorderTest {
                 "", HOST, "LX;->x()V", RoiRuntimeInvocationRecorder.Phase.REQUEST_BUILT,
                 10, 1, RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK);
         check(!r.record(invalid, 10), "invalid request key accepted");
+        check(!r.record(new RoiRuntimeInvocationRecorder.Event(KEY, HOST, "",
+                "LX;->x()V", RoiRuntimeInvocationRecorder.Phase.REQUEST_BUILT,
+                10, 1, RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 10),
+                "empty source scope accepted");
         check(!r.record(new RoiRuntimeInvocationRecorder.Event(KEY, HOST, "LX;->x()V",
                 RoiRuntimeInvocationRecorder.Phase.REQUEST_BUILT, 10, 1, null), 10),
                 "untrusted source accepted");
