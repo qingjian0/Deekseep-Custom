@@ -17,7 +17,7 @@ required = {
     "active Android network lookup": "manager.getActiveNetwork()",
     "active network link properties": "manager.getLinkProperties(active)",
     "all-network callback registration": "manager.registerNetworkCallback(",
-    "all-network callback request": "new NetworkRequest.Builder().clearCapabilities().build()",
+    "all-network callback request": "removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)",
     "secondary network fallback": "manager.getAllNetworks()",
     "per-network link properties lookup": "manager.getLinkProperties(network)",
     "network available callback": "onAvailable(Network network)",
