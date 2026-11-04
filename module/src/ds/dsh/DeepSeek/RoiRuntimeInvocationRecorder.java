@@ -42,7 +42,6 @@ final class RoiRuntimeInvocationRecorder {
         final String requestKey;
         final String hostFingerprint;
         final String sourceScope;
-        final String sourceScope;
         final String candidateDescriptor;
         final Phase phase;
         final long timestampMillis;
@@ -117,6 +116,7 @@ final class RoiRuntimeInvocationRecorder {
     /** Sanitized per-descriptor evidence; deliberately excludes request keys. */
     static final class EvidenceSnapshot {
         final String adapterIdentity;
+        final String sourceScope;
         final String candidateDescriptor;
         final Phase phase;
         final boolean orderedRequestTransportResponse;
