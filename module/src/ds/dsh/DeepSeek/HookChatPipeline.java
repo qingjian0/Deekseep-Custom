@@ -819,7 +819,7 @@ final class HookChatPipeline {
                                 return RoiRuntimeInvocationObserver.recordBuilt(chain.proceed(args), requestConstructor);
                             }
                             if (forcedNativeReasoning) {
-                                return chain.proceed(originalArgs);
+                                return RoiRuntimeInvocationObserver.recordBuilt(chain.proceed(originalArgs), requestConstructor);
                             }
                         } catch (Throwable t) {
                             // Fatal VM/control-flow errors must never fall through to fail-open request handling.
@@ -829,7 +829,7 @@ final class HookChatPipeline {
                                     "reason=" + Main.safeThrowableMessage(t));
                             Main.log("inject err: " + t);
                         }
-                        return chain.proceed();
+                        return RoiRuntimeInvocationObserver.recordBuilt(chain.proceed(), requestConstructor);
                     }
                 });
                 n++;
