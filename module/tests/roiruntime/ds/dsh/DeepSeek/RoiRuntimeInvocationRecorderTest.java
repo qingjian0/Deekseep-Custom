@@ -12,6 +12,7 @@ public final class RoiRuntimeInvocationRecorderTest {
         testReadOnlyAndUnapprovedHostsReject();
         testCompleteChainAcrossThreads();
         testMissingPhaseDoesNotConfirm();
+        testSameRequestKeyAcrossHostsDoesNotMerge();
         testCapacityAndTtl();
         testInvalidAndWrongSourceRejected();
         testConcurrentRecording();
@@ -65,6 +66,21 @@ public final class RoiRuntimeInvocationRecorderTest {
                 RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED, 110, 1), 110);
         check(!r.snapshotChains(110).get(0).confirmsRequestTransportResponse(),
                 "missing response phase confirmed");
+    }
+
+    private static void testSameRequestKeyAcrossHostsDoesNotMerge() {
+        RoiRuntimeInvocationRecorder r = recorder(8, 1000);
+        r.record(event(KEY, "LReq;->build()V",
+                RoiRuntimeInvocationRecorder.Phase.REQUEST_BUILT, 100, 1), 100);
+        r.record(new RoiRuntimeInvocationRecorder.Event(KEY, "other-approved-host",
+                "LNet;->execute()V", RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED,
+                110, 2, RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 110);
+        List<RoiRuntimeInvocationRecorder.Chain> chains = r.snapshotChains(110);
+        check(chains.size() == 2, "same request key merged across host identities");
+        for (RoiRuntimeInvocationRecorder.Chain chain : chains) {
+            check(!chain.confirmsRequestTransportResponse(),
+                    "cross-host phases incorrectly confirmed a request chain");
+        }
     }
 
     private static void testCapacityAndTtl() {
