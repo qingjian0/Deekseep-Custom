@@ -315,3 +315,12 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 因此当前没有可安全接入的 parser-level callback。保留 `RESPONSE_PARSED` 未确认；不增加新的宿主 Hook target，也不把 SSE 构造或 UI 消息落库当成请求解析证据。
 - 静态回归增加禁止在当前 HookChatPipeline 中无关联地产生 `RESPONSE_PARSED` 的检查。下一步需要找到同时持有精确 Flow/request correlation 的解析回调，或让既有请求 Flow collector 的下游回调携带可验证的同一身份；否则维持未确认。
 - 未运行本地脚本、Android 构建或真机验证；GitHub Actions 对最新提交仍需核验。
+
+
+## R2.5.1 — ordered evidence tiers (2026-11-05)
+
+- 修正 recorder 原先仅按“阶段是否出现”确认请求链的问题。现在必须存在时间戳非递减的 `REQUEST_BUILT → TRANSPORT_ENTERED → RESPONSE_RECEIVED` 序列，才返回 `confirmsRequestTransportResponse()`。
+- `RESPONSE_PARSED` 单独提供 `confirmsParsedResponse()`，且必须在已确认的响应接收阶段之后出现；解析事件先于响应接收时不构成解析确认。
+- 同毫秒事件允许非递减，避免毫秒时钟粒度造成正常快速回调被误拒；这不是严格的因果顺序证明，仍依赖可信 callback 的真实调用顺序与同一 opaque request key。
+- 本次只收紧纯 Java recorder 的证据判定，不新增宿主 Hook，不产生任何新的 `RESPONSE_PARSED` 事件，也不宣称流完成、成功终止或取消状态已被观察。
+- 新增乱序、解析先后关系和同毫秒阶段测试，并在脚本中增加静态断言。当前工具环境未执行该脚本、Android 构建或真机验证；Actions 结果待核验。
