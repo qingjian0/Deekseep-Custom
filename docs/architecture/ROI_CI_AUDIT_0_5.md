@@ -83,3 +83,15 @@ The source and static assertions have been updated on the working branch. The la
 - RESPONSE_RECEIVED and RESPONSE_PARSED are not emitted by this integration. The recorder can currently show a partial build→transport trace only; it cannot confirm a complete request/transport/response chain.
 - Added a regression assertion that same request keys from different host identities never merge, plus static integration guards for opt-in, identity correlation, constructor callback, transport callback, and initialization wiring.
 - CI and device verification for these commits remain pending until the actual workflow result and controlled device evidence are available. No local build or real-device capture is claimed.
+
+
+## R2.3 — correlated Flow emission observation (2026-11-05)
+
+- The legacy network-payload path already installs a narrowly scoped collect hook on the host's concrete completion Flow class (b41 / code257 remap d81), with the collector interface (q03 / code257 remap ja3). It was previously used only to detect registered Expert image relay Flows.
+- Extended that existing collect callback without adding another host Hook target. After the transport method returns its original Flow, the observer associates that exact Flow object with the request's opaque key. At collect time, only an identity-matched Flow is eligible for observation.
+- For a non-relay Flow, the observer wraps the collector only when the host collector type is an interface and the original collector is an instance of it. The proxy delegates to the original collector; after a successful emit call it records RESPONSE_RECEIVED with the actual reflected emit descriptor. It never reads, serializes, logs, or stores the emitted value.
+- If the collector type is not an interface, proxy creation fails, or the Flow identity does not match, the original collector is passed through unchanged and no response event is recorded. Expert image relay Flows keep their existing path and are not attributed to the original request Flow.
+- This event means at least one response item was successfully emitted into the correlated collector; it does not mean the stream completed. RESPONSE_PARSED is still not emitted. A complete request→transport→response-item chain can now be observed on legacy versions where this exact Flow collect hook is installed, but parser-level confirmation and stream completion remain open.
+- 2.7.x remains outside this legacy transport/collect path and does not gain this response observation.
+- The recorder still stores only opaque request keys, approved adapter/channel identity, phase, timestamps, thread IDs, and method descriptors. No request/response payload, URL, headers, prompt, authorization value, or token is captured.
+- Static CI guards now require transport-result Flow association, interface-guarded collector wrapping, and the successful emit observation call. CI and real-device verification remain pending; no local build or live capture is claimed.
