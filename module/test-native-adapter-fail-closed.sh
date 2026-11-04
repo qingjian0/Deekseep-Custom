@@ -141,6 +141,27 @@ require(
     r"static void inspectHost\(ClassLoader loader\)",
     "Open host inventory entry point remains present",
 )
+inspect = probe.split("static void inspectHost(ClassLoader loader)", 1)[1].split(
+    "/** Legacy object-capture entry point", 1
+)[0]
+require(
+    inspect,
+    r"catch \(VirtualMachineError fatal\).*?throw fatal;.*?catch \(ThreadDeath fatal\).*?throw fatal;.*?catch \(Throwable error\)",
+    "fatal VM/control-flow errors escape the runtime inventory catch boundary",
+)
+require(
+    inspect,
+    r"try \{\s*installRuntimeObservation\(loader\);.*?finally \{\s*INSPECTING\.set\(false\);",
+    "runtime inventory always releases its inspection guard after observer setup and reporting",
+)
+legacy_inspect = probe.split("static void inspect(ClassLoader loader, Object powManager", 1)[1].split(
+    "static String status()", 1
+)[0]
+require(
+    legacy_inspect,
+    r"catch \(VirtualMachineError fatal\).*?throw fatal;.*?catch \(ThreadDeath fatal\).*?throw fatal;.*?catch \(Throwable error\)",
+    "legacy inventory also propagates fatal VM/control-flow errors",
+)
 require(
     probe,
     r'line\(out, "report\.schema", "2"\)',
