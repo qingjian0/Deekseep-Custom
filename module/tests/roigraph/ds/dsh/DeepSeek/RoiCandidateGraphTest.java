@@ -8,6 +8,7 @@ public final class RoiCandidateGraphTest {
         testDedupAndDirection();
         testBoundsAndUnresolvedReferences();
         testCyclesAndDisconnectedNodes();
+        testSourceScopeIsolation();
         System.out.println("ROI candidate graph tests passed");
     }
 
@@ -47,6 +48,21 @@ public final class RoiCandidateGraphTest {
         ));
         equal(2, result.edgeCount, "cycle edges");
         equal(2, result.connectedComponents, "cycle and isolated component");
+    }
+
+    private static void testSourceScopeIsolation() {
+        RoiCandidateGraph.Result result = RoiCandidateGraph.build(Arrays.asList(
+                new RoiCandidateGraph.Observation("loader:one", "Lx/Y;->call()V", "one",
+                        Collections.<String>emptyList(), Collections.<String>emptyList()),
+                new RoiCandidateGraph.Observation("loader:two", "Lx/Y;->call()V", "two",
+                        Collections.<String>emptyList(), Collections.<String>emptyList())
+        ));
+        equal(2, result.uniqueNodes, "same descriptor in distinct loader scopes must remain separate");
+        equal(2, result.connectedComponents, "different source scopes must not be connected");
+        check(result.descriptors.contains("loader:one|Lx/Y;->call()V"),
+                "first scoped graph identity must be retained");
+        check(result.descriptors.contains("loader:two|Lx/Y;->call()V"),
+                "second scoped graph identity must be retained");
     }
 
     private static RoiCandidateGraph.Observation observation(
