@@ -2975,6 +2975,9 @@ public final class DeekseepUi {
         card.addView(configTitle);
         final TextView connectionInfo = infoBox(act, Main.localApiConnectionInfo(),
                 textColor, dark);
+        // The connection block contains the URL and Bearer token. Make both selectable
+        // so users can long-press and select either value without removing copy actions.
+        connectionInfo.setTextIsSelectable(true);
         card.addView(connectionInfo, insetParams(act, 0, 12));
 
         LinearLayout copyActions = new LinearLayout(act);
@@ -3287,7 +3290,9 @@ public final class DeekseepUi {
         });
         copyUrl.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                copyText(act, "API URL", Main.localApiEndpoint());
+                String baseUrl = z2.PROTOCOL_ANTHROPIC.equals(Main.localApiProtocol())
+                        ? Main.localApiRootEndpoint() : Main.localApiCopyEndpoint();
+                copyText(act, "API URL", baseUrl);
                 feedback.setText(UiLanguage.dynamic(act, "URL 已复制"));
                 Toast.makeText(act, UiLanguage.dynamic(act, "URL 已复制"),
                         Toast.LENGTH_SHORT).show();
