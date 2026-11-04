@@ -1144,6 +1144,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         try { new FileWriter(LOG_PATH, false).close(); } catch (Throwable ignored) {}
         HookLogOverlay.resetSession();
         HostCompat.initialize(cl);
+        RoiRuntimeInvocationObserver.initialize();
         // SSL trust bypass intentionally removed: was diagnostic-only for GP 2.5.0 symbol capture.
         final String bootstrapVersion = AndroidManifestVersion.readFromApk(
                 param.appInfo == null ? null : param.appInfo.sourceDir);
