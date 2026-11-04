@@ -79,6 +79,7 @@ final class RoiRuntimeInvocationObserver {
                 REQUEST_KEYS.put(request, key);
             }
             active.record(new RoiRuntimeInvocationRecorder.Event(key, hostFingerprint,
+                    RoiCandidateIdentity.forClassLoader(constructor.getDeclaringClass().getClassLoader()),
                     descriptor, RoiRuntimeInvocationRecorder.Phase.REQUEST_BUILT, now,
                     Thread.currentThread().getId(),
                     RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), now);
@@ -99,6 +100,7 @@ final class RoiRuntimeInvocationObserver {
             if (key == null) return;
             long now = System.currentTimeMillis();
             active.record(new RoiRuntimeInvocationRecorder.Event(key, hostFingerprint,
+                    RoiCandidateIdentity.forClassLoader(method.getDeclaringClass().getClassLoader()),
                     methodDescriptor(method),
                     RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED, now,
                     Thread.currentThread().getId(),
@@ -200,6 +202,7 @@ final class RoiRuntimeInvocationObserver {
             if (active == null || !activeEnabled(active)) return;
             long now = System.currentTimeMillis();
             active.record(new RoiRuntimeInvocationRecorder.Event(key, hostFingerprint,
+                    RoiCandidateIdentity.forClassLoader(emitMethod.getDeclaringClass().getClassLoader()),
                     methodDescriptor(emitMethod),
                     RoiRuntimeInvocationRecorder.Phase.RESPONSE_RECEIVED, now,
                     Thread.currentThread().getId(),
