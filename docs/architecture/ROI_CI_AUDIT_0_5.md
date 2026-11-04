@@ -109,3 +109,12 @@ The source and static assertions have been updated on the working branch. The la
 - 新增静态回归断言，要求 Continuation guard 保留。尚未运行本地测试、Android 构建或真机验证；CI 状态需以本提交对应的 Actions 结果为准。
 
 - 进一步收紧：若 collector 接口暴露带 `kotlin.coroutines.Continuation` 参数的 `emit`，观察器现在直接原样传递 collector，不创建代理。当前实现没有包装 continuation 的成功恢复语义，因此也不应为了一个无法确认的事件改变 collector identity。
+
+
+## R2.4.2 — parser-correlation audit (2026-11-05)
+
+- 审计现有 `installServerCapture`：SSE 事件构造器只接收 `String event` 与 `String data`，回调没有 request object、opaque request key 或 Flow identity。即使它位于 SSE 解析链，也不能安全归因到某次请求，因此不记录 `RESPONSE_PARSED`。
+- 审计 `hookFinalMessageApply` / `hookFinalMessageMerge`：可见的是会话对象、SID、消息对象/消息 ID 和替换/合并时机；它们不是请求身份。历史同步、重试、编辑重发及同会话并发都可能导致误关联，不能用“最近请求”或 SID 推断 request key。
+- 因此当前没有可安全接入的 parser-level callback。保留 `RESPONSE_PARSED` 未确认；不增加新的宿主 Hook target，也不把 SSE 构造或 UI 消息落库当成请求解析证据。
+- 静态回归增加禁止在当前 HookChatPipeline 中无关联地产生 `RESPONSE_PARSED` 的检查。下一步需要找到同时持有精确 Flow/request correlation 的解析回调，或让既有请求 Flow collector 的下游回调携带可验证的同一身份；否则维持未确认。
+- 未运行本地脚本、Android 构建或真机验证；GitHub Actions 对最新提交仍需核验。
