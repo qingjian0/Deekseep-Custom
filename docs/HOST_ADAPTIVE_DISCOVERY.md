@@ -111,3 +111,53 @@ Implement DexKit behind an Android-only adapter (for example, `RoiDexKitDiscover
 - Do not collect tokens, chat contents, account credentials, or unrelated user data as discovery evidence.
 - Do not persist executable Hook instructions from untrusted or unverified discovery output.
 - Keep existing known-version mappings as the fast path; discovery is the fallback for unknown or changed versions.
+
+## Runtime DEX analysis library evaluation
+
+### Decision: adopt DexKit behind a bounded adapter, not as a policy dependency
+
+DexKit 2.3.0 is the selected candidate for runtime structural and semantic DEX analysis:
+
+- Maven coordinate: `org.luckypray:dexkit:2.3.0` (AAR).
+- Its query model covers class, method, and field structure, strings, numeric constants, opcodes, and invoked references. This is a better fit for unknown obfuscated builds than class-name enumeration alone.
+- The runtime entry point `DexKitBridge.create(classLoader, true)` attempts to read DEX data exposed by the ART ClassLoader cookie. The documented behavior can fall back to file-backed DEX when an in-memory OAT DEX cannot be parsed.
+- The APK-path and byte-array creation paths remain useful fallbacks for accessible, file-backed code.
+- Bridge creation is expensive and its lifecycle is explicit: create once per bounded analysis scope, reuse for queries, and close deterministically. Do not create a bridge in a hot Hook callback.
+- DexKit 2.3.0 adds numeric-literal query support and improves eligible zero-copy DEX loading. This does not mean it can decrypt arbitrary encrypted payloads that have not been decoded and exposed to ART.
+
+### Packaging gate — not yet integrated
+
+The project does not use a normal Android Gradle application packaging pipeline for the shipped Universal and Legacy artifacts. Both scripts compile sources with `javac`, run D8 manually, then assemble the APK with `aapt2` and `zip`. Therefore, adding a dependency to the pure JVM runtime module would be the wrong integration point and would not automatically package JNI libraries.
+
+The DexKit POM declares these runtime dependencies:
+
+- `com.google.flatbuffers:flatbuffers-java:23.5.26` (JAR);
+- `dev.rikka.ndk.thirdparty:cxx:1.2.0` (AAR / Prefab libc++ package);
+- `org.jetbrains.kotlin:kotlin-stdlib:1.5.0` (the project already stages its resolved Kotlin stdlib).
+
+Before enabling the adapter in either APK, a reproducible staging task must:
+
+1. Resolve and pin the DexKit AAR and transitive artifacts from Maven metadata.
+2. Inspect the actual AAR contents and supported ABIs; do not assume the AAR's JNI layout or that the C++ runtime is a directly copyable `jni/<abi>/*.so` entry. The CXX dependency is published as a Prefab package, so its native payload/layout must be inspected separately.
+3. Stage DexKit bytecode and FlatBuffers classes into the D8 input without introducing duplicate Kotlin runtime classes.
+4. Stage every required native library for each supported ABI into the APK's `lib/<abi>/` directory, and verify the final APK ZIP entries and ELF dependencies.
+5. Preserve a clear ABI policy for Universal and Legacy artifacts. A missing ABI must fail the packaging check rather than silently produce an APK that crashes on load.
+6. Include DexKit's Apache-2.0 and LGPL-3.0 notices, FlatBuffers' applicable notice, and the CXX package's Apache-2.0 notice in the distribution.
+7. Add CI checks for DEX class availability, JNI library presence, ABI coverage, APK alignment/signature, and a smoke test that loads the native library in a supported Android process.
+
+The Android library documentation confirms that AARs may carry `classes.jar`, `libs/`, `jni/<abi>/`, and Prefab content; manual APK assembly must account for these rather than treating an AAR as a single JAR.
+
+### Adapter and rollout boundaries
+
+- Keep DexKit references out of `module-kotlin-runtime`; that module remains pure JVM policy and test contracts.
+- Add the runtime implementation in the Android/Xposed layer behind a narrow adapter. The adapter returns normalized discovery evidence and candidates; it does not install hooks.
+- Run analysis on a bounded background executor after the host loader is available. Apply limits to elapsed time, DEX count, query count, and candidate count.
+- Prefer memory DEX through the host ClassLoader, then explicitly report file-backed fallback and inaccessible code units in the coverage report.
+- Keep known `HostCompat` / `HostRemap` mappings as the fast path. Use DexKit as a fallback for unknown or changed fingerprints, and persist only evidence-backed mappings with host identity and fingerprint.
+- Do not infer that a candidate is a request sender merely because it accepts a request-like model. Require corroborating call-site evidence and passive runtime observation before verification.
+- No automatic Hook activation for an unknown host version. The first integration release is discovery/report-only; Hook activation remains gated by the existing explicit candidate lifecycle.
+- Do not claim encrypted DEX support. If a protected payload is decoded and loaded into an ART-visible ClassLoader, memory DEX inspection may be possible; otherwise report the code as inaccessible.
+
+### Current implementation status
+
+DexKit 2.3.0 has been evaluated at the API, dependency, license, and packaging-architecture level. It is **not yet a project dependency**, its native libraries have **not yet been staged**, and no real-device memory-DEX read has been validated. The next engineering slice is a reproducible dependency/native-payload staging prototype for both manual APK builders, followed by a CI APK inspection. Only after that passes should the read-only `RoiDexKitDiscovery` adapter be implemented.
