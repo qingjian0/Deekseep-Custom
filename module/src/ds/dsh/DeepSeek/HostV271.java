@@ -54,6 +54,10 @@ final class HostV271 {
     private HostV271() {}
 
     static void installFeatureHooks(final ClassLoader cl) {
+        if (!HostCompat.isV271LimitedWhitelistSupported()) {
+            Main.log("v271 whitelist refused: fallback is verified only for code287");
+            return;
+        }
         final Main module = Main.MODULE;
         if (module == null) {
             Main.log("v271 whitelist skipped: module instance unavailable");
