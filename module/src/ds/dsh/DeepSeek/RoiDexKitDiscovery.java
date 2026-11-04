@@ -27,6 +27,7 @@ final class RoiDexKitDiscovery {
     private static final int MAX_APK_PATHS = 8;
     private static final int MAX_REPORTED_DEX = 256;
     private static final int MAX_CANDIDATES_PER_ANCHOR = 8;
+    private static final int MAX_DISCOVERY_PASSES = 3;
     private static final Object LOADER_LOCK = new Object();
     private static final WeakHashMap<ClassLoader, Boolean> REGISTERED_LOADERS =
             new WeakHashMap<ClassLoader, Boolean>();
@@ -54,7 +55,18 @@ final class RoiDexKitDiscovery {
         registerClassLoader(root);
         Thread worker = new Thread(() -> {
             try {
-                Main.log("[ROI_DEXKIT]\\n" + inspect(root, apkPath, splitApkPaths));
+                for (int pass = 0; pass < MAX_DISCOVERY_PASSES; pass++) {
+                    if (pass > 0) {
+                        try {
+                            Thread.sleep(pass == 1 ? 5000L : 10000L);
+                        } catch (InterruptedException interrupted) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                    }
+                    String report = inspect(root, apkPath, splitApkPaths, pass == 0);
+                    Main.log("[ROI_DEXKIT]\\npass=" + (pass + 1) + "\\n" + report);
+                }
             } catch (VirtualMachineError fatal) {
                 throw fatal;
             } catch (ThreadDeath fatal) {
@@ -75,7 +87,13 @@ final class RoiDexKitDiscovery {
     }
 
     static String inspect(ClassLoader root, String apkPath, String[] splitApkPaths) {
+        return inspect(root, apkPath, splitApkPaths, true);
+    }
+
+    private static String inspect(ClassLoader root, String apkPath, String[] splitApkPaths,
+                                  boolean includeApkPaths) {
         StringBuilder out = new StringBuilder(2048);
+        append(out, "scan.apkPathsIncluded=" + includeApkPaths);
         append(out, "schema=1");
         append(out, "mode=read_only");
         append(out, "loader.discovery=root_parent_and_thread_context_snapshot");
@@ -120,7 +138,7 @@ final class RoiDexKitDiscovery {
         }
 
         int apkSuccess = 0;
-        {
+        if (includeApkPaths) {
             List<String> apkPaths = collectApkPaths(apkPath, splitApkPaths);
             for (int i = 0; i < apkPaths.size(); i++) {
                 DexKitBridge bridge = null;
@@ -145,6 +163,8 @@ final class RoiDexKitDiscovery {
                     break;
                 }
             }
+        } else {
+            append(out, "apk.scanSkipped=runtime_rescan");
         }
 
         append(out, "loader.count=" + loaders.size());
@@ -157,7 +177,8 @@ final class RoiDexKitDiscovery {
         append(out, "semanticCandidates=" + candidateCount);
         append(out, "semanticEvidence=string_anchor_only");
         append(out, "activation=forbidden_without_external_validation");
-        append(out, "dynamicLoaderRegistration=explicit_api_required");
+        append(out, "dynamicLoaderRegistration=trusted_callers_only");
+        append(out, "loader.rescan=bounded_thread_context_snapshot");
         return out.toString();
     }
 
