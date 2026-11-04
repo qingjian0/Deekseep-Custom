@@ -54,7 +54,12 @@ final class RoiRuntimeInvocationObserver {
     static List<RoiRuntimeInvocationRecorder.EvidenceSnapshot> snapshotEvidence() {
         RoiRuntimeInvocationRecorder active = recorder;
         if (active == null || !activeEnabled(active)) return Collections.emptyList();
-        return active.snapshotEvidence(System.currentTimeMillis());
+        try {
+            return active.snapshotEvidence(System.currentTimeMillis());
+        } catch (Throwable error) {
+            rethrowFatal(error);
+            return Collections.emptyList();
+        }
     }
 
     static Object recordBuilt(Object request, Constructor<?> constructor) {
