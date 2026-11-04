@@ -73,8 +73,8 @@ tasks.register<Copy>("stageR8Tool") {
 }
 
 
-// Reproducible dependency staging prototype. This validates the published AAR layout
-// and exposes bytecode/JNI payloads without yet enabling DexKit in either shipped APK.
+// Reproducible DexKit staging for the manual Legacy and Universal D8/APK pipelines.
+// APK integration remains independently verified by each build script after packaging.
 tasks.register("stageDexKitArtifacts") {
     val stageDirectory = layout.buildDirectory.dir("dexkit-stage")
     outputs.dir(stageDirectory)
