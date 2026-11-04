@@ -94,6 +94,7 @@ final class RoiDexKitDiscovery {
         int memorySuccess = 0;
         int memoryFailure = 0;
         int totalDex = 0;
+        int candidateCount = 0;
         for (int i = 0; i < loaders.size(); i++) {
             DexKitBridge bridge = null;
             try {
@@ -149,7 +150,8 @@ final class RoiDexKitDiscovery {
         append(out, "loader.count=" + loaders.size());
         append(out, "loader.memorySuccess=" + memorySuccess);
         append(out, "loader.memoryFailure=" + memoryFailure);
-        append(out, "apk.fallbackSuccess=" + apkSuccess);
+        append(out, "apk.scanSuccess=" + apkSuccess);
+        append(out, "apk.scanMode=installed_package_supplement");
         append(out, "dex.totalReported=" + totalDex);
         append(out, "dex.totalCapped=" + (totalDex >= MAX_REPORTED_DEX));
         append(out, "semanticCandidates=" + candidateCount);
