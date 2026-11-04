@@ -241,6 +241,8 @@ final class HookAccountLoginSecurity {
 
     static volatile String localApiKeepAliveError = "尚未启动前台保活";
 
+    static volatile String localApiFloatingWindowError = "";
+
     static volatile boolean localApiKeepAliveRequested;
 
     private static final Object V236_FREEZER_LOCK_GUARD = new Object();
