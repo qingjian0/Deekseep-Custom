@@ -48,8 +48,7 @@ final class RoiRuntimeInvocationObserver {
             String descriptor = constructorDescriptor(constructor);
             long now = System.currentTimeMillis();
             synchronized (REQUEST_KEYS) {
-                REQUEST_KEYS.put(request, key);
-                if (REQUEST_KEYS.size() > 1024) REQUEST_KEYS.clear();
+                if (REQUEST_KEYS.size() >= 1024) REQUEST_KEYS.clear();
                 REQUEST_KEYS.put(request, key);
             }
             active.record(new RoiRuntimeInvocationRecorder.Event(key, hostFingerprint,
