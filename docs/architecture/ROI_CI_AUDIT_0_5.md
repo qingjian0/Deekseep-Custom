@@ -95,3 +95,5 @@ The source and static assertions have been updated on the working branch. The la
 - 2.7.x remains outside this legacy transport/collect path and does not gain this response observation.
 - The recorder still stores only opaque request keys, approved adapter/channel identity, phase, timestamps, thread IDs, and method descriptors. No request/response payload, URL, headers, prompt, authorization value, or token is captured.
 - Static CI guards now require transport-result Flow association, interface-guarded collector wrapping, and the successful emit observation call. CI and real-device verification remain pending; no local build or live capture is claimed.
+
+- The collector proxy changes the collector object's identity for that single correlated collection. Although it preserves the interface and delegates every method, host Flow identity/context assumptions have not yet been validated on-device; keep observation opt-in until controlled runtime verification confirms no regression.
