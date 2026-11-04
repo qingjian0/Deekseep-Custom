@@ -6,7 +6,9 @@ import java.lang.reflect.Method;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
+import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -33,15 +35,26 @@ final class RoiRuntimeInvocationObserver {
         boolean approved = HostCompat.supportsMaintainedFeatureRuntime();
         boolean enabled = approved && new File(ENABLE_FILE).isFile();
         recordingEnabled = enabled;
-        hostFingerprint = approved
-                ? "adapter:" + HostCompat.generationName() + ":"
-                        + (HostCompat.isInternationalChannel() ? "international" : "mainland")
-                : "";
+        hostFingerprint = approved ? currentAdapterIdentity() : "";
         recorder = new RoiRuntimeInvocationRecorder(
                 enabled
                         ? RoiRuntimeInvocationRecorder.Policy.trustedKnownHost(true, true)
                         : RoiRuntimeInvocationRecorder.Policy.disabled(),
                 512, 120000L);
+    }
+
+    /** Returns the approved adapter label, never an APK/DEX fingerprint. */
+    static String currentAdapterIdentity() {
+        if (!HostCompat.supportsMaintainedFeatureRuntime()) return "";
+        return "adapter:" + HostCompat.generationName() + ":"
+                + (HostCompat.isInternationalChannel() ? "international" : "mainland");
+    }
+
+    /** Read-only, opt-in, bounded and TTL-pruned evidence with no request-key exposure. */
+    static List<RoiRuntimeInvocationRecorder.EvidenceSnapshot> snapshotEvidence() {
+        RoiRuntimeInvocationRecorder active = recorder;
+        if (active == null || !activeEnabled(active)) return Collections.emptyList();
+        return active.snapshotEvidence(System.currentTimeMillis());
     }
 
     static Object recordBuilt(Object request, Constructor<?> constructor) {
