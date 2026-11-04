@@ -216,3 +216,13 @@ Run `41649071834` 是本轮已核实的完整绿色 CI。它验证的是 JVM/脚
 - The resolver remains discovery-only; no Hook installer, host method invocation, automatic adapter approval, or unknown-version activation was added.
 - Corrected a stale DexKit discovery assertion that expected the previous method-shape confidence contract. Added static assertions for metadata accessors and bounded call edges.
 - Verification status: GitHub combined status currently returns an empty status list for the queried commit. Treat CI as pending/unverified; no local Gradle execution or real-device verification is claimed.
+
+## 7D. ROI R1.3 — bounded candidate graph aggregation (2026-11-04)
+
+- 新增纯 Java `RoiCandidateGraph`，在单个 DexKit bridge 扫描范围内，把多个字符串锚点命中的相同 method descriptor 合并为单一节点，并合并 anchor / invokes / callers 观测。
+- 调用边统一为 caller → callee：候选的 invokes 形成 candidate → target；候选的 callers 形成 caller → candidate。重复边在应用边上限前后都只计一次。
+- 输出 observed、unique nodes、duplicate observations、retained edges、unresolved external references、connected components、omitted nodes / edges。
+- 每个 bridge scan 图限制为 128 个节点、256 条保留边；诊断报告最多输出 32 条边。静态图不加载宿主类、不调用宿主方法。
+- 新增独立 Java 回归测试：跨锚点去重、边方向、重复边、节点/边上限、外部引用、循环和孤立节点。ROI fast audit 与完整 Regression 均执行新脚本。
+- 当前图只反映静态 DEX 引用关系，不负责 Request / Transport / Response 语义分类，不证明真实请求路径，也不授权 Hook 激活。
+- 验证边界：源码与 CI 工作流已更新；尚未取得本批次 GitHub Actions 成功结果，也未在本地或真机执行。
