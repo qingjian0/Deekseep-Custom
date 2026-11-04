@@ -121,6 +121,15 @@ final class RoiDexKitDiscovery {
         }
         append(out, "dexkit.available=true");
 
+        List<RoiRuntimeInvocationRecorder.EvidenceSnapshot> runtimeEvidence =
+                RoiRuntimeInvocationObserver.snapshotEvidence();
+        String adapterIdentity = RoiRuntimeInvocationObserver.currentAdapterIdentity();
+        append(out, "runtimeEvidence.enabled=" + !runtimeEvidence.isEmpty());
+        append(out, "runtimeEvidence.adapterIdentityKind=adapter_generation_channel_not_apk_fingerprint");
+        append(out, "runtimeEvidence.matching=exact_method_descriptor_and_adapter_identity_only");
+        append(out, "runtimeEvidence.snapshotEntries=" + runtimeEvidence.size());
+        append(out, "runtimeEvidence.resolverContribution=none_read_only_diagnostic_only");
+
         registerClassLoader(root);
         List<ClassLoader> loaders = collectLoaders(root);
         int memorySuccess = 0;
@@ -143,7 +152,8 @@ final class RoiDexKitDiscovery {
                 String sourceScope = RoiCandidateIdentity.forClassLoader(loaders.get(i));
                 append(out, "loader." + (i + 1) + ".sourceScope=" + sourceScope);
                 candidateCount += querySemanticAnchors(
-                        bridge, "loader." + (i + 1), sourceScope, out, budget);
+                        bridge, "loader." + (i + 1), sourceScope, out, budget,
+                        runtimeEvidence, adapterIdentity);
             } catch (Throwable error) {
                 rethrowFatal(error);
                 memoryFailure++;
@@ -178,7 +188,8 @@ final class RoiDexKitDiscovery {
                     String sourceScope = RoiCandidateIdentity.forApkPath(apkPaths.get(i));
                     append(out, "apk." + (i + 1) + ".sourceScope=" + sourceScope);
                     candidateCount += querySemanticAnchors(
-                            bridge, "apk." + (i + 1), sourceScope, out, budget);
+                            bridge, "apk." + (i + 1), sourceScope, out, budget,
+                            runtimeEvidence, adapterIdentity);
                 } catch (Throwable error) {
                     rethrowFatal(error);
                     append(out, "apk." + (i + 1) + ".error="
@@ -217,7 +228,9 @@ final class RoiDexKitDiscovery {
 
 
     private static int querySemanticAnchors(DexKitBridge bridge, String prefix, String sourceScope,
-                                            StringBuilder out, RoiDiscoveryBudget budget) {
+            StringBuilder out, RoiDiscoveryBudget budget,
+            List<RoiRuntimeInvocationRecorder.EvidenceSnapshot> runtimeEvidence,
+            String adapterIdentity) {
         int total = 0;
         List<RoiCandidateGraph.Observation> graphObservations =
                 new ArrayList<RoiCandidateGraph.Observation>();
@@ -259,8 +272,9 @@ final class RoiDexKitDiscovery {
 
                     // R1 integration: feed observed DexKit metadata into the resolver, but do
                     // not promote a string hit into method-shape, call-graph, or runtime proof.
-                    String hostKey = "unverified:" + HostCompat.diagnosticSummary()
-                            .replace('\n', '|').replace('\r', '|');
+                    String hostKey = adapterIdentity.length() > 0 ? adapterIdentity
+                            : "unverified:" + HostCompat.diagnosticSummary()
+                                    .replace('\n', '|').replace('\r', '|');
                     RoiMethodShape shape = RoiMethodShape.parse(descriptor);
                     append(out, prefix + ".candidate." + safeKey(anchor) + "." + i
                             + ".shape.valid=" + (shape != null));
@@ -279,6 +293,8 @@ final class RoiDexKitDiscovery {
                             item, candidatePrefix, sourceScope, descriptor, anchor, out);
                     graphObservations.add(graphObservation);
                     appendSemanticRoleHints(candidatePrefix, graphObservation.invokes, out);
+                    appendRuntimeEvidence(candidatePrefix, hostKey, descriptor,
+                            runtimeEvidence, adapterIdentity, out);
                     int relationCount = graphObservation.invokes.size()
                             + graphObservation.callers.size();
                     List<RoiHookResolver.Evidence> evidence = Arrays.asList(
@@ -325,6 +341,47 @@ final class RoiDexKitDiscovery {
         }
         appendCandidateGraph(prefix, graphObservations, out);
         return total;
+    }
+
+    private static void appendRuntimeEvidence(String prefix, String candidateHostIdentity,
+            String candidateDescriptor,
+            List<RoiRuntimeInvocationRecorder.EvidenceSnapshot> snapshots,
+            String adapterIdentity, StringBuilder out) {
+        int matches = 0;
+        int requestBuilt = 0;
+        int transportEntered = 0;
+        int responseReceived = 0;
+        int responseParsed = 0;
+        boolean orderedRequestTransportResponse = false;
+        boolean orderedParsedResponse = false;
+        if (adapterIdentity.length() > 0
+                && adapterIdentity.equals(candidateHostIdentity)
+                && candidateDescriptor.length() > 0) {
+            for (RoiRuntimeInvocationRecorder.EvidenceSnapshot item : snapshots) {
+                if (!adapterIdentity.equals(item.adapterIdentity)
+                        || !candidateDescriptor.equals(item.candidateDescriptor)) continue;
+                matches++;
+                switch (item.phase) {
+                    case REQUEST_BUILT: requestBuilt++; break;
+                    case TRANSPORT_ENTERED: transportEntered++; break;
+                    case RESPONSE_RECEIVED: responseReceived++; break;
+                    case RESPONSE_PARSED: responseParsed++; break;
+                    default: break;
+                }
+                orderedRequestTransportResponse |= item.orderedRequestTransportResponse;
+                orderedParsedResponse |= item.orderedParsedResponse;
+            }
+        }
+        append(out, prefix + ".runtimeEvidence.exactDescriptorMatches=" + matches);
+        append(out, prefix + ".runtimeEvidence.requestBuilt=" + requestBuilt);
+        append(out, prefix + ".runtimeEvidence.transportEntered=" + transportEntered);
+        append(out, prefix + ".runtimeEvidence.responseReceived=" + responseReceived);
+        append(out, prefix + ".runtimeEvidence.responseParsed=" + responseParsed);
+        append(out, prefix + ".runtimeEvidence.orderedRequestTransportResponse="
+                + orderedRequestTransportResponse);
+        append(out, prefix + ".runtimeEvidence.orderedParsedResponse=" + orderedParsedResponse);
+        append(out, prefix + ".runtimeEvidence.provenance=trusted_existing_callback_exact_match");
+        append(out, prefix + ".runtimeEvidence.resolverContribution=none");
     }
 
     private static void appendSemanticRoleHints(String prefix, List<String> invokes,
