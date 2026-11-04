@@ -187,8 +187,19 @@ final class OpenNativeCompletionProbe {
                             // Record its declared state shape without invoking it.
                             line(out, "transportReturn" + candidates + ".class",
                                     returnType.getName());
+                            String returnInterfaces;
+                            try {
+                                returnInterfaces = interfaces(returnType);
+                            } catch (LinkageError | RuntimeException error) {
+                                classLoadFailures++;
+                                returnInterfaces = "<unavailable:"
+                                        + error.getClass().getName() + ">";
+                                line(out, "transportReturn" + candidates
+                                        + ".interfaceMetadataError",
+                                        error.getClass().getName());
+                            }
                             line(out, "transportReturn" + candidates + ".interfaces",
-                                    interfaces(returnType));
+                                    returnInterfaces);
                             appendFields(out, "transportReturn" + candidates, returnType, 1, 8);
                         }
                         candidates++;
