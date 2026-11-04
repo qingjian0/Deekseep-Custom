@@ -120,12 +120,12 @@ require(
 )
 require(
     probe,
-    r"parameters\\[0\\] == requestMarker.*?installed\\.compareAndSet\\(false, true\\)",
+    r"parameters\[0\] == requestMarker.*?installed\.compareAndSet\(false, true\)",
     "runtime observer requires the exact request marker and makes at most one installation attempt",
 )
 require(
     probe,
-    r"catch \\(Throwable observerError\\).*?Diagnostics must never prevent the original host method from running.*?chain\\.proceed\\(\\)",
+    r"catch \(Throwable observerError\).*?Diagnostics must never prevent the original host method from running.*?chain\.proceed\(\)",
     "observer-side failures cannot prevent the original host method from running",
 )
 require(
