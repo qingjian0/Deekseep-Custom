@@ -61,3 +61,13 @@ The source and static assertions have been updated on the working branch. The la
 - The classifier emits only positive hints and matched descriptor samples; unknown or obfuscated references remain unresolved. A method may carry multiple hints, and absence of a hint is not evidence that a role is absent.
 - Hints are reported per candidate with provenance `direct_static_invoke_reference`. They are not fed into `RoiHookResolver`, do not change candidate role from `unresolved`, and cannot authorize activation.
 - Added isolated JVM tests for request-builder, transport, response-parser, and unknown-reference cases. Added the test to both the parallel ROI fast audit and full regression job.
+
+## R2.1 — bounded payload-free runtime invocation recorder
+
+- Added a standalone Java recorder for observations emitted only by an explicitly trusted existing callback. The recorder does not install hooks, load host classes, invoke host methods, or infer runtime evidence from DEX hints.
+- Events contain only an opaque request correlation key, approved host fingerprint, candidate method descriptor, phase, timestamp, thread ID, and trusted source marker. Prompt text, request/response bodies, headers, authorization values, and tokens are not accepted or stored.
+- Recording is disabled by default and requires a known/approved host plus explicit trusted-observation enablement; read-only policy rejects all events. Unknown versions therefore remain read-only.
+- The synchronized buffer is bounded by capacity and TTL. Correlation permits thread changes for asynchronous transport, but requires the same opaque request key and host fingerprint. Only observed REQUEST_BUILT + TRANSPORT_ENTERED + RESPONSE_RECEIVED phases produce a confirmed request/transport/response chain.
+- RESPONSE_PARSED is supplemental and is not required for the minimum chain. Missing phases remain unconfirmed. The recorder is not yet connected to a host callback; no live runtime evidence is claimed.
+- Added standalone JVM tests for read-only/unknown host rejection, cross-thread correlation, missing phases, capacity, TTL, invalid/untrusted events, and concurrent recording. The test script is wired into ROI fast audit and full regression.
+- Verification remains pending until the associated GitHub Actions run is inspected; no local or device execution is claimed.
