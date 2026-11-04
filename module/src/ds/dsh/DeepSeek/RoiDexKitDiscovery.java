@@ -17,10 +17,11 @@ import java.util.Set;
 /**
  * Bounded, read-only DexKit inventory for hosts without a maintained symbol map.
  *
- * <p>The first pass asks DexKit to inspect each visible BaseDexClassLoader using ART's
- * in-memory DEX path. If no loader can be inspected, it falls back to the installed base
- * APK and split APK paths. This class never loads host classes, invokes host methods, or
- * installs hooks. Semantic query profiles are deliberately kept separate from activation.</p>
+ * <p>The first pass inspects visible BaseDexClassLoader instances through ART and scans
+ * installed base/split APKs as an independent supplement. Two bounded follow-up passes
+ * rescan runtime loaders to catch late thread-context loaders and newly attached DEX files.
+ * This class never loads host classes, invokes host methods, or installs hooks. Semantic
+ * candidates are evidence only and are deliberately kept separate from activation.</p>
  */
 final class RoiDexKitDiscovery {
     private static final int MAX_LOADERS = 12;
