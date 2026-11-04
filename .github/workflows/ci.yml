@@ -49,7 +49,7 @@ jobs:
               scripts/test-package-identity.sh scripts/test-universal-feature-parity.sh \
               module-legacy/test-adapter-regression.sh module/test-target-process-guard.sh \
               module/test-hostmap-regression.sh module/test-local-api-network-regression.sh \
-              module/test-native-adapter-fail-closed.sh; do
+              module/test-native-adapter-fail-closed.sh scripts/package-dexkit-native.sh; do
             bash -n "$script"
           done
           GRADLE_BIN="$(bash scripts/gradle-bootstrap.sh)"
@@ -61,7 +61,7 @@ jobs:
           test -d "$DEXKIT_STAGE/cxx-prefab/prefab"
           test -s "$DEXKIT_STAGE/jni/arm64-v8a/libdexkit.so"
           find "$DEXKIT_STAGE/jni" -type f -name '*.so' -print
-          python3 -m py_compile scripts/verify-elf-load-alignment.py
+          python3 -m py_compile scripts/verify-elf-load-alignment.py scripts/verify-dexkit-apk.py
           mapfile -t DEXKIT_NATIVE_LIBS < <(find "$DEXKIT_STAGE/jni" -type f -name 'libdexkit.so' | sort)
           test "${#DEXKIT_NATIVE_LIBS[@]}" -gt 0
           python3 scripts/verify-elf-load-alignment.py "${DEXKIT_NATIVE_LIBS[@]}"
@@ -74,6 +74,7 @@ jobs:
           bash scripts/test-package-identity.sh
           bash module-legacy/test-adapter-regression.sh
           bash module-legacy/build.sh
+          python3 scripts/verify-dexkit-apk.py module-legacy/ds-probe-legacy.apk "$DEXKIT_STAGE"
           bash module/test-expert-relay-regression.sh
           bash module/test-language-catalog.sh
           bash module/test-target-process-guard.sh
@@ -93,6 +94,7 @@ jobs:
           bash module/test-port-v271.sh
           bash module/test-thinking-regression.sh
           GOOGLE_PLAY_BUILD=true bash module-universal/build.sh
+          python3 scripts/verify-dexkit-apk.py module-universal/ds-probe-universal-google-play.apk module-kotlin-runtime/build/dexkit-stage
           export AAPT2="$ANDROID_SDK_ROOT/build-tools/37.0.0/aapt2"
           bash scripts/test-universal-feature-parity.sh
 
