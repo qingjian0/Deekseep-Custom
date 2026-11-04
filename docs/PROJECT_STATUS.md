@@ -268,3 +268,15 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - This can establish a synchronous nested runtime call edge and same-object pass-through if the two existing observed methods nest on the same thread.
 - It does not establish asynchronous Flow execution, socket/network entry, response receipt/parsing, or a complete request chain. No Hook activation or adapter readiness is implied.
 - CI for this R2.2 change is pending until its own commit's workflow completes; no device observation is claimed.
+
+
+## 7I. ROI R2.2 — trusted existing callback connection (2026-11-05)
+
+- 将纯 Java 运行时记录器接入现有 completion request 非合成构造器回调与旧版 transport 回调；没有新增宿主 Hook 目标。
+- 构造器成功返回后，以实际反射构造器描述符记录 REQUEST_BUILT；transport 回调仅在同一个请求对象通过 IdentityHashMap 关联成功时记录 TRANSPORT_ENTERED。关联键为进程内单调递增 opaque ID。
+- 默认关闭。只有维护中的宿主适配器通过检查，并存在显式开关文件 `/data/data/com.deepseek.chat/files/deekseep_roi_runtime_observation_enabled` 才启用。未知/未维护宿主仍只读。记录中的 host identity 是适配器/渠道标签，不是密码学 APK 指纹。
+- 不记录 URL、请求/响应正文、headers、prompt、Authorization 或 token。观察器异常被隔离，不应改变构造器或 transport 的原始执行结果。
+- 2.7.x 仍跳过旧版 network-payload 安装路径；expert Flow collect 回调只覆盖已登记的 expert-image relay Flow，不视为普通聊天通用响应回调。
+- 本轮没有发出 RESPONSE_RECEIVED 或 RESPONSE_PARSED。当前最多形成 build→transport 部分轨迹，不能确认完整请求/transport/response 链。
+- 增加同 request key 不同 host identity 不得合并的回归测试，以及开关、对象身份关联、构造器回调、transport 回调和初始化接线的静态检查。
+- 本轮 CI 与真机验证待对应工作流和受控设备证据；没有声称本地构建或真机捕获成功。
