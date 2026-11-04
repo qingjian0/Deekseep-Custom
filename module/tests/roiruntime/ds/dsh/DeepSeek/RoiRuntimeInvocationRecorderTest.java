@@ -12,6 +12,9 @@ public final class RoiRuntimeInvocationRecorderTest {
         testReadOnlyAndUnapprovedHostsReject();
         testCompleteChainAcrossThreads();
         testMissingPhaseDoesNotConfirm();
+        testOutOfOrderPhasesDoNotConfirm();
+        testParsedPhaseRequiresOrderedReceipt();
+        testSameMillisecondPhasesRemainPossible();
         testSameRequestKeyAcrossHostsDoesNotMerge();
         testCapacityAndTtl();
         testInvalidAndWrongSourceRejected();
@@ -66,6 +69,53 @@ public final class RoiRuntimeInvocationRecorderTest {
                 RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED, 110, 1), 110);
         check(!r.snapshotChains(110).get(0).confirmsRequestTransportResponse(),
                 "missing response phase confirmed");
+    }
+
+    private static void testOutOfOrderPhasesDoNotConfirm() {
+        RoiRuntimeInvocationRecorder r = recorder(8, 1000);
+        r.record(event(KEY, "LResp;->receive()V",
+                RoiRuntimeInvocationRecorder.Phase.RESPONSE_RECEIVED, 100, 1), 100);
+        r.record(event(KEY, "LNet;->execute()V",
+                RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED, 110, 2), 110);
+        r.record(event(KEY, "LReq;->build()V",
+                RoiRuntimeInvocationRecorder.Phase.REQUEST_BUILT, 120, 3), 120);
+        List<RoiRuntimeInvocationRecorder.Chain> chains = r.snapshotChains(120);
+        check(!chains.get(0).confirmsRequestTransportResponse(),
+                "out-of-order phases incorrectly confirmed");
+    }
+
+    private static void testParsedPhaseRequiresOrderedReceipt() {
+        RoiRuntimeInvocationRecorder r = recorder(8, 1000);
+        r.record(event(KEY, "LReq;->build()V",
+                RoiRuntimeInvocationRecorder.Phase.REQUEST_BUILT, 100, 1), 100);
+        r.record(event(KEY, "LNet;->execute()V",
+                RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED, 110, 2), 110);
+        r.record(event(KEY, "LParser;->parse()V",
+                RoiRuntimeInvocationRecorder.Phase.RESPONSE_PARSED, 120, 3), 120);
+        check(!r.snapshotChains(120).get(0).confirmsParsedResponse(),
+                "parser event before receipt incorrectly confirmed");
+        r.record(event(KEY, "LResp;->receive()V",
+                RoiRuntimeInvocationRecorder.Phase.RESPONSE_RECEIVED, 130, 4), 130);
+        check(r.snapshotChains(130).get(0).confirmsRequestTransportResponse(),
+                "ordered response chain not confirmed");
+        check(!r.snapshotChains(130).get(0).confirmsParsedResponse(),
+                "out-of-order parser event incorrectly confirmed");
+        r.record(event(KEY, "LParser;->parse()V",
+                RoiRuntimeInvocationRecorder.Phase.RESPONSE_PARSED, 140, 5), 140);
+        check(r.snapshotChains(140).get(0).confirmsParsedResponse(),
+                "ordered parser phase not confirmed");
+    }
+
+    private static void testSameMillisecondPhasesRemainPossible() {
+        RoiRuntimeInvocationRecorder r = recorder(8, 1000);
+        r.record(event(KEY, "LReq;->build()V",
+                RoiRuntimeInvocationRecorder.Phase.REQUEST_BUILT, 100, 1), 100);
+        r.record(event(KEY, "LNet;->execute()V",
+                RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED, 100, 2), 100);
+        r.record(event(KEY, "LResp;->receive()V",
+                RoiRuntimeInvocationRecorder.Phase.RESPONSE_RECEIVED, 100, 3), 100);
+        check(r.snapshotChains(100).get(0).confirmsRequestTransportResponse(),
+                "same-millisecond callbacks should not be rejected due to clock granularity");
     }
 
     private static void testSameRequestKeyAcrossHostsDoesNotMerge() {
