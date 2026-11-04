@@ -458,9 +458,16 @@ final class OpenLocalApiGateway {
                 sendError(out, 400, "invalid_json", "Request body must be valid JSON");
                 return;
             }
-            String model = body.optString("model", "deepseek-chat");
+            String model = body.optString("model", "deepseek-chat").trim();
             if (!"deepseek-chat".equals(model) && !"deepseek-reasoner".equals(model)) {
-                sendError(out, 400, "model_not_found", "Unsupported model");
+                String reportedModel = model.replace('\r', ' ').replace('\n', ' ');
+                if (reportedModel.length() > 128) {
+                    reportedModel = reportedModel.substring(0, 128);
+                }
+                Main.log("Open Local API rejected model id: " + reportedModel);
+                sendError(out, 400, "model_not_found",
+                        "不支持的模型名称：" + reportedModel
+                                + "；当前可用模型：deepseek-chat、deepseek-reasoner");
                 return;
             }
             String prompt;
