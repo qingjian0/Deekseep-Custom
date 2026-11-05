@@ -8,13 +8,21 @@ javac -source 8 -target 8 -nowarn -d "$OUT" \
   "$ROOT/module/tests/roiunknownhostpolicy/ds/dsh/DeepSeek/RoiUnknownHostHookPolicyTest.java"
 java -cp "$OUT" ds.dsh.DeepSeek.RoiUnknownHostHookPolicyTest
 
+javac -source 8 -target 8 -nowarn -d "$OUT" \
+  "$ROOT/module/src/ds/dsh/DeepSeek/RoiUnknownHostActivationGates.java" \
+  "$ROOT/module/tests/roiunknownhostactivationgates/ds/dsh/DeepSeek/RoiUnknownHostActivationGatesTest.java"
+java -cp "$OUT" ds.dsh.DeepSeek.RoiUnknownHostActivationGatesTest
+
 MAIN="$ROOT/module/src/ds/dsh/DeepSeek/Main.java"
 HOOK_POLICY="$ROOT/module/src/ds/dsh/DeepSeek/RoiUnknownHostHookPolicy.java"
 grep -q 'deekseep_roi_unknown_host_hook_enabled' "$MAIN"
 grep -q 'unknownVersionAttemptsEnabled' "$MAIN"
 grep -q 'diagnosticProbesEnabled' "$MAIN"
 grep -q 'featureHooksAuthorized' "$MAIN"
-grep -q 'unknownHostActivationEnabled = unknownVersionAttemptsEnabled' "$MAIN"
+grep -q 'unknownHostGates.requiresClassLoadDispatcher()' "$MAIN"
+grep -q 'liveGates.allowsMetadataObservation()' "$MAIN"
+grep -q 'liveGates.allowsDiagnosticProbes()' "$MAIN"
+grep -q 'liveGates.allowsFeatureHookAttempts()' "$MAIN"
 grep -q 'boolean metadataObservationEnabled = maintainedHost' "$MAIN"
 grep -q 'unknownHostOptIn && RoiUnknownHostHookPolicy.isExplicitlyEnabled' "$MAIN"
 grep -q 'RoiUnknownHostInvocationProbePolicy.isExplicitlyEnabled' "$MAIN"
