@@ -37,34 +37,43 @@ public final class RoiDexExceptionControlFlow {
     public static Result analyze(RoiDexCodeReader.CodeItem code)
             throws AnalysisException,RoiDexInstructionScanner.ScanException {
         if(code==null)throw new AnalysisException("null_code_item");
-        RoiDexInstructionScanner.ControlFlowGraph graph=
-                RoiDexInstructionScanner.buildControlFlowGraph(code.instructions);
         List<ExceptionEdge> edges=new ArrayList<ExceptionEdge>();
         if(code.triesSize==0) {
             if(code.tryItems.length!=0||code.catchHandlers.length!=0)
                 throw new AnalysisException("exception_metadata_inconsistent");
-            return new Result(graph,edges);
+            RoiDexInstructionScanner.ControlFlowGraph emptyGraph=
+                    RoiDexInstructionScanner.buildControlFlowGraph(code.instructions);
+            return new Result(emptyGraph,edges);
         }
         if(code.tryItems.length!=code.triesSize||code.catchHandlers.length==0)
             throw new AnalysisException("exception_metadata_incomplete");
-        for(int ti=0;ti<code.tryItems.length;ti++) {
-            RoiDexCodeReader.TryItem t=code.tryItems[ti];
+        List<Integer> leaders=new ArrayList<Integer>();
+        for(RoiDexCodeReader.TryItem t:code.tryItems) {
             long start=t.startAddress,end=start+t.instructionCount;
             if(start<0||end>code.instructions.length||start>=end)
                 throw new AnalysisException("try_range_out_of_code");
-            if(!graph.scan.isInstructionBoundary((int)start)
-                    ||(end<code.instructions.length&&!graph.scan.isInstructionBoundary((int)end)))
-                throw new AnalysisException("try_range_not_instruction_aligned");
+            leaders.add((int)start);
+            if(end<code.instructions.length)leaders.add((int)end);
             RoiDexCodeReader.CatchHandler handler=findHandler(code.catchHandlers,t.handlerOffset);
             if(handler==null)throw new AnalysisException("try_handler_not_resolved");
             int handlerCount=handler.typedCatches.length+(handler.catchAllAddress>=0?1:0);
             if(handlerCount==0)throw new AnalysisException("empty_catch_handler");
             for(RoiDexCodeReader.TypedCatch typed:handler.typedCatches)
-                addEdgesForTarget(graph,edges,ti,(int)start,(int)end,typed.typeIndex,
-                        typed.address,false);
+                leaders.add(typed.address);
+            if(handler.catchAllAddress>=0)leaders.add(handler.catchAllAddress);
+        }
+        int[] leaderArray=new int[leaders.size()];
+        for(int i=0;i<leaders.size();i++)leaderArray[i]=leaders.get(i);
+        RoiDexInstructionScanner.ControlFlowGraph graph=
+                RoiDexInstructionScanner.buildControlFlowGraph(code.instructions,leaderArray);
+        for(int ti=0;ti<code.tryItems.length;ti++) {
+            RoiDexCodeReader.TryItem t=code.tryItems[ti];
+            int start=(int)t.startAddress,end=start+t.instructionCount;
+            RoiDexCodeReader.CatchHandler handler=findHandler(code.catchHandlers,t.handlerOffset);
+            for(RoiDexCodeReader.TypedCatch typed:handler.typedCatches)
+                addEdgesForTarget(graph,edges,ti,start,end,typed.typeIndex,typed.address,false);
             if(handler.catchAllAddress>=0)
-                addEdgesForTarget(graph,edges,ti,(int)start,(int)end,-1,
-                        handler.catchAllAddress,true);
+                addEdgesForTarget(graph,edges,ti,start,end,-1,handler.catchAllAddress,true);
         }
         return new Result(graph,edges);
     }
