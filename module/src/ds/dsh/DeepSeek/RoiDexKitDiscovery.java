@@ -48,6 +48,37 @@ final class RoiDexKitDiscovery {
 
     private RoiDexKitDiscovery() {}
 
+    /**
+     * Inspect a Class object supplied by a trusted module-owned load observation point.
+     * This does not ask the ClassLoader to load a class and does not activate hooks.
+     */
+    static String inspectObservedClass(Class<?> loadedClass) {
+        RoiLoadedClassInspector.Snapshot snapshot =
+                RoiLoadedClassInspector.inspect(loadedClass);
+        StringBuilder out = new StringBuilder(1024);
+        append(out, "classInspection.mode=already_loaded_class_metadata_only");
+        append(out, "classInspection.status=" + snapshot.inspectionStatus);
+        append(out, "classInspection.name=" + snapshot.className);
+        append(out, "classInspection.descriptor=" + snapshot.classDescriptor);
+        append(out, "classInspection.sourceScope=" + snapshot.loaderScope);
+        append(out, "classInspection.superclass=" + snapshot.superclassName);
+        append(out, "classInspection.interfaces=" + snapshot.interfaces);
+        append(out, "classInspection.methodCount=" + snapshot.methodCountReported);
+        append(out, "classInspection.methodsTruncated=" + snapshot.methodsTruncated);
+        for (int i = 0; i < snapshot.methods.size(); i++) {
+            append(out, "classInspection.method." + i + "=" + snapshot.methods.get(i));
+        }
+        append(out, "classInspection.fieldCount=" + snapshot.fieldCountReported);
+        append(out, "classInspection.fieldsTruncated=" + snapshot.fieldsTruncated);
+        for (int i = 0; i < snapshot.fields.size(); i++) {
+            append(out, "classInspection.field." + i + "=" + snapshot.fields.get(i));
+        }
+        append(out, "classInspection.methodInvocation=none");
+        append(out, "classInspection.fieldValueRead=none");
+        append(out, "classInspection.hookActivation=none");
+        return out.toString();
+    }
+
     /** Register a dynamic loader only from a trusted, module-owned observation point. */
     static void registerClassLoader(ClassLoader loader) {
         if (loader == null) return;
