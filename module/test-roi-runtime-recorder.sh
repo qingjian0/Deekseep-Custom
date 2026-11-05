@@ -77,3 +77,21 @@ grep -q 'testSameMillisecondOutOfOrderPhasesDoNotConfirm' "$ROOT/module/tests/ro
 grep -q 'testTimestampRegressionDoesNotConfirm' "$ROOT/module/tests/roiruntime/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorderTest.java"
 grep -q 'eventIndex > builtIndex' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
 grep -q 'eventIndex > transportIndex' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
+
+
+# Flow identity correlation is reusable for repeated collection but expires and stays bounded.
+grep -q 'FLOW_REQUEST_TIMESTAMPS' "$OBSERVER"
+grep -q 'FLOW_REQUEST_KEYS.get(flow)' "$OBSERVER"
+grep -q 'pruneFlowBindings(System.currentTimeMillis())' "$OBSERVER"
+grep -q 'nowMillis - created > 120000L' "$OBSERVER"
+if grep -q 'FLOW_REQUEST_KEYS.remove(flow)' "$OBSERVER"; then
+  echo "Flow request binding must survive repeated collection until TTL" >&2
+  exit 1
+fi
+
+# Cross-loader observations are diagnostics only; exact scope remains required for matches.
+DISCOVERY="$ROOT/module/src/ds/dsh/DeepSeek/RoiDexKitDiscovery.java"
+grep -q 'otherClassLoaderScopeEvidenceEntries' "$DISCOVERY"
+grep -q 'otherClassLoaderScopeCoverageEntries' "$DISCOVERY"
+grep -q 'exactScopeCoverage.unsupportedSuspendCollector' "$DISCOVERY"
+grep -q 'candidateSourceScope.startsWith("loader:")' "$DISCOVERY"
