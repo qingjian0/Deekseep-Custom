@@ -155,6 +155,20 @@ final class RoiDexKitDiscovery {
                 totalDex += count;
                 String sourceScope = RoiCandidateIdentity.forClassLoader(loaders.get(i));
                 append(out, "loader." + (i + 1) + ".sourceScope=" + sourceScope);
+                RoiClassLoaderProfile loaderProfile =
+                        RoiClassLoaderProfile.inspect(loaders.get(i));
+                append(out, "loader." + (i + 1) + ".profile.kinds="
+                        + loaderProfile.kinds.toString());
+                append(out, "loader." + (i + 1) + ".profile.chain="
+                        + loaderProfile.chainClassNames.toString());
+                append(out, "loader." + (i + 1) + ".profile.dynamicDexObserved="
+                        + loaderProfile.dynamicDexLoaderObserved);
+                append(out, "loader." + (i + 1) + ".profile.inMemoryDexObserved="
+                        + loaderProfile.inMemoryDexLoaderObserved);
+                append(out, "loader." + (i + 1) + ".profile.customLoaderObserved="
+                        + loaderProfile.customLoaderObserved);
+                append(out, "loader." + (i + 1) + ".profile.encryptedDexAssessment="
+                        + loaderProfile.encryptedDexAssessment);
                 candidateCount += querySemanticAnchors(
                         bridge, "loader." + (i + 1), sourceScope, out, budget,
                         runtimeEvidence, adapterIdentity);
