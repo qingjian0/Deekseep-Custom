@@ -844,6 +844,71 @@ final class HookChatPipeline {
         }
     }
 
+    /**
+     * First reviewed unknown-host feature adapter: inject only the user-configured system prompt
+     * at a serializer-identified ChatFullCompletionRequest constructor. It deliberately does not
+     * advertise Agent tools, rewrite auth/PoW, replace transport, or observe response payloads.
+     */
+    boolean hookUnknownHostChatRequest(Constructor<?> requestConstructor) throws Throwable {
+        if (requestConstructor == null
+                || !RoiUnknownHostChatRequestResolver.hasExpectedConstructorShape(
+                        requestConstructor.getParameterTypes())) return false;
+        final int promptIndex = 2;
+        Main module = Main.MODULE;
+        if (module == null) return false;
+        module.hook(requestConstructor).intercept(new Hooker() {
+            @Override public Object intercept(Chain chain) throws Throwable {
+                Object[] modified = null;
+                try {
+                    if (Boolean.TRUE.equals(tlLocalApiRequest.get())) {
+                        return chain.proceed();
+                    }
+                    Object[] originalArgs = chain.getArgs().toArray();
+                    if (originalArgs.length != 11
+                            || !(originalArgs[promptIndex] instanceof String)) {
+                        return chain.proceed();
+                    }
+                    String originalPrompt = (String) originalArgs[promptIndex];
+                    String originalBody = HistoryBridge.stripInjectedSystemPrompts(
+                            originalPrompt == null ? "" : originalPrompt).trim();
+                    if (originalBody.length() == 0
+                            || originalBody.startsWith(HeartbeatToolProtocol.EVENT_START)
+                            || HeartbeatToolProtocol.isCompletePrivateTransportBody(originalBody)) {
+                        return chain.proceed();
+                    }
+                    String conversationId = originalArgs[0] instanceof String
+                            ? HeartbeatToolProtocol.cleanScope((String) originalArgs[0]) : "";
+                    String userPrompt = readPrompt();
+                    if (userPrompt == null) userPrompt = "";
+                    if (userPrompt.length() > 0
+                            && !shouldInjectUserPrompt(conversationId, originalArgs[1])) {
+                        userPrompt = "";
+                    }
+                    String pluginPrompt = JavaPluginPlatform.systemPrompt(conversationId);
+                    String combined = combineSystemPrompts(userPrompt, pluginPrompt);
+                    if (combined.length() > 0) {
+                        modified = originalArgs.clone();
+                        modified[promptIndex] = HistoryBridge.wrapSystemPrompt(
+                                combined, originalPrompt);
+                        HookLogOverlay.event("HOST", "Unknown-host request prompt injected",
+                                "body_chars=" + originalBody.length()
+                                        + " system_chars=" + combined.length());
+                    }
+                } catch (Throwable error) {
+                    if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+                    if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+                    Main.log("unknown-host chat request rewrite skipped: "
+                            + Main.safeThrowableMessage(error));
+                }
+                // The original constructor is invoked exactly once, even if discovery-side
+                // metadata becomes stale or the optional prompt source fails.
+                return modified == null ? chain.proceed() : chain.proceed(modified);
+            }
+        });
+        Main.log("unknown-host chat request constructor hooked; feature=system_prompt");
+        return true;
+    }
+
     private static String combineSystemPrompts(String first, String second) {
         return PromptCompositionPolicy.combine(first, second);
     }
