@@ -16,7 +16,7 @@ public final class RoiDexInstructionDecoderTest {
  }
  static void testWide()throws Exception{
   String s="(Ljava/lang/String;JD[Ljava/lang/Object;)V";
-  eq(-1,map(s,false,0));eq(0,map(s,false,1));eq(1,map(s,false,2));eq(1,map(s,false,3));eq(2,map(s,false,4));eq(3,map(s,false,5));
+  eq(-1,map(s,false,0));eq(0,map(s,false,1));eq(1,map(s,false,2));eq(1,map(s,false,3));eq(2,map(s,false,4));eq(2,map(s,false,5));eq(3,map(s,false,6));
  }
  static void testStatic()throws Exception{eq(0,map("(JD)V",true,0));eq(0,map("(JD)V",true,1));eq(1,map("(JD)V",true,2));}
  static int map(String s,boolean st,int p)throws Exception{return RoiDexInstructionDecoder.parameterIndexForRegisterPosition(s,st,p);}
