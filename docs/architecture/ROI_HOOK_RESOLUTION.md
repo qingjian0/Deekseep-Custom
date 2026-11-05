@@ -151,3 +151,14 @@ A candidate discovered in one ClassLoader must not be reused for a same-named cl
 - The root request object is held only in the current thread-local call frame; no fields, toString(), body, headers, prompt, response, or credentials are read or persisted.
 - The frame is synchronous and thread-local. It can establish a nested runtime call edge and same-object pass-through only when the calls occur on the same thread and within the observed call stack.
 - This does not establish asynchronous Flow continuation, actual socket I/O, response receipt/parsing, or a complete Request → Transport → Response chain. It does not add hook targets, alter return values, or authorize activation.
+
+
+### R2.7.3 — explicit unknown-host metadata observation opt-in
+
+Unknown hosts remain read-only by default. A user may explicitly create
+`/data/data/com.deepseek.chat/files/deekseep_roi_unknown_host_hook_enabled` with the single line
+`ENABLE` to permit the bounded class-load metadata observer. Missing, empty, malformed,
+extra-line, or unreadable switch files are treated as disabled. This opt-in does not enable
+legacy feature hooks, approve an adapter, or authorize functional method hooks. Resolver proof,
+exact adapter approval, role allowlisting, installer verification, and rollback remain mandatory.
+The switch is development-only and is not merged into `main`.
