@@ -28,6 +28,7 @@ public final class RoiDexRegisterFlowAnalyzerTest {
         testMethodEntryLayoutRejectsInsSizeMismatch();
         testUseDefClassifiesReceiverEntryUse();
         testUseDefClassifiesWideStaticParameter();
+        testUseDefRejectsMismatchedRegisterCount();
         testUnsupportedOpcodeFailsClosed();
         testRegisterBounds();
         System.out.println("RoiDexRegisterFlowAnalyzer tests passed");
@@ -389,6 +390,23 @@ public final class RoiDexRegisterFlowAnalyzerTest {
                         && high.entryValueKind == RoiDexUseDefChains.EntryValueKind.PARAMETER
                         && low.entryParameterIndex == 0 && high.entryParameterIndex == 0,
                 "both words of a wide static parameter map to parameter zero");
+    }
+
+
+    private static void testUseDefRejectsMismatchedRegisterCount() throws Exception {
+        RoiDexRegisterFlowAnalyzer.Result flow =
+                RoiDexRegisterFlowAnalyzer.analyze(new short[]{(short) 0x0211}, 3);
+        RoiDexReachingDefinitions.Result reaching =
+                RoiDexReachingDefinitions.analyze(flow);
+        RoiDexMethodEntryLayout.Result wrongLayout =
+                RoiDexMethodEntryLayout.analyze(4, 1, 0, "()Ljava/lang/Object;");
+        try {
+            RoiDexUseDefChains.analyze(flow, reaching, wrongLayout);
+            throw new AssertionError("expected method register-count mismatch");
+        } catch (RoiDexUseDefChains.AnalysisException expected) {
+            check(expected.getMessage().contains("entry_layout_register_count_mismatch"),
+                    "entry mapping requires the exact CodeItem register count");
+        }
     }
 
     private static RoiDexUseDefChains.Result chains(short[] code, int registers)
