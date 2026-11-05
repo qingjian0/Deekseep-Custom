@@ -1170,7 +1170,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             String unsupported = bootstrapVersion == null || bootstrapVersion.length() == 0
                     ? HostCompat.generationName() : bootstrapVersion;
             final boolean unknownHostHookEnabled =
-                    RoiUnknownHostHookPolicy.isExplicitlyEnabled(
+                    RoiUnknownHostHookPolicy.allowsMetadataObservation(false,
                             new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE));
             log("unknown/unmaintained host: entering ROI "
                     + (unknownHostHookEnabled ? "opt-in metadata-hook" : "read-only")
