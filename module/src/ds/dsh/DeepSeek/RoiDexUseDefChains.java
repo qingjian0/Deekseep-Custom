@@ -11,6 +11,7 @@ import java.util.Map;
  * A use with no reaching definition is an entry/unknown value, not proof of an uninitialized read.
  */
 public final class RoiDexUseDefChains {
+    public enum EntryValueKind { NONE, RECEIVER, PARAMETER, UNDEFINED_OR_UNKNOWN, UNMAPPED_ENTRY }
     private RoiDexUseDefChains() {}
 
     private static final int MAX_USE_SITES = 200000;
@@ -31,10 +32,14 @@ public final class RoiDexUseDefChains {
         /** True means no modeled definition reaches this use; it may be a method-entry value. */
         public final boolean mayBeEntryOrUnknownValue;
         public final boolean reachableFromEntry;
+        public final EntryValueKind entryValueKind;
+        public final int entryParameterIndex;
+        public final String entryDescriptor;
 
         UseSite(int block, int offset, int opcode, int operand, int register,
                 RoiDexReachingDefinitions.Definition[] definitions,
-                boolean mayBeUnknown, boolean reachable) {
+                boolean mayBeUnknown, boolean reachable,
+                RoiDexMethodEntryLayout.EntryValue entryValue, boolean hasEntryLayout) {
             blockIndex = block;
             instructionOffset = offset;
             this.opcode = opcode;
@@ -43,6 +48,17 @@ public final class RoiDexUseDefChains {
             reachingDefinitions = definitions;
             mayBeEntryOrUnknownValue = mayBeUnknown;
             reachableFromEntry = reachable;
+            if (!mayBeUnknown) {
+                entryValueKind = EntryValueKind.NONE;
+            } else if (entryValue != null) {
+                entryValueKind = entryValue.kind == RoiDexMethodEntryLayout.Kind.RECEIVER
+                        ? EntryValueKind.RECEIVER : EntryValueKind.PARAMETER;
+            } else {
+                entryValueKind = hasEntryLayout ? EntryValueKind.UNDEFINED_OR_UNKNOWN
+                        : EntryValueKind.UNMAPPED_ENTRY;
+            }
+            entryParameterIndex = entryValue == null ? -1 : entryValue.parameterIndex;
+            entryDescriptor = entryValue == null ? null : entryValue.descriptor;
         }
     }
 
@@ -61,12 +77,19 @@ public final class RoiDexUseDefChains {
 
     public static Result analyze(RoiDexRegisterFlowAnalyzer.Result flow,
             RoiDexReachingDefinitions.Result reaching) throws AnalysisException {
+        return analyze(flow, reaching, null);
+    }
+
+    public static Result analyze(RoiDexRegisterFlowAnalyzer.Result flow,
+            RoiDexReachingDefinitions.Result reaching,
+            RoiDexMethodEntryLayout.Result entryLayout) throws AnalysisException {
         if (flow == null || reaching == null)
             throw new AnalysisException("null_analysis_input");
         if (flow.blocks.length != reaching.blocks.length)
             throw new AnalysisException("block_count_mismatch");
 
         boolean[][] definitelyIn = computeDefinitelyDefinedIn(flow, reaching);
+        if (entryLayout != null) validateEntryLayout(flow, entryLayout);
 
         Map<Long, RoiDexReachingDefinitions.Definition> definitionAt =
                 new HashMap<Long, RoiDexReachingDefinitions.Definition>();
@@ -116,8 +139,11 @@ public final class RoiDexUseDefChains {
                     boolean reachable = blockState.reachableFromEntry;
                     boolean mayBeUnknown = !reachable || register >= definitelyIn[b].length
                             || !definitelyDefined.get(register);
+                    RoiDexMethodEntryLayout.EntryValue entryValue = entryLayout == null
+                            ? null : entryLayout.atRegister(register);
                     sites.add(new UseSite(b, instruction.offset, instruction.opcode,
-                            operand, register, candidates, mayBeUnknown, reachable));
+                            operand, register, candidates, mayBeUnknown, reachable,
+                            entryValue, entryLayout != null));
                 }
 
                 for (int register : instruction.definitions) {
@@ -136,6 +162,21 @@ public final class RoiDexUseDefChains {
         return new Result(sites, links);
     }
 
+
+
+    private static void validateEntryLayout(RoiDexRegisterFlowAnalyzer.Result flow,
+            RoiDexMethodEntryLayout.Result layout) throws AnalysisException {
+        for (RoiDexRegisterFlowAnalyzer.BasicBlockFlow block : flow.blocks) {
+            for (RoiDexRegisterFlowAnalyzer.InstructionFlow instruction : block.instructions) {
+                for (int register : instruction.uses)
+                    if (register >= layout.registersSize)
+                        throw new AnalysisException("entry_layout_register_count_mismatch");
+                for (int register : instruction.definitions)
+                    if (register >= layout.registersSize)
+                        throw new AnalysisException("entry_layout_register_count_mismatch");
+            }
+        }
+    }
 
     /**
      * Must-analysis: a register word is definitely defined only if every reachable
