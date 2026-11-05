@@ -17,6 +17,7 @@ MAIN="$ROOT/module/src/ds/dsh/DeepSeek/Main.java"
 HOOK_POLICY="$ROOT/module/src/ds/dsh/DeepSeek/RoiUnknownHostHookPolicy.java"
 FEATURE_POLICY="$ROOT/module/src/ds/dsh/DeepSeek/RoiUnknownHostFeatureHookPolicy.java"
 GATE_POLICY="$ROOT/module/src/ds/dsh/DeepSeek/RoiUnknownHostActivationGates.java"
+UI="$ROOT/module/src/ds/dsh/DeepSeek/DeekseepUi.java"
 grep -q 'deekseep_roi_unknown_host_hook_enabled' "$MAIN"
 grep -q 'unknownVersionAttemptsEnabled' "$MAIN"
 grep -q 'diagnosticProbesEnabled' "$MAIN"
@@ -34,6 +35,19 @@ grep -q 'return false;' "$HOOK_POLICY"
 grep -q 'unknownVersionAttemptSwitchFile' "$FEATURE_POLICY"
 grep -q 'RoiUnknownHostHookPolicy.isExplicitlyEnabled(unknownVersionAttemptSwitchFile)' "$FEATURE_POLICY"
 grep -q 'unknownVersionAttemptsEnabled && featureHooksAuthorized' "$GATE_POLICY"
+
+# Settings UI must expose three distinct controls and refresh the visible gate explanation.
+grep -q '允许未知版本尝试 Hook' "$UI"
+grep -q '允许诊断探针' "$UI"
+grep -q '授权功能 Hook' "$UI"
+grep -q 'Main.isUnknownVersionHookAttemptsEnabled()' "$UI"
+grep -q 'Main.isUnknownHostDiagnosticProbesEnabled()' "$UI"
+grep -q 'Main.isUnknownHostFeatureHooksAuthorized()' "$UI"
+grep -q 'roiGateStatus.setText(Main.unknownHostHookGateStatus())' "$UI"
+grep -q 'static boolean setUnknownVersionHookAttemptsEnabled(boolean enabled)' "$MAIN"
+grep -q 'static boolean setUnknownHostDiagnosticProbesEnabled(boolean enabled)' "$MAIN"
+grep -q 'static boolean setUnknownHostFeatureHooksAuthorized(boolean enabled)' "$MAIN"
+grep -q 'static String unknownHostHookGateStatus()' "$MAIN"
 
 # The shared class-load dispatcher may be installed for any one lane, but metadata diagnostics
 # must be gated only by the unknown-version-attempt switch, never by probe/feature switches.
