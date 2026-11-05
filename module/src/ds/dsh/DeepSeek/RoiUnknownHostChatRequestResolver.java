@@ -123,15 +123,28 @@ final class RoiUnknownHostChatRequestResolver {
         return best == null || tied ? null : best.snapshot();
     }
 
+    synchronized List<Candidate> bestCandidates() {
+        Set<String> scopes = new LinkedHashSet<String>();
+        for (MutableCandidate candidate : candidates.values()) scopes.add(candidate.scope);
+        List<Candidate> result = new ArrayList<Candidate>();
+        for (String scope : scopes) {
+            Candidate candidate = bestCandidate(scope);
+            if (candidate != null) result.add(candidate);
+        }
+        return Collections.unmodifiableList(result);
+    }
+
     synchronized int registerCandidate(Candidate candidate, ClassLoader hostRoot,
             Installer installer) throws Throwable {
         if (candidate == null || hostRoot == null || installer == null
                 || !candidateReady(candidate)) return 0;
+        Candidate best = bestCandidate(candidate.sourceScope);
+        if (!sameCandidate(best, candidate)) return 0;
         int installedNow = 0;
         pruneObserved();
         for (WeakReference<Class<?>> reference : observed) {
             Class<?> type = reference.get();
-            if (type != null) installedNow += installForClass(type, candidate, hostRoot, installer);
+            if (type != null) installedNow += installForClass(type, best, hostRoot, installer);
         }
         return installedNow;
     }
@@ -149,12 +162,15 @@ final class RoiUnknownHostChatRequestResolver {
             if (observed.size() >= MAX_OBSERVED_CLASSES) observed.remove(0);
             observed.add(new WeakReference<Class<?>>(type));
         }
-        int installedNow = 0;
-        for (MutableCandidate mutable : candidates.values()) {
-            if (!mutable.ready()) continue;
-            installedNow += installForClass(type, mutable.snapshot(), hostRoot, installer);
-        }
-        return installedNow;
+        Candidate best = bestCandidate(RoiCandidateIdentity.forClassLoader(type.getClassLoader()));
+        return best == null ? 0 : installForClass(type, best, hostRoot, installer);
+    }
+
+    private static boolean sameCandidate(Candidate left, Candidate right) {
+        return left != null && right != null
+                && left.ownerDescriptor.equals(right.ownerDescriptor)
+                && left.constructorDescriptor.equals(right.constructorDescriptor)
+                && left.sourceScope.equals(right.sourceScope);
     }
 
     private int installForClass(Class<?> type, Candidate candidate, ClassLoader hostRoot,
