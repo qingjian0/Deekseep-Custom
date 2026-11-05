@@ -9,6 +9,7 @@ public final class RoiDexRegisterFlowAnalyzerTest {
         testUseBeforeDefinition();
         testWideRegisters();
         testWideConversionsAndTwoAddress();
+        testLiteralArithmeticUsesOnlySourceRegister();
         testBranchBlocksRemainIndependent();
         testCrossBlockDefinitionsAreNotPropagated();
         testUnsupportedOpcodeFailsClosed();
@@ -29,8 +30,8 @@ public final class RoiDexRegisterFlowAnalyzerTest {
                 (short) 0x0000, (short) 0x010f};
         RoiDexRegisterFlowAnalyzer.BasicBlockFlow block =
                 RoiDexRegisterFlowAnalyzer.analyze(code, 3).blocks[0];
-        check(Arrays.equals(block.useBeforeDefinition, new int[]{1}),
-                "return reads v1 before any definition");
+        check(block.useBeforeDefinition.length == 0,
+                "v0 and v1 are both defined before use");
         check(Arrays.equals(block.definitions, new int[]{0, 1}),
                 "block defines v0 and v1");
         check(block.instructions.length == 3, "all instructions decoded");
@@ -69,13 +70,43 @@ public final class RoiDexRegisterFlowAnalyzerTest {
                 "int-to-long reads a single-word source");
 
         // add-long/2addr v0, v2; return-wide v0
-        short[] arithmetic = {(short) 0x20ba, (short) 0x0010};
+        short[] arithmetic = {(short) 0x20bb, (short) 0x0010};
         RoiDexRegisterFlowAnalyzer.BasicBlockFlow added =
                 RoiDexRegisterFlowAnalyzer.analyze(arithmetic, 4).blocks[0];
         check(Arrays.equals(added.definitions, new int[]{0, 1}),
                 "long/2addr defines both destination words");
         check(Arrays.equals(added.useBeforeDefinition, new int[]{0, 1, 2, 3}),
                 "long/2addr reads both old wide operands");
+
+        RoiDexRegisterFlowAnalyzer.BasicBlockFlow intShift =
+                RoiDexRegisterFlowAnalyzer.analyze(new short[]{(short) 0x20ba, (short) 0x000f}, 4).blocks[0];
+        check(Arrays.equals(intShift.definitions, new int[]{0}),
+                "ushr-int/2addr defines one register word");
+        check(Arrays.equals(intShift.useBeforeDefinition, new int[]{0, 2}),
+                "ushr-int/2addr reads narrow operands");
+
+        RoiDexRegisterFlowAnalyzer.BasicBlockFlow longShift =
+                RoiDexRegisterFlowAnalyzer.analyze(new short[]{(short) 0x20c5, (short) 0x0010}, 4).blocks[0];
+        check(Arrays.equals(longShift.definitions, new int[]{0, 1}),
+                "ushr-long/2addr defines wide destination");
+        check(Arrays.equals(longShift.useBeforeDefinition, new int[]{0, 1, 2}),
+                "long shift count remains a narrow source");
+    }
+
+    private static void testLiteralArithmeticUsesOnlySourceRegister() throws Exception {
+        RoiDexRegisterFlowAnalyzer.BasicBlockFlow lit16 =
+                RoiDexRegisterFlowAnalyzer.analyze(new short[]{(short) 0x10d0, 1, (short) 0x000f}, 2).blocks[0];
+        check(Arrays.equals(lit16.definitions, new int[]{0}),
+                "lit16 defines destination register");
+        check(Arrays.equals(lit16.useBeforeDefinition, new int[]{1}),
+                "lit16 reads source, not old destination");
+
+        RoiDexRegisterFlowAnalyzer.BasicBlockFlow lit8 =
+                RoiDexRegisterFlowAnalyzer.analyze(new short[]{(short) 0x00d8, (short) 0x0101, (short) 0x000f}, 2).blocks[0];
+        check(Arrays.equals(lit8.definitions, new int[]{0}),
+                "lit8 defines destination register");
+        check(Arrays.equals(lit8.useBeforeDefinition, new int[]{1}),
+                "lit8 reads source, not destination");
     }
 
     private static void testBranchBlocksRemainIndependent() throws Exception {

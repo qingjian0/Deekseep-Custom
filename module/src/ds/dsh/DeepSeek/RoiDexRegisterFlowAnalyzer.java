@@ -180,17 +180,21 @@ public final class RoiDexRegisterFlowAnalyzer {
             defs = wide ? wide(a8, count) : one(a8, count);
             int left = u(code[offset + 1]) & 0xff;
             int right = (u(code[offset + 1]) >>> 8) & 0xff;
-            uses = wide ? join(wide(left, count), wide(right, count))
+            uses = wide ? join(wide(left, count),
+                    (op >= 0xa3 && op <= 0xa5) ? one(right, count) : wide(right, count))
                     : pair(left, right, count);
-        } else if (op >= 0xb0 && op <= 0xce) { // binary/2addr
-            int base = op - 0x20;
-            boolean wide = (op >= 0xba && op <= 0xc4) || (op >= 0xca && op <= 0xce);
+        } else if (op >= 0xb0 && op <= 0xcf) { // binary/2addr
+            boolean wide = (op >= 0xbb && op <= 0xc5) || (op >= 0xcb && op <= 0xcf);
             defs = wide ? wide(a4, count) : one(a4, count);
-            uses = wide ? join(wide(a4, count), wide(b4, count))
-                    : pair(a4, b4, count);
-        } else if (op >= 0xd0 && op <= 0xe2) { // int literal arithmetic
+            if (!wide) uses = pair(a4, b4, count);
+            else uses = join(wide(a4, count),
+                    (op >= 0xc3 && op <= 0xc5) ? one(b4, count) : wide(b4, count));
+        } else if (op >= 0xd0 && op <= 0xd7) { // 22s int literal arithmetic
             defs = one(a4, count);
-            uses = pair(a4, b4, count);
+            uses = one(b4, count);
+        } else if (op >= 0xd8 && op <= 0xe2) { // 22b int literal arithmetic
+            defs = one(a8, count);
+            uses = one(u(code[offset + 1]) & 0xff, count);
         } else {
             throw new AnalysisException("unsupported_register_semantics_opcode_0x"
                     + Integer.toHexString(op) + "_at_" + offset);
