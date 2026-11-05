@@ -468,4 +468,4 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 新脚本已接入 ROI fast audit 与完整 Regression。
 - 当前只是策略与记录器基础设施，尚未在 Main 中安装未知版本方法 Hook，也没有任何候选满足当前已证实的 roleVerified + callGraphConfirmed 双门槛。现有 R2.7.1 角色分类置信度上限为 0.45，静态调用图不证明运行时执行，因此不得把它们升级为已验证角色或调用链。
 - 后续只有在真实运行时证据确认精确方法后，才允许接入独立开关 /data/data/com.deepseek.chat/files/deekseep_roi_unknown_host_invocation_probe_enabled；该开关必须与现有未知版本类加载元数据开关分离，默认关闭。
-- 当前 dev 最新提交为 868b05b939493ccd876c86f01b704a8587177d2b。GitHub Combined Status 暂无状态项；不得据此宣称 CI 通过。尚未执行本地 JVM 脚本、Android 构建或真机验证。
+- 本阶段实现与测试已提交至 dev；GitHub Combined Status 暂无状态项，不得据此宣称 CI 通过。尚未执行本地 JVM 脚本、Android 构建或真机验证。
