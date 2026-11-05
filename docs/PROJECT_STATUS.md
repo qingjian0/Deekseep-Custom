@@ -391,3 +391,14 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 该阶段没有解密、反射读取宿主私有字段、加载额外宿主类、调用宿主方法或安装 Hook。它只是为下一阶段建立动态加载机制的可审计证据入口。
 - 新增独立 JVM 测试与 CI 脚本，覆盖已知 loader 类型、custom loader 非加密证明、链深度上限、快照不可变性和 null/bootstrap。
 - 验证边界：文件和 CI wiring 已提交；必须以对应 GitHub Actions 实际结果为准。当前未声称本地测试、Android 构建或真机验证通过。
+
+
+## R2.6.2 — observed loaded-class metadata inspector (2026-11-05)
+
+- 新增 `RoiLoadedClassInspector`：仅接收已经存在的 `Class<?>` 对象，不通过 ClassLoader 主动加载类、不初始化类、不调用宿主方法、不读取字段值、不修改可访问性。
+- 输出类名/descriptor、ClassLoader process-local scope、父类、接口、声明方法签名和字段声明；方法与字段各最多 128 项、接口最多 32 项，并显式标记截断/部分不可用。
+- 反射元数据访问可能因缺失依赖或安全限制失败；按部分结果报告，不尝试绕过访问限制。
+- `RoiDexKitDiscovery.inspectObservedClass(Class<?>)` 提供给未来受信任的模块自有类加载观察点调用，报告明确标记 metadata-only、no method invocation、no field-value read、no hook activation。
+- **当前没有把该入口接到全局 ClassLoader.loadClass/findClass Hook，也没有全宿主类枚举。** 这是刻意的安全边界：下一阶段需设计有范围限制、可关闭、低开销的加载观察点，再把真实加载事件送入 inspector。
+- 新增 JVM 回归覆盖 descriptor、父类/接口/方法/字段元数据、快照不可变性、null 输入和不触发类初始化；脚本已接入 CI fast audit 与 regression。
+- 尚未取得该 commit 对应的 CI 结果；未声称本地测试、Android 构建或真机验证通过。
