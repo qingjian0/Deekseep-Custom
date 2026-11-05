@@ -14,6 +14,7 @@ public final class RoiUnknownHostInvocationProbeTest {
         testSwitchIsExactAndDefaultOff();
         testProbeExactlyOnceAndPayloadFree();
         testProbeBounds();
+        testExactMethodInstaller();
         System.out.println("ROI unknown-host invocation probe tests passed");
     }
 
@@ -154,6 +155,98 @@ public final class RoiUnknownHostInvocationProbeTest {
         long observed = probe.snapshot().get(0).invocationCount;
         check(observed <= RoiUnknownHostInvocationProbe.MAX_EVENTS_PER_SECOND,
                 "event rate must be bounded");
+    }
+
+
+    private static final class HostFixture {
+        String transport(String input) { return input; }
+    }
+
+    private static void testExactMethodInstaller() throws Throwable {
+        File flag = File.createTempFile("roi-invocation-installer", ".flag");
+        RoiUnknownHostInvocationProbe probe = new RoiUnknownHostInvocationProbe();
+        RoiUnknownHostInvocationProbeInstaller installer =
+                new RoiUnknownHostInvocationProbeInstaller(probe);
+        try {
+            write(flag, "ENABLE\\n");
+            java.lang.reflect.Method method = HostFixture.class.getDeclaredMethod(
+                    "transport", String.class);
+            RoiLoadedClassInspector.Snapshot snapshot =
+                    RoiLoadedClassInspector.inspect(HostFixture.class);
+            String descriptor = null;
+            for (String value : snapshot.dexMethodDescriptors) {
+                if (value.contains("->transport(")) descriptor = value;
+            }
+            check(descriptor != null, "fixture method descriptor must be inspectable");
+            String owner = "L" + HostFixture.class.getName().replace('.', '/') + ";";
+            String scope = RoiCandidateIdentity.forClassLoader(HostFixture.class.getClassLoader());
+            RoiUnknownHostInvocationProbePolicy.Candidate candidate =
+                    new RoiUnknownHostInvocationProbePolicy.Candidate(owner, "transport",
+                            descriptor, scope,
+                            RoiUnknownHostInvocationProbePolicy.Role.HTTP_TRANSPORT,
+                            true, true, true);
+            final RoiUnknownHostInvocationProbeInstaller.InvocationCallback[] installed =
+                    new RoiUnknownHostInvocationProbeInstaller.InvocationCallback[1];
+            RoiUnknownHostInvocationProbeInstaller.HookRegistrar registrar =
+                    new RoiUnknownHostInvocationProbeInstaller.HookRegistrar() {
+                        @Override public void install(java.lang.reflect.Method target,
+                                RoiUnknownHostInvocationProbeInstaller.InvocationCallback callback) {
+                            check(target == method, "installer must receive the exact reflected method");
+                            installed[0] = callback;
+                        }
+                    };
+            check(!installer.install(flag, candidate, method, new ClassLoader(
+                    HostFixture.class.getClassLoader()) {}, registrar),
+                    "a parent loader must not be treated as a child host scope");
+            check(installer.install(flag, candidate, method,
+                    HostFixture.class.getClassLoader(), registrar),
+                    "fully evidenced exact method should install");
+            check(installer.installedCount() == 1 && installed[0] != null,
+                    "successful installation must be tracked");
+
+            final int[] calls = {0};
+            Object marker = new Object();
+            Object result = installed[0].invoke(new RoiUnknownHostInvocationProbe.ProceedingCall() {
+                @Override public Object proceed() {
+                    calls[0]++;
+                    return marker;
+                }
+            });
+            check(calls[0] == 1 && result == marker,
+                    "installed callback must preserve exactly-once result");
+
+            write(flag, "DISABLE\\n");
+            installed[0].invoke(new RoiUnknownHostInvocationProbe.ProceedingCall() {
+                @Override public Object proceed() { calls[0]++; return marker; }
+            });
+            check(calls[0] == 2, "disabled live switch must still pass through original once");
+            check(probe.snapshot().get(0).invocationCount == 1,
+                    "disabled live switch must stop probe recording");
+
+            RoiUnknownHostInvocationProbe freshProbe = new RoiUnknownHostInvocationProbe();
+            RoiUnknownHostInvocationProbeInstaller failingInstaller =
+                    new RoiUnknownHostInvocationProbeInstaller(freshProbe);
+            write(flag, "ENABLE\\n");
+            try {
+                failingInstaller.install(flag, candidate, method,
+                        HostFixture.class.getClassLoader(),
+                        new RoiUnknownHostInvocationProbeInstaller.HookRegistrar() {
+                            @Override public void install(java.lang.reflect.Method target,
+                                    RoiUnknownHostInvocationProbeInstaller.InvocationCallback callback)
+                                    throws Throwable {
+                                throw new IllegalStateException("install failure");
+                            }
+                        });
+                throw new AssertionError("installation failure must propagate");
+            } catch (IllegalStateException expected) {
+                check(freshProbe.snapshot().isEmpty(),
+                        "failed installation must roll back probe registration");
+                check(failingInstaller.installedCount() == 0,
+                        "failed installation must not be marked installed");
+            }
+        } finally {
+            flag.delete();
+        }
     }
 
     private static void write(File file, String value) throws Exception {
