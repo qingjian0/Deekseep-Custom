@@ -7,6 +7,9 @@ public final class RoiClassCandidateMatcherTest {
     private static final class RuntimeFixture {
         private String send(String value) { return value; }
     }
+    private static final class LateDiscoveryFixture {
+        private int receive(int status) { return status; }
+    }
 
     public static void main(String[] args) {
         testRuntimeCandidateCorrelation();
@@ -61,6 +64,18 @@ public final class RoiClassCandidateMatcherTest {
                 "DexKit candidate must correlate with canonical loaded method descriptor");
         check(report.contains("activationAuthorized=false"),
                 "runtime class correlation must never authorize activation");
+
+        // Discovery may finish after application startup and after the target class was loaded.
+        String lateScope = RoiCandidateIdentity.forClassLoader(
+                LateDiscoveryFixture.class.getClassLoader());
+        RoiClassCandidateMatcher.observeLoadedClass(LateDiscoveryFixture.class);
+        String lateReport = RoiClassCandidateMatcher.registerCandidate(
+                new RoiClassCandidateMatcher.Candidate(lateScope,
+                        LateDiscoveryFixture.class.getName(), "receive", "(I)I"));
+        check(lateReport.contains("status=EXACT_MATCH"),
+                "candidate registration must reconcile with previously observed classes");
+        check(lateReport.contains("activationAuthorized=false"),
+                "late candidate correlation must remain diagnostic only");
     }
 
     private static void check(boolean value, String label) {
