@@ -13,6 +13,7 @@ import java.util.Set;
 final class RoiRuntimeInvocationRecorder {
     enum Phase { REQUEST_BUILT, TRANSPORT_ENTERED, RESPONSE_RECEIVED, RESPONSE_PARSED }
     enum Source { TRUSTED_EXISTING_CALLBACK }
+    enum CoverageStatus { RESPONSE_OBSERVED, UNSUPPORTED_SUSPEND_COLLECTOR, UNSUPPORTED_COLLECTOR_TYPE }
 
     static final class Policy {
         final boolean hostIdentityApproved;
@@ -135,10 +136,29 @@ final class RoiRuntimeInvocationRecorder {
         }
     }
 
+    /** Payload-free explanation of a response-observation capability boundary. */
+    static final class CoverageSnapshot {
+        final String adapterIdentity;
+        final String sourceScope;
+        final String candidateDescriptor;
+        final CoverageStatus status;
+        final long timestampMillis;
+
+        CoverageSnapshot(String adapterIdentity, String sourceScope, String candidateDescriptor,
+                         CoverageStatus status, long timestampMillis) {
+            this.adapterIdentity = adapterIdentity;
+            this.sourceScope = sourceScope;
+            this.candidateDescriptor = candidateDescriptor;
+            this.status = status;
+            this.timestampMillis = timestampMillis;
+        }
+    }
+
     private final Policy policy;
     private final int capacity;
     private final long ttlMillis;
     private final List<Event> events = new ArrayList<Event>();
+    private final List<CoverageSnapshot> coverage = new ArrayList<CoverageSnapshot>();
 
     RoiRuntimeInvocationRecorder(Policy policy, int capacity, long ttlMillis) {
         if (policy == null || capacity < 1 || ttlMillis < 1) {
@@ -255,14 +275,39 @@ final class RoiRuntimeInvocationRecorder {
         return Collections.unmodifiableList(result);
     }
 
+    synchronized boolean recordCoverage(String adapterIdentity, String sourceScope,
+                                        String candidateDescriptor, CoverageStatus status,
+                                        long nowMillis) {
+        if (!policy.allowsRecording() || nowMillis <= 0 || adapterIdentity == null
+                || adapterIdentity.length() == 0 || sourceScope == null || sourceScope.length() == 0
+                || candidateDescriptor == null || candidateDescriptor.length() == 0
+                || status == null) return false;
+        prune(nowMillis);
+        while (coverage.size() >= capacity) coverage.remove(0);
+        coverage.add(new CoverageSnapshot(clean(adapterIdentity, 256), clean(sourceScope, 256),
+                clean(candidateDescriptor, 512), status, nowMillis));
+        return true;
+    }
+
+    synchronized List<CoverageSnapshot> snapshotCoverage(long nowMillis) {
+        if (nowMillis <= 0 || !policy.allowsRecording()) return Collections.emptyList();
+        prune(nowMillis);
+        return Collections.unmodifiableList(new ArrayList<CoverageSnapshot>(coverage));
+    }
+
     synchronized int size(long nowMillis) {
         prune(nowMillis);
         return events.size();
     }
 
-    synchronized void clear() { events.clear(); }
+    synchronized void clear() { events.clear(); coverage.clear(); }
 
     private void prune(long nowMillis) {
+        for (int i = coverage.size() - 1; i >= 0; i--) {
+            CoverageSnapshot item = coverage.get(i);
+            if (nowMillis < item.timestampMillis
+                    || nowMillis - item.timestampMillis > ttlMillis) coverage.remove(i);
+        }
         for (int i = events.size() - 1; i >= 0; i--) {
             Event event = events.get(i);
             if (nowMillis < event.timestampMillis
