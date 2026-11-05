@@ -40,6 +40,8 @@ final class RoiUnknownHostInvocationProbe {
     }
 
     private static final class Aggregate {
+        final String descriptor;
+        Aggregate(String descriptor) { this.descriptor = descriptor; }
         long count;
         long totalNanos;
         long maxNanos;
@@ -53,11 +55,17 @@ final class RoiUnknownHostInvocationProbe {
 
     synchronized boolean register(String descriptor) {
         String value = clean(descriptor);
-        if (value.length() == 0) return false;
-        if (approvedDescriptors.contains(value)) return true;
+        return register(value, value);
+    }
+
+    synchronized boolean register(String key, String descriptor) {
+        String identity = clean(key);
+        String value = clean(descriptor);
+        if (identity.length() == 0 || value.length() == 0) return false;
+        if (approvedDescriptors.contains(identity)) return true;
         if (approvedDescriptors.size() >= MAX_PROBED_METHODS) return false;
-        approvedDescriptors.add(value);
-        aggregates.put(value, new Aggregate());
+        approvedDescriptors.add(identity);
+        aggregates.put(identity, new Aggregate(value));
         return true;
     }
 
@@ -103,10 +111,10 @@ final class RoiUnknownHostInvocationProbe {
         }
     }
 
-    synchronized boolean unregister(String descriptor) {
-        String value = clean(descriptor);
-        approvedDescriptors.remove(value);
-        aggregates.remove(value);
+    synchronized boolean unregister(String key) {
+        String identity = clean(key);
+        approvedDescriptors.remove(identity);
+        aggregates.remove(identity);
         return true;
     }
 
@@ -114,7 +122,7 @@ final class RoiUnknownHostInvocationProbe {
         List<Snapshot> result = new ArrayList<Snapshot>();
         for (Map.Entry<String, Aggregate> entry : aggregates.entrySet()) {
             Aggregate value = entry.getValue();
-            result.add(new Snapshot(entry.getKey(), value.count, value.totalNanos,
+            result.add(new Snapshot(value.descriptor, value.count, value.totalNanos,
                     value.maxNanos, value.exceptions));
         }
         return Collections.unmodifiableList(result);
