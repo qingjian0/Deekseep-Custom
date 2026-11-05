@@ -55,6 +55,17 @@ final class RoiRuntimeInvocationObserver {
     }
 
     /** Read-only, opt-in, bounded and TTL-pruned evidence with no request-key exposure. */
+    static List<RoiRuntimeInvocationRecorder.CoverageSnapshot> snapshotCoverage() {
+        RoiRuntimeInvocationRecorder active = recorder;
+        if (active == null || !activeEnabled(active)) return Collections.emptyList();
+        try {
+            return active.snapshotCoverage(System.currentTimeMillis());
+        } catch (Throwable error) {
+            rethrowFatal(error);
+            return Collections.emptyList();
+        }
+    }
+
     static List<RoiRuntimeInvocationRecorder.EvidenceSnapshot> snapshotEvidence() {
         RoiRuntimeInvocationRecorder active = recorder;
         if (active == null || !activeEnabled(active)) return Collections.emptyList();
@@ -139,10 +150,13 @@ final class RoiRuntimeInvocationObserver {
             final String key;
             synchronized (FLOW_REQUEST_KEYS) { key = FLOW_REQUEST_KEYS.remove(flow); }
             if (key == null) return collector;
-            // Kotlin FlowCollector.emit is a suspend method. Do not proxy its collector:
-            // the current observer does not wrap Continuation completion, and proxy identity
-            // changes are unnecessary when no trustworthy response event can be emitted.
-            if (hasSuspendingEmit(collectorType)) return collector;
+            // Kotlin FlowCollector.emit is a suspend method. Preserve collector identity and
+            // record the exact unsupported capability instead of silently losing coverage.
+            Method suspendingEmit = findSuspendingEmit(collectorType);
+            if (suspendingEmit != null) {
+                recordCoverage(suspendingEmit, RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_SUSPEND_COLLECTOR);
+                return collector;
+            }
             ClassLoader loader = collectorType.getClassLoader();
             if (loader == null) loader = collector.getClass().getClassLoader();
             return Proxy.newProxyInstance(loader, new Class<?>[]{collectorType},
@@ -182,11 +196,24 @@ final class RoiRuntimeInvocationObserver {
         }
     }
 
-    private static boolean hasSuspendingEmit(Class<?> collectorType) {
+    private static Method findSuspendingEmit(Class<?> collectorType) {
         for (Method method : collectorType.getMethods()) {
-            if ("emit".equals(method.getName()) && hasContinuationParameter(method)) return true;
+            if ("emit".equals(method.getName()) && hasContinuationParameter(method)) return method;
         }
-        return false;
+        return null;
+    }
+
+    private static void recordCoverage(Method method,
+            RoiRuntimeInvocationRecorder.CoverageStatus status) {
+        try {
+            RoiRuntimeInvocationRecorder active = recorder;
+            if (active == null || !activeEnabled(active)) return;
+            active.recordCoverage(hostFingerprint,
+                    RoiCandidateIdentity.forClassLoader(method.getDeclaringClass().getClassLoader()),
+                    methodDescriptor(method), status, System.currentTimeMillis());
+        } catch (Throwable ignored) {
+            rethrowFatal(ignored);
+        }
     }
 
     private static boolean hasContinuationParameter(Method method) {
@@ -207,6 +234,10 @@ final class RoiRuntimeInvocationObserver {
                     RoiRuntimeInvocationRecorder.Phase.RESPONSE_RECEIVED, now,
                     Thread.currentThread().getId(),
                     RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), now);
+            active.recordCoverage(hostFingerprint,
+                    RoiCandidateIdentity.forClassLoader(emitMethod.getDeclaringClass().getClassLoader()),
+                    methodDescriptor(emitMethod),
+                    RoiRuntimeInvocationRecorder.CoverageStatus.RESPONSE_OBSERVED, now);
         } catch (Throwable ignored) {
             rethrowFatal(ignored);
             // Response observation is strictly best effort.
