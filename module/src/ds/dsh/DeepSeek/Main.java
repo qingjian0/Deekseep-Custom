@@ -1792,6 +1792,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                                         Constructor<?> constructor) throws Throwable {
                                     if (!RoiUnknownHostFeatureHookPolicy
                                             .allowsChatRequestPromptHook(false,
+                                                    new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE),
                                                     new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE),
                                                     candidate, constructor, hostRoot)) return false;
                                     return HookChatPipeline.INSTANCE
@@ -1858,14 +1859,18 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     }
 
     static boolean isUnknownHostFeatureHookEnabled() {
-        return RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
-                new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE));
+        return RoiUnknownHostHookPolicy.isExplicitlyEnabled(
+                    new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE))
+                && RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
+                    new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE));
     }
 
     /** Finalize bounded DEX discovery before authorizing any unknown-host feature adapter. */
     static void finalizeRoiUnknownHostChatRequestDiscovery() {
         Main active = roiMainInstance;
         if (active == null || HostCompat.supportsMaintainedFeatureRuntime()
+                || !RoiUnknownHostHookPolicy.isExplicitlyEnabled(
+                        new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE))
                 || !RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
                         new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE))) return;
         try {
@@ -1899,6 +1904,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                         RoiUnknownHostChatRequestResolver.Candidate resolved,
                         Constructor<?> constructor) throws Throwable {
                     if (!RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(false,
+                            new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE),
                             new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE),
                             resolved, constructor, hostClassLoader)) return false;
                     return HookChatPipeline.INSTANCE.hookUnknownHostChatRequest(constructor);
