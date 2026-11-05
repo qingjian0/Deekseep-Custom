@@ -131,7 +131,9 @@ public final class RoiDexRegisterFlowAnalyzer {
                 || (op >= 0x6e && op <= 0x72)
                 || (op >= 0x74 && op <= 0x78)) {
             uses = invokeRegisters(code, offset, op, count);
-        } else if (op == 0x00 || (op >= 0x28 && op <= 0x2a)) { // nop / goto\n            // No register operands.\n        } else if (op == 0x2b || op == 0x2c) { // switch
+        } else if (op == 0x00 || (op >= 0x28 && op <= 0x2a)) { // nop / goto
+            // No register operands.
+        } else if (op == 0x2b || op == 0x2c) { // switch
             uses = one(a8, count);
         } else if (op >= 0x2d && op <= 0x31) { // compare 23x
             defs = one(a8, count);

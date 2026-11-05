@@ -4,7 +4,8 @@ import java.util.Arrays;
 
 public final class RoiDexRegisterFlowAnalyzerTest {
     public static void main(String[] args) throws Exception {
-        testNoOperandInstructions();\n        testSequentialDefUse();
+        testNoOperandInstructions();
+        testSequentialDefUse();
         testUseBeforeDefinition();
         testWideRegisters();
         testBranchBlocksRemainIndependent();
@@ -13,7 +14,14 @@ public final class RoiDexRegisterFlowAnalyzerTest {
         System.out.println("RoiDexRegisterFlowAnalyzer tests passed");
     }
 
-    private static void testNoOperandInstructions() throws Exception {\n        RoiDexRegisterFlowAnalyzer.BasicBlockFlow block =\n                RoiDexRegisterFlowAnalyzer.analyze(new short[]{0, (short) 0x000e}, 1).blocks[0];\n        check(block.useBeforeDefinition.length == 0 && block.definitions.length == 0,\n                "nop and return-void have no register operands");\n    }\n\n    private static void testSequentialDefUse() throws Exception {
+    private static void testNoOperandInstructions() throws Exception {
+        RoiDexRegisterFlowAnalyzer.BasicBlockFlow block =
+                RoiDexRegisterFlowAnalyzer.analyze(new short[]{0, (short) 0x000e}, 1).blocks[0];
+        check(block.useBeforeDefinition.length == 0 && block.definitions.length == 0,
+                "nop and return-void have no register operands");
+    }
+
+    private static void testSequentialDefUse() throws Exception {
         // const/4 v0, #1; add-int v1, v0, v0; return v1
         short[] code = {(short) 0x0012, (short) 0x0190, (short) 0x0000,
                 (short) 0x0000, (short) 0x010f};
