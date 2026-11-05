@@ -55,25 +55,29 @@ public final class RoiDexFileReaderTest {
   eq(0,d.classData[0].directMethods.length);eq(0,d.classData[0].virtualMethods.length);
  }
  static void testResolvedMethodDefinition()throws Exception{
-  byte[] b=fixture(196);
-  put32(b,56,2);put32(b,60,112);put32(b,64,1);put32(b,68,120);
-  put32(b,72,1);put32(b,76,124);put32(b,88,1);put32(b,92,136);
-  put32(b,96,1);put32(b,100,144);put32(b,104,20);put32(b,108,176);
-  put32(b,112,184);put32(b,116,188);put32(b,120,0);
-  put32(b,124,0);put32(b,128,0);put32(b,132,0);
-  put16(b,136,0);put16(b,138,0);put32(b,140,1);
-  put32(b,144,0);put32(b,148,1);put32(b,152,-1);put32(b,156,0);
-  put32(b,160,-1);put32(b,164,0);put32(b,168,176);put32(b,172,0);
+  byte[] b=fixture(205);
+  put32(b,56,3);put32(b,60,112);put32(b,64,2);put32(b,68,124);
+  put32(b,72,1);put32(b,76,132);put32(b,88,1);put32(b,92,144);
+  put32(b,96,1);put32(b,100,152);put32(b,104,21);put32(b,108,184);
+  put32(b,112,192);put32(b,116,197);put32(b,120,200);
+  put32(b,124,0);put32(b,128,1);
+  put32(b,132,1);put32(b,136,1);put32(b,140,0);
+  put16(b,144,0);put16(b,146,0);put32(b,148,2);
+  put32(b,152,0);put32(b,156,1);put32(b,160,-1);put32(b,164,0);
+  put32(b,168,-1);put32(b,172,0);put32(b,176,184);put32(b,180,0);
   // class_data: no fields, one direct method at method_idx 0, public static, no code_item.
-  b[176]=0;b[177]=0;b[178]=1;b[179]=0;b[180]=0;b[181]=9;b[182]=0;
-  b[184]=1;b[185]='V';b[186]=0;b[188]=3;b[189]='r';b[190]='u';b[191]='n';b[192]=0;
+  b[184]=0;b[185]=0;b[186]=1;b[187]=0;b[188]=0;b[189]=9;b[190]=0;
+  b[192]=3;b[193]='L';b[194]='x';b[195]=';';b[196]=0;
+  b[197]=1;b[198]='V';b[199]=0;
+  b[200]=3;b[201]='r';b[202]='u';b[203]='n';b[204]=0;
   RoiDexFileReader.DexFile d=RoiDexFileReader.read(b);
   eq(1,d.definedMethods.length);
   RoiDexFileReader.ResolvedMethod m=d.definedMethods[0];
-  eq(0,m.methodIndex);eq("V",m.declaringClassDescriptor);eq("run",m.name);
+  eq(0,m.methodIndex);eq("Lx;",m.declaringClassDescriptor);eq("run",m.name);
   eq("()V",m.prototypeDescriptor);
   if(!m.isStatic||!m.isDirect||m.codeItem!=null)throw new AssertionError("method flags/kind/code mismatch");
  }
+
  static void testBadMagic()throws Exception{byte[] b=fixture(112);b[0]='x';bad(b);}
  static void testTruncated()throws Exception{bad(new byte[111]);}
  static void testBadHeaderSize()throws Exception{byte[] b=fixture(112);put32(b,36,0x71);bad(b);}
