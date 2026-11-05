@@ -34,6 +34,9 @@ public final class RoiLoadedClassInspectorTest {
         check(snapshot.interfaces.contains("java.lang.Runnable"), "interface metadata");
         check(contains(snapshot.methods, "transform(I,[Ljava/lang/String;)"),
                 "method parameters must include primitive and array descriptors");
+        check(contains(snapshot.dexMethodDescriptors,
+                        "->transform(I[Ljava/lang/String;)Ljava/lang/String;"),
+                "canonical Dex descriptors must preserve owner, parameters and return type");
         check(contains(snapshot.fields, "secretField"), "private field name is metadata");
         check(snapshot.loaderScope != null && snapshot.loaderScope.length() > 0,
                 "loader scope is retained");
