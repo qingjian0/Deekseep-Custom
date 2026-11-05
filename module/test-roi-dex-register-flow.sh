@@ -5,6 +5,9 @@ OUT="$ROOT/module/build/roi-dex-register-flow-test"
 mkdir -p "$OUT"
 javac -source 8 -target 8 -nowarn -d "$OUT" \
  "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexInstructionScanner.java" \
+ "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexInstructionDecoder.java" \
+ "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexCodeReader.java" \
+ "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexExceptionControlFlow.java" \
  "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexRegisterFlowAnalyzer.java" \
  "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexReachingDefinitions.java" \
  "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexMethodEntryLayout.java" \
