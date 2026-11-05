@@ -490,7 +490,7 @@ final class OpenNativeCompletionProbe {
                                     + " parent=" + parentMethod
                                     + " sameRequestObjectAsRoot=" + sameRequestObjectAsRoot
                                     + " depth=" + depth + " result="
-                                    + (result == null ? "null" : result.getClass().getName()));
+                                    + observedResultType(result));
                         } catch (Throwable ignored) {}
                         return result;
                     } catch (Throwable original) {
@@ -549,6 +549,31 @@ final class OpenNativeCompletionProbe {
             if (i > 0) out.append(',');
             Object value = args.get(i);
             out.append(value == null ? "null" : value.getClass().getName());
+        }
+        return out.append(']').toString();
+    }
+
+    /**
+     * Report runtime result type metadata only. This helps distinguish a Flow/event wrapper
+     * from an ordinary response object without invoking it or inspecting its contents.
+     */
+    private static String observedResultType(Object value) {
+        if (value == null) return "null";
+        Class<?> type = value.getClass();
+        StringBuilder out = new StringBuilder(type.getName()).append(" interfaces=[");
+        try {
+            Class<?>[] interfaces = type.getInterfaces();
+            int count = Math.min(interfaces.length, 8);
+            for (int i = 0; i < count; i++) {
+                if (i > 0) out.append(',');
+                out.append(interfaces[i].getName());
+            }
+            if (interfaces.length > count) {
+                out.append(",...+").append(interfaces.length - count);
+            }
+        } catch (LinkageError | RuntimeException metadataError) {
+            out.append("<unavailable:")
+                    .append(metadataError.getClass().getName()).append('>');
         }
         return out.append(']').toString();
     }
