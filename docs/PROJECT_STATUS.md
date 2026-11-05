@@ -381,3 +381,13 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - Exact matching still requires adapter identity + complete descriptor + identical ClassLoader scope. Other-scope diagnostics do not relax this rule or affect resolver scoring / Hook activation.
 - Static regression guards cover reusable Flow bindings, TTL/capacity policy, and separate scope diagnostics. No new host Hook or Continuation proxy was added.
 - Verification boundary: source and static guards were updated; Java test script, Android build, and device test have not been executed in this environment. Verify current CI before treating the change as passed.
+
+
+## R2.6.1 — runtime ClassLoader protection-signal inventory (2026-11-05)
+
+- 新增纯 Java `RoiClassLoaderProfile`，对当前可见 ClassLoader 及最多 8 层 parent chain 做只读分类：PathClassLoader、DexClassLoader、InMemoryDexClassLoader、DelegateLastClassLoader、BootClassLoader、custom loader 与 other。
+- DexKit discovery 对每个内存 ClassLoader 输出类型链、是否观察到已知 DEX loader、是否观察到 InMemoryDexClassLoader、是否观察到 custom loader。
+- **不会仅凭 custom loader、类名或 loader 类型断言 DEX 已加密**。当前加密评估明确为 `unconfirmed_custom_loader_requires_runtime_dex_evidence` 或 `not_observable_from_loader_type`。
+- 该阶段没有解密、反射读取宿主私有字段、加载额外宿主类、调用宿主方法或安装 Hook。它只是为下一阶段建立动态加载机制的可审计证据入口。
+- 新增独立 JVM 测试与 CI 脚本，覆盖已知 loader 类型、custom loader 非加密证明、链深度上限、快照不可变性和 null/bootstrap。
+- 验证边界：文件和 CI wiring 已提交；必须以对应 GitHub Actions 实际结果为准。当前未声称本地测试、Android 构建或真机验证通过。
