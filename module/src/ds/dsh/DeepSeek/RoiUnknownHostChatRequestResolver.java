@@ -315,7 +315,7 @@ final class RoiUnknownHostChatRequestResolver {
                 && candidate.sourceScope != null && candidate.sourceScope.startsWith("loader:");
     }
 
-    private static boolean isFieldAnchor(String value) {
+    static boolean isFieldAnchor(String value) {
         if (value == null) return false;
         for (String anchor : FIELD_ANCHORS) if (anchor.equals(value)) return true;
         return false;
