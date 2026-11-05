@@ -111,7 +111,7 @@ public final class RoiDexInstructionScanner {
                 if(next<code.length && scan.isInstructionBoundary(next))starts.add(next);
             }
             if(isSwitch(i.opcode)) {
-                int payloadOffset=i.offset+s32(code,i.offset+1);
+                int payloadOffset=checkedTarget(i.offset,s32(code,i.offset+1));
                 Instruction payload=scan.at(payloadOffset);
                 for(int target:payloadTargets(code,payloadOffset,payload.payloadKind,i.offset))starts.add(target);
             }
@@ -144,7 +144,7 @@ public final class RoiDexInstructionScanner {
                 addEdge(edges,bi,blockAt,last.targets[0],"CONDITIONAL_TRUE");
                 addFallthrough(edges,bi,next,blockAt,"CONDITIONAL_FALSE");
             } else if(isSwitch(last.opcode)) {
-                int payloadOffset=last.offset+s32(code,last.offset+1);
+                int payloadOffset=checkedTarget(last.offset,s32(code,last.offset+1));
                 Instruction payload=scan.at(payloadOffset);
                 int[] targets=payloadTargets(code,payloadOffset,payload.payloadKind,last.offset);
                 for(int target:targets)addEdge(edges,bi,blockAt,target,"SWITCH");
