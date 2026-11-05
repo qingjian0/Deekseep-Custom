@@ -118,6 +118,7 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 public class Main extends MainReflectionSupport implements IXposedHookLoadPackage {
 
     private static final String TAG = "DSPROBE";
+    private static volatile Main roiMainInstance;
 
     private static final String ROI_CLASS_LOAD_OBSERVATION_ENABLE_FILE =
             "/data/data/com.deepseek.chat/files/deekseep_roi_class_load_observation_enabled";
@@ -134,6 +135,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             ROI_UNKNOWN_HOST_INVOCATION_PROBE_INSTALLER =
                     new RoiUnknownHostInvocationProbeInstaller(
                             ROI_UNKNOWN_HOST_INVOCATION_PROBE);
+    private static final RoiUnknownHostAutoProbeCoordinator ROI_UNKNOWN_HOST_AUTO_PROBE =
+            new RoiUnknownHostAutoProbeCoordinator();
 
     private static final String TARGET = "com.deepseek.chat";
 
@@ -1132,6 +1135,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     @Override
     public void handleLoadPackage(LoadPackageParam param) {
         MODULE = this;
+        roiMainInstance = this;
         if (param == null) DeekseepLetter.getLetter();
         final ClassLoader cl = param.classLoader;
         final String pkg = param.packageName;
@@ -1144,6 +1148,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     + android.os.Process.myPid() + ", skipping duplicate injection");
             return;
         }
+        hostClassLoader = cl;
         // Loader/embedding/anti-tamper admission is a Closed-edition feature.  Open builds must
         // remain usable with ordinary Xposed/compatible loaders and must not perform anti-root or
         // anti-Frida checks or terminate the host process.
@@ -1179,7 +1184,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     ? HostCompat.generationName() : bootstrapVersion;
             final boolean unknownHostHookEnabled =
                     RoiUnknownHostHookPolicy.allowsMetadataObservation(false,
-                            new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE));
+                            new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE))
+                    || RoiUnknownHostInvocationProbePolicy.isExplicitlyEnabled(
+                            new File(ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE));
             log("unknown/unmaintained host: entering ROI "
                     + (unknownHostHookEnabled ? "opt-in metadata-hook" : "read-only")
                     + " discovery version=" + unsupported
@@ -1194,8 +1201,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 installBestEffortHook("roi.unknown-host.class-load-observer",
                         () -> installRoiClassLoadObserver(cl, true),
                         "unknown-host ROI metadata observer unavailable: ");
-                log("unknown-host ROI switch enabled: metadata-only class observation; "
-                        + "functional feature hooks remain disabled pending adapter proof");
+                log("unknown-host ROI observation enabled: bounded class metadata and "
+                        + "opt-in pass-through invocation probes; functional feature hooks "
+                        + "remain gated by adapter proof");
             } else {
                 log("host symbol table is not maintained; functional Hook bootstrap suppressed; "
                         + "unknown-host switch is absent or disabled");
@@ -1693,7 +1701,11 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         final boolean maintainedHost = HostCompat.supportsMaintainedFeatureRuntime();
         final boolean unknownSwitchEnabled = RoiUnknownHostHookPolicy.isExplicitlyEnabled(
                 new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE));
-        if (hostRoot == null || (!maintainedHost && !(unknownHostOptIn && unknownSwitchEnabled))
+        final boolean invocationProbeEnabled =
+                RoiUnknownHostInvocationProbePolicy.isExplicitlyEnabled(
+                        new File(ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE));
+        if (hostRoot == null || (!maintainedHost
+                && !(unknownHostOptIn && (unknownSwitchEnabled || invocationProbeEnabled)))
                 || (maintainedHost
                     && !new File(ROI_CLASS_LOAD_OBSERVATION_ENABLE_FILE).isFile())) return;
         ClassLoader frameworkLoader = ClassLoader.getSystemClassLoader();
@@ -1712,8 +1724,11 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     try {
                         boolean observationEnabled = maintainedHost
                                 ? new File(ROI_CLASS_LOAD_OBSERVATION_ENABLE_FILE).isFile()
-                                : (unknownHostOptIn && RoiUnknownHostHookPolicy.isExplicitlyEnabled(
-                                        new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE)));
+                                : (unknownHostOptIn
+                                && (RoiUnknownHostHookPolicy.isExplicitlyEnabled(
+                                        new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE))
+                                    || RoiUnknownHostInvocationProbePolicy.isExplicitlyEnabled(
+                                        new File(ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE))));
                         if (!observationEnabled) return loaded;
                         RoiClassLoadObserver.EventSnapshot event =
                                 ROI_CLASS_LOAD_OBSERVER.observe(
@@ -1727,6 +1742,24 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                                     RoiClassCandidateMatcher.matchObservedClass((Class<?>) loaded);
                             if (candidateMatches.length() > 0) {
                                 log("[ROI_CLASS_MATCH] " + candidateMatches);
+                            }
+                            if (!maintainedHost && RoiUnknownHostInvocationProbePolicy
+                                    .isExplicitlyEnabled(new File(
+                                            ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE))) {
+                                int autoInstalled = ROI_UNKNOWN_HOST_AUTO_PROBE.observeLoadedClass(
+                                        (Class<?>) loaded, hostRoot,
+                                        new RoiUnknownHostAutoProbeCoordinator.Installer() {
+                                    @Override public boolean install(
+                                            RoiUnknownHostInvocationProbePolicy.Candidate candidate,
+                                            Method method) throws Throwable {
+                                        return installRoiUnknownHostInvocationProbe(
+                                                candidate, method, hostRoot);
+                                    }
+                                });
+                                if (autoInstalled > 0) {
+                                    log("[ROI_AUTO_PROBE] installed=" + autoInstalled
+                                            + ", candidates=" + ROI_UNKNOWN_HOST_AUTO_PROBE.candidateCount());
+                                }
                             }
                         }
                     } catch (Throwable observationError) {
@@ -1747,10 +1780,45 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 + ", maxPerSecond=" + RoiClassLoadObserver.DEFAULT_MAX_EVENTS_PER_WINDOW);
     }
 
+    /** Called by DexKit only for a unique static role hint plus a non-empty call graph. */
+    static void registerRoiUnknownHostAutoProbeCandidate(String owner, String method,
+            String descriptor, String sourceScope, String roleName) {
+        Main active = roiMainInstance;
+        if (active == null || HostCompat.supportsMaintainedFeatureRuntime()
+                || !RoiUnknownHostInvocationProbePolicy.isExplicitlyEnabled(
+                        new File(ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE))) return;
+        RoiUnknownHostInvocationProbePolicy.Role role;
+        try {
+            role = RoiUnknownHostInvocationProbePolicy.Role.valueOf(roleName);
+        } catch (RuntimeException invalidRole) {
+            return;
+        }
+        try {
+            int installed = ROI_UNKNOWN_HOST_AUTO_PROBE.registerCandidate(owner, method,
+                    descriptor, sourceScope, role, true, hostClassLoader,
+                    new RoiUnknownHostAutoProbeCoordinator.Installer() {
+                @Override public boolean install(
+                        RoiUnknownHostInvocationProbePolicy.Candidate candidate,
+                        Method target) throws Throwable {
+                    return active.installRoiUnknownHostInvocationProbe(
+                            candidate, target, hostClassLoader);
+                }
+            });
+            if (installed > 0) {
+                log("[ROI_AUTO_PROBE] late-discovery installed=" + installed
+                        + ", role=" + role.name());
+            }
+        } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            log("[ROI_AUTO_PROBE] candidate registration failed="
+                    + error.getClass().getName());
+        }
+    }
+
     /**
-     * Entry point for a future evidence producer. Static DexKit hints are not sufficient to call
-     * this method with roleVerified/callGraphConfirmed=true. No discovery path currently invokes
-     * it; it remains dormant until a separately reviewed runtime proof exists.
+     * Diagnostic-only installer. The auto-probe coordinator may supply static role hints,
+     * but those hints never satisfy functional Hook authorization.
      */
     boolean installRoiUnknownHostInvocationProbe(
             RoiUnknownHostInvocationProbePolicy.Candidate candidate,
