@@ -123,9 +123,17 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             "/data/data/com.deepseek.chat/files/deekseep_roi_class_load_observation_enabled";
     private static final String ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE =
             "/data/data/com.deepseek.chat/files/deekseep_roi_unknown_host_hook_enabled";
+    private static final String ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE =
+            "/data/data/com.deepseek.chat/files/deekseep_roi_unknown_host_invocation_probe_enabled";
 
     private static final RoiClassLoadObserver ROI_CLASS_LOAD_OBSERVER =
             new RoiClassLoadObserver();
+    private static final RoiUnknownHostInvocationProbe ROI_UNKNOWN_HOST_INVOCATION_PROBE =
+            new RoiUnknownHostInvocationProbe();
+    private static final RoiUnknownHostInvocationProbeInstaller
+            ROI_UNKNOWN_HOST_INVOCATION_PROBE_INSTALLER =
+                    new RoiUnknownHostInvocationProbeInstaller(
+                            ROI_UNKNOWN_HOST_INVOCATION_PROBE);
 
     private static final String TARGET = "com.deepseek.chat";
 
@@ -1737,6 +1745,40 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 + ", scope=host-root-and-descendants"
                 + ", maxEvents=" + RoiClassLoadObserver.DEFAULT_MAX_EVENTS
                 + ", maxPerSecond=" + RoiClassLoadObserver.DEFAULT_MAX_EVENTS_PER_WINDOW);
+    }
+
+    /**
+     * Entry point for a future evidence producer. Static DexKit hints are not sufficient to call
+     * this method with roleVerified/callGraphConfirmed=true. No discovery path currently invokes
+     * it; it remains dormant until a separately reviewed runtime proof exists.
+     */
+    boolean installRoiUnknownHostInvocationProbe(
+            RoiUnknownHostInvocationProbePolicy.Candidate candidate,
+            Method method, ClassLoader hostRoot) throws Throwable {
+        if (HostCompat.supportsMaintainedFeatureRuntime()) return false;
+        boolean installed = ROI_UNKNOWN_HOST_INVOCATION_PROBE_INSTALLER.install(
+                new File(ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE),
+                candidate, method, hostRoot,
+                new RoiUnknownHostInvocationProbeInstaller.HookRegistrar() {
+                    @Override public void install(Method target,
+                            RoiUnknownHostInvocationProbeInstaller.InvocationCallback callback) {
+                        hook(target).intercept(new Hooker() {
+                            @Override public Object intercept(Chain chain) throws Throwable {
+                                return callback.invoke(new RoiUnknownHostInvocationProbe.ProceedingCall() {
+                                    @Override public Object proceed() throws Throwable {
+                                        return chain.proceed();
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
+        if (installed) {
+            log("ROI unknown-host invocation probe installed; descriptor="
+                    + candidate.descriptor + ", role=" + candidate.role.name()
+                    + ", diagnosticOnly=true");
+        }
+        return installed;
     }
 
     public synchronized void installAllFeatureHooks(ClassLoader cl) {
