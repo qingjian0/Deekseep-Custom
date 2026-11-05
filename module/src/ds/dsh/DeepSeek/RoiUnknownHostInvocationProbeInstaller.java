@@ -58,8 +58,9 @@ final class RoiUnknownHostInvocationProbeInstaller {
 
         String installKey = scope + "|" + candidate.descriptor;
         if (installed.contains(installKey)) return true;
-        if (!probe.register(candidate.descriptor)) return false;
+        if (!probe.register(installKey, candidate.descriptor)) return false;
         try {
+            final String probeKey = installKey;
             final String descriptor = candidate.descriptor;
             final File liveSwitch = switchFile;
             registrar.install(method, new InvocationCallback() {
@@ -68,13 +69,13 @@ final class RoiUnknownHostInvocationProbeInstaller {
                     if (!RoiUnknownHostInvocationProbePolicy.isExplicitlyEnabled(liveSwitch)) {
                         return call.proceed();
                     }
-                    return probe.invoke(descriptor, call);
+                    return probe.invoke(probeKey, call);
                 }
             });
             installed.add(installKey);
             return true;
         } catch (Throwable installationFailure) {
-            probe.unregister(candidate.descriptor);
+            probe.unregister(installKey);
             throw installationFailure;
         }
     }
