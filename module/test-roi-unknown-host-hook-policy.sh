@@ -15,6 +15,8 @@ java -cp "$OUT" ds.dsh.DeepSeek.RoiUnknownHostActivationGatesTest
 
 MAIN="$ROOT/module/src/ds/dsh/DeepSeek/Main.java"
 HOOK_POLICY="$ROOT/module/src/ds/dsh/DeepSeek/RoiUnknownHostHookPolicy.java"
+FEATURE_POLICY="$ROOT/module/src/ds/dsh/DeepSeek/RoiUnknownHostFeatureHookPolicy.java"
+GATE_POLICY="$ROOT/module/src/ds/dsh/DeepSeek/RoiUnknownHostActivationGates.java"
 grep -q 'deekseep_roi_unknown_host_hook_enabled' "$MAIN"
 grep -q 'unknownVersionAttemptsEnabled' "$MAIN"
 grep -q 'diagnosticProbesEnabled' "$MAIN"
@@ -29,6 +31,9 @@ grep -q 'RoiUnknownHostInvocationProbePolicy.isExplicitlyEnabled' "$MAIN"
 grep -q 'RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled' "$MAIN"
 grep -q 'authorizesFunctionalHook' "$HOOK_POLICY"
 grep -q 'return false;' "$HOOK_POLICY"
+grep -q 'unknownVersionAttemptSwitchFile' "$FEATURE_POLICY"
+grep -q 'RoiUnknownHostHookPolicy.isExplicitlyEnabled(unknownVersionAttemptSwitchFile)' "$FEATURE_POLICY"
+grep -q 'unknownVersionAttemptsEnabled && featureHooksAuthorized' "$GATE_POLICY"
 
 # The shared class-load dispatcher may be installed for any one lane, but metadata diagnostics
 # must be gated only by the unknown-version-attempt switch, never by probe/feature switches.
