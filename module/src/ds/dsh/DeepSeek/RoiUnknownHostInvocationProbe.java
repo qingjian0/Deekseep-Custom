@@ -103,6 +103,13 @@ final class RoiUnknownHostInvocationProbe {
         }
     }
 
+    synchronized boolean unregister(String descriptor) {
+        String value = clean(descriptor);
+        approvedDescriptors.remove(value);
+        aggregates.remove(value);
+        return true;
+    }
+
     synchronized List<Snapshot> snapshot() {
         List<Snapshot> result = new ArrayList<Snapshot>();
         for (Map.Entry<String, Aggregate> entry : aggregates.entrySet()) {
