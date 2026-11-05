@@ -119,6 +119,12 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     private static final String TAG = "DSPROBE";
 
+    private static final String ROI_CLASS_LOAD_OBSERVATION_ENABLE_FILE =
+            "/data/data/com.deepseek.chat/files/deekseep_roi_class_load_observation_enabled";
+
+    private static final RoiClassLoadObserver ROI_CLASS_LOAD_OBSERVER =
+            new RoiClassLoadObserver();
+
     private static final String TARGET = "com.deepseek.chat";
 
     static final String SELF = "ds.dsh.DeepSeek";
@@ -1195,6 +1201,12 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         }
         main = new Handler(mainLooper);
         hostClassLoader = cl;
+        if (HostCompat.supportsMaintainedFeatureRuntime()
+                && new File(ROI_CLASS_LOAD_OBSERVATION_ENABLE_FILE).isFile()) {
+            installBestEffortHook("roi.class-load-observer",
+                    () -> installRoiClassLoadObserver(cl),
+                    "ROI class-load observer unavailable: ");
+        }
         // Host-independent (public framework API only); must be in place before MainActivity
         // is attached so the stored DeepSeek text size applies on cold start.
         FontScaleFeature.install(this);
@@ -1645,6 +1657,54 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             FEATURE_HOOK_INSTALL_REGISTRY.markDegraded(id, error);
             log(logPrefix + safeThrowableMessage(error));
         }
+    }
+
+    /**
+     * Installs one opt-in BaseDexClassLoader.findClass observer for the approved host process.
+     * The callback always proceeds first and only inspects classes actually defined by the host
+     * root loader or one of its child loaders. Unknown hosts never reach this installer.
+     */
+    private void installRoiClassLoadObserver(final ClassLoader hostRoot) throws Throwable {
+        if (hostRoot == null || !HostCompat.supportsMaintainedFeatureRuntime()
+                || !new File(ROI_CLASS_LOAD_OBSERVATION_ENABLE_FILE).isFile()) return;
+        ClassLoader frameworkLoader = ClassLoader.getSystemClassLoader();
+        Class<?> baseDexClassLoader = Class.forName(
+                "dalvik.system.BaseDexClassLoader", false, frameworkLoader);
+        final Method findClass = baseDexClassLoader.getDeclaredMethod(
+                "findClass", String.class);
+        if (!Class.class.isAssignableFrom(findClass.getReturnType())) {
+            throw new NoSuchMethodException("BaseDexClassLoader.findClass return type changed");
+        }
+        hook(findClass).intercept(new Hooker() {
+            @Override public Object intercept(Chain chain) throws Throwable {
+                Object loaded = chain.proceed();
+                Object receiver = chain.getThisObject();
+                if (receiver instanceof ClassLoader && loaded instanceof Class<?>) {
+                    try {
+                        RoiClassLoadObserver.EventSnapshot event =
+                                ROI_CLASS_LOAD_OBSERVER.observe(
+                                        (ClassLoader) receiver, (Class<?>) loaded, hostRoot,
+                                        HostCompat.supportsMaintainedFeatureRuntime(), true,
+                                        System.currentTimeMillis());
+                        if (event != null) {
+                            String report = event.toReport();
+                            log("[ROI_CLASS_LOAD] " + (report.length() > 4096
+                                    ? report.substring(0, 4096) + "...<truncated>" : report));
+                        }
+                    } catch (Throwable observationError) {
+                        // Metadata observation must never change the host's class-loading result.
+                        try {
+                            log("[ROI_CLASS_LOAD] observation_failed="
+                                    + observationError.getClass().getName());
+                        } catch (Throwable ignored) {}
+                    }
+                }
+                return loaded;
+            }
+        });
+        log("ROI class-load observer installed; scope=host-root-and-descendants"
+                + ", maxEvents=" + RoiClassLoadObserver.DEFAULT_MAX_EVENTS
+                + ", maxPerSecond=" + RoiClassLoadObserver.DEFAULT_MAX_EVENTS_PER_WINDOW);
     }
 
     public synchronized void installAllFeatureHooks(ClassLoader cl) {
