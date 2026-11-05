@@ -40,6 +40,14 @@ public final class RoiDexCodeReaderTest {
   eq(2,graph.normalGraph.blocks.length);eq(1,graph.exceptionEdges.length);
   eq(0,graph.exceptionEdges[0].fromBlock);eq(1,graph.exceptionEdges[0].toBlock);
   eq(1,graph.exceptionEdges[0].handlerAddress);eq(0,graph.exceptionEdges[0].catchTypeIndex);
+  RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(c);
+  if(!flow.exceptionEdgesIncluded||flow.normalControlFlowOnly)
+   throw new AssertionError("register flow omitted exception edges");
+  eq(1,flow.exceptionEdges.length);
+  RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
+  if(!reaching.exceptionEdgesIncluded)throw new AssertionError("reaching definitions omitted exception edges");
+  RoiDexUseDefChains.Result chains=RoiDexUseDefChains.analyze(flow,reaching);
+  if(!chains.exceptionEdgesIncluded)throw new AssertionError("use-def chains omitted exception edges");
  }
  static void malformed()throws Exception{
   byte[] b=new byte[24];put16(b,16,1);put16(b,18,2);
