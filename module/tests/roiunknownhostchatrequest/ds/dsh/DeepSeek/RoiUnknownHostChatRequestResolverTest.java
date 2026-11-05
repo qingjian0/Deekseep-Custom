@@ -206,6 +206,11 @@ public final class RoiUnknownHostChatRequestResolverTest {
                 "no unsupported candidate can be activated");
         check(!RoiUnknownHostChatRequestResolver.isChatRequestConstructor(
                 "Lbad/Request;-><init>(Ljava/lang/String;)V"), "short constructor rejected");
+        ClassLoader root = RequestFixture.class.getClassLoader();
+        check(resolver.observeLoadedClass(WrongFixture.class, root, (candidate, ctor) -> true) == 0,
+                "runtime classes without the constructor contract are ignored");
+        check(resolver.observedClassCount() == 0,
+                "unrelated classes are not retained in the resolver cache");
     }
 
     private static String descriptor(Class<?> type) {
