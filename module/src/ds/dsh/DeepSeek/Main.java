@@ -1702,13 +1702,13 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 Object receiver = chain.getThisObject();
                 if (receiver instanceof ClassLoader && loaded instanceof Class<?>) {
                     try {
-                        RoiClassLoadObserver.EventSnapshot event =
-                                boolean observationEnabled = maintainedHost
+                        boolean observationEnabled = maintainedHost
                                 ? new File(ROI_CLASS_LOAD_OBSERVATION_ENABLE_FILE).isFile()
                                 : (unknownHostOptIn && RoiUnknownHostHookPolicy.isExplicitlyEnabled(
                                         new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE)));
                         if (!observationEnabled) return loaded;
-                        ROI_CLASS_LOAD_OBSERVER.observe(
+                        RoiClassLoadObserver.EventSnapshot event =
+                                ROI_CLASS_LOAD_OBSERVER.observe(
                                         (ClassLoader) receiver, (Class<?>) loaded, hostRoot,
                                         true, true, System.currentTimeMillis());
                         if (event != null) {
