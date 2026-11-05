@@ -16,7 +16,7 @@ Use three independent runtime switches. Each switch is persisted as an explicit 
 |---|---:|---|---|
 | Unknown-version Hook attempts | OFF | Permit the compatibility pipeline to attempt explicitly selected Hook candidates on an unrecognized host build, subject to runtime guards | Diagnostic probes; feature Hooks |
 | Diagnostic probes | OFF | Permit diagnostic-only probe installation and collection | Unknown-version attempts; feature Hooks |
-| Feature Hook authorization | OFF | Permit feature Hook activation through the normal feature-specific runtime checks | Diagnostic probes; unknown-version attempts |
+| Feature Hook authorization | OFF | Provide the additional authorization required for unknown-host feature Hooks; the unknown-version-attempt switch must also be ON | Diagnostic probes; unknown-version attempts |
 
 ### 1. Unknown-version Hook attempts
 
@@ -38,11 +38,11 @@ Use three independent runtime switches. Each switch is persisted as an explicit 
 ### 3. Feature Hook authorization
 
 - The default is OFF.
-- A feature Hook may execute only when this switch is ON **and** its ordinary feature-specific runtime preconditions pass.
+- An unknown-host feature Hook may execute only when both the unknown-version-attempt switch and this authorization switch are ON, and its ordinary feature-specific runtime preconditions pass.
 - Static analysis may produce candidates, evidence, confidence, or a suggested mapping. None of those results may write authorization state, enable this switch, or bypass its gate.
 - A successful resolver result is not authorization.
 - With the switch OFF, feature Hook installation is denied even if every static-analysis check passes.
-- With the switch ON, runtime validation is still mandatory; the switch is necessary, not sufficient.
+- With this switch ON but unknown-version attempts OFF, no unknown-host feature Hook attempt may start. With both switches ON, runtime validation is still mandatory; the switches are necessary, not sufficient.
 
 ## Independence and precedence
 
