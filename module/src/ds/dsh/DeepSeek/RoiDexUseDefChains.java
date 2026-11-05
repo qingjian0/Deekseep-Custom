@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Instruction-level use-to-definition links derived from normal-CFG reaching definitions.
+ * Instruction-level use-to-definition links derived from reaching definitions over available CFG edges.
  * A use with no reaching definition is an entry/unknown value, not proof of an uninitialized read.
  */
 public final class RoiDexUseDefChains {
@@ -65,13 +65,16 @@ public final class RoiDexUseDefChains {
     public static final class Result {
         public final UseSite[] uses;
         public final long chainLinkCount;
-        public final boolean normalControlFlowOnly = true;
-        public final boolean exceptionEdgesIncluded = false;
-        public final boolean completeForExceptionFlow = false;
+        public final boolean normalControlFlowOnly;
+        public final boolean exceptionEdgesIncluded;
+        public final boolean completeForExceptionFlow;
 
-        Result(List<UseSite> uses, long links) {
+        Result(List<UseSite> uses, long links,boolean exceptionIncluded) {
             this.uses = uses.toArray(new UseSite[0]);
             chainLinkCount = links;
+            exceptionEdgesIncluded=exceptionIncluded;
+            normalControlFlowOnly=!exceptionIncluded;
+            completeForExceptionFlow=false;
         }
     }
 
@@ -159,7 +162,7 @@ public final class RoiDexUseDefChains {
                 }
             }
         }
-        return new Result(sites, links);
+        return new Result(sites, links,flow.exceptionEdgesIncluded);
     }
 
 
@@ -208,6 +211,13 @@ public final class RoiDexUseDefChains {
             if (edge.fromBlock < 0 || edge.fromBlock >= blocks
                     || edge.toBlock < 0 || edge.toBlock >= blocks)
                 throw new AnalysisException("cfg_edge_out_of_bounds");
+            if (!predecessors[edge.toBlock].contains(edge.fromBlock))
+                predecessors[edge.toBlock].add(edge.fromBlock);
+        }
+        for (RoiDexExceptionControlFlow.ExceptionEdge edge : flow.exceptionEdges) {
+            if (edge.fromBlock < 0 || edge.fromBlock >= blocks
+                    || edge.toBlock < 0 || edge.toBlock >= blocks)
+                throw new AnalysisException("exception_cfg_edge_out_of_bounds");
             if (!predecessors[edge.toBlock].contains(edge.fromBlock))
                 predecessors[edge.toBlock].add(edge.fromBlock);
         }
