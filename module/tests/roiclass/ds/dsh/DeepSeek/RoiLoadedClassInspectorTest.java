@@ -3,12 +3,13 @@ package ds.dsh.DeepSeek;
 import java.util.List;
 
 public final class RoiLoadedClassInspectorTest {
+    private static final class InitTracker { static int count; }
+
     private static final class Sample implements Runnable {
-        static boolean initialized;
         private String secretField;
         public int count;
 
-        static { initialized = true; }
+        static { InitTracker.count++; }
 
         @Override public void run() {}
         private String transform(int value, String[] labels) { return String.valueOf(value); }
@@ -40,9 +41,9 @@ public final class RoiLoadedClassInspectorTest {
     }
 
     private static void testDoesNotInitializeClass() {
-        check(!Sample.initialized, "class must not be initialized before inspection");
+        check(InitTracker.count == 0, "class must not be initialized before inspection");
         RoiLoadedClassInspector.inspect(Sample.class);
-        check(!Sample.initialized, "inspection must not initialize host class");
+        check(InitTracker.count == 0, "inspection must not initialize host class");
     }
 
     private static void testNullIsRejected() {
