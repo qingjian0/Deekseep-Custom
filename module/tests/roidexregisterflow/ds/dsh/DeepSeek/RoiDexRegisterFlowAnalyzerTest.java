@@ -21,6 +21,7 @@ public final class RoiDexRegisterFlowAnalyzerTest {
         testUseDefChainTracksLoopDefinitions();
         testUseDefChainPreservesEntryUnknown();
         testUseDefChainTracksWideRegisterWords();
+        testUnreachableDefinitionsDoNotReachLiveCode();
         testUnsupportedOpcodeFailsClosed();
         testRegisterBounds();
         System.out.println("RoiDexRegisterFlowAnalyzer tests passed");
@@ -276,6 +277,22 @@ public final class RoiDexRegisterFlowAnalyzerTest {
         check(low.reachingDefinitions[0].register == 0
                         && high.reachingDefinitions[0].register == 1,
                 "wide read links each word to its matching definition");
+    }
+
+    private static void testUnreachableDefinitionsDoNotReachLiveCode() throws Exception {
+        // goto live return; dead const/4 v0; dead goto; dead nop; return v0
+        short[] code = {(short) 0x0428, (short) 0x0012,
+                (short) 0x0228, (short) 0x0000, (short) 0x000f};
+        RoiDexRegisterFlowAnalyzer.Result flow =
+                RoiDexRegisterFlowAnalyzer.analyze(code, 1);
+        RoiDexReachingDefinitions.Result reaching =
+                RoiDexReachingDefinitions.analyze(flow);
+        RoiDexReachingDefinitions.BlockResult dead = blockAt(reaching, 1);
+        RoiDexReachingDefinitions.BlockResult live = blockAt(reaching, 4);
+        check(dead != null && !dead.reachableFromEntry,
+                "dead block is explicitly marked unreachable from method entry");
+        check(live != null && live.reachableFromEntry && live.reachingIn.length == 0,
+                "definition from unreachable predecessor cannot contaminate live join");
     }
 
     private static RoiDexUseDefChains.Result chains(short[] code, int registers)
