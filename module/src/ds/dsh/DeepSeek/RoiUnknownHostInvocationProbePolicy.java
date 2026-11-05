@@ -5,9 +5,10 @@ import java.io.File;
 import java.io.FileReader;
 
 /**
- * Fail-closed gate for diagnostic invocation probes on an unmaintained host.
- * Static role hints and class-load matches are not sufficient: callers must supply
- * independently verified role and call-graph evidence for the exact runtime method.
+ * Separates diagnostic pass-through probing from functional Hook authorization.
+ * allowsProbe accepts explicit opt-in, a unique static role/call-graph hint, and an exact
+ * runtime method identity. allows remains the stronger gate requiring verified role and
+ * confirmed call-graph evidence; diagnostic hints never satisfy it.
  */
 final class RoiUnknownHostInvocationProbePolicy {
     static final String ENABLE_TOKEN = "ENABLE";
