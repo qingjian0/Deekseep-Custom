@@ -43,13 +43,16 @@ public final class RoiDexReachingDefinitions {
         public final int endOffset;
         public final Definition[] reachingIn;
         public final Definition[] reachingOut;
+        public final boolean reachableFromEntry;
 
-        BlockResult(int index, int start, int end, Definition[] in, Definition[] out) {
+        BlockResult(int index, int start, int end, Definition[] in, Definition[] out,
+                boolean reachable) {
             blockIndex = index;
             startOffset = start;
             endOffset = end;
             reachingIn = in;
             reachingOut = out;
+            reachableFromEntry = reachable;
         }
     }
 
@@ -129,6 +132,20 @@ public final class RoiDexReachingDefinitions {
                 successors[edge.fromBlock].add(edge.toBlock);
         }
 
+        boolean[] reachable = new boolean[blockCount];
+        ArrayDeque<Integer> reachabilityQueue = new ArrayDeque<Integer>();
+        reachable[0] = true;
+        reachabilityQueue.addLast(0);
+        while (!reachabilityQueue.isEmpty()) {
+            int source = reachabilityQueue.removeFirst();
+            for (int successor : successors[source]) {
+                if (!reachable[successor]) {
+                    reachable[successor] = true;
+                    reachabilityQueue.addLast(successor);
+                }
+            }
+        }
+
         for (int b = 0; b < blockCount; b++) {
             gen[b] = new BitSet(definitions.size());
             kill[b] = new BitSet(definitions.size());
@@ -144,14 +161,16 @@ public final class RoiDexReachingDefinitions {
                 if (all != null)
                     for (int id : all) if (id != finalId) kill[b].set(id);
             }
-            out[b].or(gen[b]);
+            if (reachable[b]) out[b].or(gen[b]);
         }
 
         ArrayDeque<Integer> worklist = new ArrayDeque<Integer>();
         boolean[] queued = new boolean[blockCount];
         for (int b = 0; b < blockCount; b++) {
-            worklist.addLast(b);
-            queued[b] = true;
+            if (reachable[b]) {
+                worklist.addLast(b);
+                queued[b] = true;
+            }
         }
 
         long steps = 0;
@@ -186,7 +205,8 @@ public final class RoiDexReachingDefinitions {
         for (int b = 0; b < blockCount; b++) {
             RoiDexRegisterFlowAnalyzer.BasicBlockFlow block = flow.blocks[b];
             results.add(new BlockResult(b, block.startOffset, block.endOffset,
-                    materialize(in[b], definitions), materialize(out[b], definitions)));
+                    materialize(in[b], definitions), materialize(out[b], definitions),
+                    reachable[b]));
         }
         return new Result(definitions, results,
                 (int) Math.min(Integer.MAX_VALUE, steps));
