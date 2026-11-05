@@ -32,9 +32,10 @@ public final class RoiDexInstructionScanner {
     public static final class ScanResult {
         public final Instruction[] instructions;
         public final int codeUnits;
+        private final short[] code;
         private final Map<Integer,Instruction> byOffset;
-        ScanResult(List<Instruction> list,int n) {
-            instructions=list.toArray(new Instruction[0]); codeUnits=n;
+        ScanResult(List<Instruction> list,short[] source) {
+            instructions=list.toArray(new Instruction[0]); codeUnits=source.length; code=source.clone();
             Map<Integer,Instruction> m=new LinkedHashMap<Integer,Instruction>();
             for(Instruction i:instructions)m.put(i.offset,i);
             byOffset=Collections.unmodifiableMap(m);
@@ -199,6 +200,12 @@ public final class RoiDexInstructionScanner {
         if(kind==2) {
             require(c,p,2);int size=u(c[p+1]);long width=2L+4L*size;
             if(width>Integer.MAX_VALUE||width>c.length-p)throw new ScanException("sparse_switch_payload_truncated:"+p);
+            int previous=0;
+            for(int i=0;i<size;i++) {
+                int key=s32(c,p+2+i*2);
+                if(i>0&&key<=previous)throw new ScanException("sparse_switch_keys_not_strictly_increasing:"+p);
+                previous=key;
+            }
             return (int)width;
         }
         if(kind==3) {
@@ -227,27 +234,43 @@ public final class RoiDexInstructionScanner {
         }
     }
     private static void validateBranchTargets(ScanResult s)throws ScanException {
-        for(Instruction i:s.instructions)if(!i.payload)for(int target:i.targets)
-            if(target<0||target>=s.codeUnits||!s.isInstructionBoundary(target))
-                throw new ScanException("branch_target_not_instruction_boundary:"+i.offset+"->"+target);
+        for(Instruction i:s.instructions)if(!i.payload) {
+            for(int target:i.targets)validateTarget(s,i.offset,target);
+            if(isSwitch(i.opcode)) {
+                int payloadOffset=checkedTarget(i.offset,s32(s.code,i.offset+1));
+                Instruction payload=s.at(payloadOffset);
+                if(payload==null||!payload.payload)throw new ScanException("switch_payload_missing:"+i.offset);
+                for(int target:payloadTargets(s.code,payloadOffset,payload.payloadKind,i.offset))
+                    validateTarget(s,i.offset,target);
+            }
+        }
+    }
+    private static void validateTarget(ScanResult s,int source,int target)throws ScanException {
+        if(target<0||target>=s.codeUnits||!s.isInstructionBoundary(target))
+            throw new ScanException("branch_target_not_instruction_boundary:"+source+"->"+target);
+    }
+    private static int checkedTarget(int base,int relative)throws ScanException {
+        long target=(long)base+(long)relative;
+        if(target<Integer.MIN_VALUE||target>Integer.MAX_VALUE)throw new ScanException("branch_target_overflow:"+base);
+        return (int)target;
     }
     private static int[] branchTargets(short[] c,int p,int op,int width)throws ScanException {
-        if(op==0x28)return new int[]{p+(byte)(u(c[p])>>>8)};
-        if(op==0x29)return new int[]{p+(short)u(c[p+1])};
-        if(op==0x2a)return new int[]{p+s32(c,p+1)};
-        if(op>=0x32&&op<=0x3d)return new int[]{p+(short)u(c[p+1])};
+        if(op==0x28)return new int[]{checkedTarget(p,(byte)(u(c[p])>>>8))};
+        if(op==0x29)return new int[]{checkedTarget(p,(short)u(c[p+1]))};
+        if(op==0x2a)return new int[]{checkedTarget(p,s32(c,p+1))};
+        if(op>=0x32&&op<=0x3d)return new int[]{checkedTarget(p,(short)u(c[p+1]))};
         return new int[0];
     }
     private static int[] payloadTargets(short[] c,int p,int kind,int switchOffset)throws ScanException {
         if(kind==1) {
             int n=u(c[p+1]);int[] out=new int[n];
-            for(int i=0;i<n;i++)out[i]=switchOffset+s32(c,p+4+i*2);
+            for(int i=0;i<n;i++)out[i]=checkedTarget(switchOffset,s32(c,p+4+i*2));
             return out;
         }
         if(kind==2) {
             int n=u(c[p+1]);int[] out=new int[n];
             int targets=p+2+n*2;
-            for(int i=0;i<n;i++)out[i]=switchOffset+s32(c,targets+i*2);
+            for(int i=0;i<n;i++)out[i]=checkedTarget(switchOffset,s32(c,targets+i*2));
             return out;
         }
         throw new ScanException("not_switch_payload:"+kind);
