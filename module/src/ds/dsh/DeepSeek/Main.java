@@ -1716,6 +1716,11 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                             log("[ROI_CLASS_LOAD] " + (report.length() > 4096
                                     ? report.substring(0, 4096) + "...<truncated>" : report));
                         }
+                        String candidateMatches =
+                                RoiClassCandidateMatcher.matchObservedClass((Class<?>) loaded);
+                        if (candidateMatches.length() > 0) {
+                            log("[ROI_CLASS_MATCH] " + candidateMatches);
+                        }
                     } catch (Throwable observationError) {
                         // Metadata observation must never change the host's class-loading result.
                         try {
