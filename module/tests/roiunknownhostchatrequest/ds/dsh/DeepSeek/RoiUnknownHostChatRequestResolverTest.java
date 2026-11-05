@@ -179,26 +179,40 @@ public final class RoiUnknownHostChatRequestResolverTest {
         resolver.finalizeDiscovery();
         RoiUnknownHostChatRequestResolver.Candidate candidate = resolver.bestCandidate(scope);
         Constructor<?> target = RequestFixture.class.getDeclaredConstructors()[0];
-        java.io.File switchFile = java.io.File.createTempFile("roi-feature-hook", ".switch");
+        java.io.File attemptSwitch = java.io.File.createTempFile("roi-unknown-attempt", ".switch");
+        java.io.File featureSwitch = java.io.File.createTempFile("roi-feature-hook", ".switch");
         try {
-            write(switchFile, "DISABLED\n");
+            write(attemptSwitch, "DISABLED\\n");
+            write(featureSwitch, "ENABLE\\n");
             check(!RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
-                    false, switchFile, candidate, target, root), "feature switch defaults closed");
-            write(switchFile, "ENABLE\n");
+                    false, attemptSwitch, featureSwitch, candidate, target, root),
+                    "feature authorization cannot bypass unknown-version attempt switch");
+            write(attemptSwitch, "ENABLE\\n");
+            write(featureSwitch, "DISABLED\\n");
+            check(!RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
+                    false, attemptSwitch, featureSwitch, candidate, target, root),
+                    "feature switch defaults closed");
+            write(featureSwitch, "ENABLE\\n");
             check(RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
-                    false, switchFile, candidate, target, root), "exact adapter candidate authorized");
+                    false, attemptSwitch, featureSwitch, candidate, target, root),
+                    "both explicit switches and exact adapter candidate authorize the hook");
             check(!RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
-                    true, switchFile, candidate, target, root), "maintained host does not use unknown lane");
+                    true, attemptSwitch, featureSwitch, candidate, target, root),
+                    "maintained host does not use unknown lane");
             check(!RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
-                    false, switchFile, null, target, root), "missing candidate rejected");
+                    false, attemptSwitch, featureSwitch, null, target, root),
+                    "missing candidate rejected");
             check(!RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
-                    false, switchFile, candidate, WrongFixture.class.getDeclaredConstructors()[0], root),
+                    false, attemptSwitch, featureSwitch, candidate,
+                    WrongFixture.class.getDeclaredConstructors()[0], root),
                     "different constructor rejected");
-            write(switchFile, "ENABLE\nEXTRA\n");
+            write(featureSwitch, "ENABLE\\nEXTRA\\n");
             check(!RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
-                    false, switchFile, candidate, target, root), "extra switch line rejected");
+                    false, attemptSwitch, featureSwitch, candidate, target, root),
+                    "extra switch line rejected");
         } finally {
-            switchFile.delete();
+            attemptSwitch.delete();
+            featureSwitch.delete();
         }
     }
 
