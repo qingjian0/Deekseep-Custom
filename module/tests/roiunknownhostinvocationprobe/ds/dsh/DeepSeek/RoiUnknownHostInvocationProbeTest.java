@@ -50,6 +50,16 @@ public final class RoiUnknownHostInvocationProbeTest {
                 new RoiUnknownHostInvocationProbePolicy.Candidate(OWNER, "other", DESCRIPTOR,
                         SCOPE, RoiUnknownHostInvocationProbePolicy.Role.HTTP_TRANSPORT,
                         true, true, true), runtime), "method name must match descriptor");
+        check(!RoiUnknownHostInvocationProbePolicy.allows(true,
+                new RoiUnknownHostInvocationProbePolicy.Candidate(OWNER, "send",
+                        "Lx/y/Transport;->send(Lx/y/Request;)Lx/y/Flow;garbage",
+                        SCOPE, RoiUnknownHostInvocationProbePolicy.Role.HTTP_TRANSPORT,
+                        true, true, true), runtime), "trailing descriptor data must be denied");
+        check(!RoiUnknownHostInvocationProbePolicy.allows(true,
+                new RoiUnknownHostInvocationProbePolicy.Candidate(OWNER, "send",
+                        "Lx/y/Transport;->send(V)Lx/y/Flow;",
+                        SCOPE, RoiUnknownHostInvocationProbePolicy.Role.HTTP_TRANSPORT,
+                        true, true, true), runtime), "void parameter descriptor must be denied");
     }
 
     private static RoiUnknownHostInvocationProbePolicy.Candidate candidate(
