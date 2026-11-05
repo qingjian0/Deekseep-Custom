@@ -1754,47 +1754,49 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                             if (candidateMatches.length() > 0) {
                                 log("[ROI_CLASS_MATCH] " + candidateMatches);
                             }
-                            if (!maintainedHost && RoiUnknownHostInvocationProbePolicy
-                                    .isExplicitlyEnabled(new File(
-                                            ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE))) {
-                                int autoInstalled = ROI_UNKNOWN_HOST_AUTO_PROBE.observeLoadedClass(
-                                        (Class<?>) loaded, hostRoot,
-                                        new RoiUnknownHostAutoProbeCoordinator.Installer() {
-                                    @Override public boolean install(
-                                            RoiUnknownHostInvocationProbePolicy.Candidate candidate,
-                                            Method method) throws Throwable {
-                                        return installRoiUnknownHostInvocationProbe(
-                                                candidate, method, hostRoot);
-                                    }
-                                });
-                                if (autoInstalled > 0) {
-                                    log("[ROI_AUTO_PROBE] installed=" + autoInstalled
-                                            + ", candidates=" + ROI_UNKNOWN_HOST_AUTO_PROBE.candidateCount());
+                        }
+                        // Functional binding is independent of the bounded diagnostic event
+                        // quota: a rate-limited metadata report must not suppress a valid hook.
+                        if (!maintainedHost && RoiUnknownHostInvocationProbePolicy
+                                .isExplicitlyEnabled(new File(
+                                        ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE))) {
+                            int autoInstalled = ROI_UNKNOWN_HOST_AUTO_PROBE.observeLoadedClass(
+                                    (Class<?>) loaded, hostRoot,
+                                    new RoiUnknownHostAutoProbeCoordinator.Installer() {
+                                @Override public boolean install(
+                                        RoiUnknownHostInvocationProbePolicy.Candidate candidate,
+                                        Method method) throws Throwable {
+                                    return installRoiUnknownHostInvocationProbe(
+                                            candidate, method, hostRoot);
                                 }
-                            }
-                            if (!maintainedHost && RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
-                                    new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE))) {
-                                int featureHooks = ROI_UNKNOWN_HOST_CHAT_REQUEST_RESOLVER
-                                        .observeLoadedClass((Class<?>) loaded, hostRoot,
-                                                new RoiUnknownHostChatRequestResolver.Installer() {
-                                    @Override public boolean install(
-                                            RoiUnknownHostChatRequestResolver.Candidate candidate,
-                                            Constructor<?> constructor) throws Throwable {
-                                        if (!RoiUnknownHostFeatureHookPolicy
-                                                .allowsChatRequestPromptHook(false,
-                                                        new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE),
-                                                        candidate, constructor, hostRoot)) return false;
-                                        return HookChatPipeline.INSTANCE
-                                                .hookUnknownHostChatRequest(constructor);
-                                    }
-                                });
-                                if (featureHooks > 0) {
-                                    log("[ROI_AUTO_FEATURE_HOOK] installed=" + featureHooks
-                                            + ", capability=outgoing_system_prompt");
-                                }
+                            });
+                            if (autoInstalled > 0) {
+                                log("[ROI_AUTO_PROBE] installed=" + autoInstalled
+                                        + ", candidates=" + ROI_UNKNOWN_HOST_AUTO_PROBE.candidateCount());
                             }
                         }
-                    } catch (Throwable observationError) {
+                        if (!maintainedHost && RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
+                                new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE))) {
+                            int featureHooks = ROI_UNKNOWN_HOST_CHAT_REQUEST_RESOLVER
+                                    .observeLoadedClass((Class<?>) loaded, hostRoot,
+                                            new RoiUnknownHostChatRequestResolver.Installer() {
+                                @Override public boolean install(
+                                        RoiUnknownHostChatRequestResolver.Candidate candidate,
+                                        Constructor<?> constructor) throws Throwable {
+                                    if (!RoiUnknownHostFeatureHookPolicy
+                                            .allowsChatRequestPromptHook(false,
+                                                    new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE),
+                                                    candidate, constructor, hostRoot)) return false;
+                                    return HookChatPipeline.INSTANCE
+                                            .hookUnknownHostChatRequest(constructor);
+                                }
+                            });
+                            if (featureHooks > 0) {
+                                log("[ROI_AUTO_FEATURE_HOOK] installed=" + featureHooks
+                                        + ", capability=outgoing_system_prompt");
+                            }
+                        }
+                    } catch (Throwable observationError) {{
                         // Metadata observation must never change the host's class-loading result.
                         try {
                             log("[ROI_CLASS_LOAD] observation_failed="
