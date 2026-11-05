@@ -202,7 +202,7 @@ final class RoiDexKitDiscovery {
                         + loaderProfile.encryptedDexAssessment);
                 candidateCount += querySemanticAnchors(
                         bridge, "loader." + (i + 1), sourceScope, out, budget,
-                        runtimeEvidence, adapterIdentity);
+                        runtimeEvidence, runtimeCoverage, adapterIdentity);
             } catch (Throwable error) {
                 rethrowFatal(error);
                 memoryFailure++;
@@ -238,7 +238,7 @@ final class RoiDexKitDiscovery {
                     append(out, "apk." + (i + 1) + ".sourceScope=" + sourceScope);
                     candidateCount += querySemanticAnchors(
                             bridge, "apk." + (i + 1), sourceScope, out, budget,
-                            runtimeEvidence, adapterIdentity);
+                            runtimeEvidence, runtimeCoverage, adapterIdentity);
                 } catch (Throwable error) {
                     rethrowFatal(error);
                     append(out, "apk." + (i + 1) + ".error="
@@ -279,6 +279,7 @@ final class RoiDexKitDiscovery {
     private static int querySemanticAnchors(DexKitBridge bridge, String prefix, String sourceScope,
             StringBuilder out, RoiDiscoveryBudget budget,
             List<RoiRuntimeInvocationRecorder.EvidenceSnapshot> runtimeEvidence,
+            List<RoiRuntimeInvocationRecorder.CoverageSnapshot> runtimeCoverage,
             String adapterIdentity) {
         int total = 0;
         List<RoiCandidateGraph.Observation> graphObservations =
