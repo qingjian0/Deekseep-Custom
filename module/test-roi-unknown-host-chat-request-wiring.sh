@@ -23,6 +23,8 @@ grep -Fq 'resolver.observeDexCandidate(sourceScope, anchor, descriptor' "$DISCOV
 grep -Fq 'inspectSerializerOwnerForRequestConstructors' "$DISCOVERY"
 grep -Fq 'declaredClass(className)' "$DISCOVERY"
 grep -Fq 'isChatRequestConstructor(invokedDescriptor)' "$DISCOVERY"
+grep -Fq 'ownerFromMethodDescriptor(callerDescriptor)' "$DISCOVERY"
+grep -Fq 'callerOwnerScans >= 2' "$DISCOVERY"
 grep -Fq 'candidate.fieldAnchors.contains("chat_session_id")' "$POLICY"
 grep -Fq 'allowsChatRequestPromptHook' "$POLICY"
 grep -Fq 'hasExpectedConstructorShape' "$RESOLVER"
