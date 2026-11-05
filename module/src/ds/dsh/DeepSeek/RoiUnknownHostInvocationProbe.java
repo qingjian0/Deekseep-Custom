@@ -48,7 +48,7 @@ final class RoiUnknownHostInvocationProbe {
         final Map<String, Long> exceptions = new LinkedHashMap<String, Long>();
     }
 
-    private final Set<String> approvedDescriptors = new LinkedHashSet<String>();
+    private final Set<String> approvedKeys = new LinkedHashSet<String>();
     private final Map<String, Aggregate> aggregates = new LinkedHashMap<String, Aggregate>();
     private long rateWindowStartNanos;
     private int rateWindowEvents;
@@ -70,12 +70,12 @@ final class RoiUnknownHostInvocationProbe {
     }
 
     /** The supplied call is invoked exactly once; observer failures never replace its result. */
-    Object invoke(String descriptor, ProceedingCall call) throws Throwable {
+    Object invoke(String probeKey, ProceedingCall call) throws Throwable {
         if (call == null) throw new IllegalArgumentException("call is required");
         long started = System.nanoTime();
         try {
             Object result = call.proceed();
-            recordSafely(descriptor, elapsed(started), null, System.nanoTime());
+            recordSafely(probeKey, elapsed(started), null, System.nanoTime());
             return result;
         } catch (Throwable failure) {
             recordSafely(descriptor, elapsed(started), failure.getClass().getName(), System.nanoTime());
@@ -83,14 +83,14 @@ final class RoiUnknownHostInvocationProbe {
         }
     }
 
-    private void recordSafely(String descriptor, long elapsedNanos, String exceptionType, long nowNanos) {
-        try { record(descriptor, elapsedNanos, exceptionType, nowNanos); }
+    private void recordSafely(String probeKey, long elapsedNanos, String exceptionType, long nowNanos) {
+        try { record(probeKey, elapsedNanos, exceptionType, nowNanos); }
         catch (Throwable ignored) { /* Diagnostics must never replace the host result or failure. */ }
     }
 
-    private synchronized void record(String descriptor, long elapsedNanos,
+    private synchronized void record(String probeKey, long elapsedNanos,
                                      String exceptionType, long nowNanos) {
-        String value = clean(descriptor);
+        String value = clean(probeKey);
         Aggregate aggregate = aggregates.get(value);
         if (aggregate == null || nowNanos <= 0) return;
         if (rateWindowStartNanos == 0 || nowNanos - rateWindowStartNanos >= 1_000_000_000L
