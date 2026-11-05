@@ -29,16 +29,19 @@ public final class RoiDexUseDefChains {
         public final RoiDexReachingDefinitions.Definition[] reachingDefinitions;
         /** True means no modeled definition reaches this use; it may be a method-entry value. */
         public final boolean mayBeEntryOrUnknownValue;
+        public final boolean reachableFromEntry;
 
         UseSite(int block, int offset, int opcode, int operand, int register,
-                RoiDexReachingDefinitions.Definition[] definitions) {
+                RoiDexReachingDefinitions.Definition[] definitions,
+                boolean mayBeUnknown, boolean reachable) {
             blockIndex = block;
             instructionOffset = offset;
             this.opcode = opcode;
             operandIndex = operand;
             this.register = register;
             reachingDefinitions = definitions;
-            mayBeEntryOrUnknownValue = definitions.length == 0;
+            mayBeEntryOrUnknownValue = mayBeUnknown;
+            reachableFromEntry = reachable;
         }
     }
 
@@ -62,6 +65,8 @@ public final class RoiDexUseDefChains {
         if (flow.blocks.length != reaching.blocks.length)
             throw new AnalysisException("block_count_mismatch");
 
+        boolean[][] definitelyIn = computeDefinitelyDefinedIn(flow, reaching);
+
         Map<Long, RoiDexReachingDefinitions.Definition> definitionAt =
                 new HashMap<Long, RoiDexReachingDefinitions.Definition>();
         for (RoiDexReachingDefinitions.Definition definition : reaching.definitions)
@@ -77,6 +82,7 @@ public final class RoiDexUseDefChains {
                 throw new AnalysisException("block_identity_mismatch");
 
             Map<Integer, BitSet> current = new HashMap<Integer, BitSet>();
+            BitSet definitelyDefined = bitSetFrom(definitelyIn[b]);
             for (RoiDexReachingDefinitions.Definition definition : blockState.reachingIn) {
                 BitSet ids = current.get(definition.register);
                 if (ids == null) {
@@ -106,8 +112,11 @@ public final class RoiDexUseDefChains {
                             candidates[cursor++] = reaching.definitions[id];
                         }
                     }
+                    boolean reachable = blockState.reachableFromEntry;
+                    boolean mayBeUnknown = !reachable || register >= definitelyIn[b].length
+                            || !definitelyDefined.get(register);
                     sites.add(new UseSite(b, instruction.offset, instruction.opcode,
-                            operand, register, candidates));
+                            operand, register, candidates, mayBeUnknown, reachable));
                 }
 
                 for (int register : instruction.definitions) {
@@ -119,10 +128,98 @@ public final class RoiDexUseDefChains {
                     BitSet ids = new BitSet(reaching.definitions.length);
                     ids.set(definition.id);
                     current.put(register, ids);
+                    definitelyDefined.set(register);
                 }
             }
         }
         return new Result(sites, links);
+    }
+
+
+    /**
+     * Must-analysis: a register word is definitely defined only if every reachable
+     * path from method entry defines it before the use. Entry parameters remain
+     * unknown until a separate prototype/ins_size mapping is supplied.
+     */
+    private static boolean[][] computeDefinitelyDefinedIn(
+            RoiDexRegisterFlowAnalyzer.Result flow,
+            RoiDexReachingDefinitions.Result reaching) throws AnalysisException {
+        int blocks = flow.blocks.length;
+        int registerCount = 0;
+        for (RoiDexRegisterFlowAnalyzer.BasicBlockFlow block : flow.blocks) {
+            for (RoiDexRegisterFlowAnalyzer.InstructionFlow instruction : block.instructions) {
+                for (int r : instruction.uses) registerCount = Math.max(registerCount, r + 1);
+                for (int r : instruction.definitions) registerCount = Math.max(registerCount, r + 1);
+            }
+        }
+        if (registerCount > 0xffff)
+            throw new AnalysisException("register_domain_exceeded");
+
+        @SuppressWarnings("unchecked")
+        List<Integer>[] predecessors = new List[blocks];
+        for (int i = 0; i < blocks; i++) predecessors[i] = new ArrayList<Integer>();
+        for (RoiDexInstructionScanner.Edge edge : flow.edges) {
+            if (edge.fromBlock < 0 || edge.fromBlock >= blocks
+                    || edge.toBlock < 0 || edge.toBlock >= blocks)
+                throw new AnalysisException("cfg_edge_out_of_bounds");
+            if (!predecessors[edge.toBlock].contains(edge.fromBlock))
+                predecessors[edge.toBlock].add(edge.fromBlock);
+        }
+
+        BitSet universe = new BitSet(registerCount);
+        universe.set(0, registerCount);
+        BitSet[] in = new BitSet[blocks];
+        BitSet[] out = new BitSet[blocks];
+        for (int b = 0; b < blocks; b++) {
+            boolean reachable = reaching.blocks[b].reachableFromEntry;
+            in[b] = reachable && b != 0 ? (BitSet) universe.clone() : new BitSet(registerCount);
+            out[b] = reachable && b != 0 ? (BitSet) universe.clone() : new BitSet(registerCount);
+        }
+
+        boolean changed;
+        long iterations = 0;
+        long maxIterations = Math.max(1L, (long) blocks * Math.max(1, registerCount) + 1L);
+        do {
+            changed = false;
+            if (++iterations > maxIterations)
+                throw new AnalysisException("definite_definition_budget_exceeded");
+            for (int b = 0; b < blocks; b++) {
+                if (!reaching.blocks[b].reachableFromEntry) continue;
+                BitSet nextIn;
+                if (b == 0) {
+                    nextIn = new BitSet(registerCount);
+                } else {
+                    nextIn = null;
+                    for (int predecessor : predecessors[b]) {
+                        if (!reaching.blocks[predecessor].reachableFromEntry) continue;
+                        if (nextIn == null) nextIn = (BitSet) out[predecessor].clone();
+                        else nextIn.and(out[predecessor]);
+                    }
+                    if (nextIn == null) nextIn = new BitSet(registerCount);
+                }
+                BitSet nextOut = (BitSet) nextIn.clone();
+                for (RoiDexRegisterFlowAnalyzer.InstructionFlow instruction
+                        : flow.blocks[b].instructions)
+                    for (int register : instruction.definitions) nextOut.set(register);
+                if (!nextIn.equals(in[b]) || !nextOut.equals(out[b])) {
+                    in[b] = nextIn;
+                    out[b] = nextOut;
+                    changed = true;
+                }
+            }
+        } while (changed);
+
+        boolean[][] result = new boolean[blocks][registerCount];
+        for (int b = 0; b < blocks; b++)
+            for (int r = in[b].nextSetBit(0); r >= 0; r = in[b].nextSetBit(r + 1))
+                result[b][r] = true;
+        return result;
+    }
+
+    private static BitSet bitSetFrom(boolean[] values) {
+        BitSet result = new BitSet(values.length);
+        for (int i = 0; i < values.length; i++) if (values[i]) result.set(i);
+        return result;
     }
 
     private static long key(int offset, int register) {
