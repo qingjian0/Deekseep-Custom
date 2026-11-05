@@ -860,6 +860,9 @@ final class HookChatPipeline {
             @Override public Object intercept(Chain chain) throws Throwable {
                 Object[] modified = null;
                 try {
+                    if (!Main.isUnknownHostFeatureHookEnabled()) {
+                        return chain.proceed();
+                    }
                     if (Boolean.TRUE.equals(tlLocalApiRequest.get())) {
                         return chain.proceed();
                     }
