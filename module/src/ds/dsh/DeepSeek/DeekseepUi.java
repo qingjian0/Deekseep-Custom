@@ -4502,12 +4502,14 @@ public final class DeekseepUi {
         heading.setTextColor(textColor);
         titleLine.addView(heading, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        View settings = plainGearControl(act, textColor,
-                UiLanguage.text(act, "设置", "Settings"), settingsClick);
-        LinearLayout.LayoutParams settingsLp = new LinearLayout.LayoutParams(
-                dp(act, 36), dp(act, 36));
-        settingsLp.leftMargin = dp(act, 2);
-        titleLine.addView(settings, settingsLp);
+        if (settingsClick != null) {
+            View settings = plainGearControl(act, textColor,
+                    UiLanguage.text(act, "设置", "Settings"), settingsClick);
+            LinearLayout.LayoutParams settingsLp = new LinearLayout.LayoutParams(
+                    dp(act, 36), dp(act, 36));
+            settingsLp.leftMargin = dp(act, 2);
+            titleLine.addView(settings, settingsLp);
+        }
         labels.addView(titleLine);
         TextView detail = new TextView(act);
         detail.setText(UiLanguage.dynamic(act, desc));
