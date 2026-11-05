@@ -32,6 +32,13 @@ public final class RoiDexCodeReaderTest {
   b[44]=1;b[45]=1;b[46]=0;b[47]=0;
   RoiDexCodeReader.CodeItem c=RoiDexCodeReader.readCodeItem(b,0,b.length,16,1);
   eq(1,c.triesSize);eq(1,c.tryItems[0].handlerOffset);eq(48,c.nextOffset);
+  eq(1,c.catchHandlers.length);eq(1,c.catchHandlers[0].typedCatches.length);
+  eq(0,c.catchHandlers[0].typedCatches[0].typeIndex);
+  eq(0,c.catchHandlers[0].typedCatches[0].address);eq(-1,c.catchHandlers[0].catchAllAddress);
+  RoiDexExceptionControlFlow.Result graph=RoiDexExceptionControlFlow.analyze(c);
+  if(!graph.exceptionEdgesIncluded)throw new AssertionError("exception edges not marked included");
+  eq(1,graph.exceptionEdges.length);eq(0,graph.exceptionEdges[0].fromBlock);
+  eq(0,graph.exceptionEdges[0].toBlock);eq(0,graph.exceptionEdges[0].catchTypeIndex);
  }
  static void malformed()throws Exception{
   byte[] b=new byte[24];put16(b,16,1);put16(b,18,2);
