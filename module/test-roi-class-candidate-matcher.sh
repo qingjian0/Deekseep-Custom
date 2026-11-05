@@ -9,3 +9,11 @@ javac -source 8 -target 8 -nowarn -d "$OUT" \
   "$ROOT/module/src/ds/dsh/DeepSeek/RoiClassCandidateMatcher.java" \
   "$ROOT/module/tests/roiclasscandidatematcher/ds/dsh/DeepSeek/RoiClassCandidateMatcherTest.java"
 java -cp "$OUT" ds.dsh.DeepSeek.RoiClassCandidateMatcherTest
+
+# Runtime wiring must retain only ClassLoader-backed candidates and correlate accepted
+# host class-load events; the correlation result is diagnostic and never activation.
+DISCOVERY="$ROOT/module/src/ds/dsh/DeepSeek/RoiDexKitDiscovery.java"
+MAIN="$ROOT/module/src/ds/dsh/DeepSeek/Main.java"
+grep -q 'RoiClassCandidateMatcher.registerCandidate' "$DISCOVERY"
+grep -q 'RoiClassCandidateMatcher.matchObservedClass' "$MAIN"
+grep -q '\[ROI_CLASS_MATCH\]' "$MAIN"
