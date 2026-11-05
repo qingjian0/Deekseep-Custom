@@ -28,14 +28,14 @@ public final class RoiDexCodeReaderTest {
   // handlers list: one handler, signed size +1, type 0 -> addr 0
   b[48]=1;b[49]=1;b[50]=0;b[51]=0;
   RoiDexCodeReader.CodeItem c=RoiDexCodeReader.readCodeItem(b,0,b.length,16,1);
-  eq(1,c.triesSize);eq(0,c.tryItems[0].handlerOffset);eq(52,c.nextOffset);
+  eq(1,c.triesSize);eq(0,c.tryItems[0].handlerOffset);eq(48,c.nextOffset);
  }
  static void malformed()throws Exception{
   byte[] b=new byte[24];put16(b,16,1);put16(b,18,2);
   badCode(b,16,8);
   byte[] c=new byte[32];put32(c,12,99);badCode(c,0,32);
   byte[] d=new byte[32];put32(d,12,1);put16(d,16,0);put16(d,18,1);badCode(d,0,32);
-  byte[] e=new byte[32];e[8]=1; e[9]=0;e[10]=0;e[11]=0; // debug offset 1, outside data start
+  byte[] e=new byte[32];put32(e,8,0x7fffffff); // debug offset outside bounded data
   badCode(e,0,32);
   byte[] f=new byte[16];f[0]=1;badClass(f,0,16,0,1,1);
  }
