@@ -48,8 +48,8 @@ require(graph, r'qualify[(]node[.]sourceScope, caller[)]', "incoming references 
 
 require(discovery, r'MethodMatcher\.create\(\)\.usingStrings', "DexKit semantic method matching is used")
 require(discovery, r'MAX_CANDIDATES_PER_ANCHOR\s*=\s*8', "candidate output is bounded")
-require(discovery, r'MAX_TOTAL_QUERIES_PER_SCAN\s*=\s*32', "per-scan native query count is bounded")
-require(discovery, r'MAX_TOTAL_CANDIDATES_PER_SCAN\s*=\s*96', "per-scan candidate processing is bounded")
+require(discovery, r'MAX_TOTAL_QUERIES_PER_SCAN\s*=\s*48', "per-scan native query count is bounded")
+require(discovery, r'MAX_TOTAL_CANDIDATES_PER_SCAN\s*=\s*128', "per-scan candidate processing is bounded")
 require(discovery, r'SCAN_BUDGET_NANOS\s*=\s*45_000_000_000L', "per-scan soft deadline is fixed")
 require(discovery, r'budget[.]tryStartQuery[(]System[.]nanoTime[(][)][)]', "budget checked before native query start")
 require(discovery, r'budget[.]tryAcceptCandidate[(]System[.]nanoTime[(][)][)]', "budget checked during candidate iteration")
