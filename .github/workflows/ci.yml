@@ -40,6 +40,7 @@ jobs:
           bash -n module/test-roi-dexkit-discovery.sh
           bash -n module/test-roi-candidate-graph.sh
           bash -n module/test-roi-candidate-identity.sh
+          bash -n module/test-roi-class-loader-profile.sh
           bash -n module/test-roi-discovery-budget.sh
           bash -n module/test-roi-semantic-role-hints.sh
           bash -n module/test-roi-runtime-recorder.sh
@@ -47,6 +48,7 @@ jobs:
           bash module/test-roi-dexkit-discovery.sh
           bash module/test-roi-candidate-graph.sh
           bash module/test-roi-candidate-identity.sh
+          bash module/test-roi-class-loader-profile.sh
           bash module/test-roi-discovery-budget.sh
           bash module/test-roi-semantic-role-hints.sh
           bash module/test-roi-runtime-recorder.sh
@@ -88,7 +90,7 @@ jobs:
               module/test-native-adapter-fail-closed.sh module/test-roi-hook-resolver.sh scripts/package-dexkit-native.sh scripts/test-dexkit-integration.sh \
               module/test-roi-dexkit-discovery.sh module/test-roi-candidate-graph.sh \
               module/test-roi-semantic-role-hints.sh module/test-roi-runtime-recorder.sh \
-              module/test-roi-candidate-identity.sh module/test-roi-discovery-budget.sh; do
+              module/test-roi-candidate-identity.sh module/test-roi-class-loader-profile.sh module/test-roi-discovery-budget.sh; do
             bash -n "$script"
           done
           GRADLE_BIN="$(bash scripts/gradle-bootstrap.sh)"
@@ -105,6 +107,7 @@ jobs:
           bash module/test-roi-dexkit-discovery.sh
           bash module/test-roi-candidate-graph.sh
           bash module/test-roi-candidate-identity.sh
+          bash module/test-roi-class-loader-profile.sh
           bash module/test-roi-discovery-budget.sh
           bash module/test-roi-semantic-role-hints.sh
           bash module/test-roi-runtime-recorder.sh
