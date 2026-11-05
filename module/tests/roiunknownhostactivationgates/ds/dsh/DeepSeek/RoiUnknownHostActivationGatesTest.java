@@ -13,8 +13,9 @@ public final class RoiUnknownHostActivationGatesTest {
             check(gates.featureHooksAuthorized == features, "feature gate mismatch " + mask);
             check(gates.allowsMetadataObservation() == unknown, "metadata cross-gate " + mask);
             check(gates.allowsDiagnosticProbes() == diagnostics, "probe cross-gate " + mask);
-            check(gates.allowsFeatureHookAttempts() == features, "feature cross-gate " + mask);
-            check(gates.requiresClassLoadDispatcher() == (unknown || diagnostics || features),
+            check(gates.allowsFeatureHookAttempts() == (unknown && features),
+                    "feature Hook requires both unknown-version and authorization gates " + mask);
+            check(gates.requiresClassLoadDispatcher() == (unknown || diagnostics),
                     "dispatcher activation mismatch " + mask);
         }
         RoiUnknownHostActivationGates featureOnly =
