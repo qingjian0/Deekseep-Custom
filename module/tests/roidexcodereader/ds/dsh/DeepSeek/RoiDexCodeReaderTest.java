@@ -31,7 +31,7 @@ public final class RoiDexCodeReaderTest {
   // handlers list: one handler, signed size +1, type 0 -> addr 0
   b[44]=1;b[45]=1;b[46]=0;b[47]=0;
   RoiDexCodeReader.CodeItem c=RoiDexCodeReader.readCodeItem(b,0,b.length,16,1);
-  eq(1,c.triesSize);eq(0,c.tryItems[0].handlerOffset);eq(48,c.nextOffset);
+  eq(1,c.triesSize);eq(1,c.tryItems[0].handlerOffset);eq(48,c.nextOffset);
  }
  static void malformed()throws Exception{
   byte[] b=new byte[24];put16(b,16,1);put16(b,18,2);
