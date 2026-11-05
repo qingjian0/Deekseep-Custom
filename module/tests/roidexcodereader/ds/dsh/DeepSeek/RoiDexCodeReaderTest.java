@@ -37,7 +37,7 @@ public final class RoiDexCodeReaderTest {
   byte[] b=new byte[24];put16(b,16,1);put16(b,18,2);
   badCode(b,16,8);
   byte[] c=new byte[32];put32(c,12,99);badCode(c,0,32);
-  byte[] d=new byte[32];put32(d,12,1);put16(d,16,0);put16(d,18,1);badCode(d,0,32);
+  byte[] d=new byte[32];put16(d,0,0);put16(d,2,1);put32(d,12,1);put16(d,16,0);badCode(d,0,32);
   byte[] e=new byte[32];put32(e,8,0x7fffffff); // debug offset outside bounded data
   badCode(e,0,32);
   byte[] f=new byte[16];f[0]=1;badClass(f,0,1,0,1,1);
