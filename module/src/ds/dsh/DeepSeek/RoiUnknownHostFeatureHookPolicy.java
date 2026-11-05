@@ -31,10 +31,13 @@ final class RoiUnknownHostFeatureHookPolicy {
         }
     }
 
-    static boolean allowsChatRequestPromptHook(boolean maintainedHost, File switchFile,
+    static boolean allowsChatRequestPromptHook(boolean maintainedHost,
+            File unknownVersionAttemptSwitchFile, File featureHookSwitchFile,
             RoiUnknownHostChatRequestResolver.Candidate candidate, Constructor<?> constructor,
             ClassLoader hostRoot) {
-        if (maintainedHost || !isExplicitlyEnabled(switchFile) || candidate == null
+        if (maintainedHost
+                || !RoiUnknownHostHookPolicy.isExplicitlyEnabled(unknownVersionAttemptSwitchFile)
+                || !isExplicitlyEnabled(featureHookSwitchFile) || candidate == null
                 || constructor == null || hostRoot == null
                 || candidate.fieldAnchors == null
                 || !candidate.fieldAnchors.contains("chat_session_id")
