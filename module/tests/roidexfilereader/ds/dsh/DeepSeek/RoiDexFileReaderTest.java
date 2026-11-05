@@ -6,6 +6,7 @@ public final class RoiDexFileReaderTest {
   testBadEndian();testFileSize();testSectionOverflow();testBadTypeReference();
   testBadStringOffset();testBadClassOffset();testTableOverlap();testMapOutsideData();
   testResolvedMethodDefinition();
+  testResolvedMethodEntryLayoutIntegration();
   System.out.println("RoiDexFileReaderTest: PASS");
  }
  static void testEmptyDex()throws Exception{
@@ -80,6 +81,41 @@ public final class RoiDexFileReaderTest {
   if(!m.isStatic||!m.isDirect||m.codeItem!=null)throw new AssertionError("method flags/kind/code mismatch");
  }
 
+ static void testResolvedMethodEntryLayoutIntegration()throws Exception{
+  byte[] b=fixture(234);
+  put32(b,56,3);put32(b,60,112);put32(b,64,2);put32(b,68,124);
+  put32(b,72,1);put32(b,76,132);put32(b,88,1);put32(b,92,144);
+  put32(b,96,1);put32(b,100,152);put32(b,104,50);put32(b,108,184);
+  put32(b,112,192);put32(b,116,197);put32(b,120,200);
+  put32(b,124,0);put32(b,128,1);
+  put32(b,132,1);put32(b,136,1);put32(b,140,208);
+  put16(b,144,0);put16(b,146,0);put32(b,148,2);
+  put32(b,152,0);put32(b,156,1);put32(b,160,-1);put32(b,164,0);
+  put32(b,168,-1);put32(b,172,0);put32(b,176,184);put32(b,180,0);
+  // One static method; code_item is at aligned data offset 216.
+  b[184]=0;b[185]=0;b[186]=1;b[187]=0;b[188]=0;b[189]=9;b[190]=(byte)0xd8;b[191]=1;
+  b[192]=3;b[193]='L';b[194]='x';b[195]=';';b[196]=0;
+  b[197]=1;b[198]='V';b[199]=0;
+  b[200]=3;b[201]='r';b[202]='u';b[203]='n';b[204]=0;
+  put32(b,208,1);put16(b,212,0);
+  put16(b,216,2);put16(b,218,1);put16(b,220,0);put16(b,222,0);
+  put32(b,224,0);put32(b,228,1);put16(b,232,0x0111); // return-object v1
+  RoiDexFileReader.DexFile d=RoiDexFileReader.read(b);
+  eq(1,d.definedMethods.length);
+  RoiDexFileReader.ResolvedMethod method=d.definedMethods[0];
+  eq("(Lx;)V",method.prototypeDescriptor);
+  RoiDexMethodEntryLayout.Result layout=method.methodEntryLayout();
+  eq(1,layout.firstIncomingRegister);eq(1,layout.parameters[0].firstRegister);
+  RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(method.codeItem);
+  RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
+  RoiDexUseDefChains.Result chains=RoiDexUseDefChains.analyze(flow,reaching,layout);
+  boolean mapped=false;
+  for(RoiDexUseDefChains.UseSite use:chains.uses)
+   if(use.instructionOffset==0&&use.register==1)
+    mapped=use.entryValueKind==RoiDexUseDefChains.EntryValueKind.PARAMETER
+      &&use.entryParameterIndex==0&&"Lx;".equals(use.entryDescriptor);
+  if(!mapped)throw new AssertionError("resolved DEX method prototype did not map the code_item parameter use");
+ }
  static void testBadMagic()throws Exception{byte[] b=fixture(112);b[0]='x';bad(b);}
  static void testTruncated()throws Exception{bad(new byte[111]);}
  static void testBadHeaderSize()throws Exception{byte[] b=fixture(112);put32(b,36,0x71);bad(b);}
