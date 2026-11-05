@@ -54,7 +54,7 @@ final class RoiUnknownHostInvocationProbeInstaller {
         RoiUnknownHostInvocationProbePolicy.RuntimeMethod runtime =
                 new RoiUnknownHostInvocationProbePolicy.RuntimeMethod(
                         owner, candidate.descriptor, scope);
-        if (!RoiUnknownHostInvocationProbePolicy.allows(true, candidate, runtime)) return false;
+        if (!RoiUnknownHostInvocationProbePolicy.allowsProbe(true, candidate, runtime)) return false;
 
         String installKey = scope + "|" + candidate.descriptor;
         if (installed.contains(installKey)) return true;
