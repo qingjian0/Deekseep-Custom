@@ -452,3 +452,8 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 已有维护版本的类加载观察开关保持独立，不受此开关影响。
 - 新增纯 Java 策略测试，覆盖默认关闭、显式 ENABLE、别名拒绝、多余内容拒绝及功能 Hook 永不授权；接入 ROI fast audit 与 Regression。
 - 本功能仅提交到 `dev`，未修改 `main`。CI 和真机结果待对应 Actions / 设备验证，不提前宣称通过。
+
+- 开关运行时行为：观察 Hook 安装后，每次成功的 `findClass` 回调都会重新读取开关；删除文件或内容不再是严格单行 `ENABLE` 后，观察立即停止（Hook 回调仅透传原始结果）。重新写入有效开关后可恢复观察，无需重新安装模块；若要彻底卸载框架 Hook，仍需结束 DeepSeek 进程并重新启动。
+- 开关是“未知版本实验 Hook 评估/元数据观察入口”的显式授权，不是“无条件执行功能 Hook”。后续功能 Hook 仍必须逐个通过精确类/方法身份、功能角色、真实调用链、适配器审查、失败关闭和回滚检查；目前没有任何未知版本功能 Hook 被授权或安装。
+- 当前控制面为宿主私有目录文件开关，尚未做成模块设置页 UI。启用文件：`/data/data/com.deepseek.chat/files/deekseep_roi_unknown_host_hook_enabled`，内容必须为单行 `ENABLE`；删除该文件即关闭。
+- 有 root 的设备可用 ADB 操作：`adb shell su -c 'D=/data/user/0/com.deepseek.chat/files; printf "ENABLE\\n" > "$D/deekseep_roi_unknown_host_hook_enabled"; chown --reference="$D" "$D/deekseep_roi_unknown_host_hook_enabled"; chmod 600 "$D/deekseep_roi_unknown_host_hook_enabled"'`；关闭：`adb shell su -c 'rm -f /data/user/0/com.deepseek.chat/files/deekseep_roi_unknown_host_hook_enabled'`。启用后重启 DeepSeek 进程以确保观察 Hook 安装。
