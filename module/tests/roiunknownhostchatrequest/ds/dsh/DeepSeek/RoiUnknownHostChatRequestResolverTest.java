@@ -25,6 +25,7 @@ public final class RoiUnknownHostChatRequestResolverTest {
 
     public static void main(String[] args) throws Throwable {
         testSerializerEvidenceAndLateReconciliation();
+        testEvidenceChangesInvalidateFinalization();
         testClassLoadAfterCandidate();
         testWeakIdentityAndDuplicateSuppression();
         testFailClosedInputs();
@@ -71,6 +72,41 @@ public final class RoiUnknownHostChatRequestResolverTest {
         check(installed == 1, "late candidate must reconcile against previously observed class");
         check(installs.get() == 1, "only exact candidate installed");
         check(resolver.installedCount() == 1, "installation recorded");
+    }
+
+    private static void testEvidenceChangesInvalidateFinalization() throws Throwable {
+        RoiUnknownHostChatRequestResolver resolver = new RoiUnknownHostChatRequestResolver();
+        ClassLoader root = RequestFixture.class.getClassLoader();
+        String scope = RoiCandidateIdentity.forClassLoader(root);
+        String constructor = constructorDescriptor(RequestFixture.class.getDeclaredConstructors()[0]);
+        String serializer = "Lserializer/RequestSerializer;->deserialize()V";
+        String[] anchors = {"chat_session_id", "parent_message_id",
+                "thinking_enabled", "search_enabled"};
+        for (String anchor : anchors) {
+            resolver.observeDexCandidate(scope, anchor, serializer, Arrays.asList(constructor));
+        }
+        resolver.finalizeDiscovery();
+        RoiUnknownHostChatRequestResolver.Candidate initial = resolver.bestCandidate(scope);
+        check(initial != null, "initial complete evidence authorizes discovery");
+
+        // An identical duplicate is not new evidence and must not reopen the scope.
+        resolver.observeDexCandidate(scope, "chat_session_id", serializer, Arrays.asList(constructor));
+        check(!resolver.bestCandidates().isEmpty(), "duplicate evidence preserves finalization");
+
+        // New evidence changes the candidate snapshot; the old finalization must be revoked.
+        resolver.observeDexCandidate(scope, "preempt",
+                "Lserializer/RequestSerializer;->serialize()V", Arrays.asList(constructor));
+        check(resolver.bestCandidates().isEmpty(),
+                "new evidence invalidates stale finalized-scope authorization");
+        check(resolver.registerCandidate(initial, root, (candidate, ctor) -> true) == 0,
+                "stale candidate cannot install before a new complete scan");
+
+        resolver.finalizeDiscovery();
+        RoiUnknownHostChatRequestResolver.Candidate refreshed = resolver.bestCandidate(scope);
+        check(refreshed != null && refreshed.evidenceCount() == 5,
+                "re-finalization publishes the refreshed evidence snapshot");
+        check(resolver.registerCandidate(refreshed, root, (candidate, ctor) -> true) == 1,
+                "refreshed candidate installs only after re-finalization");
     }
 
     private static void testClassLoadAfterCandidate() throws Throwable {
