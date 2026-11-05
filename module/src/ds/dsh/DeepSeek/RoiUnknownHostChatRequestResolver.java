@@ -103,8 +103,11 @@ final class RoiUnknownHostChatRequestResolver {
                 candidates.put(key, candidate);
                 finalizedScopes.remove(sourceScope);
             }
-            candidate.anchors.add(anchor);
-            candidate.serializerMethods.add(serializerMethodDescriptor);
+            boolean evidenceChanged = candidate.anchors.add(anchor);
+            evidenceChanged |= candidate.serializerMethods.add(serializerMethodDescriptor);
+            // Any new evidence after finalization invalidates the previous scan authorization.
+            // Repeated identical observations do not reopen an otherwise complete scope.
+            if (evidenceChanged) finalizedScopes.remove(sourceScope);
         }
     }
 
