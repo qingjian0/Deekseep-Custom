@@ -9,11 +9,26 @@ javac -source 8 -target 8 -nowarn -d "$OUT" \
 java -cp "$OUT" ds.dsh.DeepSeek.RoiUnknownHostHookPolicyTest
 
 MAIN="$ROOT/module/src/ds/dsh/DeepSeek/Main.java"
+HOOK_POLICY="$ROOT/module/src/ds/dsh/DeepSeek/RoiUnknownHostHookPolicy.java"
 grep -q 'deekseep_roi_unknown_host_hook_enabled' "$MAIN"
-grep -q 'RoiUnknownHostHookPolicy.allowsMetadataObservation' "$MAIN"
-grep -q 'authorizesFunctionalHook' "$ROOT/module/src/ds/dsh/DeepSeek/RoiUnknownHostHookPolicy.java"
-grep -q 'return false;' "$ROOT/module/src/ds/dsh/DeepSeek/RoiUnknownHostHookPolicy.java"
-grep -q 'unknown-host ROI observation enabled: bounded class metadata, diagnostic probes,' "$MAIN"
-grep -q 'boolean observationEnabled = maintainedHost' "$MAIN"
-grep -q 'if (!observationEnabled) return loaded;' "$MAIN"
-grep -q 'unknownHostOptIn && (unknownSwitchEnabled || invocationProbeEnabled' "$MAIN"
+grep -q 'unknownVersionAttemptsEnabled' "$MAIN"
+grep -q 'diagnosticProbesEnabled' "$MAIN"
+grep -q 'featureHooksAuthorized' "$MAIN"
+grep -q 'unknownHostActivationEnabled = unknownVersionAttemptsEnabled' "$MAIN"
+grep -q 'boolean metadataObservationEnabled = maintainedHost' "$MAIN"
+grep -q 'unknownHostOptIn && RoiUnknownHostHookPolicy.isExplicitlyEnabled' "$MAIN"
+grep -q 'RoiUnknownHostInvocationProbePolicy.isExplicitlyEnabled' "$MAIN"
+grep -q 'RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled' "$MAIN"
+grep -q 'authorizesFunctionalHook' "$HOOK_POLICY"
+grep -q 'return false;' "$HOOK_POLICY"
+
+# The shared class-load dispatcher may be installed for any one lane, but metadata diagnostics
+# must be gated only by the unknown-version-attempt switch, never by probe/feature switches.
+if grep -q 'unknownSwitchEnabled || invocationProbeEnabled' "$MAIN"; then
+  echo "cross-gate OR expression is forbidden" >&2
+  exit 1
+fi
+if grep -q '|| RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled' "$MAIN"; then
+  echo "feature-hook switch must not enable metadata diagnostics" >&2
+  exit 1
+fi
