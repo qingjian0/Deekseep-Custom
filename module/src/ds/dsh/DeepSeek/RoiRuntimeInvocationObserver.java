@@ -228,16 +228,18 @@ final class RoiRuntimeInvocationObserver {
             RoiRuntimeInvocationRecorder active = recorder;
             if (active == null || !activeEnabled(active)) return;
             long now = System.currentTimeMillis();
-            active.record(new RoiRuntimeInvocationRecorder.Event(key, hostFingerprint,
+            boolean recorded = active.record(new RoiRuntimeInvocationRecorder.Event(key, hostFingerprint,
                     RoiCandidateIdentity.forClassLoader(emitMethod.getDeclaringClass().getClassLoader()),
                     methodDescriptor(emitMethod),
                     RoiRuntimeInvocationRecorder.Phase.RESPONSE_RECEIVED, now,
                     Thread.currentThread().getId(),
                     RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), now);
-            active.recordCoverage(hostFingerprint,
-                    RoiCandidateIdentity.forClassLoader(emitMethod.getDeclaringClass().getClassLoader()),
-                    methodDescriptor(emitMethod),
-                    RoiRuntimeInvocationRecorder.CoverageStatus.RESPONSE_OBSERVED, now);
+            if (recorded) {
+                active.recordCoverage(hostFingerprint,
+                        RoiCandidateIdentity.forClassLoader(emitMethod.getDeclaringClass().getClassLoader()),
+                        methodDescriptor(emitMethod),
+                        RoiRuntimeInvocationRecorder.CoverageStatus.RESPONSE_OBSERVED, now);
+            }
         } catch (Throwable ignored) {
             rethrowFatal(ignored);
             // Response observation is strictly best effort.
