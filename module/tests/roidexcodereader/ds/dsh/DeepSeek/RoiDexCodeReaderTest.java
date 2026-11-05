@@ -8,13 +8,13 @@ public final class RoiDexCodeReaderTest {
   byte[] b=new byte[64];int p=8;
   p=put(b,p,1);p=put(b,p,1);p=put(b,p,1);p=put(b,p,1);
   p=put(b,p,0);p=put(b,p,3);p=put(b,p,7);
-  p=put(b,p,2);p=put(b,p,0x10);p=put(b,p,20);
-  p=put(b,p,0);p=put(b,p,0x9);p=put(b,p,24);
-  RoiDexCodeReader.ClassData d=RoiDexCodeReader.readClassData(b,0,b.length,8,4,4);
+  p=put(b,p,2);p=put(b,p,0x10);p=put(b,p,0);
+  p=put(b,p,0);p=put(b,p,0x9);p=put(b,p,0);
+  RoiDexCodeReader.ClassData d=RoiDexCodeReader.readClassData(b,0,b.length,8,4,4,1);
   eq(1,d.staticFields.length);eq(3,d.staticFields[0].fieldIndex);
   eq(1,d.instanceFields.length);eq(1,d.instanceFields[0].fieldIndex);
-  eq(1,d.directMethods.length);eq(2,d.directMethods[0].methodIndex);eq(20,d.directMethods[0].codeOffset);
-  eq(1,d.virtualMethods.length);eq(0,d.virtualMethods[0].methodIndex);eq(24,d.virtualMethods[0].codeOffset);
+  eq(1,d.directMethods.length);eq(2,d.directMethods[0].methodIndex);eq(0,d.directMethods[0].codeOffset);
+  eq(1,d.virtualMethods.length);eq(0,d.virtualMethods[0].methodIndex);eq(0,d.virtualMethods[0].codeOffset);
  }
  static void codeItem()throws Exception{
   byte[] b=new byte[64];put16(b,16,4);put16(b,18,2);put16(b,20,1);put16(b,22,0);
@@ -41,7 +41,7 @@ public final class RoiDexCodeReaderTest {
  }
  static int put(byte[] b,int p,int n){b[p++]=(byte)n;return p;}
  static void badCode(byte[] b,int p,int n)throws Exception{try{RoiDexCodeReader.readCodeItem(b,0,b.length,p,1);}catch(RoiDexCodeReader.CodeException e){return;}throw new AssertionError("expected bad code");}
- static void badClass(byte[] b,int o,int n,int p,int f,int m)throws Exception{try{RoiDexCodeReader.readClassData(b,o,n,p,f,m);}catch(RoiDexCodeReader.CodeException e){return;}throw new AssertionError("expected bad class");}
+ static void badClass(byte[] b,int o,int n,int p,int f,int m)throws Exception{try{RoiDexCodeReader.readClassData(b,o,n,p,f,m,1);}catch(RoiDexCodeReader.CodeException e){return;}throw new AssertionError("expected bad class");}
  static void put16(byte[] b,int p,int n){b[p]=(byte)n;b[p+1]=(byte)(n>>>8);}
  static void put32(byte[] b,int p,int n){for(int i=0;i<4;i++)b[p+i]=(byte)(n>>>(8*i));}
  static void eq(int a,int b){if(a!=b)throw new AssertionError(a+" != "+b);}

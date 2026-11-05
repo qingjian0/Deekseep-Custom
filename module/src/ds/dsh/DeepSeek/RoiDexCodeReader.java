@@ -12,8 +12,8 @@ public final class RoiDexCodeReader {
   EncodedField(int i,int a){fieldIndex=i;accessFlags=a;}
  }
  public static final class EncodedMethod {
-  public final int methodIndex,accessFlags,codeOffset;
-  EncodedMethod(int i,int a,int c){methodIndex=i;accessFlags=a;codeOffset=c;}
+  public final int methodIndex,accessFlags,codeOffset; public final CodeItem codeItem;
+  EncodedMethod(int i,int a,int c,CodeItem item){methodIndex=i;accessFlags=a;codeOffset=c;codeItem=item;}
  }
  public static final class ClassData {
   public final EncodedField[] staticFields,instanceFields;
@@ -35,13 +35,13 @@ public final class RoiDexCodeReader {
    instructionsOffset=io;instructions=ins;tryItems=ti;nextOffset=next;
   }
  }
- public static ClassData readClassData(byte[] b,int dataOff,int dataSize,int itemOff,int fieldCount,int methodCount)throws CodeException{
+ public static ClassData readClassData(byte[] b,int dataOff,int dataSize,int itemOff,int fieldCount,int methodCount,int typeCount)throws CodeException{
   int limit=dataLimit(b,dataOff,dataSize);
   if(itemOff<dataOff||itemOff>=limit)throw new CodeException("class_data_offset_out_of_data");
   Cursor c=new Cursor(itemOff,limit);
   int staticCount=count(b,c),instanceCount=count(b,c),directCount=count(b,c),virtualCount=count(b,c);
   EncodedField[] sf=fields(b,c,staticCount,fieldCount),inf=fields(b,c,instanceCount,fieldCount);
-  EncodedMethod[] dm=methods(b,c,directCount,methodCount,limit),vm=methods(b,c,virtualCount,methodCount,limit);
+  EncodedMethod[] dm=methods(b,c,directCount,methodCount,dataOff,dataSize,fieldCount,methodCount,typeCount),vm=methods(b,c,virtualCount,methodCount,dataOff,dataSize,fieldCount,methodCount,typeCount);
   return new ClassData(sf,inf,dm,vm,c.p);
  }
  public static CodeItem readCodeItem(byte[] b,int dataOff,int dataSize,int itemOff,int typeCount)throws CodeException{
@@ -103,14 +103,14 @@ public final class RoiDexCodeReader {
    out[i]=new EncodedField((int)index,ulebInt(b,c));
   }return out;
  }
- private static EncodedMethod[] methods(byte[] b,Cursor c,int count,int max,int limit)throws CodeException{
+ private static EncodedMethod[] methods(byte[] b,Cursor c,int count,int max,int dataOff,int dataSize,int fieldCount,int methodCount,int typeCount)throws CodeException{
   EncodedMethod[] out=new EncodedMethod[count];long index=0;
   for(int i=0;i<count;i++){
    long delta=uleb(b,c);if(i>0&&delta==0)throw new CodeException("duplicate_encoded_method_index");
    index+=delta;if(index>=max)throw new CodeException("encoded_method_index_out_of_range");
    int access=ulebInt(b,c),code=ulebInt(b,c);
-   if(code!=0&&(code<0||code>=limit))throw new CodeException("encoded_method_code_offset_out_of_data");
-   out[i]=new EncodedMethod((int)index,access,code);
+   CodeItem item=null;if(code!=0){if(code<dataOff||code>=dataOff+dataSize||(code&3)!=0)throw new CodeException("encoded_method_code_offset_out_of_data");item=readCodeItem(b,dataOff,dataSize,code,typeCount);}
+   out[i]=new EncodedMethod((int)index,access,code,item);
   }return out;
  }
  private static int count(byte[] b,Cursor c)throws CodeException{

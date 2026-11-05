@@ -44,9 +44,10 @@ public final class RoiDexFileReader {
         public final Field[] fields;
         public final Method[] methods;
         public final ClassDef[] classes;
-        private DexFile(Header h,int[] s,int[] t,String[] decoded,String[] descriptors,int[][] params,Proto[] p,Field[] f,Method[] m,ClassDef[] c){
+        public final RoiDexCodeReader.ClassData[] classData;
+        private DexFile(Header h,int[] s,int[] t,String[] decoded,String[] descriptors,int[][] params,Proto[] p,Field[] f,Method[] m,ClassDef[] c,RoiDexCodeReader.ClassData[] cd){
             header=h;stringDataOffsets=s;typeDescriptorStringIndices=t;strings=decoded;typeDescriptors=descriptors;
-            protoParameterTypeIndices=params;protos=p;fields=f;methods=m;classes=c;
+            protoParameterTypeIndices=params;protos=p;fields=f;methods=m;classes=c;classData=cd;
         }
     }
     public static final class Proto {
@@ -171,7 +172,14 @@ public final class RoiDexFileReader {
             try { protoParameters[i]=RoiDexDataReader.readTypeList(bytes,dataOff,dataSize,off,types.size).typeIndices; }
             catch(RoiDexDataReader.DataException e){ throw new DexException("invalid_proto_type_list:"+e.getMessage()); }
         }
-        return new DexFile(h,stringOffsets,typeStrings,decodedStrings,descriptors,protoParameters,protoValues,fieldValues,methodValues,classValues);
+        RoiDexCodeReader.ClassData[] parsedClassData=new RoiDexCodeReader.ClassData[classValues.length];
+        for(int i=0;i<classValues.length;i++){
+            int off=classValues[i].classDataOffset;
+            if(off==0)continue;
+            try { parsedClassData[i]=RoiDexCodeReader.readClassData(bytes,dataOff,dataSize,off,fields.size,methods.size,types.size); }
+            catch(RoiDexCodeReader.CodeException e){ throw new DexException("invalid_class_data:"+e.getMessage()); }
+        }
+        return new DexFile(h,stringOffsets,typeStrings,decodedStrings,descriptors,protoParameters,protoValues,fieldValues,methodValues,classValues,parsedClassData);
     }
 
     private static void validateTableLayout(int fileSize,int dataOff,int dataSize,Section... sections)throws DexException{
