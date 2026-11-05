@@ -885,6 +885,7 @@ final class HookChatPipeline {
                         userPrompt = "";
                     }
                     String pluginPrompt = JavaPluginPlatform.systemPrompt(conversationId);
+                    if (pluginPrompt == null) pluginPrompt = "";
                     String combined = combineSystemPrompts(userPrompt, pluginPrompt);
                     if (combined.length() > 0) {
                         modified = originalArgs.clone();
