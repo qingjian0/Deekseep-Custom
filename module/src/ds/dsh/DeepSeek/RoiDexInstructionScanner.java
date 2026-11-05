@@ -92,7 +92,7 @@ public final class RoiDexInstructionScanner {
             list.add(ins);byOffset.put(p,ins);p+=width;
         }
         if(p!=code.length)throw new ScanException("instruction_extent_mismatch");
-        ScanResult result=new ScanResult(list,code.length);
+        ScanResult result=new ScanResult(list,code);
         validatePayloadReferences(code,result);
         validateBranchTargets(result);
         return result;
