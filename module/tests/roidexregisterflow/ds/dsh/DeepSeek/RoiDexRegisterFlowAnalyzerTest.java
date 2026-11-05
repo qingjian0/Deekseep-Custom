@@ -12,6 +12,9 @@ public final class RoiDexRegisterFlowAnalyzerTest {
         testLiteralArithmeticUsesOnlySourceRegister();
         testBranchBlocksRemainIndependent();
         testCrossBlockDefinitionsAreNotPropagated();
+        testReachingDefinitionsAcrossBlocks();
+        testReachingDefinitionsKillOlderSites();
+        testReachingDefinitionsMergeAtDiamond();
         testUnsupportedOpcodeFailsClosed();
         testRegisterBounds();
         System.out.println("RoiDexRegisterFlowAnalyzer tests passed");
@@ -142,6 +145,62 @@ public final class RoiDexRegisterFlowAnalyzerTest {
         check(sourceDefinesV0, "source block records its local definition");
         check(targetStillRequiresV0,
                 "target block does not inherit source definitions in phase one");
+    }
+
+    private static void testReachingDefinitionsAcrossBlocks() throws Exception {
+        short[] code = {(short) 0x0012, (short) 0x0228,
+                (short) 0x000e, (short) 0x000f};
+        RoiDexRegisterFlowAnalyzer.Result flow =
+                RoiDexRegisterFlowAnalyzer.analyze(code, 1);
+        RoiDexReachingDefinitions.Result result =
+                RoiDexReachingDefinitions.analyze(flow);
+        RoiDexReachingDefinitions.BlockResult target = blockAt(result, 3);
+        check(target != null && hasDefinition(target.reachingIn, 0, 0),
+                "definition reaches target block through goto edge");
+        check(result.normalControlFlowOnly && !result.exceptionEdgesIncluded
+                        && !result.completeForExceptionFlow,
+                "result explicitly excludes exception-handler flow");
+    }
+
+    private static void testReachingDefinitionsKillOlderSites() throws Exception {
+        short[] code = {(short) 0x0012, (short) 0x0228,
+                (short) 0x000e, (short) 0x0012, (short) 0x000f};
+        RoiDexReachingDefinitions.Result result = RoiDexReachingDefinitions.analyze(
+                RoiDexRegisterFlowAnalyzer.analyze(code, 1));
+        RoiDexReachingDefinitions.BlockResult target = blockAt(result, 3);
+        check(target != null && hasDefinition(target.reachingIn, 0, 0),
+                "incoming definition reaches before local overwrite");
+        check(target != null && hasDefinition(target.reachingOut, 0, 3),
+                "local definition replaces older definition in OUT");
+        check(target != null && !hasDefinition(target.reachingOut, 0, 0),
+                "older definition is killed after local overwrite");
+    }
+
+    private static void testReachingDefinitionsMergeAtDiamond() throws Exception {
+        short[] code = {(short) 0x0138, (short) 0x0004,
+                (short) 0x0012, (short) 0x0328,
+                (short) 0x0012, (short) 0x0128, (short) 0x000f};
+        RoiDexReachingDefinitions.Result result = RoiDexReachingDefinitions.analyze(
+                RoiDexRegisterFlowAnalyzer.analyze(code, 2));
+        RoiDexReachingDefinitions.BlockResult join = blockAt(result, 6);
+        check(join != null && hasDefinition(join.reachingIn, 0, 2),
+                "left branch definition reaches join");
+        check(join != null && hasDefinition(join.reachingIn, 0, 4),
+                "right branch definition reaches join");
+    }
+
+    private static RoiDexReachingDefinitions.BlockResult blockAt(
+            RoiDexReachingDefinitions.Result result, int offset) {
+        for (RoiDexReachingDefinitions.BlockResult block : result.blocks)
+            if (block.startOffset == offset) return block;
+        return null;
+    }
+
+    private static boolean hasDefinition(RoiDexReachingDefinitions.Definition[] values,
+            int register, int offset) {
+        for (RoiDexReachingDefinitions.Definition value : values)
+            if (value.register == register && value.instructionOffset == offset) return true;
+        return false;
     }
 
     private static void testUnsupportedOpcodeFailsClosed() throws Exception {

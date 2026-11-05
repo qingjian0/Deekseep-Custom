@@ -2,21 +2,23 @@
 
 ## Phase 1: intra-basic-block def/use
 
-`RoiDexRegisterFlowAnalyzer` consumes the existing structural DEX CFG and produces:
-- per-instruction register uses and definitions;
-- per-basic-block registers read before a local definition;
-- per-basic-block registers defined at least once;
-- the CFG edges for later phases.
+`RoiDexRegisterFlowAnalyzer` consumes the structural DEX CFG and produces per-instruction register uses/definitions, per-block reads-before-local-definition, per-block definitions, and CFG edges.
 
-This phase does **not** propagate definitions across blocks. Wide values occupy two adjacent register words. Invoke operands are represented as register words, not inferred Java parameter values.
+The decoder covers only explicitly modelled instruction formats. Unknown semantics fail closed. Wide values occupy two adjacent register words. Invoke operands are represented as register words, not inferred Java parameter values.
 
-Unknown or not-yet-modelled opcodes fail closed with an explicit analysis error. This is intentional: the analyzer must not turn incomplete opcode semantics into a false data-flow fact.
+## Phase 2: normal-CFG reaching definitions
 
-## Phase 2: cross-block reaching definitions (not implemented)
+`RoiDexReachingDefinitions` tracks each definition site per register word and computes a forward fixed point:
 
-The next independent phase may add a forward fixed-point analysis over the CFG:
-- `IN[B] = union(OUT[P])` for predecessors `P`;
+- `IN[B] = union(OUT[P])` for normal-CFG predecessors `P`;
 - `OUT[B] = GEN[B] union (IN[B] - KILL[B])`;
-- bounded iteration until stable, with explicit handling of exception edges before claiming complete method coverage.
+- `GEN[B]` retains the final local definition for each register word;
+- `KILL[B]` removes other definition sites for every register word written in the block.
 
-Do not use phase-1 block-local facts as cross-block reaching-definition results. No automatic Hook authorization may depend on this analyzer alone.
+The worklist, definition count, and block-by-definition state space have explicit budgets. Exceeding a budget returns an analysis error rather than a partial result.
+
+**Scope limitation:** the current CFG has normal control-flow edges only. It does not parse DEX try/catch handler tables or add exceptional edges. Results therefore explicitly report `exceptionEdgesIncluded=false` and `completeForExceptionFlow=false`. They must not be represented as complete method-wide reaching definitions when exception handlers matter.
+
+## Hook-safety boundary
+
+These analyses are static evidence only. They do not authorize Hook installation, infer semantic roles by themselves, or prove a runtime Flow/decoder path. Unknown versions remain read-only and feature Hooks remain separately gated.
