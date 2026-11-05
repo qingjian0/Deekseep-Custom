@@ -358,3 +358,15 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 这会有意产生 false negatives：若真实 transport/collector callback 由不同 ClassLoader 定义，即使属于同一请求，也不会升级为完整链。安全优先，不做近似归并。
 - suspend Flow 的 Continuation 成功完成仍未观察；没有引入新 Hook 或代理 Continuation。
 - 本批次尚未本地执行 Java 测试脚本、Android 构建或真机验证；当前 HEAD 的 CI 需重新核验。
+
+
+## ROI R2.5.4 — response observation coverage diagnostics
+
+- Added a separate bounded, TTL-pruned, read-only coverage diagnostic stream alongside runtime evidence. It records only adapter identity, process-local ClassLoader scope, exact callback descriptor, status, and timestamp; it does not contain request keys or payload data.
+- A successfully delegated synchronous response emit records `RESPONSE_OBSERVED` coverage; a collector interface exposing suspend `emit(..., Continuation)` records `UNSUPPORTED_SUSPEND_COLLECTOR` and is passed through unchanged. No Continuation proxy is introduced.
+- The observer exposes `snapshotCoverage()` separately from `snapshotEvidence()`. Coverage diagnostics do not create recorder phases, do not confirm request/transport/response chains, and do not affect resolver scoring or Hook activation.
+- Disabled observation continues to return no coverage diagnostics; callers must consult the explicit observation-enabled gate. An empty coverage snapshot is not interpreted as proof that no response occurred or that a callback was unsupported.
+- Coverage entries share the recorder's bounded capacity and 120-second TTL and are cleared with recorder state. The standalone test suite now covers status retention, immutability, disabled-policy rejection, expiry, and clear behavior.
+- Static source audit found the existing collect hook is shared with the Expert relay path; non-relay Flow collection passes through this observer only when the exact Flow identity was registered by the existing transport callback. No new host Hook target was added.
+- Remaining limitation: no safe suspend-continuation completion observation, parser correlation, stream completion, or explicit scope-mismatch diagnostic has been implemented. Exact ClassLoader matching still intentionally permits false negatives.
+- Verification boundary: source and regression assertions were updated on `dev`; this environment did not execute the Java test script, Android build, or device test. Check the latest Actions run before treating CI as passed.
