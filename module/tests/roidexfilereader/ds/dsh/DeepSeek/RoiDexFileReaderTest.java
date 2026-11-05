@@ -25,7 +25,7 @@ public final class RoiDexFileReaderTest {
   put32(b,168,-1);put32(b,172,0);put32(b,176,0);put32(b,180,0);
   RoiDexFileReader.DexFile d=RoiDexFileReader.read(b);
   eq(2,d.stringDataOffsets.length);eq(1,d.typeDescriptorStringIndices.length);
-  eq(1,d.protos.length);eq(1,d.fields.length);eq(1,d.methods.length);eq(1,d.classes.length);
+  eq(1,d.protos.length);eq(0,d.protoParameterTypeIndices[0].length);eq("",d.strings[0]);eq("",d.typeDescriptors[0]);eq(1,d.fields.length);eq(1,d.methods.length);eq(1,d.classes.length);
   eq(1,d.fields[0].nameIndex);eq(1,d.methods[0].nameIndex);
   eq(-1,d.classes[0].superclassIndex);eq(-1,d.classes[0].sourceFileIndex);
  }

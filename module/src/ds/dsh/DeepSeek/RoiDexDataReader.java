@@ -30,6 +30,7 @@ public final class RoiDexDataReader {
   long declared=readUleb128(b,stringOff,limit);
   if(declared>Integer.MAX_VALUE)throw new DataException("string_utf16_size_overflow");
   int n=(int)declared,p=ulebEnd(b,stringOff,limit),count=0;
+  if(n>limit-p)throw new DataException("string_declared_size_exceeds_data");
   char[] chars=new char[n];
   while(true){
    if(p>=limit)throw new DataException("string_unterminated");
@@ -56,7 +57,7 @@ public final class RoiDexDataReader {
  }
  public static TypeList readTypeList(byte[] b,int dataOff,int dataSize,int itemOff,int typeCount)throws DataException {
   int limit=dataLimit(b,dataOff,dataSize);
-  if(itemOff<dataOff||itemOff>=limit||(itemOff&1)!=0)throw new DataException("type_list_offset_invalid");
+  if(itemOff<dataOff||itemOff>=limit||(itemOff&3)!=0)throw new DataException("type_list_offset_invalid");
   if(limit-itemOff<4)throw new DataException("type_list_truncated_header");
   long n=u32(b,itemOff,limit);if(n>Integer.MAX_VALUE)throw new DataException("type_list_size_overflow");
   long end=(long)itemOff+4L+n*2L;if(end>limit)throw new DataException("type_list_out_of_data");

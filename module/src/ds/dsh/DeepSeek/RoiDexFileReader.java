@@ -38,13 +38,15 @@ public final class RoiDexFileReader {
     public static final class DexFile {
         public final Header header;
         public final int[] stringDataOffsets,typeDescriptorStringIndices;
+        public final String[] strings,typeDescriptors;
+        public final int[][] protoParameterTypeIndices;
         public final Proto[] protos;
         public final Field[] fields;
         public final Method[] methods;
         public final ClassDef[] classes;
-        private DexFile(Header h,int[] s,int[] t,Proto[] p,Field[] f,Method[] m,ClassDef[] c){
-            header=h;stringDataOffsets=s;typeDescriptorStringIndices=t;
-            protos=p;fields=f;methods=m;classes=c;
+        private DexFile(Header h,int[] s,int[] t,String[] decoded,String[] descriptors,int[][] params,Proto[] p,Field[] f,Method[] m,ClassDef[] c){
+            header=h;stringDataOffsets=s;typeDescriptorStringIndices=t;strings=decoded;typeDescriptors=descriptors;
+            protoParameterTypeIndices=params;protos=p;fields=f;methods=m;classes=c;
         }
     }
     public static final class Proto {
@@ -155,7 +157,21 @@ public final class RoiDexFileReader {
             dataOffsetRef(v[7],dataOff,dataSize,"static_values_offset");
             classValues[i]=new ClassDef(v);
         }
-        return new DexFile(h,stringOffsets,typeStrings,protoValues,fieldValues,methodValues,classValues);
+        String[] decodedStrings=new String[stringOffsets.length];
+        for(int i=0;i<decodedStrings.length;i++){
+            try { decodedStrings[i]=RoiDexDataReader.readStringData(bytes,dataOff,dataSize,stringOffsets[i]).value; }
+            catch(RoiDexDataReader.DataException e){ throw new DexException("invalid_string_data:"+e.getMessage()); }
+        }
+        String[] descriptors=new String[typeStrings.length];
+        for(int i=0;i<descriptors.length;i++)descriptors[i]=decodedStrings[typeStrings[i]];
+        int[][] protoParameters=new int[protoValues.length][];
+        for(int i=0;i<protoParameters.length;i++){
+            int off=protoValues[i].parametersOffset;
+            if(off==0){protoParameters[i]=new int[0];continue;}
+            try { protoParameters[i]=RoiDexDataReader.readTypeList(bytes,dataOff,dataSize,off,types.size).typeIndices; }
+            catch(RoiDexDataReader.DataException e){ throw new DexException("invalid_proto_type_list:"+e.getMessage()); }
+        }
+        return new DexFile(h,stringOffsets,typeStrings,decodedStrings,descriptors,protoParameters,protoValues,fieldValues,methodValues,classValues);
     }
 
     private static void validateTableLayout(int fileSize,int dataOff,int dataSize,Section... sections)throws DexException{
