@@ -28,10 +28,20 @@ final class RoiUnknownHostInvocationProbePolicy {
         final boolean exactRuntimeMatch;
         final boolean roleVerified;
         final boolean callGraphConfirmed;
+        final boolean staticRoleHintPresent;
+        final boolean staticCallGraphObserved;
 
         Candidate(String owner, String methodName, String descriptor, String sourceScope,
                   Role role, boolean exactRuntimeMatch, boolean roleVerified,
                   boolean callGraphConfirmed) {
+            this(owner, methodName, descriptor, sourceScope, role, exactRuntimeMatch,
+                    roleVerified, callGraphConfirmed, false, false);
+        }
+
+        Candidate(String owner, String methodName, String descriptor, String sourceScope,
+                  Role role, boolean exactRuntimeMatch, boolean roleVerified,
+                  boolean callGraphConfirmed, boolean staticRoleHintPresent,
+                  boolean staticCallGraphObserved) {
             this.owner = clean(owner);
             this.methodName = clean(methodName);
             this.descriptor = clean(descriptor);
@@ -40,6 +50,8 @@ final class RoiUnknownHostInvocationProbePolicy {
             this.exactRuntimeMatch = exactRuntimeMatch;
             this.roleVerified = roleVerified;
             this.callGraphConfirmed = callGraphConfirmed;
+            this.staticRoleHintPresent = staticRoleHintPresent;
+            this.staticCallGraphObserved = staticCallGraphObserved;
         }
     }
 
@@ -85,6 +97,34 @@ final class RoiUnknownHostInvocationProbePolicy {
         if (!isCompleteDexMethodDescriptor(candidate.descriptor)) return false;
         int ownerEnd = candidate.descriptor.indexOf(";->");
         if (!candidate.owner.equals(candidate.descriptor.substring(0, ownerEnd + 1))) return false;
+        int methodStart = ownerEnd + 3;
+        int methodEnd = candidate.descriptor.indexOf('(', methodStart);
+        if (methodEnd <= methodStart
+                || !candidate.methodName.equals(candidate.descriptor.substring(methodStart, methodEnd))) {
+            return false;
+        }
+        return candidate.owner.equals(runtime.owner)
+                && candidate.descriptor.equals(runtime.descriptor)
+                && candidate.sourceScope.equals(runtime.sourceScope);
+    }
+
+    /**
+     * Diagnostic-only probe gate. Static role/call-graph hints may trigger a transparent
+     * pass-through observer after exact runtime method identity is confirmed; they never
+     * satisfy the stronger functional-hook authorization gate above.
+     */
+    static boolean allowsProbe(boolean explicitOptIn, Candidate candidate, RuntimeMethod runtime) {
+        if (!explicitOptIn || candidate == null || runtime == null) return false;
+        if (!candidate.exactRuntimeMatch || !candidate.staticRoleHintPresent
+                || !candidate.staticCallGraphObserved
+                || candidate.role == Role.UNRESOLVED) return false;
+        if (candidate.owner.length() == 0 || candidate.methodName.length() == 0
+                || candidate.sourceScope.length() == 0
+                || !isCompleteDexMethodDescriptor(candidate.descriptor)) return false;
+        int ownerEnd = candidate.descriptor.indexOf(";->");
+        if (ownerEnd < 0 || !candidate.owner.equals(candidate.descriptor.substring(0, ownerEnd + 1))) {
+            return false;
+        }
         int methodStart = ownerEnd + 3;
         int methodEnd = candidate.descriptor.indexOf('(', methodStart);
         if (methodEnd <= methodStart
