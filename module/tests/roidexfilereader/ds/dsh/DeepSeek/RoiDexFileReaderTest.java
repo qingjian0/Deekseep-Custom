@@ -92,8 +92,8 @@ public final class RoiDexFileReaderTest {
   put16(b,148,0);put16(b,150,0);put32(b,152,2);
   put32(b,156,0);put32(b,160,1);put32(b,164,-1);put32(b,168,0);
   put32(b,172,-1);put32(b,176,0);put32(b,180,188);put32(b,184,0);
-  // One static method; the valid shorty is VL and code_item starts at aligned offset 220.
-  b[188]=0;b[189]=0;b[190]=1;b[191]=0;b[192]=0;b[193]=9;b[194]=(byte)0xdc;b[195]=1;
+  // One static method; the valid shorty is VL and code_item starts at aligned offset 224.
+  b[188]=0;b[189]=0;b[190]=1;b[191]=0;b[192]=0;b[193]=9;b[194]=(byte)0xe0;b[195]=1;
   b[196]=3;b[197]='L';b[198]='x';b[199]=';';b[200]=0;
   b[201]=1;b[202]='V';b[203]=0;
   b[204]=3;b[205]='r';b[206]='u';b[207]='n';b[208]=0;
