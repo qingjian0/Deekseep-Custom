@@ -78,6 +78,7 @@ final class RoiClassLoadObserver {
     private final long ttlMillis;
     private final WeakHashMap<Class<?>, Long> seen =
             new WeakHashMap<Class<?>, Long>();
+    private final ThreadLocal<Boolean> inspecting = new ThreadLocal<Boolean>();
     private final ArrayDeque<EventSnapshot> events =
             new ArrayDeque<EventSnapshot>();
     private long windowStartedAt = Long.MIN_VALUE;
@@ -100,30 +101,43 @@ final class RoiClassLoadObserver {
         this.ttlMillis = ttlMillis;
     }
 
-    synchronized EventSnapshot observe(ClassLoader definingLoader, Class<?> loadedClass,
-                                       ClassLoader hostRoot, boolean adapterApproved,
-                                       boolean optInEnabled, long nowMillis) {
-        prune(nowMillis);
+    EventSnapshot observe(ClassLoader definingLoader, Class<?> loadedClass,
+                          ClassLoader hostRoot, boolean adapterApproved,
+                          boolean optInEnabled, long nowMillis) {
         if (!adapterApproved || !optInEnabled || definingLoader == null
-                || loadedClass == null || hostRoot == null) return null;
+                || loadedClass == null || hostRoot == null
+                || Boolean.TRUE.equals(inspecting.get())) return null;
         if (!isWithinHostScope(definingLoader, hostRoot)) return null;
 
-        try {
-            if (loadedClass.getClassLoader() != definingLoader) return null;
-            if (seen.containsKey(loadedClass)) return null;
-            if (!admitRate(nowMillis)) return null;
+        synchronized (this) {
+            prune(nowMillis);
+            try {
+                if (loadedClass.getClassLoader() != definingLoader) return null;
+            } catch (SecurityException denied) {
+                return null;
+            }
+            if (seen.containsKey(loadedClass) || !admitRate(nowMillis)) return null;
+            // Reserve identity before reflection so concurrent callbacks cannot inspect twice.
+            seen.put(loadedClass, Long.valueOf(nowMillis));
+        }
 
+        inspecting.set(Boolean.TRUE);
+        try {
             RoiLoadedClassInspector.Snapshot metadata =
                     RoiLoadedClassInspector.inspect(loadedClass);
             EventSnapshot event = new EventSnapshot(metadata,
                     definingLoader.getClass().getName(), nowMillis);
-            seen.put(loadedClass, Long.valueOf(nowMillis));
-            while (events.size() >= maxEvents) events.removeFirst();
-            events.addLast(event);
+            synchronized (this) {
+                prune(nowMillis);
+                while (events.size() >= maxEvents) events.removeFirst();
+                events.addLast(event);
+            }
             return event;
-        } catch (LinkageError | SecurityException error) {
+        } catch (Throwable error) {
             // Observation is fail-open: callers must preserve the original class-load result.
             return null;
+        } finally {
+            inspecting.remove();
         }
     }
 
@@ -166,13 +180,12 @@ final class RoiClassLoadObserver {
     }
 
     private void prune(long nowMillis) {
-        while (!events.isEmpty()) {
-            EventSnapshot first = events.peekFirst();
-            if (nowMillis >= first.observedAtMillis
-                    && nowMillis - first.observedAtMillis > ttlMillis) {
-                events.removeFirst();
-            } else {
-                break;
+        Iterator<EventSnapshot> eventIterator = events.iterator();
+        while (eventIterator.hasNext()) {
+            EventSnapshot event = eventIterator.next();
+            if (nowMillis >= event.observedAtMillis
+                    && nowMillis - event.observedAtMillis > ttlMillis) {
+                eventIterator.remove();
             }
         }
         Iterator<Map.Entry<Class<?>, Long>> iterator = seen.entrySet().iterator();
