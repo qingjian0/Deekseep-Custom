@@ -48,6 +48,7 @@ jobs:
           bash -n module/test-roi-functional-role-classifier.sh
           bash -n module/test-roi-class-candidate-matcher.sh
           bash -n module/test-roi-unknown-host-hook-policy.sh
+          bash -n module/test-roi-unknown-host-invocation-probe.sh
           bash -n module/test-roi-runtime-recorder.sh
           bash module/test-roi-hook-resolver.sh
           bash module/test-roi-dexkit-discovery.sh
@@ -60,6 +61,7 @@ jobs:
           bash module/test-roi-semantic-role-hints.sh
           bash module/test-roi-functional-role-classifier.sh
           bash module/test-roi-runtime-recorder.sh
+          bash module/test-roi-unknown-host-invocation-probe.sh
 
   regression:
     name: Regression tests
@@ -120,6 +122,7 @@ jobs:
           bash module/test-roi-class-load-observer.sh
           bash module/test-roi-class-candidate-matcher.sh
           bash module/test-roi-unknown-host-hook-policy.sh
+          bash module/test-roi-unknown-host-invocation-probe.sh
           bash module/test-roi-discovery-budget.sh
           bash module/test-roi-semantic-role-hints.sh
           bash module/test-roi-functional-role-classifier.sh
