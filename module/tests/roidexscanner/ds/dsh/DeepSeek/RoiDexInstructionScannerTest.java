@@ -2,7 +2,7 @@ package ds.dsh.DeepSeek;
 
 public final class RoiDexInstructionScannerTest {
     public static void main(String[] args)throws Exception {
-        widths(); payloads(); branches(); cfg(); cfgPayloads(); malformed();
+        widths(); payloads(); branches(); cfg(); cfgPayloads(); payloadCfg(); malformed();
         System.out.println("RoiDexInstructionScannerTest: PASS");
     }
     static void widths()throws Exception {
@@ -61,7 +61,7 @@ public final class RoiDexInstructionScannerTest {
         RoiDexInstructionScanner.ControlFlowGraph g=
                 RoiDexInstructionScanner.buildControlFlowGraph(afterGoto);
         eq(2,g.blocks.length);eq(1,g.edges.length);
-        eq(0,g.blocks[0].startOffset);eq(6,g.blocks[1].startOffset);
+        eq(0,g.blocks[0].startOffset);eq(2,g.blocks[0].endOffset);eq(6,g.blocks[1].startOffset);
         eq(1,g.edges[0].toBlock);
 
         // A switch payload is data, while the default and case paths remain executable.
