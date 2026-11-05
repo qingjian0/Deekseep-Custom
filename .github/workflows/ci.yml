@@ -36,6 +36,7 @@ jobs:
       - name: Run focused ROI audit
         run: |
           set -euo pipefail
+          bash -n module/test-roi-dex-instruction-decoder.sh
           bash -n module/test-roi-hook-resolver.sh
           bash -n module/test-roi-dexkit-discovery.sh
           bash -n module/test-roi-candidate-graph.sh
@@ -54,6 +55,7 @@ jobs:
           bash -n module/test-roi-unknown-host-chat-request.sh
           bash -n module/test-roi-unknown-host-chat-request-wiring.sh
           bash -n module/test-roi-runtime-recorder.sh
+          bash module/test-roi-dex-instruction-decoder.sh
           bash module/test-roi-hook-resolver.sh
           bash module/test-roi-dexkit-discovery.sh
           bash module/test-roi-candidate-graph.sh
