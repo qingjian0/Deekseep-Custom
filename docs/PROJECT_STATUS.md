@@ -402,3 +402,17 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - **当前没有把该入口接到全局 ClassLoader.loadClass/findClass Hook，也没有全宿主类枚举。** 这是刻意的安全边界：下一阶段需设计有范围限制、可关闭、低开销的加载观察点，再把真实加载事件送入 inspector。
 - 新增 JVM 回归覆盖 descriptor、父类/接口/方法/字段元数据、快照不可变性、null 输入和不触发类初始化；脚本已接入 CI fast audit 与 regression。
 - 尚未取得该 commit 对应的 CI 结果；未声称本地测试、Android 构建或真机验证通过。
+
+
+## ROI R2.6.3 — opt-in bounded host class-load observation (2026-11-05)
+
+- 新增 `RoiClassLoadObserver`：只接收真实 `BaseDexClassLoader.findClass` 成功返回的 `Class<?>`，并调用既有 `RoiLoadedClassInspector` 读取元数据；不主动调用 `loadClass` / `findClass`，不初始化类，不调用宿主方法，不读取字段值。
+- 观察点仅在 `HostCompat.supportsMaintainedFeatureRuntime()` 为真、且用户在宿主 files 目录创建独立开关 `/data/data/com.deepseek.chat/files/deekseep_roi_class_load_observation_enabled` 后安装。开关需在宿主启动前存在；默认关闭。未知/未维护宿主不会安装该 Hook，仍保持只读发现路径。
+- Hook 安装在 Android `BaseDexClassLoader.findClass(String)`，这是框架父类方法，因此回调会被进程内其他 BaseDexClassLoader 调用；观察器在回调内只接受 DeepSeek 主 ClassLoader 本身或其最多 16 层子加载器链上的事件，并要求返回类的 defining ClassLoader 与 receiver 完全相同。其他进程内 loader、兄弟 loader 和 parent-delegated 类直接忽略。
+- 原始 `findClass` 先执行；观察逻辑只在成功返回后运行。元数据观察异常被隔离，不改变原始类加载结果或异常。
+- 观察事件去重采用弱 Class identity map；保留的快照不持有 `Class` 或 `ClassLoader` 引用。上限 128 个快照、每秒最多 16 个新事件、120 秒 TTL；方法/字段/接口仍沿用 Inspector 的 128/128/32 元数据上限。
+- 快照只含类名、descriptor、loader scope/type、父类、接口、方法/字段声明和时间戳；不包含字段值、请求/响应正文、URL、headers、prompt、Authorization 或 token。
+- 该阶段只证明某个类由受限 loader scope 实际定义并成功返回，不证明该类来自加密 DEX。`custom loader`、动态 DEX 或 InMemoryDexClassLoader 仍不能单独作为“加密已确认”的证据；解密/解包行为需独立、可审计的运行时证据。
+- 类加载快照只进入诊断日志，不进入 Resolver 评分，不批准 Adapter，不自动 Hook 新类方法。功能角色识别、运行时验证、Hook plan 与激活仍是后续独立阶段。
+- 新增 JVM 回归覆盖 host/child loader 范围、批准/opt-in gate、兄弟与委派类拒绝、重复类、容量、TTL、速率限制、快照不可变性及空输入；CI fast audit 与 regression 已加入脚本。
+- 验证边界：本轮仅更新远程源码与 CI 配置；尚未执行本地 Java 测试、Android 构建或真机测试。必须以本 commit 对应 GitHub Actions 的最终结果为准。
