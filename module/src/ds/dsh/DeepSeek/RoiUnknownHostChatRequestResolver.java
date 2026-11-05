@@ -161,7 +161,8 @@ final class RoiUnknownHostChatRequestResolver {
     synchronized int observeLoadedClass(Class<?> type, ClassLoader hostRoot,
             Installer installer) throws Throwable {
         if (type == null || hostRoot == null || installer == null
-                || !withinHostLoader(type.getClassLoader(), hostRoot)) return 0;
+                || !withinHostLoader(type.getClassLoader(), hostRoot)
+                || !hasPotentialRequestConstructor(type)) return 0;
         pruneObserved();
         boolean known = false;
         for (WeakReference<Class<?>> reference : observed) {
@@ -182,6 +183,20 @@ final class RoiUnknownHostChatRequestResolver {
                 && left.ownerDescriptor.equals(right.ownerDescriptor)
                 && left.constructorDescriptor.equals(right.constructorDescriptor)
                 && left.sourceScope.equals(right.sourceScope);
+    }
+
+    private static boolean hasPotentialRequestConstructor(Class<?> type) {
+        try {
+            Constructor<?>[] constructors = type.getDeclaredConstructors();
+            if (constructors == null || constructors.length > 64) return false;
+            for (Constructor<?> constructor : constructors) {
+                if (constructor != null
+                        && hasExpectedConstructorShape(constructor.getParameterTypes())) return true;
+            }
+        } catch (LinkageError | SecurityException unavailable) {
+            return false;
+        }
+        return false;
     }
 
     private int installForClass(Class<?> type, Candidate candidate, ClassLoader hostRoot,
