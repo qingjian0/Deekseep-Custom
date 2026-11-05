@@ -15,6 +15,7 @@ public final class RoiDexRegisterFlowAnalyzerTest {
         testReachingDefinitionsAcrossBlocks();
         testReachingDefinitionsKillOlderSites();
         testReachingDefinitionsMergeAtDiamond();
+        testReachingDefinitionsConvergeAcrossLoop();
         testUnsupportedOpcodeFailsClosed();
         testRegisterBounds();
         System.out.println("RoiDexRegisterFlowAnalyzer tests passed");
@@ -187,6 +188,21 @@ public final class RoiDexRegisterFlowAnalyzerTest {
                 "left branch definition reaches join");
         check(join != null && hasDefinition(join.reachingIn, 0, 4),
                 "right branch definition reaches join");
+    }
+
+    private static void testReachingDefinitionsConvergeAcrossLoop() throws Exception {
+        // const v0; if-eqz v1, exit; const v0; goto loop-condition; return v0
+        short[] code = {(short) 0x0012, (short) 0x0138, (short) 0x0004,
+                (short) 0x0012, (short) 0xfd28, (short) 0x000f};
+        RoiDexReachingDefinitions.Result result = RoiDexReachingDefinitions.analyze(
+                RoiDexRegisterFlowAnalyzer.analyze(code, 2));
+        RoiDexReachingDefinitions.BlockResult condition = blockAt(result, 1);
+        check(condition != null && hasDefinition(condition.reachingIn, 0, 0),
+                "initial definition reaches loop condition");
+        check(condition != null && hasDefinition(condition.reachingIn, 0, 3),
+                "back-edge definition reaches loop condition after fixed point");
+        check(result.worklistSteps >= result.blocks.length,
+                "worklist processes the loop graph to convergence");
     }
 
     private static RoiDexReachingDefinitions.BlockResult blockAt(
