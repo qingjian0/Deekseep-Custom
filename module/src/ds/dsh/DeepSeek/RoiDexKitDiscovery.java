@@ -367,7 +367,7 @@ final class RoiDexKitDiscovery {
                             hostKey, "unresolved", owner, method, descriptor,
                             sourceScope, candidateId,
                             false, false, Collections.<String>emptySet(), evidence);
-                    if (sourceScope.startsWith("loader:")) {
+                    if (sourceScope.startsWith("loader:") && shape != null) {
                         RoiClassCandidateMatcher.registerCandidate(
                                 new RoiClassCandidateMatcher.Candidate(
                                         sourceScope, owner, method, descriptor));
