@@ -227,7 +227,7 @@ public final class RoiUnknownHostChatRequestResolverTest {
         check(installs.get() == 0, "no installer invocation for ambiguous scope");
     }
 
-    private static void testFailClosedInputs() {
+    private static void testFailClosedInputs() throws Throwable {
         RoiUnknownHostChatRequestResolver resolver = new RoiUnknownHostChatRequestResolver();
         String constructor = constructorDescriptor(RequestFixture.class.getDeclaredConstructors()[0]);
         resolver.observeDexCandidate("apk:/base.apk", "chat_session_id",
