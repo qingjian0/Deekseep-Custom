@@ -107,7 +107,12 @@ public final class RoiDexInstructionScanner {
             if(i.payload)continue;
             int next=i.offset+i.width;
             for(int target:i.targets)starts.add(target);
-            if(isConditional(i.opcode)||isGoto(i.opcode)||isSwitch(i.opcode)||isTerminal(i.opcode)) {
+            if(isConditional(i.opcode)||isSwitch(i.opcode)) {
+                if(next<code.length) {
+                    if(!scan.isInstructionBoundary(next))throw new ScanException("fallthrough_enters_payload:"+next);
+                    starts.add(next);
+                }
+            } else if(isGoto(i.opcode)||isTerminal(i.opcode)) {
                 int executableNext=nextExecutableOffset(scan,next);
                 if(executableNext<code.length)starts.add(executableNext);
             }
@@ -126,12 +131,17 @@ public final class RoiDexInstructionScanner {
             if(!scan.isInstructionBoundary(start))throw new ScanException("block_starts_outside_instruction:"+start);
             int end=n+1<ordered.size()?ordered.get(n+1):code.length;
             List<Instruction> body=new ArrayList<Instruction>();
-            int p=start;
+            int p=start; Instruction previous=null;
             while(p<end) {
                 Instruction ins=scan.at(p);
                 if(ins==null||p+ins.width>end)throw new ScanException("invalid_block_extent:"+p);
-                if(!ins.payload)body.add(ins);
-                p+=ins.width;
+                if(ins.payload) {
+                    if(previous!=null&&!previous.payload&&!isGoto(previous.opcode)&&!isTerminal(previous.opcode))
+                        throw new ScanException("payload_reachable_by_fallthrough:"+p);
+                } else {
+                    body.add(ins);
+                }
+                previous=ins; p+=ins.width;
             }
             if(body.isEmpty())throw new ScanException("empty_basic_block:"+start);
             blockAt.put(start,blocks.size());blocks.add(new BasicBlock(start,end,body));
@@ -139,25 +149,32 @@ public final class RoiDexInstructionScanner {
         List<Edge> edges=new ArrayList<Edge>();
         for(int bi=0;bi<blocks.size();bi++) {
             BasicBlock b=blocks.get(bi);Instruction last=b.instructions[b.instructions.length-1];
-            int next=nextExecutableOffset(scan,last.offset+last.width);
+            int next=last.offset+last.width;
             if(isGoto(last.opcode)) {
                 addEdge(edges,bi,blockAt,last.targets[0],"GOTO");
             } else if(isConditional(last.opcode)) {
+                requireFallthroughBoundary(scan,next);
                 addEdge(edges,bi,blockAt,last.targets[0],"CONDITIONAL_TRUE");
                 addFallthrough(edges,bi,next,blockAt,"CONDITIONAL_FALSE");
             } else if(isSwitch(last.opcode)) {
+                requireFallthroughBoundary(scan,next);
                 int payloadOffset=checkedTarget(last.offset,s32(code,last.offset+1));
                 Instruction payload=scan.at(payloadOffset);
                 int[] targets=payloadTargets(code,payloadOffset,payload.payloadKind,last.offset);
                 for(int target:targets)addEdge(edges,bi,blockAt,target,"SWITCH");
                 addFallthrough(edges,bi,next,blockAt,"SWITCH_DEFAULT");
             } else if(!isTerminal(last.opcode)) {
+                requireFallthroughBoundary(scan,next);
                 addFallthrough(edges,bi,next,blockAt,"FALLTHROUGH");
             }
         }
         return new ControlFlowGraph(scan,blocks,edges);
     }
 
+    private static void requireFallthroughBoundary(ScanResult scan,int offset)throws ScanException {
+        if(offset<scan.codeUnits&&!scan.isInstructionBoundary(offset))
+            throw new ScanException("fallthrough_enters_payload:"+offset);
+    }
     private static int nextExecutableOffset(ScanResult scan,int offset) {
         int p=offset;
         while(p<scan.codeUnits) {
