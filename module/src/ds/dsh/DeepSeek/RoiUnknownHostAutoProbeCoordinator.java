@@ -105,7 +105,7 @@ final class RoiUnknownHostAutoProbeCoordinator {
             throws Throwable {
         RoiLoadedClassInspector.Snapshot snapshot = RoiLoadedClassInspector.inspect(type);
         if (snapshot == null || snapshot.methodsTruncated
-                || !"metadata_only".equals(snapshot.inspectionStatus)) return 0;
+                || snapshot.dexMethodDescriptors == null) return 0;
         String owner = "L" + type.getName().replace('.', '/') + ";";
         String scope = snapshot.loaderScope;
         Map<String, Method> runtimeMethods = new LinkedHashMap<String, Method>();
