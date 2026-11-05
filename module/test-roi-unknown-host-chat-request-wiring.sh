@@ -26,6 +26,9 @@ grep -Fq 'hookUnknownHostChatRequest(constructor)' "$MAIN"
 grep -Fq 'HistoryBridge.wrapSystemPrompt(combined, originalPrompt)' "$PIPELINE"
 grep -Fq 'tlLocalApiRequest.get()' "$PIPELINE"
 grep -Fq 'return modified == null ? chain.proceed() : chain.proceed(modified);' "$PIPELINE"
+observer_line="$(grep -n 'installRoiClassLoadObserver(cl, true)' "$MAIN" | head -n 1 | cut -d: -f1)"
+dex_scan_line="$(grep -n 'RoiDexKitDiscovery.schedule(cl' "$MAIN" | head -n 1 | cut -d: -f1)"
+test -n "$observer_line" && test -n "$dex_scan_line" && test "$observer_line" -lt "$dex_scan_line"
 
 # This first adapter is deliberately limited to the user/plugin prompt on the outgoing
 # ChatFullCompletionRequest constructor; it must not synthesize tools or alter transport/auth.
