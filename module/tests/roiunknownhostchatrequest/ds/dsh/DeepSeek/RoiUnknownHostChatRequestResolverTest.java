@@ -47,6 +47,7 @@ public final class RoiUnknownHostChatRequestResolverTest {
                     "Lserializer/RequestSerializer;->deserialize()V",
                     Arrays.asList(constructor));
         }
+        resolver.finalizeDiscovery();
         RoiUnknownHostChatRequestResolver.Candidate candidate = resolver.bestCandidate(scope);
         check(candidate != null, "four independent schema anchors must produce one candidate");
         check(candidate.evidenceCount() == 4, "all anchors retained");
