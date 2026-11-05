@@ -101,10 +101,10 @@ final class RoiUnknownHostChatRequestResolver {
                 if (candidates.size() >= MAX_CANDIDATES) return;
                 candidate = new MutableCandidate(owner, invoke, sourceScope);
                 candidates.put(key, candidate);
+                finalizedScopes.remove(sourceScope);
             }
             candidate.anchors.add(anchor);
             candidate.serializerMethods.add(serializerMethodDescriptor);
-            finalizedScopes.remove(sourceScope);
         }
     }
 
