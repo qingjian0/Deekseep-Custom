@@ -498,3 +498,14 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 新增 JVM 测试覆盖晚到候选重关联、精确方法匹配、重复事件抑制、未知角色拒绝、APK-only scope 拒绝、无静态调用关系拒绝，以及诊断探针不能授权功能 Hook；测试接入 ROI Fast Audit 和 Regression。
 - 本阶段能力边界：自动发现并安装的是不读取参数/返回值的诊断探针，不是未知版本功能适配器。RoiUnknownHostHookPolicy.authorizesFunctionalHook 仍拒绝功能 Hook；尚无通用机制能仅凭角色标签安全地把未知方法映射为 Local API、消息/Agent 或其他功能行为。不得将诊断探针安装报告称为功能 Hook 已生效。
 - 真机验证仍需用户设备与目标未知版本 APK。CI 结果以本提交对应 GitHub Actions 最终状态为准。
+
+
+## ROI R2.7.8 — unknown-host chat request prompt adapter (2026-11-05)
+
+- 新增 serializer-contract resolver：从运行时 loader scope 的 DEX 方法调用关系中寻找 ChatFullCompletionRequest 构造器，并要求 `chat_session_id`、`thinking_enabled`、`search_enabled` 与 `parent_message_id`/`preempt` 等至少四个字段锚点相互印证。
+- 构造器还必须符合已验证的 11 参数形状；运行时类加载后再次核对 defining ClassLoader scope、类 owner 和完整构造器 descriptor。APK-only 候选、字段证据不足、形状不匹配或同分歧义候选均不激活。
+- 新增独立开关 `/data/data/com.deepseek.chat/files/deekseep_roi_unknown_host_feature_hook_enabled`，唯一有效内容为单行 `ENABLE`；默认关闭。发现阶段完成三个有界扫描 pass 后才 finalize 候选，避免扫描未完成时过早安装。
+- 首个真实未知版本功能适配器已接入 `HookChatPipeline`：仅在原生 ChatFullCompletionRequest 构造边界注入用户/插件 system prompt；保留 Local API 请求、主动事件和私有 Agent 传输的原有路径；原构造器每次仅执行一次。它不改写 transport、认证、PoW 或 SSE 响应。
+- 新增独立 `RoiUnknownHostFeatureHookPolicy`，仅授权上述精确构造器适配器；通用未知版本 Hook policy 仍然拒绝其他未经适配的功能 Hook。未知版本不会回退到旧版全量 hook。
+- 新增 JVM 测试覆盖字段锚点、运行时晚到/早到绑定、重复安装抑制、开关默认关闭、构造器精确授权和候选歧义拒绝；测试接入 ROI Fast Audit 与 Regression。
+- 这完成的是未知版本的第一个功能 Hook 能力（出站 system prompt），不是所有功能的通用适配器。Local API transport/response、Agent tools、会话/附件等功能仍需各自的语义契约与适配器；不得宣称全部未知版本功能已自动兼容。真机运行验证仍待目标版本设备验证。
