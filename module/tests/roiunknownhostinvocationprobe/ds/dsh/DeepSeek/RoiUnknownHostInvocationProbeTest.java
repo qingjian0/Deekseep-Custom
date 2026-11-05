@@ -46,6 +46,10 @@ public final class RoiUnknownHostInvocationProbeTest {
                 new RoiUnknownHostInvocationProbePolicy.Candidate(OWNER, "send", "send(?)",
                         SCOPE, RoiUnknownHostInvocationProbePolicy.Role.HTTP_TRANSPORT,
                         true, true, true), runtime), "incomplete descriptor must be denied");
+        check(!RoiUnknownHostInvocationProbePolicy.allows(true,
+                new RoiUnknownHostInvocationProbePolicy.Candidate(OWNER, "other", DESCRIPTOR,
+                        SCOPE, RoiUnknownHostInvocationProbePolicy.Role.HTTP_TRANSPORT,
+                        true, true, true), runtime), "method name must match descriptor");
     }
 
     private static RoiUnknownHostInvocationProbePolicy.Candidate candidate(
@@ -126,6 +130,20 @@ public final class RoiUnknownHostInvocationProbeTest {
                 "snapshot must remain bounded");
         probe.clear();
         check(probe.snapshot().isEmpty(), "clear must release probe state");
+
+        check(probe.register(DESCRIPTOR), "rate test method should register");
+        for (int i = 0; i < 40; i++) {
+            try {
+                probe.invoke(DESCRIPTOR, new RoiUnknownHostInvocationProbe.ProceedingCall() {
+                    @Override public Object proceed() { return null; }
+                });
+            } catch (Throwable impossible) {
+                throw new AssertionError(impossible);
+            }
+        }
+        long observed = probe.snapshot().get(0).invocationCount;
+        check(observed <= RoiUnknownHostInvocationProbe.MAX_EVENTS_PER_SECOND,
+                "event rate must be bounded");
     }
 
     private static void write(File file, String value) throws Exception {
