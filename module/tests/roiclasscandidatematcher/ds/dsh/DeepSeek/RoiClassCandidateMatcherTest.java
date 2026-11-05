@@ -4,7 +4,12 @@ import java.util.Arrays;
 import java.util.Collections;
 
 public final class RoiClassCandidateMatcherTest {
+    private static final class RuntimeFixture {
+        private String send(String value) { return value; }
+    }
+
     public static void main(String[] args) {
+        testRuntimeCandidateCorrelation();
         String scope = "loader:process-7:dalvik.system.PathClassLoader";
         String desc = "Lx/y;->send(Ljava/lang/String;)Lokhttp3/Call;";
         RoiClassCandidateMatcher.Candidate candidate =
@@ -44,6 +49,18 @@ public final class RoiClassCandidateMatcherTest {
         check(!RoiClassCandidateMatcher.match(candidate, exact).activationAuthorized,
                 "matching must never authorize activation");
         System.out.println("ROI class candidate matcher tests passed");
+    }
+
+    private static void testRuntimeCandidateCorrelation() {
+        String scope = RoiCandidateIdentity.forClassLoader(RuntimeFixture.class.getClassLoader());
+        RoiClassCandidateMatcher.registerCandidate(new RoiClassCandidateMatcher.Candidate(
+                scope, RuntimeFixture.class.getName(), "send",
+                "(Ljava/lang/String;)Ljava/lang/String;"));
+        String report = RoiClassCandidateMatcher.matchObservedClass(RuntimeFixture.class);
+        check(report.contains("status=EXACT_MATCH"),
+                "DexKit candidate must correlate with canonical loaded method descriptor");
+        check(report.contains("activationAuthorized=false"),
+                "runtime class correlation must never authorize activation");
     }
 
     private static void check(boolean value, String label) {
