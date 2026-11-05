@@ -486,3 +486,15 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 新测试已接入 ROI Fast Audit 与完整 Regression。
 - 本次 CI：旧工作流提交 `69b10ab` 的 run #41994735857 在检查时仍运行中；包含新工作流配置的提交 `fed955e` 的 run #41994754594 当时处于 pending。未据此宣称本轮 CI 通过。
 - 当前 dev 仅增加安全不变量审计；未放宽 candidate proof 门槛、未启用未知版本方法 Hook、未修改 main。未知版本仍无已验证的运行时调用证据生产者。
+
+
+## ROI R2.7.7 — unknown-host automatic runtime probe wiring (2026-11-05)
+
+- 新增 RoiUnknownHostAutoProbeCoordinator，把 DexKit 的 loader-scope 候选与已观察到的运行时 Class 对象做双向时序关联：先观察类、后发现候选，或先发现候选、后观察类，都能进行精确匹配。
+- DexKit 只有在候选来自真实运行时 loader scope、方法 descriptor 有效、静态功能角色唯一且存在非空静态调用关系时，才向协调器登记候选。APK-path-only、角色不明确、无调用关系的候选不会进入自动探针链。
+- 运行时只使用已经由 BaseDexClassLoader.findClass 成功返回的类对象；要求 defining ClassLoader scope、owner 和完整方法 descriptor 精确一致。不会主动加载宿主类，不会调用宿主方法来探测，也不会修改可访问性。
+- 新增独立诊断探针授权 allowsProbe：静态角色/调用关系只能在用户显式打开 invocation-probe 开关后安装透明的 pass-through 诊断包装器；包装器原样执行一次 chain.proceed()。这类静态提示不会升级为 roleVerified 或 callGraphConfirmed。
+- Main 已把 DexKit 候选生产者、运行时类加载观察器、协调器和现有探针安装器接通。invocation-probe 开关单独开启时也会安装受限类加载观察点；开关仍默认关闭，且运行时每次调用都会重新检查。
+- 新增 JVM 测试覆盖晚到候选重关联、精确方法匹配、重复事件抑制、未知角色拒绝、APK-only scope 拒绝、无静态调用关系拒绝，以及诊断探针不能授权功能 Hook；测试接入 ROI Fast Audit 和 Regression。
+- 本阶段能力边界：自动发现并安装的是不读取参数/返回值的诊断探针，不是未知版本功能适配器。RoiUnknownHostHookPolicy.authorizesFunctionalHook 仍拒绝功能 Hook；尚无通用机制能仅凭角色标签安全地把未知方法映射为 Local API、消息/Agent 或其他功能行为。不得将诊断探针安装报告称为功能 Hook 已生效。
+- 真机验证仍需用户设备与目标未知版本 APK。CI 结果以本提交对应 GitHub Actions 最终状态为准。
