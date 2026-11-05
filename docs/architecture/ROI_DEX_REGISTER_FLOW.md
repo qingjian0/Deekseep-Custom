@@ -14,6 +14,7 @@ The decoder covers only explicitly modelled instruction formats. Unknown semanti
 - `OUT[B] = GEN[B] union (IN[B] - KILL[B])`;
 - `GEN[B]` retains the final local definition for each register word;
 - `KILL[B]` removes other definition sites for every register word written in the block.
+- A CFG reachability pass starts at the method entry block; unreachable blocks do not contribute definitions to reachable code and are explicitly marked `reachableFromEntry=false`.
 
 The worklist, definition count, and block-by-definition state space have explicit budgets. Exceeding a budget returns an analysis error rather than a partial result.
 
