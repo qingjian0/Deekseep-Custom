@@ -121,6 +121,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     private static final String ROI_CLASS_LOAD_OBSERVATION_ENABLE_FILE =
             "/data/data/com.deepseek.chat/files/deekseep_roi_class_load_observation_enabled";
+    private static final String ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE =
+            "/data/data/com.deepseek.chat/files/deekseep_roi_unknown_host_hook_enabled";
 
     private static final RoiClassLoadObserver ROI_CLASS_LOAD_OBSERVER =
             new RoiClassLoadObserver();
@@ -1167,18 +1169,31 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         if (!HostCompat.supportsMaintainedFeatureRuntime()) {
             String unsupported = bootstrapVersion == null || bootstrapVersion.length() == 0
                     ? HostCompat.generationName() : bootstrapVersion;
-            log("unknown/unmaintained host: entering ROI read-only discovery version="
-                    + unsupported + ", detected=" + HostCompat.generationName());
+            final boolean unknownHostHookEnabled =
+                    RoiUnknownHostHookPolicy.isExplicitlyEnabled(
+                            new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE));
+            log("unknown/unmaintained host: entering ROI "
+                    + (unknownHostHookEnabled ? "opt-in metadata-hook" : "read-only")
+                    + " discovery version=" + unsupported
+                    + ", detected=" + HostCompat.generationName());
             RoiHostDiscovery.schedule(cl,
                     param.appInfo == null ? null : param.appInfo.sourceDir,
                     param.appInfo == null ? null : param.appInfo.splitSourceDirs);
             RoiDexKitDiscovery.schedule(cl,
                     param.appInfo == null ? null : param.appInfo.sourceDir,
                     param.appInfo == null ? null : param.appInfo.splitSourceDirs);
-            // Do not install even the retired-version Activity notice hook here: unknown hosts
-            // remain strictly hook-free while the asynchronous inventory runs.
-            log("host symbol table is not maintained; feature bootstrap suppressed version="
-                    + unsupported + ", detected=" + HostCompat.generationName());
+            if (unknownHostHookEnabled && cl != null) {
+                installBestEffortHook("roi.unknown-host.class-load-observer",
+                        () -> installRoiClassLoadObserver(cl, true),
+                        "unknown-host ROI metadata observer unavailable: ");
+                log("unknown-host ROI switch enabled: metadata-only class observation; "
+                        + "functional feature hooks remain disabled pending adapter proof");
+            } else {
+                log("host symbol table is not maintained; functional Hook bootstrap suppressed; "
+                        + "unknown-host switch is absent or disabled");
+            }
+            // The opt-in switch permits only bounded class metadata observation. It never
+            // falls through to legacy feature hooks or authorizes an unreviewed adapter.
             return;
         }
         // This host-level Compose hook is deliberately installed only after the verified
@@ -1204,7 +1219,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         if (HostCompat.supportsMaintainedFeatureRuntime()
                 && new File(ROI_CLASS_LOAD_OBSERVATION_ENABLE_FILE).isFile()) {
             installBestEffortHook("roi.class-load-observer",
-                    () -> installRoiClassLoadObserver(cl),
+                    () -> installRoiClassLoadObserver(cl, false),
                     "ROI class-load observer unavailable: ");
         }
         // Host-independent (public framework API only); must be in place before MainActivity
@@ -1664,9 +1679,14 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
      * The callback always proceeds first and only inspects classes actually defined by the host
      * root loader or one of its child loaders. Unknown hosts never reach this installer.
      */
-    private void installRoiClassLoadObserver(final ClassLoader hostRoot) throws Throwable {
-        if (hostRoot == null || !HostCompat.supportsMaintainedFeatureRuntime()
-                || !new File(ROI_CLASS_LOAD_OBSERVATION_ENABLE_FILE).isFile()) return;
+    private void installRoiClassLoadObserver(final ClassLoader hostRoot,
+                                             final boolean unknownHostOptIn) throws Throwable {
+        final boolean maintainedHost = HostCompat.supportsMaintainedFeatureRuntime();
+        final boolean unknownSwitchEnabled = RoiUnknownHostHookPolicy.isExplicitlyEnabled(
+                new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE));
+        if (hostRoot == null || (!maintainedHost && !(unknownHostOptIn && unknownSwitchEnabled))
+                || (maintainedHost
+                    && !new File(ROI_CLASS_LOAD_OBSERVATION_ENABLE_FILE).isFile())) return;
         ClassLoader frameworkLoader = ClassLoader.getSystemClassLoader();
         Class<?> baseDexClassLoader = Class.forName(
                 "dalvik.system.BaseDexClassLoader", false, frameworkLoader);
@@ -1684,7 +1704,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                         RoiClassLoadObserver.EventSnapshot event =
                                 ROI_CLASS_LOAD_OBSERVER.observe(
                                         (ClassLoader) receiver, (Class<?>) loaded, hostRoot,
-                                        HostCompat.supportsMaintainedFeatureRuntime(), true,
+                                        maintainedHost || (unknownHostOptIn && unknownSwitchEnabled), true,
                                         System.currentTimeMillis());
                         if (event != null) {
                             String report = event.toReport();
@@ -1702,7 +1722,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 return loaded;
             }
         });
-        log("ROI class-load observer installed; scope=host-root-and-descendants"
+        log("ROI class-load observer installed; mode="
+                + (maintainedHost ? "maintained-opt-in" : "unknown-host-explicit-opt-in")
+                + ", scope=host-root-and-descendants"
                 + ", maxEvents=" + RoiClassLoadObserver.DEFAULT_MAX_EVENTS
                 + ", maxPerSecond=" + RoiClassLoadObserver.DEFAULT_MAX_EVENTS_PER_WINDOW);
     }
