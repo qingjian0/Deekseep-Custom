@@ -55,6 +55,23 @@ public final class RoiDexInstructionScannerTest {
         }
         throw new AssertionError("expected CFG to reject fallthrough into payload");
     }
+    static void payloadCfg()throws Exception {
+        // A goto skips an aligned payload; the payload must not become a basic block.
+        short[] afterGoto={(short)0x0029,6,(short)0x0100,0,0,0,(short)0x000e};
+        RoiDexInstructionScanner.ControlFlowGraph g=
+                RoiDexInstructionScanner.buildControlFlowGraph(afterGoto);
+        eq(2,g.blocks.length);eq(1,g.edges.length);
+        eq(0,g.blocks[0].startOffset);eq(6,g.blocks[1].startOffset);
+        eq(1,g.edges[0].toBlock);
+
+        // A switch payload is data, while the default and case paths remain executable.
+        short[] switchCode={(short)0x002b,6,0,(short)0x002a,9,0,
+                (short)0x0100,1,0,0,12,0,(short)0x000e};
+        RoiDexInstructionScanner.ControlFlowGraph sw=
+                RoiDexInstructionScanner.buildControlFlowGraph(switchCode);
+        eq(3,sw.blocks.length);
+        yes(sw.edges.length>=3);
+    }
     static void malformed()throws Exception {
         bad(new short[]{(short)0x0073});
         bad(new short[]{(short)0x0014,0});
