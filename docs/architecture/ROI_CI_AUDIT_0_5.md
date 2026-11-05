@@ -151,3 +151,14 @@ The source and static assertions have been updated on the working branch. The la
 - This deliberately permits false negatives: if transport or collector callbacks are defined by a different ClassLoader, the chain is not promoted even if it belongs to the same request. No approximate merging is attempted.
 - The suspend Flow Continuation completion gap remains; no new Hook or Continuation proxy was added.
 - Verification boundary: local Java tests, Android build, and device validation have not been run for this batch; current HEAD CI must be checked independently.
+
+
+## R2.5.4 — response-observation coverage diagnostics
+
+- Added a separate bounded and TTL-pruned coverage stream, distinct from request-chain evidence. Entries contain only adapter identity, ClassLoader scope, exact callback descriptor, status, and timestamp; request keys and payloads are excluded.
+- A successful synchronous emit delegation is reported as `RESPONSE_OBSERVED`; a suspend emit exposing `kotlin.coroutines.Continuation` is reported as `UNSUPPORTED_SUSPEND_COLLECTOR`. In the latter case the original collector is passed through unchanged.
+- Coverage diagnostics do not emit recorder phases, cannot confirm a request chain, and are not fed into resolver scoring or Hook activation.
+- Disabled observation rejects coverage writes. An empty coverage list is explicitly not interpreted as proof of absence or unsupported behavior.
+- Added regression cases for coverage status, immutable snapshots, disabled-policy rejection, TTL expiry, and clearing.
+- No Continuation proxy, new host Hook target, parser callback, or stream-completion inference was added. ClassLoader mismatch diagnostics remain future work.
+- CI/local/device verification remains separate; no local test, Android build, or real-device pass is claimed by this source update.
