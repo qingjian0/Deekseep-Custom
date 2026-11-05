@@ -16,6 +16,11 @@ public final class RoiDexRegisterFlowAnalyzerTest {
         testReachingDefinitionsKillOlderSites();
         testReachingDefinitionsMergeAtDiamond();
         testReachingDefinitionsConvergeAcrossLoop();
+        testUseDefChainAcrossBlocks();
+        testUseDefChainMergesAtDiamond();
+        testUseDefChainTracksLoopDefinitions();
+        testUseDefChainPreservesEntryUnknown();
+        testUseDefChainTracksWideRegisterWords();
         testUnsupportedOpcodeFailsClosed();
         testRegisterBounds();
         System.out.println("RoiDexRegisterFlowAnalyzer tests passed");
@@ -217,6 +222,76 @@ public final class RoiDexRegisterFlowAnalyzerTest {
         for (RoiDexReachingDefinitions.Definition value : values)
             if (value.register == register && value.instructionOffset == offset) return true;
         return false;
+    }
+
+
+    private static void testUseDefChainAcrossBlocks() throws Exception {
+        short[] code = {(short) 0x0012, (short) 0x0228,
+                (short) 0x000e, (short) 0x000f};
+        RoiDexUseDefChains.Result result = chains(code, 1);
+        RoiDexUseDefChains.UseSite use = useAt(result, 3, 0);
+        check(use != null && use.reachingDefinitions.length == 1
+                        && use.reachingDefinitions[0].instructionOffset == 0,
+                "target use links to the definition reaching through goto");
+        check(!use.mayBeEntryOrUnknownValue, "resolved use is not marked entry-unknown");
+    }
+
+    private static void testUseDefChainMergesAtDiamond() throws Exception {
+        short[] code = {(short) 0x0138, (short) 0x0004,
+                (short) 0x0012, (short) 0x0328,
+                (short) 0x0012, (short) 0x0128, (short) 0x000f};
+        RoiDexUseDefChains.UseSite use = useAt(chains(code, 2), 6, 0);
+        check(use != null && use.reachingDefinitions.length == 2,
+                "join use retains both branch-specific definitions");
+        check(use != null && use.reachingDefinitions[0].instructionOffset == 2
+                        && use.reachingDefinitions[1].instructionOffset == 4,
+                "diamond use links to exact left and right definition sites");
+    }
+
+    private static void testUseDefChainTracksLoopDefinitions() throws Exception {
+        short[] code = {(short) 0x0012, (short) 0x0138, (short) 0x0004,
+                (short) 0x0012, (short) 0xfd28, (short) 0x000f};
+        RoiDexUseDefChains.UseSite use = useAt(chains(code, 2), 5, 0);
+        check(use != null && use.reachingDefinitions.length == 2,
+                "loop-exit use retains entry and back-edge definitions");
+    }
+
+    private static void testUseDefChainPreservesEntryUnknown() throws Exception {
+        RoiDexUseDefChains.UseSite use = useAt(chains(new short[]{(short) 0x000f}, 1), 0, 0);
+        check(use != null && use.reachingDefinitions.length == 0,
+                "method-entry register has no fabricated definition site");
+        check(use != null && use.mayBeEntryOrUnknownValue,
+                "missing reaching definition is classified as entry or unknown, not uninitialized");
+    }
+
+    private static void testUseDefChainTracksWideRegisterWords() throws Exception {
+        short[] code = {(short) 0x0016, (short) 0x0000, (short) 0x0010};
+        RoiDexUseDefChains.Result result = chains(code, 2);
+        RoiDexUseDefChains.UseSite low = useAt(result, 2, 0);
+        RoiDexUseDefChains.UseSite high = useAt(result, 2, 1);
+        check(low != null && high != null
+                        && low.reachingDefinitions.length == 1
+                        && high.reachingDefinitions.length == 1,
+                "wide read creates separately linked register-word uses");
+        check(low.reachingDefinitions[0].register == 0
+                        && high.reachingDefinitions[0].register == 1,
+                "wide read links each word to its matching definition");
+    }
+
+    private static RoiDexUseDefChains.Result chains(short[] code, int registers)
+            throws Exception {
+        RoiDexRegisterFlowAnalyzer.Result flow =
+                RoiDexRegisterFlowAnalyzer.analyze(code, registers);
+        RoiDexReachingDefinitions.Result reaching =
+                RoiDexReachingDefinitions.analyze(flow);
+        return RoiDexUseDefChains.analyze(flow, reaching);
+    }
+
+    private static RoiDexUseDefChains.UseSite useAt(
+            RoiDexUseDefChains.Result result, int offset, int register) {
+        for (RoiDexUseDefChains.UseSite use : result.uses)
+            if (use.instructionOffset == offset && use.register == register) return use;
+        return null;
     }
 
     private static void testUnsupportedOpcodeFailsClosed() throws Exception {
