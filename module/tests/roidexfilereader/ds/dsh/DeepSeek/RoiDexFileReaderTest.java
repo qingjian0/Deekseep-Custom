@@ -82,24 +82,25 @@ public final class RoiDexFileReaderTest {
  }
 
  static void testResolvedMethodEntryLayoutIntegration()throws Exception{
-  byte[] b=fixture(234);
-  put32(b,56,3);put32(b,60,112);put32(b,64,2);put32(b,68,124);
-  put32(b,72,1);put32(b,76,132);put32(b,88,1);put32(b,92,144);
-  put32(b,96,1);put32(b,100,152);put32(b,104,50);put32(b,108,184);
-  put32(b,112,192);put32(b,116,197);put32(b,120,200);
-  put32(b,124,0);put32(b,128,1);
-  put32(b,132,1);put32(b,136,1);put32(b,140,208);
-  put16(b,144,0);put16(b,146,0);put32(b,148,2);
-  put32(b,152,0);put32(b,156,1);put32(b,160,-1);put32(b,164,0);
-  put32(b,168,-1);put32(b,172,0);put32(b,176,184);put32(b,180,0);
-  // One static method; code_item is at aligned data offset 216.
-  b[184]=0;b[185]=0;b[186]=1;b[187]=0;b[188]=0;b[189]=9;b[190]=(byte)0xd8;b[191]=1;
+  byte[] b=fixture(238);
+  put32(b,56,4);put32(b,60,112);put32(b,64,2);put32(b,68,128);
+  put32(b,72,1);put32(b,76,136);put32(b,88,1);put32(b,92,148);
+  put32(b,96,1);put32(b,100,156);put32(b,104,54);put32(b,108,184);
+  put32(b,112,192);put32(b,116,197);put32(b,120,200);put32(b,124,204);
+  put32(b,128,0);put32(b,132,1);
+  put32(b,136,3);put32(b,140,1);put32(b,144,212);
+  put16(b,148,0);put16(b,150,0);put32(b,152,2);
+  put32(b,156,0);put32(b,160,1);put32(b,164,-1);put32(b,168,0);
+  put32(b,172,-1);put32(b,176,0);put32(b,180,184);put32(b,184,0);
+  // One static method; the valid shorty is VL and code_item starts at aligned offset 220.
+  b[184]=0;b[185]=0;b[186]=1;b[187]=0;b[188]=0;b[189]=9;b[190]=(byte)0xdc;b[191]=1;
   b[192]=3;b[193]='L';b[194]='x';b[195]=';';b[196]=0;
   b[197]=1;b[198]='V';b[199]=0;
   b[200]=3;b[201]='r';b[202]='u';b[203]='n';b[204]=0;
-  put32(b,208,1);put16(b,212,0);
-  put16(b,216,2);put16(b,218,1);put16(b,220,0);put16(b,222,0);
-  put32(b,224,0);put32(b,228,1);put16(b,232,0x0111); // return-object v1
+  b[205]=2;b[206]='V';b[207]='L';b[208]=0;
+  put32(b,212,1);put16(b,216,0);
+  put16(b,220,2);put16(b,222,1);put16(b,224,0);put16(b,226,0);
+  put32(b,228,0);put32(b,232,1);put16(b,236,0x0111); // return-object v1
   RoiDexFileReader.DexFile d=RoiDexFileReader.read(b);
   eq(1,d.definedMethods.length);
   RoiDexFileReader.ResolvedMethod method=d.definedMethods[0];
