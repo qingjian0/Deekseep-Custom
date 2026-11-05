@@ -13,6 +13,8 @@ done
 
 grep -Fq 'deekseep_roi_unknown_host_feature_hook_enabled' "$MAIN"
 grep -Fq 'RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled' "$MAIN"
+grep -Fq 'isUnknownHostFeatureHookEnabled()' "$MAIN"
+grep -Fq 'Main.isUnknownHostFeatureHookEnabled()' "$PIPELINE"
 grep -Fq 'ROI_UNKNOWN_HOST_CHAT_REQUEST_RESOLVER.observeLoadedClass' "$MAIN"
 grep -Fq 'Main.finalizeRoiUnknownHostChatRequestDiscovery()' "$DISCOVERY"
 grep -Fq 'registerRoiUnknownHostChatRequestCandidate(candidate)' "$MAIN"
