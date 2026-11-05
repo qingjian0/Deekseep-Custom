@@ -27,9 +27,9 @@ public final class RoiDexCodeReaderTest {
  }
  static void tries()throws Exception{
   byte[] b=new byte[64];put16(b,16,1);put16(b,18,1);put16(b,22,1);put32(b,28,1);
-  put16(b,32,0x000e);put16(b,36,0);put16(b,38,1);put16(b,40,0);
+  put16(b,32,0x000e);put16(b,36,0);put16(b,38,0);put16(b,40,1);put16(b,42,1);
   // handlers list: one handler, signed size +1, type 0 -> addr 0
-  b[48]=1;b[49]=1;b[50]=0;b[51]=0;
+  b[44]=1;b[45]=1;b[46]=0;b[47]=0;
   RoiDexCodeReader.CodeItem c=RoiDexCodeReader.readCodeItem(b,0,b.length,16,1);
   eq(1,c.triesSize);eq(0,c.tryItems[0].handlerOffset);eq(48,c.nextOffset);
  }
