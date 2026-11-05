@@ -206,6 +206,7 @@ public final class RoiDexUseDefChains {
 
         @SuppressWarnings("unchecked")
         List<Integer>[] predecessors = new List[blocks];
+        boolean[] hasExceptionPredecessor = new boolean[blocks];
         for (int i = 0; i < blocks; i++) predecessors[i] = new ArrayList<Integer>();
         for (RoiDexInstructionScanner.Edge edge : flow.edges) {
             if (edge.fromBlock < 0 || edge.fromBlock >= blocks
@@ -220,6 +221,7 @@ public final class RoiDexUseDefChains {
                 throw new AnalysisException("exception_cfg_edge_out_of_bounds");
             if (!predecessors[edge.toBlock].contains(edge.fromBlock))
                 predecessors[edge.toBlock].add(edge.fromBlock);
+            hasExceptionPredecessor[edge.toBlock] = true;
         }
 
         BitSet universe = new BitSet(registerCount);
@@ -243,6 +245,11 @@ public final class RoiDexUseDefChains {
                 if (!reaching.blocks[b].reachableFromEntry) continue;
                 BitSet nextIn;
                 if (b == 0) {
+                    nextIn = new BitSet(registerCount);
+                } else if (hasExceptionPredecessor[b]) {
+                    // A throw may occur before the protected instruction commits its
+                    // destination. Do not claim any incoming register is definitely
+                    // defined at a handler solely from block-level exception edges.
                     nextIn = new BitSet(registerCount);
                 } else {
                     nextIn = null;
