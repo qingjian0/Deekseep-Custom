@@ -8,6 +8,7 @@ public final class RoiDexRegisterFlowAnalyzerTest {
         testSequentialDefUse();
         testUseBeforeDefinition();
         testWideRegisters();
+        testWideConversionsAndTwoAddress();
         testBranchBlocksRemainIndependent();
         testUnsupportedOpcodeFailsClosed();
         testRegisterBounds();
@@ -54,6 +55,26 @@ public final class RoiDexRegisterFlowAnalyzerTest {
                 "wide definition covers both register words");
         check(block.useBeforeDefinition.length == 0,
                 "wide return is defined within the block");
+    }
+
+    private static void testWideConversionsAndTwoAddress() throws Exception {
+        // int-to-long v0, v2; return-wide v0
+        short[] conversion = {(short) 0x2081, (short) 0x0010};
+        RoiDexRegisterFlowAnalyzer.BasicBlockFlow converted =
+                RoiDexRegisterFlowAnalyzer.analyze(conversion, 4).blocks[0];
+        check(Arrays.equals(converted.definitions, new int[]{0, 1}),
+                "int-to-long defines a wide destination");
+        check(Arrays.equals(converted.useBeforeDefinition, new int[]{2}),
+                "int-to-long reads a single-word source");
+
+        // add-long/2addr v0, v2; return-wide v0
+        short[] arithmetic = {(short) 0x20ba, (short) 0x0010};
+        RoiDexRegisterFlowAnalyzer.BasicBlockFlow added =
+                RoiDexRegisterFlowAnalyzer.analyze(arithmetic, 4).blocks[0];
+        check(Arrays.equals(added.definitions, new int[]{0, 1}),
+                "long/2addr defines both destination words");
+        check(Arrays.equals(added.useBeforeDefinition, new int[]{0, 1, 2, 3}),
+                "long/2addr reads both old wide operands");
     }
 
     private static void testBranchBlocksRemainIndependent() throws Exception {

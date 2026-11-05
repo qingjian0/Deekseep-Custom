@@ -172,7 +172,7 @@ public final class RoiDexRegisterFlowAnalyzer {
                     || op == 0x88 || op == 0x89 || op == 0x8b;
             boolean sourceWide = op == 0x7d || op == 0x7e || op == 0x80
                     || op == 0x84 || op == 0x85 || op == 0x86
-                    || op == 0x88 || op == 0x89 || op == 0x8a || op == 0x8b;
+                    || op == 0x8a || op == 0x8b || op == 0x8c;
             defs = destWide ? wide(a4, count) : one(a4, count);
             uses = sourceWide ? wide(b4, count) : one(b4, count);
         } else if (op >= 0x90 && op <= 0xaf) { // binary 23x
