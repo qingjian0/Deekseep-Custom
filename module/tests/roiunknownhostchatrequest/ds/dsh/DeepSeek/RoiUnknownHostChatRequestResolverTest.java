@@ -84,6 +84,7 @@ public final class RoiUnknownHostChatRequestResolverTest {
                     "Lserializer/RequestSerializer;->deserialize()V",
                     Arrays.asList(constructor));
         }
+        resolver.finalizeDiscovery();
         RoiUnknownHostChatRequestResolver.Candidate candidate = resolver.bestCandidate(scope);
         check(candidate != null, "candidate discovered before class load");
         AtomicInteger installs = new AtomicInteger();
@@ -109,6 +110,7 @@ public final class RoiUnknownHostChatRequestResolverTest {
                     "Lserializer/RequestSerializer;->deserialize()V",
                     Arrays.asList(constructor));
         }
+        resolver.finalizeDiscovery();
         RoiUnknownHostChatRequestResolver.Candidate candidate = resolver.bestCandidate(scope);
         AtomicInteger installs = new AtomicInteger();
         RoiUnknownHostChatRequestResolver.Installer installer = (resolved, ctor) -> {
@@ -133,6 +135,7 @@ public final class RoiUnknownHostChatRequestResolverTest {
                     "Lserializer/RequestSerializer;->deserialize()V",
                     Arrays.asList(constructor));
         }
+        resolver.finalizeDiscovery();
         RoiUnknownHostChatRequestResolver.Candidate candidate = resolver.bestCandidate(scope);
         Constructor<?> target = RequestFixture.class.getDeclaredConstructors()[0];
         java.io.File switchFile = java.io.File.createTempFile("roi-feature-hook", ".switch");
