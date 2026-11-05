@@ -84,6 +84,7 @@ final class RoiUnknownHostInvocationProbePolicy {
                 || candidate.sourceScope.length() == 0) return false;
         if (!isCompleteDexMethodDescriptor(candidate.descriptor)) return false;
         int ownerEnd = candidate.descriptor.indexOf(";->");
+        if (!candidate.owner.equals(candidate.descriptor.substring(0, ownerEnd + 1))) return false;
         int methodStart = ownerEnd + 3;
         int methodEnd = candidate.descriptor.indexOf('(', methodStart);
         if (methodEnd <= methodStart
@@ -97,26 +98,42 @@ final class RoiUnknownHostInvocationProbePolicy {
 
     private static boolean isCompleteDexMethodDescriptor(String value) {
         int ownerEnd = value.indexOf(";->");
-        int open = value.indexOf('(', ownerEnd < 0 ? 0 : ownerEnd + 3);
+        if (ownerEnd <= 1 || value.charAt(0) != 'L') return false;
+        String owner = value.substring(0, ownerEnd + 1);
+        if (owner.indexOf(' ') >= 0 || owner.indexOf('[') >= 0) return false;
+        int open = value.indexOf('(', ownerEnd + 3);
         int close = value.indexOf(')', open < 0 ? 0 : open + 1);
-        if (ownerEnd <= 1 || open <= ownerEnd + 3 || close < open) return false;
-        if (value.charAt(0) != 'L' || value.indexOf(' ', 0) >= 0) return false;
+        if (open <= ownerEnd + 3 || close < open) return false;
         String method = value.substring(ownerEnd + 3, open);
-        if (method.length() == 0) return false;
-        String result = value.substring(close + 1);
-        if (result.length() == 0) return false;
-        return isTypeDescriptor(result);
+        if (method.length() == 0 || method.indexOf(';') >= 0 || method.indexOf('/') >= 0) {
+            return false;
+        }
+        int cursor = open + 1;
+        while (cursor < close) {
+            int next = typeDescriptorEnd(value, cursor, false);
+            if (next <= cursor || next > close) return false;
+            cursor = next;
+        }
+        if (cursor != close) return false;
+        int returnEnd = typeDescriptorEnd(value, close + 1, true);
+        return returnEnd == value.length();
     }
 
-    private static boolean isTypeDescriptor(String value) {
-        if ("VZBSCIJFD".contains(value) && value.length() == 1) return true;
-        int index = 0;
-        while (index < value.length() && value.charAt(index) == '[') index++;
-        if (index >= value.length()) return false;
-        String type = value.substring(index);
-        if (type.length() == 1) return "ZBSCIJFD".contains(type);
-        return type.charAt(0) == 'L' && type.endsWith(";")
-                && type.indexOf(';') == type.length() - 1;
+    private static int typeDescriptorEnd(String value, int start, boolean allowVoid) {
+        if (start < 0 || start >= value.length()) return -1;
+        int cursor = start;
+        while (cursor < value.length() && value.charAt(cursor) == '[') cursor++;
+        if (cursor >= value.length()) return -1;
+        char kind = value.charAt(cursor);
+        if ("ZBSCIJFD".indexOf(kind) >= 0) return cursor + 1;
+        if (kind == 'V') return allowVoid && cursor == start ? cursor + 1 : -1;
+        if (kind != 'L') return -1;
+        int semicolon = value.indexOf(';', cursor + 1);
+        if (semicolon <= cursor + 1) return -1;
+        String className = value.substring(cursor + 1, semicolon);
+        if (className.indexOf('.') >= 0 || className.indexOf('[') >= 0
+                || className.indexOf(' ') >= 0) return -1;
+        return semicolon + 1;
     }
 
     private static String clean(String value) { return value == null ? "" : value.trim(); }
