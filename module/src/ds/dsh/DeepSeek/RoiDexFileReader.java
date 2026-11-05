@@ -66,6 +66,13 @@ public final class RoiDexFileReader {
             declaringClassDescriptor=ownerDesc;name=methodName;prototypeDescriptor=proto;
             isStatic=(flags&0x0008)!=0;isDirect=direct;codeItem=item;
         }
+        /** Build the incoming-register map from this method's parsed prototype and CodeItem. */
+        public RoiDexMethodEntryLayout.Result methodEntryLayout()
+                throws RoiDexMethodEntryLayout.AnalysisException {
+            if(codeItem==null)throw new RoiDexMethodEntryLayout.AnalysisException("method_code_item_missing");
+            return RoiDexMethodEntryLayout.analyze(codeItem.registersSize,codeItem.insSize,
+                    accessFlags,prototypeDescriptor);
+        }
     }
     public static final class Proto {
         public final int shortyIndex,returnTypeIndex,parametersOffset;
