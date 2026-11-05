@@ -457,3 +457,15 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 开关是“未知版本实验 Hook 评估/元数据观察入口”的显式授权，不是“无条件执行功能 Hook”。后续功能 Hook 仍必须逐个通过精确类/方法身份、功能角色、真实调用链、适配器审查、失败关闭和回滚检查；目前没有任何未知版本功能 Hook 被授权或安装。
 - 当前控制面为宿主私有目录文件开关，尚未做成模块设置页 UI。启用文件：`/data/data/com.deepseek.chat/files/deekseep_roi_unknown_host_hook_enabled`，内容必须为单行 `ENABLE`；删除该文件即关闭。
 - 有 root 的设备可用 ADB 操作：`adb shell su -c 'D=/data/user/0/com.deepseek.chat/files; printf "ENABLE\\n" > "$D/deekseep_roi_unknown_host_hook_enabled"; chown --reference="$D" "$D/deekseep_roi_unknown_host_hook_enabled"; chmod 600 "$D/deekseep_roi_unknown_host_hook_enabled"'`；关闭：`adb shell su -c 'rm -f /data/user/0/com.deepseek.chat/files/deekseep_roi_unknown_host_hook_enabled'`。启用后重启 DeepSeek 进程以确保观察 Hook 安装。
+
+## ROI R2.7.4 — gated unknown-host invocation probe foundation (2026-11-05)
+
+- 新增独立 RoiUnknownHostInvocationProbePolicy，要求独立显式 opt-in、精确 runtime owner、完整 DEX method descriptor、相同 process-local ClassLoader scope、已验证功能角色和已确认调用图证据全部同时成立。
+- 仅接受 REQUEST_CONSTRUCTION、HTTP_TRANSPORT、RESPONSE_DECODING；UNRESOLVED、静态提示、类加载 exact match、descriptor 不完整或 owner / method / loader 不一致均拒绝。
+- 新增独立 RoiUnknownHostInvocationProbe 诊断记录器：最多登记 8 个方法，每秒最多记录 16 次调用；仅保留完整方法描述符、调用次数、总/最大耗时和异常类名。不会读取参数、返回值、Throwable message、请求/响应正文、URL、Header、Prompt 或 Token。
+- invoke() 通过单次 proceed() 包装，保留原返回对象身份和原始异常身份；记录器自身错误被隔离，不替换宿主结果或异常。
+- 新增 JVM 回归脚本，覆盖默认关闭、精确 ENABLE、别名拒绝、多余内容拒绝、完整签名、角色/调用图/loader/descriptor 门槛、exactly-once、异常透传、异常消息不落盘、方法数与事件速率上限。
+- 新脚本已接入 ROI fast audit 与完整 Regression。
+- 当前只是策略与记录器基础设施，尚未在 Main 中安装未知版本方法 Hook，也没有任何候选满足当前已证实的 roleVerified + callGraphConfirmed 双门槛。现有 R2.7.1 角色分类置信度上限为 0.45，静态调用图不证明运行时执行，因此不得把它们升级为已验证角色或调用链。
+- 后续只有在真实运行时证据确认精确方法后，才允许接入独立开关 /data/data/com.deepseek.chat/files/deekseep_roi_unknown_host_invocation_probe_enabled；该开关必须与现有未知版本类加载元数据开关分离，默认关闭。
+- 当前 dev 最新提交为 868b05b939493ccd876c86f01b704a8587177d2b。GitHub Combined Status 暂无状态项；不得据此宣称 CI 通过。尚未执行本地 JVM 脚本、Android 构建或真机验证。
