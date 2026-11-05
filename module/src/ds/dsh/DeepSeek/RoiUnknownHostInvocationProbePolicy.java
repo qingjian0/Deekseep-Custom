@@ -35,7 +35,7 @@ final class RoiUnknownHostInvocationProbePolicy {
                   Role role, boolean exactRuntimeMatch, boolean roleVerified,
                   boolean callGraphConfirmed) {
             this(owner, methodName, descriptor, sourceScope, role, exactRuntimeMatch,
-                    roleVerified, callGraphConfirmed, false, false);
+                    roleVerified, callGraphConfirmed, roleVerified, callGraphConfirmed);
         }
 
         Candidate(String owner, String methodName, String descriptor, String sourceScope,
