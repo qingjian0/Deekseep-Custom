@@ -55,6 +55,7 @@ jobs:
           bash module/test-roi-class-loader-profile.sh
           bash module/test-roi-loaded-class-inspector.sh
           bash module/test-roi-class-load-observer.sh
+          bash module/test-roi-class-candidate-matcher.sh
           bash module/test-roi-discovery-budget.sh
           bash module/test-roi-semantic-role-hints.sh
           bash module/test-roi-functional-role-classifier.sh
