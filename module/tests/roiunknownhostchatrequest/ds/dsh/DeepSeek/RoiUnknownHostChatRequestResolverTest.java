@@ -33,7 +33,7 @@ public final class RoiUnknownHostChatRequestResolverTest {
         String constructor = constructorDescriptor(RequestFixture.class.getDeclaredConstructors()[0]);
 
         AtomicInteger installs = new AtomicInteger();
-        resolver.observeLoadedClass(RequestFixture.class, root, ctor -> {
+        resolver.observeLoadedClass(RequestFixture.class, (candidate, ctor) -> {
             installs.incrementAndGet();
             return true;
         });
@@ -52,7 +52,7 @@ public final class RoiUnknownHostChatRequestResolverTest {
         check(candidate.ownerDescriptor.equals(owner), "constructor owner resolved");
         check(candidate.constructorDescriptor.equals(constructor), "full constructor descriptor retained");
 
-        int installed = resolver.registerCandidate(candidate, root, ctor -> {
+        int installed = resolver.registerCandidate(candidate, root, (resolved, ctor) -> {
             check(ctor.getDeclaringClass() == RequestFixture.class, "exact runtime class");
             check(RoiUnknownHostChatRequestResolver.hasExpectedConstructorShape(
                     ctor.getParameterTypes()), "constructor shape validated again at install");
@@ -78,11 +78,11 @@ public final class RoiUnknownHostChatRequestResolverTest {
         RoiUnknownHostChatRequestResolver.Candidate candidate = resolver.bestCandidate(scope);
         check(candidate != null, "candidate discovered before class load");
         AtomicInteger installs = new AtomicInteger();
-        check(resolver.registerCandidate(candidate, root, ctor -> {
+        check(resolver.registerCandidate(candidate, root, (resolved, ctor) -> {
             installs.incrementAndGet();
             return true;
         }) == 0, "no runtime class means no hook");
-        check(resolver.observeLoadedClass(RequestFixture.class, root, ctor -> {
+        check(resolver.observeLoadedClass(RequestFixture.class, (resolved, ctor) -> {
             installs.incrementAndGet();
             return true;
         }) == 1, "later class load completes exact binding");
@@ -102,7 +102,7 @@ public final class RoiUnknownHostChatRequestResolverTest {
         }
         RoiUnknownHostChatRequestResolver.Candidate candidate = resolver.bestCandidate(scope);
         AtomicInteger installs = new AtomicInteger();
-        RoiUnknownHostChatRequestResolver.Installer installer = ctor -> {
+        RoiUnknownHostChatRequestResolver.Installer installer = (resolved, ctor) -> {
             installs.incrementAndGet();
             return true;
         };
