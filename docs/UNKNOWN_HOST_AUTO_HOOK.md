@@ -40,3 +40,32 @@ A successful installation log uses:
 `[ROI_AUTO_FEATURE_HOOK] ... capability=outgoing_system_prompt`
 
 This is not proof of real-device compatibility. Validate the target DeepSeek build on a device before treating the adapter as production-ready.
+
+## Cross-version constructor mapping status
+
+The current adapter is **not a generic constructor adapter**. Its reviewed mapping is still bound to an 11-parameter constructor and prompt argument index 2. The DEX candidate filter also currently accepts only that known constructor descriptor shape. A changed parameter count, order, or type layout must remain unsupported until a new mapping is proven.
+
+The current DexKit integration supplies method descriptors, parameter type names, opcode names, string/field references, and invoke/caller relations. Those summaries do not, by themselves, identify which constructor argument register receives a decoded serializer field. See the [DexKit MethodMatcher API](https://luckypray.org/DexKit-Doc/dexkit-android/org.luckypray.dexkit.query.matchers/-method-matcher/index.html) and [DexKitBridge API](https://luckypray.org/DexKit-Doc/dexkit-android/org.luckypray.dexkit/-dex-kit-bridge/index.html).
+
+A version-independent mapping must establish this evidence chain before installing the prompt adapter:
+
+1. Resolve the serializer descriptor's field-name to element-index mapping (including generated Kotlin serialization descriptors).
+2. Resolve the deserializer's decode call and element index to the value register.
+3. Follow register definitions and aliases through moves, casts, result moves, and control-flow joins.
+4. Prove which constructor argument register receives that value at the exact constructor invoke.
+5. Convert the proven invoke register to the reflected constructor parameter index, accounting for receiver and wide arguments.
+6. Reject incomplete paths, conflicting paths, multiple mappings, unsupported opcodes, and ambiguous candidates.
+
+A field-name hit plus a constructor reference in the same serializer owner is candidate evidence only; it is not proof of a constructor-parameter mapping. The current index-2 adapter must therefore remain narrowly scoped.
+
+### DEX analysis backend decision
+
+DexKit 2.3.0 remains the bounded candidate-discovery backend. Its documented MethodData summaries are useful for narrowing the search, but the current integration does not receive a register-level instruction stream from those summaries. DexKitBridge.exportDexFile is available as a possible hand-off to a focused instruction reader.
+
+dexlib2 is a viable reference implementation for instruction/register decoding, but its 2.5.2 artifact is approximately 1.1 MB before dependencies, and it has Guava and JSR-305 runtime dependencies. The current manual APK pipelines feed jars directly to D8 rather than running a shrinking R8 pass. Adding dexlib2 without a measured shrink/packaging plan would therefore create unnecessary APK growth. Do not add it blindly.
+
+The next implementation phase must first compare:
+- a minimal read-only DEX code_item decoder limited to the required opcodes and descriptor/index tables; and
+- dexlib2 with an explicit R8 shrink configuration and measured APK-size/runtime impact.
+
+The selected backend must have fixture-based tests for reordered and added constructor parameters, register moves, move-result-object, casts, field-index decoding, branch joins, wide parameters, and ambiguous/unsupported flows. Until those tests pass, unknown-host prompt mapping remains restricted to the existing reviewed 11-parameter layout.
