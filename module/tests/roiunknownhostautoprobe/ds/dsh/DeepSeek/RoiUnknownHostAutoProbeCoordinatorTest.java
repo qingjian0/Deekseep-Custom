@@ -1,7 +1,5 @@
 package ds.dsh.DeepSeek;
 
-import java.lang.reflect.Method;
-import java.util.Collections;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class RoiUnknownHostAutoProbeCoordinatorTest {
@@ -69,26 +67,26 @@ public final class RoiUnknownHostAutoProbeCoordinatorTest {
                 RoiUnknownHostInvocationProbePolicy.Role.UNRESOLVED, true, root, installer),
                 "unresolved role rejected");
         equal(0, coordinator.registerCandidate(owner, "build",
-                owner + "->build(Ljava/lang/String;)Ljava/lang/String;", "apk:/base.apk",
+                descriptorOwner + "->build(Ljava/lang/String;)Ljava/lang/String;", "apk:/base.apk",
                 RoiUnknownHostInvocationProbePolicy.Role.HTTP_TRANSPORT, true, root, installer),
                 "APK-only scope rejected");
         equal(0, coordinator.registerCandidate(owner, "missing",
-                owner + "->missing(Ljava/lang/String;)Ljava/lang/String;", scope,
+                descriptorOwner + "->missing(Ljava/lang/String;)Ljava/lang/String;", scope,
                 RoiUnknownHostInvocationProbePolicy.Role.HTTP_TRANSPORT, true, root, installer),
                 "missing runtime method rejected");
         equal(0, coordinator.registerCandidate(owner, "build",
-                owner + "->build(Ljava/lang/String;)Ljava/lang/String;", scope,
+                descriptorOwner + "->build(Ljava/lang/String;)Ljava/lang/String;", scope,
                 RoiUnknownHostInvocationProbePolicy.Role.HTTP_TRANSPORT, false, root, installer),
                 "missing static call graph rejected");
         equal(0, installs.get(), "rejected candidates never install");
 
         RoiUnknownHostInvocationProbePolicy.Candidate diagnostic =
-                new RoiUnknownHostInvocationProbePolicy.Candidate(owner, "build",
-                        owner + "->build(Ljava/lang/String;)Ljava/lang/String;", scope,
+                new RoiUnknownHostInvocationProbePolicy.Candidate(descriptorOwner, "build",
+                        descriptorOwner + "->build(Ljava/lang/String;)Ljava/lang/String;", scope,
                         RoiUnknownHostInvocationProbePolicy.Role.HTTP_TRANSPORT,
                         true, false, false, true, true);
         RoiUnknownHostInvocationProbePolicy.RuntimeMethod runtime =
-                new RoiUnknownHostInvocationProbePolicy.RuntimeMethod(owner,
+                new RoiUnknownHostInvocationProbePolicy.RuntimeMethod(descriptorOwner,
                         diagnostic.descriptor, scope);
         check(RoiUnknownHostInvocationProbePolicy.allowsProbe(true, diagnostic, runtime),
                 "exact candidate may enter diagnostic-only probe lane");
