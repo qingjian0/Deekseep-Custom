@@ -9,7 +9,7 @@ GRAPH="$ROOT/module/src/ds/dsh/DeepSeek/RoiCandidateGraph.java"
 ROLE_HINTS="$ROOT/module/src/ds/dsh/DeepSeek/RoiSemanticRoleHints.java"
 LOADER_PROFILE="$ROOT/module/src/ds/dsh/DeepSeek/RoiClassLoaderProfile.java"
 
-python3 - "$DISCOVERY" "$HOST_DISCOVERY" "$MAIN" "$GRAPH" "$ROLE_HINTS" <<'PY'
+python3 - "$DISCOVERY" "$HOST_DISCOVERY" "$MAIN" "$GRAPH" "$ROLE_HINTS" "$LOADER_PROFILE" <<'PY'
 import pathlib
 import re
 import sys
