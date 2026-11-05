@@ -35,6 +35,12 @@ The worklist, definition count, and block-by-definition state space have explici
 
 These chains inherit the normal-CFG-only limitation from phase 2. Exception-handler edges, method parameter register mapping, and receiver/parameter provenance are not yet modeled.
 
+## Phase 4: method-entry register layout
+
+`RoiDexMethodEntryLayout` maps incoming register words from the already-decoded CodeItem header (`registers_size`, `ins_size`), access flags, and method prototype descriptor. It validates that the receiver (for non-static methods) plus prototype parameter widths exactly match `ins_size`, and maps both words of `J`/`D` parameters to the same parameter entry.
+
+The layout is metadata-driven, not a raw DEX parser: class-data, method-id, proto-id, and CodeItem byte-stream extraction remain an upstream integration task. Use-def sites can optionally consume this layout to distinguish receiver and parameter entry values from other undefined/unknown values. No prototype or access-flag inference is attempted.
+
 ## Hook-safety boundary
 
 These analyses are static evidence only. They do not authorize Hook installation, infer semantic roles by themselves, or prove a runtime Flow/decoder path. Unknown versions remain read-only and feature Hooks remain separately gated.
