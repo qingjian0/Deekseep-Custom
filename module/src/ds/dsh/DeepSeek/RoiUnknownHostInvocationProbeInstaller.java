@@ -8,8 +8,9 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Installs diagnostic around-hooks only for fully evidenced, exact runtime methods.
- * It has no candidate discovery of its own: callers must supply a separately reviewed proof.
+ * Installs transparent diagnostic around-hooks for exact runtime methods with bounded static
+ * role/call-graph hints. It does not authorize feature behavior; functional Hook policy remains
+ * a separate, stronger gate.
  */
 final class RoiUnknownHostInvocationProbeInstaller {
     interface HookRegistrar {
