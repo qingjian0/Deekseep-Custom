@@ -37,7 +37,7 @@ public final class RoiDexCodeReaderTest {
   byte[] d=new byte[32];put32(d,12,1);put16(d,16,0);put16(d,18,1);badCode(d,0,32);
   byte[] e=new byte[32];put32(e,8,0x7fffffff); // debug offset outside bounded data
   badCode(e,0,32);
-  byte[] f=new byte[16];f[0]=1;badClass(f,0,16,0,1,1);
+  byte[] f=new byte[16];f[0]=1;badClass(f,0,1,0,1,1);
  }
  static int put(byte[] b,int p,int n){b[p++]=(byte)n;return p;}
  static void badCode(byte[] b,int p,int n)throws Exception{try{RoiDexCodeReader.readCodeItem(b,0,b.length,p,1);}catch(RoiDexCodeReader.CodeException e){return;}throw new AssertionError("expected bad code");}
