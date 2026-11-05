@@ -82,25 +82,25 @@ public final class RoiDexFileReaderTest {
  }
 
  static void testResolvedMethodEntryLayoutIntegration()throws Exception{
-  byte[] b=fixture(238);
+  byte[] b=fixture(242);
   put32(b,56,4);put32(b,60,112);put32(b,64,2);put32(b,68,128);
   put32(b,72,1);put32(b,76,136);put32(b,88,1);put32(b,92,148);
-  put32(b,96,1);put32(b,100,156);put32(b,104,54);put32(b,108,184);
-  put32(b,112,192);put32(b,116,197);put32(b,120,200);put32(b,124,204);
+  put32(b,96,1);put32(b,100,156);put32(b,104,54);put32(b,108,188);
+  put32(b,112,196);put32(b,116,201);put32(b,120,204);put32(b,124,209);
   put32(b,128,0);put32(b,132,1);
-  put32(b,136,3);put32(b,140,1);put32(b,144,212);
+  put32(b,136,3);put32(b,140,1);put32(b,144,216);
   put16(b,148,0);put16(b,150,0);put32(b,152,2);
   put32(b,156,0);put32(b,160,1);put32(b,164,-1);put32(b,168,0);
-  put32(b,172,-1);put32(b,176,0);put32(b,180,184);put32(b,184,0);
+  put32(b,172,-1);put32(b,176,0);put32(b,180,188);put32(b,184,0);
   // One static method; the valid shorty is VL and code_item starts at aligned offset 220.
-  b[184]=0;b[185]=0;b[186]=1;b[187]=0;b[188]=0;b[189]=9;b[190]=(byte)0xdc;b[191]=1;
-  b[192]=3;b[193]='L';b[194]='x';b[195]=';';b[196]=0;
-  b[197]=1;b[198]='V';b[199]=0;
-  b[200]=3;b[201]='r';b[202]='u';b[203]='n';b[204]=0;
-  b[205]=2;b[206]='V';b[207]='L';b[208]=0;
-  put32(b,212,1);put16(b,216,0);
-  put16(b,220,2);put16(b,222,1);put16(b,224,0);put16(b,226,0);
-  put32(b,228,0);put32(b,232,1);put16(b,236,0x0111); // return-object v1
+  b[188]=0;b[189]=0;b[190]=1;b[191]=0;b[192]=0;b[193]=9;b[194]=(byte)0xdc;b[195]=1;
+  b[196]=3;b[197]='L';b[198]='x';b[199]=';';b[200]=0;
+  b[201]=1;b[202]='V';b[203]=0;
+  b[204]=3;b[205]='r';b[206]='u';b[207]='n';b[208]=0;
+  b[209]=2;b[210]='V';b[211]='L';b[212]=0;
+  put32(b,216,1);put16(b,220,0);
+  put16(b,224,2);put16(b,226,1);put16(b,228,0);put16(b,230,0);
+  put32(b,232,0);put32(b,236,1);put16(b,240,0x0111); // return-object v1
   RoiDexFileReader.DexFile d=RoiDexFileReader.read(b);
   eq(1,d.definedMethods.length);
   RoiDexFileReader.ResolvedMethod method=d.definedMethods[0];
