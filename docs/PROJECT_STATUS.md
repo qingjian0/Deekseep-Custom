@@ -429,3 +429,15 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - CI fast audit 与 regression 已接入 `test-roi-functional-role-classifier.sh`；DexKit discovery 静态审计也检查功能角色输出始终不可授权。
 - 本阶段只做静态功能角色分类，尚未把加载类元数据与 DexKit 候选做精确类身份关联，也未形成跨候选的完整请求/响应流水线。没有修改 Resolver 授权策略、Adapter 审批或 Hook 激活逻辑。
 - 验证边界：源码和 CI 配置已提交；需等待最新 Actions 完成。未声称本地 JVM 测试、Android 构建或真机验证通过。
+
+
+## ROI R2.7.2 — conservative runtime class/candidate association (2026-11-05)
+
+- 新增纯 Java `RoiClassCandidateMatcher`，为 DexKit 静态方法候选与已观察运行时类建立保守关联判定。
+- 判定结果区分 `EXACT_MATCH`、`STRUCTURAL_MATCH`、`PARTIAL_MATCH`、`CONFLICT`、`UNMATCHED`；要求 ClassLoader process-local scope 精确一致，且精确匹配必须同时满足 owner 与完整方法描述符。
+- 同 scope 下 owner 不同但完整方法描述符一致，只标记为 `STRUCTURAL_MATCH`，不推断跨版本语义等价；ClassLoader scope 不同直接标记冲突，禁止跨 loader 拼接。
+- 方法元数据被截断或部分不可用时返回 `PARTIAL_MATCH`，不把“未找到”误判为不存在。
+- 所有匹配结果的 `activationAuthorized` 固定为 false；本次没有接入 Hook Resolver、Adapter Registry 或 Hook installer。
+- 新增独立 JVM 测试脚本，覆盖 exact、structural、partial、loader conflict、unmatched 与禁止激活。
+- 当前为匹配策略核心和回归基线；尚未把 `RoiLoadedClassInspector` 的运行时快照转换为标准 JVM 方法描述符，也尚未将 matcher 接入 DexKit discovery 报告。因此本阶段不宣称已经完成静态候选与运行时类的端到端自动关联。
+- GitHub Actions 结果以本提交对应运行记录为准；尚无真机验证。
