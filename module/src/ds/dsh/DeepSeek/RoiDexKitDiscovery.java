@@ -343,6 +343,7 @@ final class RoiDexKitDiscovery {
                             item, candidatePrefix, sourceScope, descriptor, anchor, out);
                     graphObservations.add(graphObservation);
                     appendSemanticRoleHints(candidatePrefix, graphObservation.invokes, out);
+                    appendFunctionalRoleHints(candidatePrefix, graphObservation.invokes, out);
                     appendRuntimeEvidence(candidatePrefix, hostKey, sourceScope, descriptor,
                             runtimeEvidence, runtimeCoverage, adapterIdentity, out);
                     int relationCount = graphObservation.invokes.size()
@@ -457,6 +458,28 @@ final class RoiDexKitDiscovery {
         append(out, prefix + ".runtimeEvidence.orderedRequestTransportResponse="
                 + orderedRequestTransportResponse);
         append(out, prefix + ".runtimeEvidence.orderedParsedResponse=" + orderedParsedResponse);
+    }
+
+    private static void appendFunctionalRoleHints(String prefix, List<String> invokes,
+                                                   StringBuilder out) {
+        RoiFunctionalRoleClassifier.Result result =
+                RoiFunctionalRoleClassifier.classify(invokes);
+        append(out, prefix + ".functionalRole.provenance=" + result.provenance);
+        append(out, prefix + ".functionalRole.staticConfidence="
+                + String.format(java.util.Locale.ROOT, "%.2f", result.staticConfidence));
+        append(out, prefix + ".functionalRole.activationAuthorized=false");
+        for (RoiFunctionalRoleClassifier.Role role : result.roles) {
+            append(out, prefix + ".functionalRole.role=" + role.name());
+        }
+        int emitted = Math.min(result.evidence.size(), 6);
+        for (int i = 0; i < emitted; i++) {
+            append(out, prefix + ".functionalRole.evidence." + i + "="
+                    + safe(result.evidence.get(i)));
+        }
+        if (result.evidence.size() > emitted) {
+            append(out, prefix + ".functionalRole.evidenceOmitted="
+                    + (result.evidence.size() - emitted));
+        }
     }
 
     private static void appendSemanticRoleHints(String prefix, List<String> invokes,
