@@ -123,12 +123,15 @@ final class RoiDexKitDiscovery {
 
         List<RoiRuntimeInvocationRecorder.EvidenceSnapshot> runtimeEvidence =
                 RoiRuntimeInvocationObserver.snapshotEvidence();
+        List<RoiRuntimeInvocationRecorder.CoverageSnapshot> runtimeCoverage =
+                RoiRuntimeInvocationObserver.snapshotCoverage();
         String adapterIdentity = RoiRuntimeInvocationObserver.currentAdapterIdentity();
         append(out, "runtimeEvidence.enabled="
                 + RoiRuntimeInvocationObserver.isObservationEnabled());
         append(out, "runtimeEvidence.adapterIdentityKind=adapter_generation_channel_not_apk_fingerprint");
         append(out, "runtimeEvidence.matching=exact_method_descriptor_adapter_identity_and_classloader_scope");
         append(out, "runtimeEvidence.snapshotEntries=" + runtimeEvidence.size());
+        append(out, "runtimeEvidence.coverageSnapshotEntries=" + runtimeCoverage.size());
         append(out, "runtimeEvidence.resolverContribution=none_read_only_diagnostic_only");
 
         registerClassLoader(root);
@@ -295,7 +298,7 @@ final class RoiDexKitDiscovery {
                     graphObservations.add(graphObservation);
                     appendSemanticRoleHints(candidatePrefix, graphObservation.invokes, out);
                     appendRuntimeEvidence(candidatePrefix, hostKey, sourceScope, descriptor,
-                            runtimeEvidence, adapterIdentity, out);
+                            runtimeEvidence, runtimeCoverage, adapterIdentity, out);
                     int relationCount = graphObservation.invokes.size()
                             + graphObservation.callers.size();
                     List<RoiHookResolver.Evidence> evidence = Arrays.asList(
@@ -347,12 +350,17 @@ final class RoiDexKitDiscovery {
     private static void appendRuntimeEvidence(String prefix, String candidateHostIdentity,
             String candidateSourceScope, String candidateDescriptor,
             List<RoiRuntimeInvocationRecorder.EvidenceSnapshot> snapshots,
+            List<RoiRuntimeInvocationRecorder.CoverageSnapshot> coverage,
             String adapterIdentity, StringBuilder out) {
         int matches = 0;
         int requestBuilt = 0;
         int transportEntered = 0;
         int responseReceived = 0;
         int responseParsed = 0;
+        int otherScopeEvidenceEntries = 0;
+        int exactScopeCoverageObserved = 0;
+        int exactScopeCoverageUnsupportedSuspend = 0;
+        int otherScopeCoverageEntries = 0;
         boolean orderedRequestTransportResponse = false;
         boolean orderedParsedResponse = false;
         if (adapterIdentity.length() > 0
@@ -360,8 +368,11 @@ final class RoiDexKitDiscovery {
                 && candidateDescriptor.length() > 0) {
             for (RoiRuntimeInvocationRecorder.EvidenceSnapshot item : snapshots) {
                 if (!adapterIdentity.equals(item.adapterIdentity)
-                        || !candidateSourceScope.equals(item.sourceScope)
                         || !candidateDescriptor.equals(item.candidateDescriptor)) continue;
+                if (!candidateSourceScope.equals(item.sourceScope)) {
+                    if (candidateSourceScope.startsWith("loader:")) otherScopeEvidenceEntries++;
+                    continue;
+                }
                 matches++;
                 switch (item.phase) {
                     case REQUEST_BUILT: requestBuilt++; break;
@@ -373,8 +384,27 @@ final class RoiDexKitDiscovery {
                 orderedRequestTransportResponse |= item.orderedRequestTransportResponse;
                 orderedParsedResponse |= item.orderedParsedResponse;
             }
+            if (candidateSourceScope.startsWith("loader:")) {
+                for (RoiRuntimeInvocationRecorder.CoverageSnapshot item : coverage) {
+                    if (!adapterIdentity.equals(item.adapterIdentity)
+                            || !candidateDescriptor.equals(item.candidateDescriptor)) continue;
+                    if (!candidateSourceScope.equals(item.sourceScope)) {
+                        otherScopeCoverageEntries++;
+                        continue;
+                    }
+                    if (item.status == RoiRuntimeInvocationRecorder.CoverageStatus.RESPONSE_OBSERVED) {
+                        exactScopeCoverageObserved++;
+                    } else if (item.status == RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_SUSPEND_COLLECTOR) {
+                        exactScopeCoverageUnsupportedSuspend++;
+                    }
+                }
+            }
         }
         append(out, prefix + ".runtimeEvidence.exactScopedDescriptorMatches=" + matches);
+        append(out, prefix + ".runtimeEvidence.otherClassLoaderScopeEvidenceEntries=" + otherScopeEvidenceEntries);
+        append(out, prefix + ".runtimeEvidence.exactScopeCoverage.responseObserved=" + exactScopeCoverageObserved);
+        append(out, prefix + ".runtimeEvidence.exactScopeCoverage.unsupportedSuspendCollector=" + exactScopeCoverageUnsupportedSuspend);
+        append(out, prefix + ".runtimeEvidence.otherClassLoaderScopeCoverageEntries=" + otherScopeCoverageEntries);
         append(out, prefix + ".runtimeEvidence.phaseCounts=requestBuilt:" + requestBuilt
                 + ",transportEntered:" + transportEntered + ",responseReceived:" + responseReceived
                 + ",responseParsed:" + responseParsed);
