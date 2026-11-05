@@ -1,0 +1,91 @@
+package ds.dsh.DeepSeek;
+
+import java.util.Arrays;
+
+public final class RoiDexRegisterFlowAnalyzerTest {
+    public static void main(String[] args) throws Exception {
+        testNoOperandInstructions();\n        testSequentialDefUse();
+        testUseBeforeDefinition();
+        testWideRegisters();
+        testBranchBlocksRemainIndependent();
+        testUnsupportedOpcodeFailsClosed();
+        testRegisterBounds();
+        System.out.println("RoiDexRegisterFlowAnalyzer tests passed");
+    }
+
+    private static void testNoOperandInstructions() throws Exception {\n        RoiDexRegisterFlowAnalyzer.BasicBlockFlow block =\n                RoiDexRegisterFlowAnalyzer.analyze(new short[]{0, (short) 0x000e}, 1).blocks[0];\n        check(block.useBeforeDefinition.length == 0 && block.definitions.length == 0,\n                "nop and return-void have no register operands");\n    }\n\n    private static void testSequentialDefUse() throws Exception {
+        // const/4 v0, #1; add-int v1, v0, v0; return v1
+        short[] code = {(short) 0x0012, (short) 0x0190, (short) 0x0000,
+                (short) 0x0000, (short) 0x010f};
+        RoiDexRegisterFlowAnalyzer.BasicBlockFlow block =
+                RoiDexRegisterFlowAnalyzer.analyze(code, 3).blocks[0];
+        check(Arrays.equals(block.useBeforeDefinition, new int[]{1}),
+                "return reads v1 before any definition");
+        check(Arrays.equals(block.definitions, new int[]{0, 1}),
+                "block defines v0 and v1");
+        check(block.instructions.length == 3, "all instructions decoded");
+    }
+
+    private static void testUseBeforeDefinition() throws Exception {
+        // move v1, v0; const/4 v0, #0; return v1
+        short[] code = {(short) 0x0101, (short) 0x0012, (short) 0x010f};
+        RoiDexRegisterFlowAnalyzer.BasicBlockFlow block =
+                RoiDexRegisterFlowAnalyzer.analyze(code, 3).blocks[0];
+        check(Arrays.equals(block.useBeforeDefinition, new int[]{0}),
+                "move source is live-in before v0 is overwritten");
+        check(Arrays.equals(block.definitions, new int[]{1, 0}),
+                "move and const definitions retained");
+    }
+
+    private static void testWideRegisters() throws Exception {
+        // const-wide/16 v0, #0; return-wide v0
+        short[] code = {(short) 0x0016, (short) 0x0000, (short) 0x0010};
+        RoiDexRegisterFlowAnalyzer.BasicBlockFlow block =
+                RoiDexRegisterFlowAnalyzer.analyze(code, 2).blocks[0];
+        check(Arrays.equals(block.definitions, new int[]{0, 1}),
+                "wide definition covers both register words");
+        check(block.useBeforeDefinition.length == 0,
+                "wide return is defined within the block");
+    }
+
+    private static void testBranchBlocksRemainIndependent() throws Exception {
+        // if-eqz v0, +3; const/4 v1, #1; return v1; return-void
+        short[] code = {(short) 0x0038, (short) 0x0003,
+                (short) 0x0112, (short) 0x010f, (short) 0x000e};
+        RoiDexRegisterFlowAnalyzer.Result result =
+                RoiDexRegisterFlowAnalyzer.analyze(code, 2);
+        check(result.blocks.length >= 2, "conditional branch creates multiple blocks");
+        check(result.edges.length >= 2, "conditional branch creates CFG edges");
+        boolean branchReadsV0 = false;
+        for (RoiDexRegisterFlowAnalyzer.BasicBlockFlow block : result.blocks) {
+            if (block.startOffset == 0)
+                branchReadsV0 = Arrays.equals(block.useBeforeDefinition, new int[]{0});
+        }
+        check(branchReadsV0, "branch condition is a block live-in use");
+    }
+
+    private static void testUnsupportedOpcodeFailsClosed() throws Exception {
+        // invoke-polymorphic uses a distinct 45cc format not yet modelled.
+        expectFailure(new short[]{(short) 0x00fa, 0, 0, 0}, 2,
+                "unsupported_register_semantics_opcode");
+    }
+
+    private static void testRegisterBounds() throws Exception {
+        expectFailure(new short[]{(short) 0x0312}, 3, "register_out_of_bounds");
+    }
+
+    private static void expectFailure(short[] code, int registers, String fragment)
+            throws Exception {
+        try {
+            RoiDexRegisterFlowAnalyzer.analyze(code, registers);
+            throw new AssertionError("expected failure: " + fragment);
+        } catch (RoiDexRegisterFlowAnalyzer.AnalysisException expected) {
+            check(expected.getMessage().contains(fragment),
+                    "failure contains " + fragment + ": " + expected.getMessage());
+        }
+    }
+
+    private static void check(boolean condition, String message) {
+        if (!condition) throw new AssertionError(message);
+    }
+}
