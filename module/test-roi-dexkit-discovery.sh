@@ -33,7 +33,7 @@ require(loader_profile, r'encryptedDexAssessment', "encryption assessment is exp
 require(loader_profile, r'unconfirmed_custom_loader_requires_runtime_dex_evidence', "custom loader is not treated as encryption proof")
 require(discovery, r'RoiClassLoaderProfile[.]inspect[(]loaders[.]get[(]i[)][)]', "live loader profile is reported")
 require(discovery, r'profile[.]encryptedDexAssessment=', "encryption assessment is emitted as diagnostic only")
-require(discovery, r'inspectObservedClass[(]Class[<][?][>][)]', "trusted loaded Class observation has a metadata inspection entry point")
+require(discovery, r'inspectObservedClass[(]Class[<][?][>][ ]+loadedClass[)]', "trusted loaded Class observation has a metadata inspection entry point")
 require(discovery, r'classInspection[.]mode=already_loaded_class_metadata_only', "class inspection is explicitly metadata-only")
 require(discovery, r'classInspection[.]hookActivation=none', "class inspection cannot activate hooks")
 require(discovery, r'classInspection[.]methodInvocation=none', "class inspection does not invoke host methods")
