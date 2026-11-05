@@ -10,7 +10,7 @@ A single "unknown versions are read-only" rule is too restrictive for deliberate
 
 ## Decision
 
-Use three independent runtime switches. Each switch has independent persisted opt-in state and is evaluated at the point where the corresponding operation would be installed or executed. The current runtime gates use exact host-private `ENABLE` marker files; a dedicated in-app settings UI is not yet wired.
+Use three independent runtime switches. Each switch has independent persisted opt-in state and is evaluated at the point where the corresponding operation would be installed or executed. The runtime gates use exact host-private `ENABLE` marker files. The three controls are exposed separately on the module's Engineering → Experimental Features page; the displayed status text reports the current effective gate state.
 
 | Switch | Default | When enabled | Must not enable |
 |---|---:|---|---|
@@ -68,7 +68,7 @@ The unknown-version gate and feature-Hook gate are cumulative for unknown-host f
 - Expose three separately labeled switches; do not combine them into one "developer mode" switch.
 - Show the default OFF state clearly.
 - Explain the scope and risk of each switch adjacent to its control.
-- Persist each value independently. Missing, corrupt, or unreadable preference values resolve to OFF.
+- Persist each value independently. Missing, corrupt, or unreadable marker values resolve to OFF. The UI must not rewrite another switch when one control changes.
 - Do not change a user's saved preference as a side effect of scanning, resolving, updating the host version, or upgrading the module.
 - Provide a visible runtime denial reason when an operation is blocked by a switch.
 - The UI must not describe a candidate as "supported" merely because an attempt was enabled.
@@ -89,7 +89,7 @@ The unknown-version gate and feature-Hook gate are cumulative for unknown-host f
 
 ## Implementation boundary
 
-This ADR records the required policy. It does not claim that the current Hook dispatcher, settings UI, persistence layer, or tests have already been wired to these gates. Implementation is complete only when the actual installation and execution call sites consume the policy and the acceptance tests pass.
+The dev implementation now includes independent host-private marker persistence, three separate settings controls, a live gate-status explanation, runtime checks at the unknown-host dispatcher/probe/feature adapter entry points, and an eight-combination policy test. Turning diagnostic or feature switches OFF causes already-installed wrappers to pass through when their callback next runs. Full Android build, CI execution, and real-device verification remain separate acceptance steps.
 
 ## Consequences
 
