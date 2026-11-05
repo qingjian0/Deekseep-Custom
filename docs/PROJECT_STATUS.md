@@ -512,3 +512,5 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 
 - 发现链路补强：字段字符串可能位于生成 serializer 的 descriptor 方法，而 DTO 构造器引用位于同一 serializer 类的 deserialize 方法；现在会按 serializer owner 有界扫描方法并关联其构造器引用，避免要求字段字符串与 `<init>` 必须出现在同一方法。
 - 特性开关在安装时和每次请求时双重检查；删除/改写开关文件后，已安装的拦截器立即退化为原样透传（Hook 本身随宿主进程重启卸载）。
+
+- 开关启用、关闭、日志标识和能力边界说明见 `docs/UNKNOWN_HOST_AUTO_HOOK.md`。
