@@ -129,10 +129,10 @@ public final class RoiUnknownHostChatRequestResolverTest {
         Constructor<?> target = RequestFixture.class.getDeclaredConstructors()[0];
         java.io.File switchFile = java.io.File.createTempFile("roi-feature-hook", ".switch");
         try {
-            write(switchFile, "DISABLED\\n");
+            write(switchFile, "DISABLED\n");
             check(!RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
                     false, switchFile, candidate, target, root), "feature switch defaults closed");
-            write(switchFile, "ENABLE\\n");
+            write(switchFile, "ENABLE\n");
             check(RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
                     false, switchFile, candidate, target, root), "exact adapter candidate authorized");
             check(!RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
@@ -142,7 +142,7 @@ public final class RoiUnknownHostChatRequestResolverTest {
             check(!RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
                     false, switchFile, candidate, WrongFixture.class.getDeclaredConstructors()[0], root),
                     "different constructor rejected");
-            write(switchFile, "ENABLE\\nEXTRA\\n");
+            write(switchFile, "ENABLE\nEXTRA\n");
             check(!RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
                     false, switchFile, candidate, target, root), "extra switch line rejected");
         } finally {
