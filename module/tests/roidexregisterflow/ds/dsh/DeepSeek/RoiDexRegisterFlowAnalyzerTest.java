@@ -22,6 +22,8 @@ public final class RoiDexRegisterFlowAnalyzerTest {
         testUseDefChainPreservesEntryUnknown();
         testUseDefChainTracksWideRegisterWords();
         testUnreachableDefinitionsDoNotReachLiveCode();
+        testUseDefDetectsPartiallyUndefinedDiamondPath();
+        testUseDefDetectsInitialEntryPathAcrossBackEdge();
         testUnsupportedOpcodeFailsClosed();
         testRegisterBounds();
         System.out.println("RoiDexRegisterFlowAnalyzer tests passed");
@@ -293,6 +295,31 @@ public final class RoiDexRegisterFlowAnalyzerTest {
                 "dead block is explicitly marked unreachable from method entry");
         check(live != null && live.reachableFromEntry && live.reachingIn.length == 0,
                 "definition from unreachable predecessor cannot contaminate live join");
+    }
+
+
+    private static void testUseDefDetectsPartiallyUndefinedDiamondPath() throws Exception {
+        // if-eqz v1 -> right; left defines v0; both paths join at return v0.
+        short[] code = {(short) 0x0138, (short) 5,
+                (short) 0x0012, (short) 0x0428, (short) 4,
+                (short) 0x0228, (short) 2, (short) 0x000f};
+        RoiDexUseDefChains.UseSite use = useAt(chains(code, 2), 7, 0);
+        check(use != null && use.reachingDefinitions.length == 1,
+                "partial diamond has one reaching definition from the defining branch");
+        check(use != null && use.mayBeEntryOrUnknownValue,
+                "partial diamond preserves the path with no definition");
+    }
+
+    private static void testUseDefDetectsInitialEntryPathAcrossBackEdge() throws Exception {
+        // Entry reads v0; loop body later defines v0 and jumps back to entry.
+        short[] code = {(short) 0x0038, (short) 6,
+                (short) 0x0012, (short) 0x002a,
+                (short) 0xfffd, (short) 0xffff, (short) 0x000f};
+        RoiDexUseDefChains.UseSite use = useAt(chains(code, 2), 0, 0);
+        check(use != null && use.reachingDefinitions.length == 1,
+                "back edge contributes a concrete reaching definition at entry");
+        check(use != null && use.mayBeEntryOrUnknownValue,
+                "initial method-entry path remains unknown despite a back-edge definition");
     }
 
     private static RoiDexUseDefChains.Result chains(short[] code, int registers)
