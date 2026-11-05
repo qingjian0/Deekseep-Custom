@@ -140,6 +140,7 @@ jobs:
           bash module/test-roi-unknown-host-chat-request.sh
           bash module/test-roi-unknown-host-chat-request-wiring.sh
           bash module/test-roi-discovery-budget.sh
+          bash module/test-roi-dex-file-reader.sh
           bash module/test-roi-semantic-role-hints.sh
           bash module/test-roi-functional-role-classifier.sh
           bash module/test-roi-runtime-recorder.sh

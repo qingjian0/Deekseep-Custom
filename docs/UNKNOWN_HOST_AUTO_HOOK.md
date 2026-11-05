@@ -95,3 +95,10 @@ This layer is not yet a complete DEX parser and must not authorize a Hook by its
 - Instruction-byte reader / register data-flow analyzer: absent.
 - Generic constructor parameter mapping: absent.
 - Unknown-host authorization: remains restricted to the reviewed constructor shape and explicit opt-in.
+
+
+## DEX reader implementation status (2026-11-05)
+
+A dependency-free `RoiDexFileReader` now parses the standard little-endian DEX header and the fixed-width string, type, proto, field, method, and class definition ID tables. It validates the DEX magic/header/endian marker, file and data ranges, table alignment and overlap, map/data offsets, and table cross-references. Unsupported endian encodings and malformed offsets fail closed.
+
+The reader is currently a standalone parser with synthetic fixture tests. It does **not** yet parse modified UTF-8 string payloads, type lists, `class_data_item`, `encoded_method`, `code_item`, debug data, or instruction streams. It is not connected to DexKit discovery and does not influence Hook authorization. The next gate is bounded ULEB128/string/type-list parsing followed by class-data and code-item extraction, with malformed/truncated fixture coverage at each layer.
