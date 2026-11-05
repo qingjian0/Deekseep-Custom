@@ -132,6 +132,7 @@ final class RoiRuntimeInvocationObserver {
             String key;
             synchronized (REQUEST_KEYS) { key = REQUEST_KEYS.remove(request); }
             if (key == null || flow == null) return;
+            long now = System.currentTimeMillis();
             synchronized (FLOW_REQUEST_KEYS) {
                 pruneFlowBindings(now);
                 if (FLOW_REQUEST_KEYS.size() >= 512) {
