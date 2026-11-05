@@ -98,7 +98,7 @@ public final class RoiDexMethodEntryLayout {
         int cursor = first;
         EntryValue receiver = null;
         if (!isStatic) {
-            receiver = new EntryValue(Kind.RECEIVER, -1, "L<this>;", cursor, 1);
+            receiver = new EntryValue(Kind.RECEIVER, -1, null, cursor, 1);
             cursor++;
         }
 
