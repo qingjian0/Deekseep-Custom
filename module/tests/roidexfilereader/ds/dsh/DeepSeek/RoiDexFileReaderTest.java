@@ -5,6 +5,7 @@ public final class RoiDexFileReaderTest {
   testEmptyDex();testAllIdTables();testDecodedStringAndProtoTypes();testClassDataIntegration();testBadMagic();testTruncated();testBadHeaderSize();
   testBadEndian();testFileSize();testSectionOverflow();testBadTypeReference();
   testBadStringOffset();testBadClassOffset();testTableOverlap();testMapOutsideData();
+  testResolvedMethodDefinition();
   System.out.println("RoiDexFileReaderTest: PASS");
  }
  static void testEmptyDex()throws Exception{
@@ -52,6 +53,26 @@ public final class RoiDexFileReaderTest {
   RoiDexFileReader.DexFile d=RoiDexFileReader.read(b);
   if(d.classData.length!=1||d.classData[0]==null)throw new AssertionError("class_data not connected");
   eq(0,d.classData[0].directMethods.length);eq(0,d.classData[0].virtualMethods.length);
+ }
+ static void testResolvedMethodDefinition()throws Exception{
+  byte[] b=fixture(196);
+  put32(b,56,2);put32(b,60,112);put32(b,64,1);put32(b,68,120);
+  put32(b,72,1);put32(b,76,124);put32(b,88,1);put32(b,92,136);
+  put32(b,96,1);put32(b,100,144);put32(b,104,20);put32(b,108,176);
+  put32(b,112,184);put32(b,116,188);put32(b,120,0);
+  put32(b,124,0);put32(b,128,0);put32(b,132,0);
+  put16(b,136,0);put16(b,138,0);put32(b,140,1);
+  put32(b,144,0);put32(b,148,1);put32(b,152,-1);put32(b,156,0);
+  put32(b,160,-1);put32(b,164,0);put32(b,168,176);put32(b,172,0);
+  // class_data: no fields, one direct method at method_idx 0, public static, no code_item.
+  b[176]=0;b[177]=0;b[178]=1;b[179]=0;b[180]=0;b[181]=9;b[182]=0;
+  b[184]=1;b[185]='V';b[186]=0;b[188]=3;b[189]='r';b[190]='u';b[191]='n';b[192]=0;
+  RoiDexFileReader.DexFile d=RoiDexFileReader.read(b);
+  eq(1,d.definedMethods.length);
+  RoiDexFileReader.ResolvedMethod m=d.definedMethods[0];
+  eq(0,m.methodIndex);eq("V",m.declaringClassDescriptor);eq("run",m.name);
+  eq("()V",m.prototypeDescriptor);
+  if(!m.isStatic||!m.isDirect||m.codeItem!=null)throw new AssertionError("method flags/kind/code mismatch");
  }
  static void testBadMagic()throws Exception{byte[] b=fixture(112);b[0]='x';bad(b);}
  static void testTruncated()throws Exception{bad(new byte[111]);}
