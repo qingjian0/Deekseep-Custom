@@ -17,7 +17,7 @@ import java.util.Set;
  * pass-through invocation diagnostics. It never loads host classes or activates feature hooks.
  */
 final class RoiUnknownHostAutoProbeCoordinator {
-    static final int MAX_CANDIDATES = 96;
+    static final int MAX_CANDIDATES = 8;
     static final int MAX_OBSERVED_CLASSES = 128;
 
     interface Installer {
