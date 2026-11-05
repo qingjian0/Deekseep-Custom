@@ -12,22 +12,23 @@ public final class RoiDexInstructionScannerTest {
         RoiDexInstructionScanner.ScanResult r=RoiDexInstructionScanner.scan(code);
         eq(8,r.instructions.length);
         eq(20,r.codeUnits);
-        eq(5,r.instructions[3].width);
-        eq(4,r.instructions[4].width);
+        eq(4,r.instructions[3].width);
+        eq(3,r.instructions[4].width);
+        eq(2,r.instructions[5].width);
+        eq(2,r.instructions[6].width);
     }
     static void payloads()throws Exception {
-        short[] packed={(short)0x002b,4,0,(short)0x0100,1,0,0,0,2,0,(short)0x000e};
+        short[] packed={(short)0x002b,4,0,0,(short)0x0100,1,0,0,10,0,(short)0x000e};
         RoiDexInstructionScanner.ScanResult p=RoiDexInstructionScanner.scan(packed);
-        yes(p.isPayloadStart(3));yes(p.isInstructionBoundary(10));
-        short[] array={(short)0x0026,3,0,(short)0x0300,1,0,3,0x2211,(short)0x0033,0};
+        yes(p.isPayloadStart(4));yes(p.isInstructionBoundary(10));
+        short[] array={(short)0x0026,4,0,0,(short)0x0300,1,3,0,(short)0x2211,0x0033,(short)0x000e};
         RoiDexInstructionScanner.ScanResult a=RoiDexInstructionScanner.scan(array);
-        yes(a.isPayloadStart(3));yes(a.isInstructionBoundary(8));
+        yes(a.isPayloadStart(4));yes(a.isInstructionBoundary(10));
     }
     static void branches()throws Exception {
-        short[] good={(short)0x0028, (short)0x000e};
-        RoiDexInstructionScanner.scan(good);
-        bad(new short[]{(short)0x0028,(short)0x0028}); // target lands in operand of goto/8
-        bad(new short[]{(short)0x002b,3,0,(short)0x0100,1,0,0,0,1,0,(short)0x000e}); // switch target is payload
+        RoiDexInstructionScanner.scan(new short[]{(short)0x0028,(short)0x000e});
+        bad(new short[]{(short)0x0029,1,(short)0x000e}); // target lands in goto/16 operand
+        bad(new short[]{(short)0x002b,4,0,0,(short)0x0100,1,0,0,4,0,(short)0x000e});
     }
     static void cfg()throws Exception {
         short[] code={(short)0x0038,3,(short)0x000e,(short)0x000e};
@@ -37,10 +38,10 @@ public final class RoiDexInstructionScannerTest {
         yes("CONDITIONAL_FALSE".equals(g.edges[1].kind));
     }
     static void malformed()throws Exception {
-        bad(new short[]{(short)0x0073}); // unused opcode
-        bad(new short[]{(short)0x0014,0}); // truncated const
-        bad(new short[]{(short)0x0000,(short)0x0100}); // payload at odd code unit
-        bad(new short[]{(short)0x0026,1,0,(short)0x0300,0,0,0,0}); // zero-width payload
+        bad(new short[]{(short)0x0073});
+        bad(new short[]{(short)0x0014,0});
+        bad(new short[]{(short)0x0000,(short)0x0100});
+        bad(new short[]{(short)0x0026,4,0,0,(short)0x0300,0,0,0});
     }
     static void bad(short[] c)throws Exception {
         try { RoiDexInstructionScanner.scan(c); }
