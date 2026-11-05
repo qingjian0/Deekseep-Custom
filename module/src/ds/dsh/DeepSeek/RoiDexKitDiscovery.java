@@ -22,8 +22,9 @@ import java.util.Set;
  * <p>The first pass inspects visible BaseDexClassLoader instances through ART and scans
  * installed base/split APKs as an independent supplement. Two bounded follow-up passes
  * rescan runtime loaders to catch late thread-context loaders and newly attached DEX files.
- * This class never loads host classes, invokes host methods, or installs hooks. Semantic
- * candidates are evidence only and are deliberately kept separate from activation.</p>
+ * This class never loads host classes or invokes host methods. It only publishes semantic
+ * candidates; Main finalizes the batch and delegates the narrowly scoped prompt adapter to a
+ * separate runtime resolver after the scan has completed.</p>
  */
 final class RoiDexKitDiscovery {
     private static final int MAX_LOADERS = 12;
@@ -274,7 +275,8 @@ final class RoiDexKitDiscovery {
         append(out, "scan.budget.stopReason=" + budget.stopReason());
         append(out, "scan.budget.enforcement=query_start_and_candidate_iteration_only");
         append(out, "semanticEvidence=string_anchor_only");
-        append(out, "activation=forbidden_without_external_validation");
+        append(out, "activation=chat_prompt_adapter_only_after_explicit_opt_in_and_scan_finalization");
+        append(out, "otherFeatureHooks=forbidden_without_reviewed_adapter");
         append(out, "dynamicLoaderRegistration=trusted_callers_only");
         append(out, "loader.rescan=bounded_thread_context_snapshot");
         return out.toString();
