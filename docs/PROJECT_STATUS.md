@@ -509,3 +509,6 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 新增独立 `RoiUnknownHostFeatureHookPolicy`，仅授权上述精确构造器适配器；通用未知版本 Hook policy 仍然拒绝其他未经适配的功能 Hook。未知版本不会回退到旧版全量 hook。
 - 新增 JVM 测试覆盖字段锚点、运行时晚到/早到绑定、重复安装抑制、开关默认关闭、构造器精确授权和候选歧义拒绝；测试接入 ROI Fast Audit 与 Regression。
 - 这完成的是未知版本的第一个功能 Hook 能力（出站 system prompt），不是所有功能的通用适配器。Local API transport/response、Agent tools、会话/附件等功能仍需各自的语义契约与适配器；不得宣称全部未知版本功能已自动兼容。真机运行验证仍待目标版本设备验证。
+
+- 发现链路补强：字段字符串可能位于生成 serializer 的 descriptor 方法，而 DTO 构造器引用位于同一 serializer 类的 deserialize 方法；现在会按 serializer owner 有界扫描方法并关联其构造器引用，避免要求字段字符串与 `<init>` 必须出现在同一方法。
+- 特性开关在安装时和每次请求时双重检查；删除/改写开关文件后，已安装的拦截器立即退化为原样透传（Hook 本身随宿主进程重启卸载）。
