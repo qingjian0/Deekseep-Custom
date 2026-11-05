@@ -8,19 +8,19 @@ public final class RoiDexCodeReaderTest {
   byte[] b=new byte[64];int p=8;
   p=put(b,p,1);p=put(b,p,1);p=put(b,p,1);p=put(b,p,1);
   p=put(b,p,0);p=put(b,p,3);p=put(b,p,7);
-  p=put(b,p,2);p=put(b,p,0x10);p=put(b,p,0);
+  p=put(b,p,2);p=put(b,p,0x10);p=put(b,p,32);
   p=put(b,p,0);p=put(b,p,0x9);p=put(b,p,0);
   RoiDexCodeReader.ClassData d=RoiDexCodeReader.readClassData(b,0,b.length,8,4,4,1);
   eq(1,d.staticFields.length);eq(3,d.staticFields[0].fieldIndex);
   eq(1,d.instanceFields.length);eq(1,d.instanceFields[0].fieldIndex);
-  eq(1,d.directMethods.length);eq(2,d.directMethods[0].methodIndex);eq(0,d.directMethods[0].codeOffset);
+  eq(1,d.directMethods.length);eq(2,d.directMethods[0].methodIndex);eq(32,d.directMethods[0].codeOffset);if(d.directMethods[0].codeItem==null)throw new AssertionError("code item not attached");eq(1,d.directMethods[0].codeItem.instructions.length);
   eq(1,d.virtualMethods.length);eq(0,d.virtualMethods[0].methodIndex);eq(0,d.virtualMethods[0].codeOffset);
  }
  static void codeItem()throws Exception{
   byte[] b=new byte[64];put16(b,16,4);put16(b,18,2);put16(b,20,1);put16(b,22,0);
   put32(b,24,0);put32(b,28,2);put16(b,32,0x000c);put16(b,34,0x000e);
   RoiDexCodeReader.CodeItem c=RoiDexCodeReader.readCodeItem(b,0,b.length,16,1);
-  eq(4,c.registersSize);eq(2,c.insSize);eq(2,c.instructions.length);eq(0x0c,c.instructions[0]&65535);eq(36,c.nextOffset);
+  eq(4,c.registersSize);eq(2,c.insSize);eq(2,c.instructions.length);eq(0x0c,c.instructions[0]&65535);eq(36,c.nextOffset);RoiDexInstructionDecoder.Decoded decoded=c.decodeInstructionAt(0);eq(0x0c,decoded.opcode);eq(0,decoded.registers[0]);
  }
  static void tries()throws Exception{
   byte[] b=new byte[64];put16(b,16,1);put16(b,18,1);put16(b,22,1);put32(b,28,1);

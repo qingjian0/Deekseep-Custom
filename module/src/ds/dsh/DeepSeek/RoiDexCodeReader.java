@@ -34,6 +34,9 @@ public final class RoiDexCodeReader {
    registersSize=r;insSize=in;outsSize=out;triesSize=tr;debugInfoOffset=dbg;
    instructionsOffset=io;instructions=ins;tryItems=ti;nextOffset=next;
   }
+  public RoiDexInstructionDecoder.Decoded decodeInstructionAt(int codeUnitOffset)throws RoiDexInstructionDecoder.DecodeException{
+   return RoiDexInstructionDecoder.decode(instructions,codeUnitOffset,registersSize);
+  }
  }
  public static ClassData readClassData(byte[] b,int dataOff,int dataSize,int itemOff,int fieldCount,int methodCount,int typeCount)throws CodeException{
   int limit=dataLimit(b,dataOff,dataSize);
