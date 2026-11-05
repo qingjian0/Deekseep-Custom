@@ -1796,7 +1796,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                                         + ", capability=outgoing_system_prompt");
                             }
                         }
-                    } catch (Throwable observationError) {{
+                    } catch (Throwable observationError) {
                         // Metadata observation must never change the host's class-loading result.
                         try {
                             log("[ROI_CLASS_LOAD] observation_failed="
