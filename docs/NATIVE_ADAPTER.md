@@ -284,3 +284,82 @@ The report currently records `host`, `loader.chain.*`, `dex.scan.scope`, `dex.cl
 Before sharing, inspect the file and redact unrelated log records, account identifiers, tokens, authorization headers, prompts, message bodies, and personal data. The probe block is designed to contain declarations and signatures only; share the complete probe block rather than the entire log file.
 
 If the marker is absent, first confirm that the installed APK is an Open build with the probe changes and that Local API was explicitly enabled before restarting DeepSeek. Absence of a report is not evidence that the host has no matching classes.
+
+## 2.7.2/code289 runtime call-boundary observation update (2026-11-06)
+
+The Open probe now includes a narrowly scoped, passive runtime observer for the mainland
+2.7.2 / versionCode=289 host. This is separate from the generic ROI unknown-host discovery
+pipeline and does not authorize any unknown-version feature Hook.
+
+### Reviewed observation points
+
+The observer is installed only when all of the following hold:
+
+- Open edition, with no Closed payload;
+- Local API was explicitly enabled (the existing startup gate);
+- HostCompat.hostCode271() == 289;
+- the host loader resolves ly1 and wu1, and wu1.isAssignableFrom(ly1) is true;
+- each target method is unique and has the exact reviewed shape.
+
+The two current observation targets are:
+
+| Role label | Owner / method | Required descriptor shape |
+|---|---|---|
+| transport-low-level | jw3.g | (wu1, java.lang.Long) -> reference |
+| transport-dispatch | zn3.o | (wu1, java.lang.Long) -> reference |
+
+The observer does not call either method itself. It wraps the host's normal invocation with one
+chain.proceed() call and returns the original result object unchanged. Installation is
+individually guarded to avoid duplicate callbacks. An observer-side diagnostic failure is
+isolated from the host call.
+
+### Runtime trace fields
+
+For each observed invocation, diagnostics record only:
+
+- opaque process-local observation ID;
+- role label and complete reflected method descriptor;
+- synchronous parent method and bounded stack symbols;
+- thread name / ID and call depth;
+- argument runtime type names;
+- whether the first argument is the same object identity as the root Request in the current
+  synchronous observation frame;
+- returned object's runtime class name and at most eight directly declared interface names;
+- exception class name on an exceptional exit.
+
+No argument values, Request fields, return-object fields, Prompt, Completion, URL, headers,
+Authorization, cookies, or Token are serialized. The observer does not inspect a Flow by
+collecting it, subscribe to it, invoke methods on the result, or alter the original result.
+
+### Evidence limits
+
+- ThreadLocal correlation proves only nested synchronous call relationships on one thread.
+  It does not correlate coroutine resumption, executor handoff, or callbacks across threads.
+- Matching Request identity at both methods is evidence that the same in-memory object crossed
+  both observed boundaries; it does not by itself prove the complete network request/response
+  lifecycle.
+- A runtime return class and its direct interfaces are type metadata only. They do not prove
+  that a returned object is a Kotlin Flow, identify its event schema, or establish where and
+  how it is collected.
+- The observer is enabled only for code289. It must not be generalized to code287 or code290
+  without their own APK-derived exact descriptors and evidence.
+- No real-device observer log has yet been attached to this repository snapshot. Source presence
+  and CI success are not runtime evidence.
+
+### Next bounded work
+
+1. Collect the complete [OPEN_NATIVE_CALL_OBSERVER] block from a controlled code289 device,
+   using a non-sensitive test conversation and redacting unrelated logs.
+2. Compare id, role, parent, sameRequestObjectAsRoot, thread, depth, and result
+   interface metadata to establish whether zn3.o nests into jw3.g or runs independently.
+3. Use the returned type and the official APK's call sites to locate the actual Flow collector
+   and response decoder. Do not hook guessed collector methods.
+4. Add a separate, bounded observation only after the collector's exact owner and descriptor
+   are proven from the same APK. Preserve the original Flow/result object and cancellation
+   semantics; do not subscribe a second time for diagnostics.
+5. Confirm the Request-to-Challenge/PoW relationship independently. Do not treat the Long
+   argument as a timeout or challenge until its call-site semantics are established.
+
+The Gateway remains fail-closed with HTTP 503 until a separately reviewed Open native adapter
+implements and verifies Request construction, Challenge/PoW, Transport, event decoding,
+cancellation, session isolation, and error mapping.
