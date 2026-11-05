@@ -11,6 +11,12 @@ public final class RoiUnknownHostChatRequestResolverTest {
                 String model, String action, int mask) {}
     }
 
+    public static final class AlternateRequestFixture {
+        public AlternateRequestFixture(String session, Integer parent, String prompt, Object refs,
+                boolean thinking, boolean search, String audio, boolean preempt,
+                String model, String action, int mask) {}
+    }
+
     public static final class WrongFixture {
         public WrongFixture(String session, String prompt, Object refs, boolean thinking,
                 boolean search, String audio, boolean preempt, String model,
@@ -23,6 +29,7 @@ public final class RoiUnknownHostChatRequestResolverTest {
         testWeakIdentityAndDuplicateSuppression();
         testFailClosedInputs();
         testFeatureHookPolicy();
+        testAmbiguousCandidatesStayDisabled();
         System.out.println("ROI unknown-host chat request resolver tests passed");
     }
 
@@ -154,6 +161,31 @@ public final class RoiUnknownHostChatRequestResolverTest {
     private static void write(java.io.File file, String value) throws Exception {
         java.io.FileWriter writer = new java.io.FileWriter(file, false);
         try { writer.write(value); } finally { writer.close(); }
+    }
+
+    private static void testAmbiguousCandidatesStayDisabled() throws Throwable {
+        RoiUnknownHostChatRequestResolver resolver = new RoiUnknownHostChatRequestResolver();
+        ClassLoader root = RequestFixture.class.getClassLoader();
+        String scope = RoiCandidateIdentity.forClassLoader(root);
+        String first = constructorDescriptor(RequestFixture.class.getDeclaredConstructors()[0]);
+        String second = constructorDescriptor(AlternateRequestFixture.class.getDeclaredConstructors()[0]);
+        for (String anchor : new String[]{"chat_session_id", "parent_message_id",
+                "thinking_enabled", "search_enabled"}) {
+            resolver.observeDexCandidate(scope, anchor,
+                    "Lserializer/RequestSerializer;->deserialize()V",
+                    Arrays.asList(first, second));
+        }
+        resolver.finalizeDiscovery();
+        check(resolver.bestCandidate(scope) == null,
+                "two equally supported constructor owners remain ambiguous");
+        check(resolver.bestCandidates().isEmpty(),
+                "ambiguous scope yields no authorized feature adapter");
+        AtomicInteger installs = new AtomicInteger();
+        check(resolver.observeLoadedClass(RequestFixture.class, root, (candidate, ctor) -> {
+            installs.incrementAndGet();
+            return true;
+        }) == 0, "ambiguous candidates never install");
+        check(installs.get() == 0, "no installer invocation for ambiguous scope");
     }
 
     private static void testFailClosedInputs() {
