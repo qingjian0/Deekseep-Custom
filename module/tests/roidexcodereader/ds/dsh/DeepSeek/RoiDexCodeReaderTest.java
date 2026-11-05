@@ -7,7 +7,8 @@ public final class RoiDexCodeReaderTest {
  static void classData()throws Exception{
   byte[] b=new byte[64];int p=8;
   p=put(b,p,1);p=put(b,p,1);p=put(b,p,1);p=put(b,p,1);
-  p=put(b,p,0);p=put(b,p,3);p=put(b,p,7);
+  p=put(b,p,3);p=put(b,p,7);
+  p=put(b,p,1);p=put(b,p,2);
   p=put(b,p,2);p=put(b,p,0x10);p=put(b,p,32);
   p=put(b,p,0);p=put(b,p,0x9);p=put(b,p,0);
   RoiDexCodeReader.ClassData d=RoiDexCodeReader.readClassData(b,0,b.length,8,4,4,1);
