@@ -45,9 +45,26 @@ public final class RoiDexFileReader {
         public final Method[] methods;
         public final ClassDef[] classes;
         public final RoiDexCodeReader.ClassData[] classData;
-        private DexFile(Header h,int[] s,int[] t,String[] decoded,String[] descriptors,int[][] params,Proto[] p,Field[] f,Method[] m,ClassDef[] c,RoiDexCodeReader.ClassData[] cd){
+        public final ResolvedMethod[] definedMethods;
+        private DexFile(Header h,int[] s,int[] t,String[] decoded,String[] descriptors,int[][] params,
+                Proto[] p,Field[] f,Method[] m,ClassDef[] c,RoiDexCodeReader.ClassData[] cd,
+                ResolvedMethod[] resolved){
             header=h;stringDataOffsets=s;typeDescriptorStringIndices=t;strings=decoded;typeDescriptors=descriptors;
             protoParameterTypeIndices=params;protos=p;fields=f;methods=m;classes=c;classData=cd;
+            definedMethods=resolved;
+        }
+    }
+    /** A method definition joined across class_data, method_id, proto_id and code_item. */
+    public static final class ResolvedMethod {
+        public final int methodIndex, accessFlags, codeOffset, declaringClassIndex;
+        public final String declaringClassDescriptor, name, prototypeDescriptor;
+        public final boolean isStatic, isDirect;
+        public final RoiDexCodeReader.CodeItem codeItem;
+        ResolvedMethod(int index,int flags,int code,int owner,String ownerDesc,String methodName,
+                String proto,boolean direct,RoiDexCodeReader.CodeItem item) {
+            methodIndex=index;accessFlags=flags;codeOffset=code;declaringClassIndex=owner;
+            declaringClassDescriptor=ownerDesc;name=methodName;prototypeDescriptor=proto;
+            isStatic=(flags&0x0008)!=0;isDirect=direct;codeItem=item;
         }
     }
     public static final class Proto {
@@ -179,7 +196,68 @@ public final class RoiDexFileReader {
             try { parsedClassData[i]=RoiDexCodeReader.readClassData(bytes,dataOff,dataSize,off,fields.size,methods.size,types.size); }
             catch(RoiDexCodeReader.CodeException e){ throw new DexException("invalid_class_data:"+e.getMessage()); }
         }
-        return new DexFile(h,stringOffsets,typeStrings,decodedStrings,descriptors,protoParameters,protoValues,fieldValues,methodValues,classValues,parsedClassData);
+        ResolvedMethod[] resolvedMethods=resolveDefinedMethods(classValues,parsedClassData,
+                methodValues,protoValues,protoParameters,descriptors,decodedStrings);
+        return new DexFile(h,stringOffsets,typeStrings,decodedStrings,descriptors,protoParameters,
+                protoValues,fieldValues,methodValues,classValues,parsedClassData,resolvedMethods);
+    }
+
+    private static ResolvedMethod[] resolveDefinedMethods(ClassDef[] classValues,
+            RoiDexCodeReader.ClassData[] classData,Method[] methodIds,Proto[] protoIds,
+            int[][] protoParameters,String[] typeDescriptors,String[] strings)throws DexException {
+        java.util.ArrayList<ResolvedMethod> out=new java.util.ArrayList<ResolvedMethod>();
+        java.util.HashSet<Integer> seen=new java.util.HashSet<Integer>();
+        for(int ci=0;ci<classValues.length;ci++) {
+            RoiDexCodeReader.ClassData data=classData[ci];
+            if(data==null)continue;
+            ClassDef owner=classValues[ci];
+            String ownerDescriptor=typeDescriptors[owner.classIndex];
+            out.addAll(resolveMethodGroup(data.directMethods,true,owner,ownerDescriptor,
+                    methodIds,protoIds,protoParameters,typeDescriptors,strings,seen));
+            out.addAll(resolveMethodGroup(data.virtualMethods,false,owner,ownerDescriptor,
+                    methodIds,protoIds,protoParameters,typeDescriptors,strings,seen));
+        }
+        return out.toArray(new ResolvedMethod[0]);
+    }
+    private static java.util.List<ResolvedMethod> resolveMethodGroup(
+            RoiDexCodeReader.EncodedMethod[] encoded,boolean direct,ClassDef owner,
+            String ownerDescriptor,Method[] methodIds,Proto[] protoIds,int[][] protoParameters,
+            String[] typeDescriptors,String[] strings,java.util.Set<Integer> seen)throws DexException {
+        java.util.ArrayList<ResolvedMethod> out=new java.util.ArrayList<ResolvedMethod>();
+        for(RoiDexCodeReader.EncodedMethod e:encoded) {
+            if(e.methodIndex<0||e.methodIndex>=methodIds.length)
+                throw new DexException("class_data_method_index_out_of_range");
+            if(!seen.add(e.methodIndex))throw new DexException("duplicate_defined_method_index");
+            Method id=methodIds[e.methodIndex];
+            if(id.classIndex!=owner.classIndex)
+                throw new DexException("defined_method_owner_mismatch");
+            Proto proto=protoIds[id.protoIndex];
+            StringBuilder signature=new StringBuilder("(");
+            for(int typeIndex:protoParameters[id.protoIndex]) {
+                String descriptor=typeDescriptors[typeIndex];
+                validateTypeDescriptor(descriptor,false);
+                signature.append(descriptor);
+            }
+            String returnDescriptor=typeDescriptors[proto.returnTypeIndex];
+            validateTypeDescriptor(returnDescriptor,true);
+            signature.append(')').append(returnDescriptor);
+            out.add(new ResolvedMethod(e.methodIndex,e.accessFlags,e.codeOffset,
+                    owner.classIndex,ownerDescriptor,strings[id.nameIndex],signature.toString(),
+                    direct,e.codeItem));
+        }
+        return out;
+    }
+    private static void validateTypeDescriptor(String descriptor,boolean allowVoid)throws DexException {
+        if(descriptor==null||descriptor.length()==0)throw new DexException("method_type_descriptor_empty");
+        int p=0;while(p<descriptor.length()&&descriptor.charAt(p)=='[')p++;
+        if(p>255||p>=descriptor.length())throw new DexException("method_type_descriptor_invalid");
+        String base=descriptor.substring(p);
+        if("ZBSCIJFD".contains(base)&&base.length()==1)return;
+        if(allowVoid&&p==0&&"V".equals(base))return;
+        if(base.length()>=3&&base.charAt(0)=='L'&&base.charAt(base.length()-1)==';'
+                &&base.indexOf('.')<0&&base.indexOf(';')==base.length()-1
+                &&base.indexOf('[')<0)return;
+        throw new DexException("method_type_descriptor_invalid");
     }
 
     private static void validateTableLayout(int fileSize,int dataOff,int dataSize,Section... sections)throws DexException{
