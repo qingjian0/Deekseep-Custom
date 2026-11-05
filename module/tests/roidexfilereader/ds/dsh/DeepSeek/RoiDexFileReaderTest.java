@@ -2,7 +2,7 @@ package ds.dsh.DeepSeek;
 
 public final class RoiDexFileReaderTest {
  public static void main(String[] args)throws Exception{
-  testEmptyDex();testAllIdTables();testDecodedStringAndProtoTypes();testBadMagic();testTruncated();testBadHeaderSize();
+  testEmptyDex();testAllIdTables();testDecodedStringAndProtoTypes();testClassDataIntegration();testBadMagic();testTruncated();testBadHeaderSize();
   testBadEndian();testFileSize();testSectionOverflow();testBadTypeReference();
   testBadStringOffset();testBadClassOffset();testTableOverlap();testMapOutsideData();
   System.out.println("RoiDexFileReaderTest: PASS");
@@ -40,6 +40,18 @@ public final class RoiDexFileReaderTest {
   RoiDexFileReader.DexFile d=RoiDexFileReader.read(b);
   eq("x",d.strings[0]);eq("x",d.typeDescriptors[0]);
   eq(1,d.protoParameterTypeIndices[0].length);eq(0,d.protoParameterTypeIndices[0][0]);
+ }
+ static void testClassDataIntegration()throws Exception{
+  byte[] b=fixture(188);
+  put32(b,56,1);put32(b,60,112);put32(b,64,1);put32(b,68,116);
+  put32(b,96,1);put32(b,100,120);put32(b,104,36);put32(b,108,152);
+  put32(b,112,152);put32(b,116,0);
+  put32(b,120,0);put32(b,124,0);put32(b,128,-1);put32(b,132,0);
+  put32(b,136,-1);put32(b,140,0);put32(b,144,156);put32(b,148,0);
+  b[152]=0;b[153]=0;b[156]=0;b[157]=0;b[158]=0;b[159]=0;
+  RoiDexFileReader.DexFile d=RoiDexFileReader.read(b);
+  if(d.classData.length!=1||d.classData[0]==null)throw new AssertionError("class_data not connected");
+  eq(0,d.classData[0].directMethods.length);eq(0,d.classData[0].virtualMethods.length);
  }
  static void testBadMagic()throws Exception{byte[] b=fixture(112);b[0]='x';bad(b);}
  static void testTruncated()throws Exception{bad(new byte[111]);}
