@@ -47,7 +47,7 @@ final class RoiUnknownHostInvocationProbeInstaller {
         RoiLoadedClassInspector.Snapshot snapshot = RoiLoadedClassInspector.inspect(declaringClass);
         if (snapshot == null || snapshot.methodsTruncated
                 || !declaringClass.getName().equals(snapshot.className)
-                || !scope.equals(snapshot.sourceScope)) return false;
+                || !scope.equals(snapshot.loaderScope)) return false;
         if (!snapshot.dexMethodDescriptors.contains(candidate.descriptor)) return false;
 
         String owner = "L" + declaringClass.getName().replace('.', '/') + ";";
