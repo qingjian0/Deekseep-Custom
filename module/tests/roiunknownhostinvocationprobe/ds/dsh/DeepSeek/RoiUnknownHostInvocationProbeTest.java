@@ -168,7 +168,7 @@ public final class RoiUnknownHostInvocationProbeTest {
         RoiUnknownHostInvocationProbeInstaller installer =
                 new RoiUnknownHostInvocationProbeInstaller(probe);
         try {
-            write(flag, "ENABLE\n");
+            write(flag, "");
             java.lang.reflect.Method method = HostFixture.class.getDeclaredMethod(
                     "transport", String.class);
             RoiLoadedClassInspector.Snapshot snapshot =
