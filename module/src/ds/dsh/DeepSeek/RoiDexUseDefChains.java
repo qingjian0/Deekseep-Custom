@@ -166,6 +166,8 @@ public final class RoiDexUseDefChains {
 
     private static void validateEntryLayout(RoiDexRegisterFlowAnalyzer.Result flow,
             RoiDexMethodEntryLayout.Result layout) throws AnalysisException {
+        if (layout.registersSize != flow.registerCount)
+            throw new AnalysisException("entry_layout_register_count_mismatch");
         for (RoiDexRegisterFlowAnalyzer.BasicBlockFlow block : flow.blocks) {
             for (RoiDexRegisterFlowAnalyzer.InstructionFlow instruction : block.instructions) {
                 for (int register : instruction.uses)
