@@ -41,9 +41,12 @@ public final class RoiDexRegisterFlowAnalyzer {
     public static final class Result {
         public final BasicBlockFlow[] blocks;
         public final RoiDexInstructionScanner.Edge[] edges;
-        Result(List<BasicBlockFlow> blocks, RoiDexInstructionScanner.Edge[] edges) {
+        public final int registerCount;
+        Result(List<BasicBlockFlow> blocks, RoiDexInstructionScanner.Edge[] edges,
+                int registerCount) {
             this.blocks = blocks.toArray(new BasicBlockFlow[0]);
             this.edges = edges.clone();
+            this.registerCount = registerCount;
         }
     }
 
@@ -76,7 +79,7 @@ public final class RoiDexRegisterFlowAnalyzer {
             output.add(new BasicBlockFlow(block.startOffset, block.endOffset,
                     body, liveIn, defined));
         }
-        return new Result(output, cfg.edges);
+        return new Result(output, cfg.edges, registerCount);
     }
 
     private static InstructionFlow decode(short[] code, int offset, int op, int count)
