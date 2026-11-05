@@ -102,7 +102,7 @@ public final class RoiDexCodeReader {
   EncodedField[] out=new EncodedField[count];long index=0;
   for(int i=0;i<count;i++){
    long delta=uleb(b,c);if(i>0&&delta==0)throw new CodeException("duplicate_encoded_field_index");
-   index+=delta;if(index>=max)throw new CodeException("encoded_field_index_out_of_range");
+   index+=delta;if(index>=max)throw new CodeException("encoded_field_index_out_of_range:index="+index+",max="+max+",delta="+delta+",position="+i);
    out[i]=new EncodedField((int)index,ulebInt(b,c));
   }return out;
  }
