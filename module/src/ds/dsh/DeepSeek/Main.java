@@ -1197,12 +1197,6 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     + (unknownHostHookEnabled ? "opt-in ROI observation/feature-hook" : "read-only")
                     + " discovery version=" + unsupported
                     + ", detected=" + HostCompat.generationName());
-            RoiHostDiscovery.schedule(cl,
-                    param.appInfo == null ? null : param.appInfo.sourceDir,
-                    param.appInfo == null ? null : param.appInfo.splitSourceDirs);
-            RoiDexKitDiscovery.schedule(cl,
-                    param.appInfo == null ? null : param.appInfo.sourceDir,
-                    param.appInfo == null ? null : param.appInfo.splitSourceDirs);
             if (unknownHostHookEnabled && cl != null) {
                 installBestEffortHook("roi.unknown-host.class-load-observer",
                         () -> installRoiClassLoadObserver(cl, true),
@@ -1213,6 +1207,14 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 log("host symbol table is not maintained; functional Hook bootstrap suppressed; "
                         + "unknown-host switch is absent or disabled");
             }
+            // Install the class-load observer before DexKit starts its scan so classes loaded
+            // during discovery are available for exact runtime binding after finalization.
+            RoiHostDiscovery.schedule(cl,
+                    param.appInfo == null ? null : param.appInfo.sourceDir,
+                    param.appInfo == null ? null : param.appInfo.splitSourceDirs);
+            RoiDexKitDiscovery.schedule(cl,
+                    param.appInfo == null ? null : param.appInfo.sourceDir,
+                    param.appInfo == null ? null : param.appInfo.splitSourceDirs);
             // Unknown-host switches never fall through to legacy feature hooks. The separate
             // feature switch can authorize only the serializer-verified chat prompt adapter.
             return;
