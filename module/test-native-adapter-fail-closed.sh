@@ -384,12 +384,12 @@ if "requestArg.toString()" in probe or "String.valueOf(requestArg)" in probe:
 
 require(
     probe,
-    r'observedResultType\\(Object value\\).*?value\\.getClass\\(\\).*?type\\.getInterfaces\\(\\).*?Math\\.min\\(interfaces\\.length, 8\\)',
+    r'observedResultType\(Object value\).*?value\.getClass\(\).*?type\.getInterfaces\(\).*?Math\.min\(interfaces\.length, 8\)',
     "runtime observer records bounded result type/interface metadata without inspecting values",
 )
 require(
     probe,
-    r'" depth=" \\+ depth \\+ " result="\\s*\\+ observedResultType\\(result\\)',
+    r'" depth=" \+ depth \+ " result="\s*\+ observedResultType\(result\)',
     "transport exit trace includes the actual returned object's runtime type metadata",
 )
 
