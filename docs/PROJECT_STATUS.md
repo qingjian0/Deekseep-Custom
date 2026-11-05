@@ -466,6 +466,16 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - invoke() 通过单次 proceed() 包装，保留原返回对象身份和原始异常身份；记录器自身错误被隔离，不替换宿主结果或异常。
 - 新增 JVM 回归脚本，覆盖默认关闭、精确 ENABLE、别名拒绝、多余内容拒绝、完整签名、角色/调用图/loader/descriptor 门槛、exactly-once、异常透传、异常消息不落盘、方法数与事件速率上限。
 - 新脚本已接入 ROI fast audit 与完整 Regression。
-- 当前只是策略与记录器基础设施，尚未在 Main 中安装未知版本方法 Hook，也没有任何候选满足当前已证实的 roleVerified + callGraphConfirmed 双门槛。现有 R2.7.1 角色分类置信度上限为 0.45，静态调用图不证明运行时执行，因此不得把它们升级为已验证角色或调用链。
-- 后续只有在真实运行时证据确认精确方法后，才允许接入独立开关 /data/data/com.deepseek.chat/files/deekseep_roi_unknown_host_invocation_probe_enabled；该开关必须与现有未知版本类加载元数据开关分离，默认关闭。
+- 当前已在 Main 中接入独立安装入口，但没有任何发现流程调用该入口；没有未知版本方法 Hook 实际安装。也没有候选满足当前已证实的 roleVerified + callGraphConfirmed 双门槛。现有 R2.7.1 角色分类置信度上限为 0.45，静态调用图不证明运行时执行，因此不得把它们升级为已验证角色或调用链。
+- 独立开关路径为 /data/data/com.deepseek.chat/files/deekseep_roi_unknown_host_invocation_probe_enabled；文件缺失或非单行 ENABLE 时默认关闭，并在每次目标方法调用时重新检查。该开关与未知版本类加载元数据开关完全分离。
 - 本阶段实现与测试已提交至 dev；GitHub Combined Status 暂无状态项，不得据此宣称 CI 通过。尚未执行本地 JVM 脚本、Android 构建或真机验证。
+
+## ROI R2.7.5 — exact-method invocation probe installer (2026-11-05)
+
+- 新增 RoiUnknownHostInvocationProbeInstaller：只接受已加载 Class 的完整反射方法签名；要求声明类属于宿主根 ClassLoader 或其子加载器、类方法清单完整、owner/descriptor/methodName/loaderScope 全部精确一致，并再次通过独立 ENABLE 开关与 roleVerified/callGraphConfirmed 双门槛。
+- Main 已加入独立开关路径和 dormant installer entrypoint，使用现有 LegacyXposedModule hook(Method).intercept API；包装器只调用 chain.proceed() 一次，不读取参数/返回值，不改写宿主行为。没有 DexKit discovery caller，静态分类结果不会被自动提升为 verified。
+- 安装失败会回滚探针注册；运行期开关关闭后已安装的包装器立即退化为单次透传，不再记录。统计只保存在进程内存中，Main 暴露受开关保护的只读快照入口。
+- 探针身份键采用 ClassLoader scope + 完整 descriptor，避免相同混淆签名在不同加载器间混合统计；速率窗口不假定 System.nanoTime() 必须为正值。
+- 回归测试扩展到安装器：默认关闭、未验证角色拒绝、loader 根范围拒绝、精确方法安装、原方法 exactly-once、运行时关闭透传、安装异常回滚。
+- **本阶段仍未安装任何未知版本方法 Hook**：安装入口目前没有候选生产者调用；现有未知版本静态候选不具备 verified 角色与运行时调用图证明。此项是安全边界，不是遗漏的自动激活。
+- CI workflow 已配置 ROI fast audit 与 Regression 执行新脚本；GitHub Combined Status 当前未返回状态项，不能据此报告 CI 通过。本地 JVM、Android 构建及真机验证仍待执行。
