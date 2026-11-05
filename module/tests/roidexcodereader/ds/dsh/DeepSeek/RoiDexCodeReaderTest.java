@@ -27,8 +27,8 @@ public final class RoiDexCodeReaderTest {
  }
  static void tries()throws Exception{
   byte[] b=new byte[64];put16(b,16,1);put16(b,18,1);put16(b,22,1);put32(b,28,2);
-  put16(b,32,0x0000);put16(b,34,0x000e);put16(b,36,0);put16(b,38,0);put16(b,40,1);put16(b,42,1);
-  // handlers list: one handler, signed size +1, type 0 -> addr 0
+  put16(b,32,0x0012);put16(b,34,0x000f);put16(b,36,0);put16(b,38,0);put16(b,40,1);put16(b,42,1);
+  // handlers list: one typed handler; protected const defines v0, handler returns v0.
   b[44]=1;b[45]=1;b[46]=0;b[47]=1;
   RoiDexCodeReader.CodeItem c=RoiDexCodeReader.readCodeItem(b,0,b.length,16,1);
   eq(1,c.triesSize);eq(1,c.tryItems[0].handlerOffset);eq(48,c.nextOffset);
@@ -48,6 +48,9 @@ public final class RoiDexCodeReaderTest {
   if(!reaching.exceptionEdgesIncluded)throw new AssertionError("reaching definitions omitted exception edges");
   RoiDexUseDefChains.Result chains=RoiDexUseDefChains.analyze(flow,reaching);
   if(!chains.exceptionEdgesIncluded)throw new AssertionError("use-def chains omitted exception edges");
+  eq(1,chains.uses.length);eq(1,chains.uses[0].reachingDefinitions.length);
+  if(!chains.uses[0].mayBeEntryOrUnknownValue)
+   throw new AssertionError("handler use must remain unknown when throw may precede destination commit");
  }
  static void malformed()throws Exception{
   byte[] b=new byte[24];put16(b,16,1);put16(b,18,2);
