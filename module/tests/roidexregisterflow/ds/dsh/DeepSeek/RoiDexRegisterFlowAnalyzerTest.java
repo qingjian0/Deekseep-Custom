@@ -282,19 +282,23 @@ public final class RoiDexRegisterFlowAnalyzerTest {
     }
 
     private static void testUnreachableDefinitionsDoNotReachLiveCode() throws Exception {
-        // goto live return; dead const/4 v0; dead goto; dead nop; return v0
-        short[] code = {(short) 0x0428, (short) 0x0012,
-                (short) 0x0228, (short) 0x0000, (short) 0x000f};
+        // goto live return; dead const/4 v0; dead goto; return v0
+        short[] code = {(short) 0x0528, (short) 0x0005,
+                (short) 0x0012, (short) 0x0228, (short) 0x0002, (short) 0x000f};
         RoiDexRegisterFlowAnalyzer.Result flow =
                 RoiDexRegisterFlowAnalyzer.analyze(code, 1);
         RoiDexReachingDefinitions.Result reaching =
                 RoiDexReachingDefinitions.analyze(flow);
-        RoiDexReachingDefinitions.BlockResult dead = blockAt(reaching, 1);
-        RoiDexReachingDefinitions.BlockResult live = blockAt(reaching, 4);
+        RoiDexReachingDefinitions.BlockResult dead = blockAt(reaching, 2);
+        RoiDexReachingDefinitions.BlockResult live = blockAt(reaching, 5);
         check(dead != null && !dead.reachableFromEntry,
                 "dead block is explicitly marked unreachable from method entry");
         check(live != null && live.reachableFromEntry && live.reachingIn.length == 0,
-                "definition from unreachable predecessor cannot contaminate live join");
+                "definition from unreachable predecessor cannot contaminate live code");
+        RoiDexUseDefChains.UseSite use = useAt(chains(code, 1), 5, 0);
+        check(use != null && use.reachingDefinitions.length == 0
+                        && use.mayBeEntryOrUnknownValue && use.reachableFromEntry,
+                "reachable use is not linked to a dead-block definition");
     }
 
 
