@@ -30,7 +30,7 @@ public final class RoiDexRegisterFlowAnalyzerTest {
     private static void testSequentialDefUse() throws Exception {
         // const/4 v0, #1; add-int v1, v0, v0; return v1
         short[] code = {(short) 0x0012, (short) 0x0190, (short) 0x0000,
-                (short) 0x0000, (short) 0x010f};
+                (short) 0x010f};
         RoiDexRegisterFlowAnalyzer.BasicBlockFlow block =
                 RoiDexRegisterFlowAnalyzer.analyze(code, 3).blocks[0];
         check(block.useBeforeDefinition.length == 0,
