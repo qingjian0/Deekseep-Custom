@@ -102,9 +102,9 @@ final class RoiClassLoadObserver {
     }
 
     EventSnapshot observe(ClassLoader definingLoader, Class<?> loadedClass,
-                          ClassLoader hostRoot, boolean adapterApproved,
+                          ClassLoader hostRoot, boolean hostObservationApproved,
                           boolean optInEnabled, long nowMillis) {
-        if (!adapterApproved || !optInEnabled || definingLoader == null
+        if (!hostObservationApproved || !optInEnabled || definingLoader == null
                 || loadedClass == null || hostRoot == null
                 || Boolean.TRUE.equals(inspecting.get())) return null;
         if (!isWithinHostScope(definingLoader, hostRoot)) return null;
