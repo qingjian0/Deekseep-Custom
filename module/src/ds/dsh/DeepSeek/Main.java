@@ -3051,11 +3051,22 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         boolean unknown = isUnknownVersionHookAttemptsEnabled();
         boolean probes = isUnknownHostDiagnosticProbesEnabled();
         boolean features = isUnknownHostFeatureHooksAuthorized();
-        if (!unknown && !probes && !features) return "全部关闭：未知版本不尝试，诊断探针和功能 Hook 均不运行";
-        if (!unknown && probes) return "诊断探针已授权；未知版本兼容性尝试与功能 Hook 仍被阻止";
-        if (!unknown && features) return "功能 Hook 授权已保存，但未知版本尝试开关关闭，因此不会执行";
-        if (unknown && !features) return "允许未知版本兼容性尝试；功能 Hook 因未授权而被阻止";
-        return "未知版本尝试与功能 Hook 授权均已开启；具体 Hook 仍须通过运行时校验";
+        if (!unknown && !probes && !features) {
+            return "全部关闭：未知版本不尝试，诊断探针和功能 Hook 均不运行";
+        }
+        StringBuilder status = new StringBuilder();
+        if (unknown) status.append("未知版本尝试：开启");
+        else status.append("未知版本尝试：关闭");
+        status.append("；诊断探针：").append(probes ? "开启" : "关闭");
+        status.append("；功能 Hook 授权：").append(features ? "开启" : "关闭");
+        if (!unknown && features) {
+            status.append("。功能 Hook 当前被未知版本尝试开关阻止");
+        } else if (unknown && !features) {
+            status.append("。功能 Hook 当前因未授权而被阻止");
+        } else if (unknown) {
+            status.append("。功能 Hook 仍须通过具体运行时校验");
+        }
+        return status.toString();
     }
 
     static boolean isLegacySettingsEntryEnabled() {
