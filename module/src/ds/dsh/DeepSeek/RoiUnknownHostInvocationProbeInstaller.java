@@ -61,7 +61,6 @@ final class RoiUnknownHostInvocationProbeInstaller {
         if (!probe.register(installKey, candidate.descriptor)) return false;
         try {
             final String probeKey = installKey;
-            final String descriptor = candidate.descriptor;
             final File liveSwitch = switchFile;
             registrar.install(method, new InvocationCallback() {
                 @Override public Object invoke(RoiUnknownHostInvocationProbe.ProceedingCall call)
