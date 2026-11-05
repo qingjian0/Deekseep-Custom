@@ -47,6 +47,6 @@ These analyses are static evidence only. They do not authorize Hook installation
 
 - Unknown-version Hook attempts are disabled by default and may be attempted only when the dedicated unknown-version switch is enabled.
 - Diagnostic probes are disabled by default and may be installed or run only when the diagnostic-probe switch is enabled.
-- Feature Hooks are disabled by default and require the dedicated feature-Hook authorization switch. Static-analysis confidence, candidate ranking, or a successful scan must never turn this switch on or bypass it.
+- Unknown-host feature Hooks require both the unknown-version-attempt switch and the dedicated feature-Hook authorization switch; both are disabled by default. Static-analysis confidence, candidate ranking, or a successful scan must never turn either switch on or bypass either gate.
 
 Enabling one switch must not enable either of the others. Unknown-version attempts remain bounded by runtime compatibility checks and must fail closed on missing or contradictory evidence. These switches are authorization gates, not proof that a target Hook is correct or safe.
