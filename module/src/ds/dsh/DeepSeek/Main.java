@@ -1894,6 +1894,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             RoiUnknownHostChatRequestResolver.Candidate candidate) {
         Main active = roiMainInstance;
         if (active == null || HostCompat.supportsMaintainedFeatureRuntime()
+                || !RoiUnknownHostHookPolicy.isExplicitlyEnabled(
+                        new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE))
                 || !RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
                         new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE))) return;
         try {
