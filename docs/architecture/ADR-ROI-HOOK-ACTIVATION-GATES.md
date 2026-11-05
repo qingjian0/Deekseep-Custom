@@ -10,7 +10,7 @@ A single "unknown versions are read-only" rule is too restrictive for deliberate
 
 ## Decision
 
-Use three independent runtime switches. Each switch is persisted as an explicit user preference and is evaluated at the point where the corresponding operation would be installed or executed.
+Use three independent runtime switches. Each switch has independent persisted opt-in state and is evaluated at the point where the corresponding operation would be installed or executed. The current runtime gates use exact host-private `ENABLE` marker files; a dedicated in-app settings UI is not yet wired.
 
 | Switch | Default | When enabled | Must not enable |
 |---|---:|---|---|
@@ -76,8 +76,8 @@ The unknown-version gate and feature-Hook gate are cumulative for unknown-host f
 ## Acceptance criteria
 
 1. Fresh install: all three switches are OFF.
-2. Enabling unknown-version attempts does not enable diagnostic probes or feature-Hook authorization.
-3. Enabling diagnostic probes does not enable unknown-version attempts or feature-Hook authorization.
+2. Enabling unknown-version attempts does not change the diagnostic-probe or feature-Hook authorization switch states; a feature Hook remains denied unless its separate authorization is also ON.
+3. Enabling diagnostic probes does not change the unknown-version-attempt or feature-Hook authorization switch states.
 4. Enabling feature-Hook authorization alone does not enable diagnostics, start an unknown-version attempt, or activate a feature Hook.
 5. Static-analysis success with feature-Hook authorization OFF results in a denied feature Hook.
 6. Static-analysis failure or ambiguity never becomes authorization, even when both unknown-version attempts and the feature-Hook switch are ON.
