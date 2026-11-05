@@ -29,7 +29,7 @@ public final class RoiDexCodeReaderTest {
   byte[] b=new byte[64];put16(b,16,1);put16(b,18,1);put16(b,22,1);put32(b,28,2);
   put16(b,32,0x0012);put16(b,34,0x000f);put16(b,36,0);put16(b,38,0);put16(b,40,1);put16(b,42,1);
   // One typed catch plus catch-all; protected const defines v0, handler returns v0.
-  b[44]=1;b[45]=0xff;b[46]=0;b[47]=1;b[48]=1;
+  b[44]=1;b[45]=0x7f;b[46]=0;b[47]=1;b[48]=1;
   RoiDexCodeReader.CodeItem c=RoiDexCodeReader.readCodeItem(b,0,b.length,16,1);
   eq(1,c.triesSize);eq(1,c.tryItems[0].handlerOffset);eq(49,c.nextOffset);
   eq(1,c.catchHandlers.length);eq(1,c.catchHandlers[0].typedCatches.length);
