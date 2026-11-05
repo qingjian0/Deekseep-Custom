@@ -41,12 +41,22 @@ public final class RoiDexRegisterFlowAnalyzer {
     public static final class Result {
         public final BasicBlockFlow[] blocks;
         public final RoiDexInstructionScanner.Edge[] edges;
+        public final RoiDexExceptionControlFlow.ExceptionEdge[] exceptionEdges;
         public final int registerCount;
+        public final boolean normalControlFlowOnly;
+        public final boolean exceptionEdgesIncluded;
+        /** False: exception edges conservatively cover protected regions, not exact throw sites. */
+        public final boolean completeForExceptionFlow;
         Result(List<BasicBlockFlow> blocks, RoiDexInstructionScanner.Edge[] edges,
-                int registerCount) {
+                RoiDexExceptionControlFlow.ExceptionEdge[] exceptionEdges,
+                int registerCount,boolean exceptionIncluded) {
             this.blocks = blocks.toArray(new BasicBlockFlow[0]);
             this.edges = edges.clone();
+            this.exceptionEdges = exceptionEdges.clone();
             this.registerCount = registerCount;
+            this.exceptionEdgesIncluded=exceptionIncluded;
+            this.normalControlFlowOnly=!exceptionIncluded;
+            this.completeForExceptionFlow=false;
         }
     }
 
@@ -59,6 +69,26 @@ public final class RoiDexRegisterFlowAnalyzer {
         } catch (RoiDexInstructionScanner.ScanException error) {
             throw new AnalysisException("cfg_invalid:" + error.getMessage());
         }
+        return analyze(cfg,code,registerCount,new RoiDexExceptionControlFlow.ExceptionEdge[0],false);
+    }
+
+    /** Analyze a parsed code_item with its try/catch metadata and conservative exception edges. */
+    public static Result analyze(RoiDexCodeReader.CodeItem code) throws AnalysisException {
+        if(code==null)throw new AnalysisException("null_code_item");
+        try {
+            RoiDexExceptionControlFlow.Result exceptional=RoiDexExceptionControlFlow.analyze(code);
+            return analyze(exceptional.normalGraph,code.instructions,code.registersSize,
+                    exceptional.exceptionEdges,true);
+        } catch(RoiDexExceptionControlFlow.AnalysisException
+                |RoiDexInstructionScanner.ScanException error) {
+            throw new AnalysisException("exception_cfg_invalid:"+error.getMessage());
+        }
+    }
+
+    private static Result analyze(RoiDexInstructionScanner.ControlFlowGraph cfg,
+            short[] code,int registerCount,
+            RoiDexExceptionControlFlow.ExceptionEdge[] exceptionEdges,
+            boolean exceptionIncluded)throws AnalysisException {
         List<BasicBlockFlow> output = new ArrayList<BasicBlockFlow>();
         for (RoiDexInstructionScanner.BasicBlock block : cfg.blocks) {
             List<InstructionFlow> body = new ArrayList<InstructionFlow>();
@@ -79,7 +109,7 @@ public final class RoiDexRegisterFlowAnalyzer {
             output.add(new BasicBlockFlow(block.startOffset, block.endOffset,
                     body, liveIn, defined));
         }
-        return new Result(output, cfg.edges, registerCount);
+        return new Result(output, cfg.edges, exceptionEdges, registerCount, exceptionIncluded);
     }
 
     private static InstructionFlow decode(short[] code, int offset, int op, int count)
