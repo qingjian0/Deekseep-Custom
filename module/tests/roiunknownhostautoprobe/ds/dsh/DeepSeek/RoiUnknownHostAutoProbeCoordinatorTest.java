@@ -20,8 +20,9 @@ public final class RoiUnknownHostAutoProbeCoordinatorTest {
                 new RoiUnknownHostAutoProbeCoordinator();
         ClassLoader root = RuntimeFixture.class.getClassLoader();
         String scope = RoiCandidateIdentity.forClassLoader(root);
-        String owner = "L" + RuntimeFixture.class.getName().replace('.', '/') + ";";
-        String descriptor = owner + "->build(Ljava/lang/String;)Ljava/lang/String;";
+        String owner = RuntimeFixture.class.getName();
+        String descriptorOwner = "L" + owner.replace('.', '/') + ";";
+        String descriptor = descriptorOwner + "->build(Ljava/lang/String;)Ljava/lang/String;";
         AtomicInteger installs = new AtomicInteger();
 
         check(coordinator.observeLoadedClass(RuntimeFixture.class, root,
@@ -54,7 +55,8 @@ public final class RoiUnknownHostAutoProbeCoordinatorTest {
                 new RoiUnknownHostAutoProbeCoordinator();
         ClassLoader root = RuntimeFixture.class.getClassLoader();
         String scope = RoiCandidateIdentity.forClassLoader(root);
-        String owner = "L" + RuntimeFixture.class.getName().replace('.', '/') + ";";
+        String owner = RuntimeFixture.class.getName();
+        String descriptorOwner = "L" + owner.replace('.', '/') + ";";
         AtomicInteger installs = new AtomicInteger();
         RoiUnknownHostAutoProbeCoordinator.Installer installer = (candidate, method) -> {
             installs.incrementAndGet();
@@ -63,7 +65,7 @@ public final class RoiUnknownHostAutoProbeCoordinatorTest {
 
         coordinator.observeLoadedClass(RuntimeFixture.class, root, installer);
         equal(0, coordinator.registerCandidate(owner, "build",
-                owner + "->build(Ljava/lang/String;)Ljava/lang/String;", scope,
+                descriptorOwner + "->build(Ljava/lang/String;)Ljava/lang/String;", scope,
                 RoiUnknownHostInvocationProbePolicy.Role.UNRESOLVED, true, root, installer),
                 "unresolved role rejected");
         equal(0, coordinator.registerCandidate(owner, "build",
