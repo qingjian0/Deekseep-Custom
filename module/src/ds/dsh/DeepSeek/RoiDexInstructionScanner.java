@@ -99,10 +99,22 @@ public final class RoiDexInstructionScanner {
     }
 
     public static ControlFlowGraph buildControlFlowGraph(short[] code) throws ScanException {
+        return buildControlFlowGraph(code,new int[0]);
+    }
+
+    /** Builds a CFG with caller-supplied instruction boundaries promoted to leaders. */
+    public static ControlFlowGraph buildControlFlowGraph(short[] code,int[] additionalLeaders)
+            throws ScanException {
         ScanResult scan=scan(code);
         if(code.length==0)return new ControlFlowGraph(scan,new ArrayList<BasicBlock>(),new ArrayList<Edge>());
         Set<Integer> starts=new LinkedHashSet<Integer>();
         starts.add(0);
+        if(additionalLeaders!=null)for(int leader:additionalLeaders) {
+            if(leader==code.length)continue;
+            if(!scan.isInstructionBoundary(leader))
+                throw new ScanException("additional_leader_not_instruction_boundary:"+leader);
+            starts.add(leader);
+        }
         for(Instruction i:scan.instructions) {
             if(i.payload)continue;
             int next=i.offset+i.width;
