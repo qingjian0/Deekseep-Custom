@@ -1852,6 +1852,11 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         }
     }
 
+    static boolean isUnknownHostFeatureHookEnabled() {
+        return RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
+                new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE));
+    }
+
     /** Finalize bounded DEX discovery before authorizing any unknown-host feature adapter. */
     static void finalizeRoiUnknownHostChatRequestDiscovery() {
         Main active = roiMainInstance;
