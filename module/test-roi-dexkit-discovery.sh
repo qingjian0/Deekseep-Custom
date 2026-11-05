@@ -62,7 +62,7 @@ require(discovery, r'loader[.]rescan=bounded_thread_context_snapshot', "runtime 
 require(discovery, r'bridge\.close\(\)', "native bridge resources are closed")
 require(discovery, r'System\.loadLibrary\("dexkit"\)', "JNI loading is explicit")
 require(discovery, r'REGISTERED_LOADERS', "dynamic loader registration API exists")
-require(discovery, r'activation=forbidden_without_external_validation', "candidate activation remains gated")
+require(discovery, r'activation=chat_prompt_adapter_only_after_explicit_opt_in_and_scan_finalization', "candidate activation remains gated")
 require(discovery, r'RoiHookResolver\.resolve\(', "DexKit candidates are passed to the evidence resolver")
 require(discovery, r'RoiHookResolver\.Policy\.discoveryOnly\(', "DexKit evidence remains discovery-only")
 require(discovery, r'RoiMethodShape[.]parse[(]descriptor[)]', "DexKit descriptors are structurally parsed")
