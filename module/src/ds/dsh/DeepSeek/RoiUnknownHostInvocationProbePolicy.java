@@ -94,7 +94,6 @@ final class RoiUnknownHostInvocationProbePolicy {
         int close = value.indexOf(')', open < 0 ? 0 : open + 1);
         if (ownerEnd <= 1 || open <= ownerEnd + 3 || close < open) return false;
         if (value.charAt(0) != 'L' || value.indexOf(' ', 0) >= 0) return false;
-        if (value.indexOf(';', ownerEnd + 1) >= 0) return false;
         String method = value.substring(ownerEnd + 3, open);
         if (method.length() == 0) return false;
         String result = value.substring(close + 1);
