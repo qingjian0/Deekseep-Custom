@@ -10,6 +10,7 @@ public final class RoiDexRegisterFlowAnalyzerTest {
         testWideRegisters();
         testWideConversionsAndTwoAddress();
         testBranchBlocksRemainIndependent();
+        testCrossBlockDefinitionsAreNotPropagated();
         testUnsupportedOpcodeFailsClosed();
         testRegisterBounds();
         System.out.println("RoiDexRegisterFlowAnalyzer tests passed");
@@ -91,6 +92,25 @@ public final class RoiDexRegisterFlowAnalyzerTest {
                 branchReadsV0 = Arrays.equals(block.useBeforeDefinition, new int[]{0});
         }
         check(branchReadsV0, "branch condition is a block live-in use");
+    }
+
+    private static void testCrossBlockDefinitionsAreNotPropagated() throws Exception {
+        // const/4 v0; goto target; return-void (unreachable fallthrough); return v0
+        short[] code = {(short) 0x0012, (short) 0x0228,
+                (short) 0x000e, (short) 0x000f};
+        RoiDexRegisterFlowAnalyzer.Result result =
+                RoiDexRegisterFlowAnalyzer.analyze(code, 1);
+        boolean sourceDefinesV0 = false;
+        boolean targetStillRequiresV0 = false;
+        for (RoiDexRegisterFlowAnalyzer.BasicBlockFlow block : result.blocks) {
+            if (block.startOffset == 0)
+                sourceDefinesV0 = Arrays.equals(block.definitions, new int[]{0});
+            if (block.startOffset == 3)
+                targetStillRequiresV0 = Arrays.equals(block.useBeforeDefinition, new int[]{0});
+        }
+        check(sourceDefinesV0, "source block records its local definition");
+        check(targetStillRequiresV0,
+                "target block does not inherit source definitions in phase one");
     }
 
     private static void testUnsupportedOpcodeFailsClosed() throws Exception {
