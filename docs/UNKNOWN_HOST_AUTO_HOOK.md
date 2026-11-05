@@ -69,3 +69,29 @@ The next implementation phase must first compare:
 - dexlib2 with an explicit R8 shrink configuration and measured APK-size/runtime impact.
 
 The selected backend must have fixture-based tests for reordered and added constructor parameters, register moves, move-result-object, casts, field-index decoding, branch joins, wide parameters, and ambiguous/unsupported flows. Until those tests pass, unknown-host prompt mapping remains restricted to the existing reviewed 11-parameter layout.
+## Repository integration audit (2026-11-05)
+
+The current discovery implementation opens DexKit bridges through `DexKitBridge.create(ClassLoader, true)` for runtime loaders and `DexKitBridge.create(apkPath)` for installed APK paths. The inspected discovery path does not call `exportDexFile`, does not persist an exported DEX artifact, and does not pass instruction bytes to a decoder. Therefore the proposed DexKit-to-instruction-reader hand-off is not implemented yet.
+
+The build scripts compile the shared Java source tree into both Legacy and Universal editions. They currently package DexKit and FlatBuffers into D8 directly; there is no R8 shrinking invocation in these scripts. Any new parser must remain dependency-free unless a separate shrink-and-size validation is added.
+
+### First implementation gate
+
+Before changing feature-hook authorization, add and test a dependency-free instruction layer that:
+
+- decodes the relevant DEX formats with explicit instruction widths and bounds checks;
+- extracts argument registers from both `invoke-direct` (`35c`) and `invoke-direct/range` (`3rc`);
+- decodes only explicitly supported move, result-move, cast, string, and object-field operations;
+- maps invoke argument-word positions to reflected parameter indices while accounting for the receiver and `J`/`D` wide parameters;
+- returns an explicit unsupported/invalid result for unknown opcodes, malformed encodings, out-of-range registers, or ambiguous mappings.
+
+This layer is not yet a complete DEX parser and must not authorize a Hook by itself. The next gate is extracting DEX bytes from the DexKit/APK source and resolving serializer descriptor element indices through the deserializer's register flow into a constructor invoke. The fixed 11-parameter/index-2 adapter remains unchanged until that complete evidence chain is tested.
+
+### Integration audit result
+
+- Runtime-loader DexKit bridge: present.
+- APK-path DexKit bridge: present.
+- `exportDexFile` call in the inspected discovery implementation: absent.
+- Instruction-byte reader / register data-flow analyzer: absent.
+- Generic constructor parameter mapping: absent.
+- Unknown-host authorization: remains restricted to the reviewed constructor shape and explicit opt-in.
