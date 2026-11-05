@@ -1712,16 +1712,16 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     private void installRoiClassLoadObserver(final ClassLoader hostRoot,
                                              final boolean unknownHostOptIn) throws Throwable {
         final boolean maintainedHost = HostCompat.supportsMaintainedFeatureRuntime();
-        final boolean unknownSwitchEnabled = RoiUnknownHostHookPolicy.isExplicitlyEnabled(
-                new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE));
-        final boolean invocationProbeEnabled =
-                RoiUnknownHostInvocationProbePolicy.isExplicitlyEnabled(
-                        new File(ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE));
-        final boolean featureHookEnabled = RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
-                new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE));
+        final RoiUnknownHostActivationGates initialGates =
+                RoiUnknownHostActivationGates.of(
+                        RoiUnknownHostHookPolicy.isExplicitlyEnabled(
+                                new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE)),
+                        RoiUnknownHostInvocationProbePolicy.isExplicitlyEnabled(
+                                new File(ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE)),
+                        RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
+                                new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE)));
         if (hostRoot == null || (!maintainedHost
-                && !(unknownHostOptIn && (unknownSwitchEnabled || invocationProbeEnabled
-                        || featureHookEnabled)))
+                && !(unknownHostOptIn && initialGates.requiresClassLoadDispatcher()))
                 || (maintainedHost
                     && !new File(ROI_CLASS_LOAD_OBSERVATION_ENABLE_FILE).isFile())) return;
         ClassLoader frameworkLoader = ClassLoader.getSystemClassLoader();
