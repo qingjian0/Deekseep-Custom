@@ -23,6 +23,8 @@ public final class RoiRuntimeInvocationRecorderTest {
         testSameDescriptorDifferentLoaderScopesRemainDistinct();
         testCrossLoaderPhasesDoNotConfirm();
         testDisabledAndExpiredEvidenceSnapshotsAreEmpty();
+        testCoverageDiagnosticsAreBoundedSanitizedAndExpire();
+        testDisabledCoverageIsNotReported();
         testCapacityAndTtl();
         testInvalidAndWrongSourceRejected();
         testConcurrentRecording();
@@ -253,6 +255,46 @@ public final class RoiRuntimeInvocationRecorderTest {
                 RoiRuntimeInvocationRecorder.Phase.REQUEST_BUILT, 100, 1), 100);
         check(r.snapshotEvidence(151).isEmpty(),
                 "expired runtime evidence remained visible");
+    }
+
+    private static void testCoverageDiagnosticsAreBoundedSanitizedAndExpire() {
+        RoiRuntimeInvocationRecorder r = recorder(2, 50);
+        check(r.recordCoverage(HOST, "loader:process-1:HostLoader", "LFlow;->emit(Lkotlin/coroutines/Continuation;)Ljava/lang/Object;",
+                RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_SUSPEND_COLLECTOR, 100),
+                "unsupported suspend coverage rejected");
+        check(r.recordCoverage(HOST, "loader:process-1:HostLoader", "LFlow;->emit()V",
+                RoiRuntimeInvocationRecorder.CoverageStatus.RESPONSE_OBSERVED, 101),
+                "observed coverage rejected");
+        List<RoiRuntimeInvocationRecorder.CoverageSnapshot> items = r.snapshotCoverage(101);
+        check(items.size() == 2, "coverage diagnostics missing");
+        check(items.get(0).status
+                == RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_SUSPEND_COLLECTOR,
+                "unsupported suspend status lost");
+        for (Field field : RoiRuntimeInvocationRecorder.CoverageSnapshot.class.getDeclaredFields()) {
+            check(!field.getName().toLowerCase(java.util.Locale.ROOT).contains("requestkey"),
+                    "coverage diagnostics expose request key");
+        }
+        try {
+            items.clear();
+            throw new AssertionError("coverage snapshot is mutable");
+        } catch (UnsupportedOperationException expected) {
+            // immutable coverage contract
+        }
+        check(r.snapshotCoverage(152).isEmpty(), "expired coverage diagnostics remained visible");
+        r.recordCoverage(HOST, "loader:process-1:HostLoader", "LFlow;->emit()V",
+                RoiRuntimeInvocationRecorder.CoverageStatus.RESPONSE_OBSERVED, 200);
+        r.clear();
+        check(r.snapshotCoverage(200).isEmpty(), "clear did not reset coverage diagnostics");
+    }
+
+    private static void testDisabledCoverageIsNotReported() {
+        RoiRuntimeInvocationRecorder disabled = new RoiRuntimeInvocationRecorder(
+                RoiRuntimeInvocationRecorder.Policy.disabled(), 8, 1000);
+        check(!disabled.recordCoverage(HOST, "loader:process-1:HostLoader", "LFlow;->emit()V",
+                RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_SUSPEND_COLLECTOR, 100),
+                "disabled recorder accepted coverage diagnostic");
+        check(disabled.snapshotCoverage(100).isEmpty(),
+                "disabled recorder exposed coverage diagnostics");
     }
 
     private static void testCapacityAndTtl() {
