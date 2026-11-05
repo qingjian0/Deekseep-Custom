@@ -420,10 +420,9 @@ final class RoiDexKitDiscovery {
             RoiUnknownHostChatRequestResolver.Candidate chatRequest =
                     Main.ROI_UNKNOWN_HOST_CHAT_REQUEST_RESOLVER.bestCandidate(sourceScope);
             if (chatRequest != null) {
-                Main.registerRoiUnknownHostChatRequestCandidate(chatRequest);
                 append(out, prefix + ".autoFeature.chatRequestCandidate="
                         + chatRequest.ownerDescriptor + ",anchors="
-                        + chatRequest.evidenceCount());
+                        + chatRequest.evidenceCount() + ",activation=deferred_until_scan_finalization");
             }
         }
         appendCandidateGraph(prefix, graphObservations, out);
