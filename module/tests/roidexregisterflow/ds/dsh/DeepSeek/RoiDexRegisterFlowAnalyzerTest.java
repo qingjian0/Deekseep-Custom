@@ -24,6 +24,9 @@ public final class RoiDexRegisterFlowAnalyzerTest {
         testUnreachableDefinitionsDoNotReachLiveCode();
         testUseDefDetectsPartiallyUndefinedDiamondPath();
         testUseDefDetectsInitialEntryPathAcrossBackEdge();
+        testMethodEntryLayoutMapsReceiverAndWideParameters();
+        testMethodEntryLayoutRejectsInsSizeMismatch();
+        testUseDefClassifiesReceiverEntryUse();
         testUnsupportedOpcodeFailsClosed();
         testRegisterBounds();
         System.out.println("RoiDexRegisterFlowAnalyzer tests passed");
@@ -324,6 +327,48 @@ public final class RoiDexRegisterFlowAnalyzerTest {
                 "back edge contributes a concrete reaching definition at entry");
         check(use != null && use.mayBeEntryOrUnknownValue,
                 "initial method-entry path remains unknown despite a back-edge definition");
+    }
+
+
+    private static void testMethodEntryLayoutMapsReceiverAndWideParameters() throws Exception {
+        RoiDexMethodEntryLayout.Result layout = RoiDexMethodEntryLayout.analyze(
+                8, 5, 0, "(JLjava/lang/String;[I)D");
+        check(layout.firstIncomingRegister == 3 && layout.receiver.firstRegister == 3,
+                "instance receiver occupies the first incoming register word");
+        check(layout.parameters.length == 3
+                        && layout.parameters[0].firstRegister == 4
+                        && layout.parameters[0].registerWidth == 2,
+                "wide long parameter consumes two consecutive register words");
+        check(layout.parameters[1].firstRegister == 6
+                        && layout.parameters[2].firstRegister == 7
+                        && layout.parameters[2].registerWidth == 1,
+                "reference and array parameters consume one word each");
+        check(layout.atRegister(5) == layout.parameters[0],
+                "both words of a wide parameter map to the same parameter");
+    }
+
+    private static void testMethodEntryLayoutRejectsInsSizeMismatch() throws Exception {
+        try {
+            RoiDexMethodEntryLayout.analyze(4, 1, 0x0008, "(J)V");
+            throw new AssertionError("expected ins_size/prototype mismatch");
+        } catch (RoiDexMethodEntryLayout.AnalysisException expected) {
+            check(expected.getMessage().contains("ins_size_prototype_mismatch"),
+                    "method entry layout rejects inconsistent incoming word count");
+        }
+    }
+
+    private static void testUseDefClassifiesReceiverEntryUse() throws Exception {
+        RoiDexRegisterFlowAnalyzer.Result flow =
+                RoiDexRegisterFlowAnalyzer.analyze(new short[]{(short) 0x0211}, 3);
+        RoiDexReachingDefinitions.Result reaching =
+                RoiDexReachingDefinitions.analyze(flow);
+        RoiDexMethodEntryLayout.Result layout =
+                RoiDexMethodEntryLayout.analyze(3, 1, 0, "()Ljava/lang/Object;");
+        RoiDexUseDefChains.UseSite use =
+                useAt(RoiDexUseDefChains.analyze(flow, reaching, layout), 0, 2);
+        check(use != null && use.mayBeEntryOrUnknownValue
+                        && use.entryValueKind == RoiDexUseDefChains.EntryValueKind.RECEIVER,
+                "receiver use is explicitly identified as the method entry receiver");
     }
 
     private static RoiDexUseDefChains.Result chains(short[] code, int registers)
