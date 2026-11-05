@@ -34,7 +34,9 @@ final class RoiDexKitDiscovery {
     private static final int MAX_RELATIONS_PER_CANDIDATE = 12;
     private static final int MAX_DISCOVERY_PASSES = 3;
     private static final int MAX_TOTAL_QUERIES_PER_SCAN = 48;
-    private static final int MAX_TOTAL_CANDIDATES_PER_SCAN = 96;
+    private static final int MAX_TOTAL_CANDIDATES_PER_SCAN = 128;
+    private static final int MAX_SERIALIZER_METHODS_PER_OWNER = 24;
+    private static final int MAX_REQUEST_CTORS_PER_SERIALIZER = 8;
     private static final long SCAN_BUDGET_NANOS = 45_000_000_000L;
     private static final Object LOADER_LOCK = new Object();
     private static final WeakHashMap<ClassLoader, Boolean> REGISTERED_LOADERS =
@@ -291,6 +293,8 @@ final class RoiDexKitDiscovery {
         int total = 0;
         List<RoiCandidateGraph.Observation> graphObservations =
                 new ArrayList<RoiCandidateGraph.Observation>();
+        Map<String, List<SerializerConstructorRef>> serializerConstructorCache =
+                new java.util.LinkedHashMap<String, List<SerializerConstructorRef>>();
         for (String anchor : SEMANTIC_ANCHORS) {
             if (!budget.tryStartQuery(System.nanoTime())) {
                 append(out, prefix + ".budget.querySkipped=" + budget.stopReason());
@@ -349,11 +353,15 @@ final class RoiDexKitDiscovery {
                     RoiCandidateGraph.Observation graphObservation = appendCallRelations(
                             item, candidatePrefix, sourceScope, descriptor, anchor, out);
                     graphObservations.add(graphObservation);
-                    if (sourceScope.startsWith("loader:")) {
+                    if (sourceScope.startsWith("loader:")
+                            && RoiUnknownHostChatRequestResolver.isFieldAnchor(anchor)) {
                         RoiUnknownHostChatRequestResolver resolver =
                                 Main.ROI_UNKNOWN_HOST_CHAT_REQUEST_RESOLVER;
                         resolver.observeDexCandidate(sourceScope, anchor, descriptor,
                                 graphObservation.invokes);
+                        inspectSerializerOwnerForRequestConstructors(bridge, prefix,
+                                sourceScope, anchor, owner, budget,
+                                serializerConstructorCache, out);
                     }
                     appendSemanticRoleHints(candidatePrefix, graphObservation.invokes, out);
                     appendFunctionalRoleHints(candidatePrefix, graphObservation.invokes, out);
@@ -432,6 +440,102 @@ final class RoiDexKitDiscovery {
         }
         appendCandidateGraph(prefix, graphObservations, out);
         return total;
+    }
+
+    private static final class SerializerConstructorRef {
+        final String methodDescriptor;
+        final String constructorDescriptor;
+        SerializerConstructorRef(String methodDescriptor, String constructorDescriptor) {
+            this.methodDescriptor = methodDescriptor;
+            this.constructorDescriptor = constructorDescriptor;
+        }
+    }
+
+    /**
+     * Field-name strings commonly live in a generated serializer descriptor method while the
+     * actual DTO constructor is referenced from its deserialize method. Search the same serializer
+     * class once, cache its constructor references, then associate each independently observed
+     * field anchor with those references.
+     */
+    private static void inspectSerializerOwnerForRequestConstructors(DexKitBridge bridge,
+            String prefix, String sourceScope, String anchor, String owner,
+            RoiDiscoveryBudget budget,
+            Map<String, List<SerializerConstructorRef>> cache, StringBuilder out) {
+        String className = normalizeDexClassName(owner);
+        if (className.length() == 0) return;
+        String cacheKey = sourceScope + "|" + className;
+        List<SerializerConstructorRef> references = cache.get(cacheKey);
+        if (references == null) {
+            references = new ArrayList<SerializerConstructorRef>();
+            if (!budget.tryStartQuery(System.nanoTime())) {
+                append(out, prefix + ".serializerOwner." + safeKey(className)
+                        + ".querySkipped=" + budget.stopReason());
+                cache.put(cacheKey, references);
+                return;
+            }
+            try {
+                FindMethod query = FindMethod.create().matcher(
+                        MethodMatcher.create().declaredClass(className)
+                                .invokeMethods(MethodsMatcher.create().countMin(0)));
+                Object methods = bridge.findMethod(query);
+                int count = Math.min(invokeSize(methods), MAX_SERIALIZER_METHODS_PER_OWNER);
+                for (int i = 0; i < count; i++) {
+                    if (!budget.tryAcceptCandidate(System.nanoTime())) break;
+                    Object methodData = invokeGet(methods, i);
+                    String methodDescriptor = safe(readString(methodData, "getDescriptor"));
+                    if (methodDescriptor.length() == 0) continue;
+                    Object invokes = readObject(methodData, "getInvokes");
+                    int invokeCount = Math.min(invokeSize(invokes), 128);
+                    for (int j = 0; j < invokeCount; j++) {
+                        Object invoked = invokeGet(invokes, j);
+                        String invokedDescriptor = safe(readString(invoked, "getDescriptor"));
+                        if (!RoiUnknownHostChatRequestResolver
+                                .isChatRequestConstructor(invokedDescriptor)) continue;
+                        boolean duplicate = false;
+                        for (SerializerConstructorRef existing : references) {
+                            if (existing.methodDescriptor.equals(methodDescriptor)
+                                    && existing.constructorDescriptor.equals(invokedDescriptor)) {
+                                duplicate = true;
+                                break;
+                            }
+                        }
+                        if (!duplicate) {
+                            references.add(new SerializerConstructorRef(
+                                    methodDescriptor, invokedDescriptor));
+                            if (references.size() >= MAX_REQUEST_CTORS_PER_SERIALIZER) break;
+                        }
+                    }
+                    if (references.size() >= MAX_REQUEST_CTORS_PER_SERIALIZER) break;
+                }
+                append(out, prefix + ".serializerOwner." + safeKey(className)
+                        + ".methodsScanned=" + count
+                        + ",requestConstructorRefs=" + references.size());
+            } catch (VirtualMachineError fatal) {
+                throw fatal;
+            } catch (ThreadDeath fatal) {
+                throw fatal;
+            } catch (Throwable error) {
+                rethrowFatal(error);
+                append(out, prefix + ".serializerOwner." + safeKey(className)
+                        + ".error=" + error.getClass().getName());
+            }
+            cache.put(cacheKey, references);
+        }
+        if (references.isEmpty()) return;
+        for (SerializerConstructorRef reference : references) {
+            Main.ROI_UNKNOWN_HOST_CHAT_REQUEST_RESOLVER.observeDexCandidate(
+                    sourceScope, anchor, reference.methodDescriptor,
+                    Collections.singletonList(reference.constructorDescriptor));
+        }
+    }
+
+    private static String normalizeDexClassName(String owner) {
+        if (owner == null) return "";
+        String value = owner.trim();
+        if (value.startsWith("L") && value.endsWith(";") && value.length() > 2) {
+            value = value.substring(1, value.length() - 1);
+        }
+        return value.replace('/', '.');
     }
 
     private static void appendRuntimeEvidence(String prefix, String candidateHostIdentity,
