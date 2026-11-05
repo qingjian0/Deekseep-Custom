@@ -363,6 +363,17 @@ final class RoiDexKitDiscovery {
                         inspectSerializerOwnerForRequestConstructors(bridge, prefix,
                                 sourceScope, anchor, owner, budget,
                                 serializerConstructorCache, out);
+                        int callerOwnerScans = 0;
+                        for (String callerDescriptor : graphObservation.callers) {
+                            if (callerOwnerScans >= 2) break;
+                            String callerOwner = ownerFromMethodDescriptor(callerDescriptor);
+                            if (callerOwner.length() == 0
+                                    || callerOwner.equals(normalizeDexClassName(owner))) continue;
+                            inspectSerializerOwnerForRequestConstructors(bridge, prefix,
+                                    sourceScope, anchor, callerOwner, budget,
+                                    serializerConstructorCache, out);
+                            callerOwnerScans++;
+                        }
                     }
                     appendSemanticRoleHints(candidatePrefix, graphObservation.invokes, out);
                     appendFunctionalRoleHints(candidatePrefix, graphObservation.invokes, out);
@@ -528,6 +539,12 @@ final class RoiDexKitDiscovery {
                     sourceScope, anchor, reference.methodDescriptor,
                     Collections.singletonList(reference.constructorDescriptor));
         }
+    }
+
+    private static String ownerFromMethodDescriptor(String descriptor) {
+        if (descriptor == null) return "";
+        int arrow = descriptor.indexOf("->");
+        return arrow > 1 ? descriptor.substring(0, arrow) : "";
     }
 
     private static String normalizeDexClassName(String owner) {
