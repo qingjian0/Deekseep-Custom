@@ -367,6 +367,11 @@ final class RoiDexKitDiscovery {
                             hostKey, "unresolved", owner, method, descriptor,
                             sourceScope, candidateId,
                             false, false, Collections.<String>emptySet(), evidence);
+                    if (sourceScope.startsWith("loader:")) {
+                        RoiClassCandidateMatcher.registerCandidate(
+                                new RoiClassCandidateMatcher.Candidate(
+                                        sourceScope, owner, method, descriptor));
+                    }
                     RoiHookResolver.Decision decision = RoiHookResolver.resolve(
                             candidate, RoiHookResolver.Policy.discoveryOnly());
                     append(out, candidatePrefix + ".resolver.state=" + decision.state.name());
