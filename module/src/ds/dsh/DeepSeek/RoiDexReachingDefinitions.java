@@ -8,8 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Bounded forward reaching-definitions analysis over the scanner's normal CFG.
- * Exception-handler edges are not represented by the current CFG.
+ * Bounded forward reaching-definitions analysis over normal and optional conservative exception CFG edges.
  */
 public final class RoiDexReachingDefinitions {
     private RoiDexReachingDefinitions() {}
@@ -60,14 +59,18 @@ public final class RoiDexReachingDefinitions {
         public final Definition[] definitions;
         public final BlockResult[] blocks;
         public final int worklistSteps;
-        public final boolean normalControlFlowOnly = true;
-        public final boolean exceptionEdgesIncluded = false;
-        public final boolean completeForExceptionFlow = false;
+        public final boolean normalControlFlowOnly;
+        public final boolean exceptionEdgesIncluded;
+        public final boolean completeForExceptionFlow;
 
-        Result(List<Definition> definitions, List<BlockResult> blocks, int steps) {
+        Result(List<Definition> definitions, List<BlockResult> blocks, int steps,
+                boolean exceptionIncluded) {
             this.definitions = definitions.toArray(new Definition[0]);
             this.blocks = blocks.toArray(new BlockResult[0]);
             worklistSteps = steps;
+            exceptionEdgesIncluded=exceptionIncluded;
+            normalControlFlowOnly=!exceptionIncluded;
+            completeForExceptionFlow=false;
         }
     }
 
@@ -77,7 +80,7 @@ public final class RoiDexReachingDefinitions {
         final int blockCount = flow.blocks.length;
         if (blockCount == 0)
             return new Result(new ArrayList<Definition>(),
-                    new ArrayList<BlockResult>(), 0);
+                    new ArrayList<BlockResult>(), 0,flow.exceptionEdgesIncluded);
 
         List<Definition> definitions = new ArrayList<Definition>();
         List<Map<Integer, Integer>> finalDefinitionByRegister =
@@ -126,6 +129,15 @@ public final class RoiDexReachingDefinitions {
             if (edge.fromBlock < 0 || edge.fromBlock >= blockCount
                     || edge.toBlock < 0 || edge.toBlock >= blockCount)
                 throw new AnalysisException("cfg_edge_out_of_bounds");
+            if (!predecessors[edge.toBlock].contains(edge.fromBlock))
+                predecessors[edge.toBlock].add(edge.fromBlock);
+            if (!successors[edge.fromBlock].contains(edge.toBlock))
+                successors[edge.fromBlock].add(edge.toBlock);
+        }
+        for (RoiDexExceptionControlFlow.ExceptionEdge edge : flow.exceptionEdges) {
+            if (edge.fromBlock < 0 || edge.fromBlock >= blockCount
+                    || edge.toBlock < 0 || edge.toBlock >= blockCount)
+                throw new AnalysisException("exception_cfg_edge_out_of_bounds");
             if (!predecessors[edge.toBlock].contains(edge.fromBlock))
                 predecessors[edge.toBlock].add(edge.fromBlock);
             if (!successors[edge.fromBlock].contains(edge.toBlock))
@@ -209,7 +221,7 @@ public final class RoiDexReachingDefinitions {
                     reachable[b]));
         }
         return new Result(definitions, results,
-                (int) Math.min(Integer.MAX_VALUE, steps));
+                (int) Math.min(Integer.MAX_VALUE, steps),flow.exceptionEdgesIncluded);
     }
 
     private static Definition[] materialize(BitSet ids, List<Definition> definitions) {
