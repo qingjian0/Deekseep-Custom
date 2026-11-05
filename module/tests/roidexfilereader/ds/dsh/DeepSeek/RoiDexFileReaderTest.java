@@ -2,7 +2,7 @@ package ds.dsh.DeepSeek;
 
 public final class RoiDexFileReaderTest {
  public static void main(String[] args)throws Exception{
-  testEmptyDex();testAllIdTables();testBadMagic();testTruncated();testBadHeaderSize();
+  testEmptyDex();testAllIdTables();testDecodedStringAndProtoTypes();testBadMagic();testTruncated();testBadHeaderSize();
   testBadEndian();testFileSize();testSectionOverflow();testBadTypeReference();
   testBadStringOffset();testBadClassOffset();testTableOverlap();testMapOutsideData();
   System.out.println("RoiDexFileReaderTest: PASS");
@@ -28,6 +28,18 @@ public final class RoiDexFileReaderTest {
   eq(1,d.protos.length);eq(0,d.protoParameterTypeIndices[0].length);eq("",d.strings[0]);eq("",d.typeDescriptors[0]);eq(1,d.fields.length);eq(1,d.methods.length);eq(1,d.classes.length);
   eq(1,d.fields[0].nameIndex);eq(1,d.methods[0].nameIndex);
   eq(-1,d.classes[0].superclassIndex);eq(-1,d.classes[0].sourceFileIndex);
+ }
+ static void testDecodedStringAndProtoTypes()throws Exception{
+  byte[] b=fixture(196);
+  put32(b,56,1);put32(b,60,112);put32(b,64,1);put32(b,68,116);
+  put32(b,72,1);put32(b,76,120);put32(b,104,12);put32(b,108,184);
+  put32(b,112,184);put32(b,116,0);
+  put32(b,120,0);put32(b,124,0);put32(b,128,188);
+  b[184]=1;b[185]='x';b[186]=0;
+  put32(b,188,1);put16(b,192,0);
+  RoiDexFileReader.DexFile d=RoiDexFileReader.read(b);
+  eq("x",d.strings[0]);eq("x",d.typeDescriptors[0]);
+  eq(1,d.protoParameterTypeIndices[0].length);eq(0,d.protoParameterTypeIndices[0][0]);
  }
  static void testBadMagic()throws Exception{byte[] b=fixture(112);b[0]='x';bad(b);}
  static void testTruncated()throws Exception{bad(new byte[111]);}
