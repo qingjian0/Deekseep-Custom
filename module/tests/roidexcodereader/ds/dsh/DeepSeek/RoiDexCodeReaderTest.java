@@ -45,7 +45,7 @@ public final class RoiDexCodeReaderTest {
   RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(c);
   if(!flow.exceptionEdgesIncluded||flow.normalControlFlowOnly)
    throw new AssertionError("register flow omitted exception edges");
-  eq(1,flow.exceptionEdges.length);
+  eq(2,flow.exceptionEdges.length);
   RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
   if(!reaching.exceptionEdgesIncluded)throw new AssertionError("reaching definitions omitted exception edges");
   RoiDexUseDefChains.Result chains=RoiDexUseDefChains.analyze(flow,reaching);
