@@ -15,8 +15,12 @@ final class RoiClassCandidateMatcher {
 
     private static final int MAX_REGISTERED_CANDIDATES = 512;
     private static final int MAX_MATCH_REPORTS_PER_CLASS = 8;
+    private static final int MAX_RECENT_LOADED_CLASSES = 256;
     private static final Map<String, Candidate> REGISTERED =
             new LinkedHashMap<String, Candidate>();
+    // Metadata-only snapshots avoid retaining host Class/ClassLoader instances.
+    private static final Map<String, LoadedClass> RECENT_LOADED =
+            new LinkedHashMap<String, LoadedClass>();
 
     static final class Candidate {
         final String sourceScope, owner, methodName, descriptor;
@@ -56,50 +60,66 @@ final class RoiClassCandidateMatcher {
 
     private RoiClassCandidateMatcher() {}
 
-    /** Retain only process-local ClassLoader candidates; APK-only candidates cannot be correlated. */
-    static synchronized void registerCandidate(Candidate candidate) {
+    /** Register a candidate and reconcile it with classes observed before discovery completed. */
+    static synchronized String registerCandidate(Candidate candidate) {
         if (candidate == null || !candidate.sourceScope.startsWith("loader:")
                 || candidate.owner.length() == 0 || candidate.methodName.length() == 0
-                || candidate.descriptor.length() == 0) return;
-        String key = candidateKey(candidate);
-        REGISTERED.put(key, candidate);
+                || candidate.descriptor.length() == 0) return "";
+        REGISTERED.put(candidateKey(candidate), candidate);
         while (REGISTERED.size() > MAX_REGISTERED_CANDIDATES) {
             String eldest = REGISTERED.keySet().iterator().next();
             REGISTERED.remove(eldest);
         }
+        StringBuilder report = new StringBuilder();
+        int emitted = 0;
+        for (LoadedClass loaded : RECENT_LOADED.values()) {
+            if (!candidate.sourceScope.equals(loaded.sourceScope)) continue;
+            Result result = match(candidate, loaded);
+            if (result.status == Status.UNMATCHED) continue;
+            if (emitted++ >= MAX_MATCH_REPORTS_PER_CLASS) break;
+            appendMatch(report, candidate, result);
+        }
+        return report.toString();
     }
 
-    /** Match an already-loaded Class supplied by the host class-load observer. */
-    static String matchObservedClass(Class<?> type) {
+    /** Cache bounded metadata and correlate in either discovery/load order. */
+    static synchronized String observeLoadedClass(Class<?> type) {
         if (type == null) return "";
-        String scope = RoiCandidateIdentity.forClassLoader(safeLoader(type));
-        List<Candidate> candidates = new ArrayList<Candidate>();
-        synchronized (RoiClassCandidateMatcher.class) {
-            for (Candidate candidate : REGISTERED.values()) {
-                if (scope.equals(candidate.sourceScope)) candidates.add(candidate);
-            }
-        }
-        if (candidates.isEmpty()) return "";
-
         RoiLoadedClassInspector.Snapshot snapshot = RoiLoadedClassInspector.inspect(type);
         LoadedClass loaded = new LoadedClass(snapshot.loaderScope, snapshot.className,
                 snapshot.dexMethodDescriptors, snapshot.methodsTruncated,
                 snapshot.inspectionStatus);
+        String key = loaded.sourceScope + "|" + loaded.className;
+        RECENT_LOADED.put(key, loaded);
+        while (RECENT_LOADED.size() > MAX_RECENT_LOADED_CLASSES) {
+            String eldest = RECENT_LOADED.keySet().iterator().next();
+            RECENT_LOADED.remove(eldest);
+        }
         StringBuilder report = new StringBuilder();
         int emitted = 0;
-        for (Candidate candidate : candidates) {
+        for (Candidate candidate : REGISTERED.values()) {
+            if (!loaded.sourceScope.equals(candidate.sourceScope)) continue;
             Result result = match(candidate, loaded);
             if (result.status == Status.UNMATCHED) continue;
             if (emitted++ >= MAX_MATCH_REPORTS_PER_CLASS) break;
-            if (report.length() > 0) report.append('\n');
-            report.append("status=").append(result.status.name())
-                    .append(",owner=").append(candidate.owner)
-                    .append(",method=").append(candidate.methodName)
-                    .append(",descriptor=").append(candidate.descriptor)
-                    .append(",reason=").append(result.reason)
-                    .append(",activationAuthorized=false");
+            appendMatch(report, candidate, result);
         }
         return report.toString();
+    }
+
+    /** Compatibility alias retained for existing integration callers. */
+    static String matchObservedClass(Class<?> type) {
+        return observeLoadedClass(type);
+    }
+
+    private static void appendMatch(StringBuilder report, Candidate candidate, Result result) {
+        if (report.length() > 0) report.append('\\n');
+        report.append("status=").append(result.status.name())
+                .append(",owner=").append(candidate.owner)
+                .append(",method=").append(candidate.methodName)
+                .append(",descriptor=").append(candidate.descriptor)
+                .append(",reason=").append(result.reason)
+                .append(",activationAuthorized=false");
     }
 
     static Result match(Candidate candidate, LoadedClass loaded) {
