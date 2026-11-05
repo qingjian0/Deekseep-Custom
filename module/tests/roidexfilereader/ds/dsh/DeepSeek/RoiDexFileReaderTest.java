@@ -48,10 +48,12 @@ public final class RoiDexFileReaderTest {
   put32(b,96,1);put32(b,100,120);put32(b,104,36);put32(b,108,152);
   put32(b,112,152);put32(b,116,0);
   put32(b,120,0);put32(b,124,0);put32(b,128,-1);put32(b,132,0);
-  put32(b,136,-1);put32(b,140,0);put32(b,144,156);put32(b,148,0);
-  b[152]=0;b[153]=0;b[156]=0;b[157]=0;b[158]=0;b[159]=0;
+  put32(b,136,-1);put32(b,140,0);put32(b,144,160);put32(b,148,0);
+  b[152]=3;b[153]='L';b[154]='x';b[155]=';';b[156]=0;
+  b[160]=0;b[161]=0;b[162]=0;b[163]=0;
   RoiDexFileReader.DexFile d=RoiDexFileReader.read(b);
   if(d.classData.length!=1||d.classData[0]==null)throw new AssertionError("class_data not connected");
+  eq("Lx;",d.typeDescriptors[0]);
   eq(0,d.classData[0].directMethods.length);eq(0,d.classData[0].virtualMethods.length);
  }
  static void testResolvedMethodDefinition()throws Exception{
