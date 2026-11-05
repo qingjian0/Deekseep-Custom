@@ -15,6 +15,7 @@ public final class RoiClassLoadObserverTest {
         testDuplicateClassIsIgnored();
         testCapacityAndTtl();
         testRateLimit();
+        testReentrancyGuard();
         testSnapshotsAreImmutableAndMetadataOnly();
         testNullAndClear();
         System.out.println("RoiClassLoadObserverTest: PASS");
@@ -88,6 +89,22 @@ public final class RoiClassLoadObserverTest {
                 true, true, 5001L), "rate-limited event");
         assertNotNull(observer.observe(two, defineProxyClass(two), root,
                 true, true, 6000L), "new rate window");
+    }
+
+    private static void testReentrancyGuard() throws Exception {
+        ClassLoader root = RoiClassLoadObserverTest.class.getClassLoader();
+        RoiClassLoadObserver observer = new RoiClassLoadObserver();
+        java.lang.reflect.Field field = RoiClassLoadObserver.class.getDeclaredField("inspecting");
+        field.setAccessible(true);
+        ThreadLocal<Boolean> guard = (ThreadLocal<Boolean>) field.get(observer);
+        guard.set(Boolean.TRUE);
+        try {
+            assertNull(observer.observe(root, RoiClassLoadObserverTest.class, root,
+                    true, true, 6500L), "recursive inspection");
+            assertEquals(0, observer.snapshot(6500L).size(), "recursive event count");
+        } finally {
+            guard.remove();
+        }
     }
 
     private static void testSnapshotsAreImmutableAndMetadataOnly() throws Exception {
