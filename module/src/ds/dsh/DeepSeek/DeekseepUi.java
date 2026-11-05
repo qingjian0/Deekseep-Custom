@@ -2537,6 +2537,10 @@ public final class DeekseepUi {
         card.addView(roiGateHeading);
         TextView roiGateStatus = infoBox(act, Main.unknownHostHookGateStatus(), subColor, dark);
         card.addView(roiGateStatus, insetParams(act, 8, 8));
+        TextView roiGateRestartNote = infoBox(act,
+                "开启权限后建议重启 DeepSeek，使类加载观察器和候选扫描重新启动。关闭诊断或功能开关后，已安装包装器会在后续调用时转为透传。",
+                subColor, dark);
+        card.addView(roiGateRestartNote, insetParams(act, 0, 8));
 
         card.addView(configurableSwitchRow(act, "允许未知版本尝试 Hook",
                 "允许兼容性解析、候选匹配和受限运行时校验。开启不代表候选已验证，也不会自动授权功能 Hook。",
