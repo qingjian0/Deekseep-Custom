@@ -441,3 +441,14 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 新增独立 JVM 测试脚本，覆盖 exact、structural、partial、loader conflict、unmatched 与禁止激活。
 - 当前为匹配策略核心和回归基线；尚未把 `RoiLoadedClassInspector` 的运行时快照转换为标准 JVM 方法描述符，也尚未将 matcher 接入 DexKit discovery 报告。因此本阶段不宣称已经完成静态候选与运行时类的端到端自动关联。
 - GitHub Actions 结果以本提交对应运行记录为准；尚无真机验证。
+
+
+## ROI R2.7.3 — explicit unknown-host metadata-hook switch (2026-11-05)
+
+- 新增未知版本独立开关文件：`/data/data/com.deepseek.chat/files/deekseep_roi_unknown_host_hook_enabled`。
+- 开关必须是普通文件，且内容严格为单行 `ENABLE`（允许末尾换行）；缺失、空文件、`true`、额外行或读取失败均视为关闭。
+- 未知版本默认仍执行只读 DEX/类发现。只有显式开启时，额外允许安装受限的 `BaseDexClassLoader.findClass` 元数据观察器；观察范围仍限定宿主主 ClassLoader 及其子加载器，且只在原始类加载成功后读取类元数据。
+- 该开关**不启用旧版功能 Hook、不批准 Adapter、不授权功能方法 Hook**。 `RoiUnknownHostHookPolicy.authorizesFunctionalHook` 当前固定返回 false；未知版本功能 Hook 仍须后续完成证据验证、独立适配器审查和安装回滚机制。
+- 已有维护版本的类加载观察开关保持独立，不受此开关影响。
+- 新增纯 Java 策略测试，覆盖默认关闭、显式 ENABLE、别名拒绝、多余内容拒绝及功能 Hook 永不授权；接入 ROI fast audit 与 Regression。
+- 本功能仅提交到 `dev`，未修改 `main`。CI 和真机结果待对应 Actions / 设备验证，不提前宣称通过。
