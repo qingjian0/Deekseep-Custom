@@ -182,17 +182,17 @@ public final class RoiUnknownHostChatRequestResolverTest {
         java.io.File attemptSwitch = java.io.File.createTempFile("roi-unknown-attempt", ".switch");
         java.io.File featureSwitch = java.io.File.createTempFile("roi-feature-hook", ".switch");
         try {
-            write(attemptSwitch, "DISABLED\\n");
-            write(featureSwitch, "ENABLE\\n");
+            write(attemptSwitch, "DISABLED\n");
+            write(featureSwitch, "ENABLE\n");
             check(!RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
                     false, attemptSwitch, featureSwitch, candidate, target, root),
                     "feature authorization cannot bypass unknown-version attempt switch");
-            write(attemptSwitch, "ENABLE\\n");
-            write(featureSwitch, "DISABLED\\n");
+            write(attemptSwitch, "ENABLE\n");
+            write(featureSwitch, "DISABLED\n");
             check(!RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
                     false, attemptSwitch, featureSwitch, candidate, target, root),
                     "feature switch defaults closed");
-            write(featureSwitch, "ENABLE\\n");
+            write(featureSwitch, "ENABLE\n");
             check(RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
                     false, attemptSwitch, featureSwitch, candidate, target, root),
                     "both explicit switches and exact adapter candidate authorize the hook");
@@ -206,7 +206,7 @@ public final class RoiUnknownHostChatRequestResolverTest {
                     false, attemptSwitch, featureSwitch, candidate,
                     WrongFixture.class.getDeclaredConstructors()[0], root),
                     "different constructor rejected");
-            write(featureSwitch, "ENABLE\\nEXTRA\\n");
+            write(featureSwitch, "ENABLE\nEXTRA\n");
             check(!RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
                     false, attemptSwitch, featureSwitch, candidate, target, root),
                     "extra switch line rejected");
