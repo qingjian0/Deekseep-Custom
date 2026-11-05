@@ -30,8 +30,11 @@ grep -q 'RoiRuntimeInvocationObserver.initialize()' "$MAIN"
 # A suspending Kotlin emit is not confirmed merely because the reflective call returned.
 grep -q 'hasContinuationParameter(method)' "$OBSERVER"
 grep -q 'kotlin.coroutines.Continuation' "$OBSERVER"
-grep -q 'hasSuspendingEmit(collectorType)' "$OBSERVER"
-grep -q 'Do not proxy its collector' "$OBSERVER"
+grep -q 'findSuspendingEmit(collectorType)' "$OBSERVER"
+grep -q 'UNSUPPORTED_SUSPEND_COLLECTOR' "$OBSERVER"
+grep -q 'recordCoverage(' "$OBSERVER"
+grep -q 'snapshotCoverage()' "$OBSERVER"
+grep -q 'Preserve collector identity' "$OBSERVER"
 # SSE event construction and session-message replacement are not request-correlated parser evidence.
 if grep -q 'Phase.RESPONSE_PARSED' "$CHAT"; then
   echo "Uncorrelated RESPONSE_PARSED event must not be emitted from HookChatPipeline" >&2
@@ -48,6 +51,8 @@ grep -q 'adapterIdentity.equals(item.adapterIdentity)' "$ROOT/module/src/ds/dsh/
 grep -q 'runtimeEvidence.resolverContribution=none' "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexKitDiscovery.java"
 grep -q 'testSanitizedEvidenceSnapshot' "$ROOT/module/tests/roiruntime/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorderTest.java"
 grep -q 'testDisabledAndExpiredEvidenceSnapshotsAreEmpty' "$ROOT/module/tests/roiruntime/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorderTest.java"
+grep -q 'testCoverageDiagnosticsAreBoundedSanitizedAndExpire' "$ROOT/module/tests/roiruntime/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorderTest.java"
+grep -q 'testDisabledCoverageIsNotReported' "$ROOT/module/tests/roiruntime/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorderTest.java"
 
 # Runtime evidence must be bound to the exact process-local class-loader scope.
 grep -q 'RoiCandidateIdentity.forClassLoader(constructor.getDeclaringClass().getClassLoader())' "$OBSERVER"
