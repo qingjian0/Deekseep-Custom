@@ -83,6 +83,13 @@ final class RoiUnknownHostInvocationProbePolicy {
         if (candidate.owner.length() == 0 || candidate.methodName.length() == 0
                 || candidate.sourceScope.length() == 0) return false;
         if (!isCompleteDexMethodDescriptor(candidate.descriptor)) return false;
+        int ownerEnd = candidate.descriptor.indexOf(";->");
+        int methodStart = ownerEnd + 3;
+        int methodEnd = candidate.descriptor.indexOf('(', methodStart);
+        if (methodEnd <= methodStart
+                || !candidate.methodName.equals(candidate.descriptor.substring(methodStart, methodEnd))) {
+            return false;
+        }
         return candidate.owner.equals(runtime.owner)
                 && candidate.descriptor.equals(runtime.descriptor)
                 && candidate.sourceScope.equals(runtime.sourceScope);
