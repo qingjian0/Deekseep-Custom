@@ -348,6 +348,15 @@ final class RoiDexKitDiscovery {
                             runtimeEvidence, runtimeCoverage, adapterIdentity, out);
                     int relationCount = graphObservation.invokes.size()
                             + graphObservation.callers.size();
+                    RoiFunctionalRoleClassifier.Result autoProbeRoles =
+                            RoiFunctionalRoleClassifier.classify(graphObservation.invokes);
+                    if (sourceScope.startsWith("loader:") && shape != null
+                            && relationCount > 0 && autoProbeRoles.roles.size() == 1
+                            && autoProbeRoles.roles.get(0)
+                                    != RoiFunctionalRoleClassifier.Role.UNRESOLVED) {
+                        Main.registerRoiUnknownHostAutoProbeCandidate(owner, method, descriptor,
+                                sourceScope, autoProbeRoles.roles.get(0).name());
+                    }
                     List<RoiHookResolver.Evidence> evidence = Arrays.asList(
                             new RoiHookResolver.Evidence(
                                     RoiHookResolver.EvidenceKind.HOST_IDENTITY,
