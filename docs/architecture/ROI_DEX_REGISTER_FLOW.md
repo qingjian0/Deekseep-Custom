@@ -6,11 +6,11 @@
 
 The decoder covers only explicitly modelled instruction formats. Unknown semantics fail closed. Wide values occupy two adjacent register words. Invoke operands are represented as register words, not inferred Java parameter values.
 
-## Phase 2: normal-CFG reaching definitions
+## Phase 2: normal and conservative exception-CFG reaching definitions
 
 `RoiDexReachingDefinitions` tracks each definition site per register word and computes a forward fixed point:
 
-- `IN[B] = union(OUT[P])` for normal-CFG predecessors `P`;
+- `IN[B] = union(OUT[P])` for all modeled predecessors `P`, including conservative exception edges when analysis starts from a parsed `CodeItem`;
 - `OUT[B] = GEN[B] union (IN[B] - KILL[B])`;
 - `GEN[B]` retains the final local definition for each register word;
 - `KILL[B]` removes other definition sites for every register word written in the block.
@@ -18,7 +18,11 @@ The decoder covers only explicitly modelled instruction formats. Unknown semanti
 
 The worklist, definition count, and block-by-definition state space have explicit budgets. Exceeding a budget returns an analysis error rather than a partial result.
 
-**Scope limitation:** the current CFG has normal control-flow edges only. It does not parse DEX try/catch handler tables or add exceptional edges. Results therefore explicitly report `exceptionEdgesIncluded=false` and `completeForExceptionFlow=false`. They must not be represented as complete method-wide reaching definitions when exception handlers matter.
+**Exception-flow integration:** `RoiDexCodeReader` now exposes each parsed typed catch and catch-all clause with its handler-list-relative offset and target address. `RoiDexExceptionControlFlow` validates handler targets, promotes try starts/ends and handler entries to CFG leaders, and adds edges from every block intersecting a protected try range to each declared handler. This is deliberately conservative: it does not claim to know which individual opcode throws.
+
+The `RoiDexRegisterFlowAnalyzer.analyze(CodeItem)` path carries those edges into reaching-definitions and use-def analysis. The raw `analyze(short[], registerCount)` overload remains normal-CFG-only. For exception-aware use-def, handler-entry registers are not marked definitely defined solely from block-level exceptional predecessors, because a throw may occur before an instruction commits its destination.
+
+**Scope limitation:** exception-aware results report `exceptionEdgesIncluded=true`, but `completeForExceptionFlow=false`. The edges over-approximate protected-region transfers; uncaught-exception exits and exact per-opcode throw points are not modeled. Do not treat this as precise exception semantics or as Hook authorization.
 
 ## Phase 3: instruction-level use-def chains
 
@@ -33,13 +37,13 @@ The worklist, definition count, and block-by-definition state space have explici
 - Unreachable use sites are explicitly marked `reachableFromEntry=false`.
 - Use-site and chain-link budgets fail closed instead of returning partial chains.
 
-These chains inherit the normal-CFG-only limitation from phase 2. Exception-handler edges, method parameter register mapping, and receiver/parameter provenance are not yet modeled.
+These chains can consume the conservative exception-aware flow from phase 2. Exact throw-point semantics remain incomplete. Method parameter register mapping is available through the entry-layout integration below; receiver/parameter provenance still describes register positions, not caller-side runtime values.
 
 ## Phase 4: method-entry register layout
 
 `RoiDexMethodEntryLayout` maps incoming register words from the already-decoded CodeItem header (`registers_size`, `ins_size`), access flags, and method prototype descriptor. It validates that the receiver (for non-static methods) plus prototype parameter widths exactly match `ins_size`, and maps both words of `J`/`D` parameters to the same parameter entry.
 
-The layout is metadata-driven, not a raw DEX parser: class-data, method-id, proto-id, and CodeItem byte-stream extraction remain an upstream integration task. Use-def sites can optionally consume this layout to distinguish receiver and parameter entry values from other undefined/unknown values. No prototype or access-flag inference is attempted.
+`RoiDexFileReader` now parses the raw DEX ID tables and class definitions, joins `class_data_item` method definitions to `method_id` and `proto_id`, and exposes `ResolvedMethod` values containing the declaring class descriptor, method name, prototype descriptor, access flags, and associated `CodeItem`. `RoiDexMethodEntryLayout` consumes that decoded metadata. Use-def sites can optionally consume the resulting layout to distinguish receiver and parameter entry positions from other undefined/unknown values. This is static metadata linkage, not caller-side argument provenance; no prototype or access-flag inference is attempted.
 
 ## Hook-safety boundary
 
