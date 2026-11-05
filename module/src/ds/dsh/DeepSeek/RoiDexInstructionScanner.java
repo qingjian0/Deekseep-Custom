@@ -129,21 +129,25 @@ public final class RoiDexInstructionScanner {
         for(int n=0;n<ordered.size();n++) {
             int start=ordered.get(n);
             if(!scan.isInstructionBoundary(start))throw new ScanException("block_starts_outside_instruction:"+start);
-            int end=n+1<ordered.size()?ordered.get(n+1):code.length;
+            int limit=n+1<ordered.size()?ordered.get(n+1):code.length;
             List<Instruction> body=new ArrayList<Instruction>();
-            int p=start; Instruction previous=null;
-            while(p<end) {
+            int p=start;
+            while(p<limit) {
                 Instruction ins=scan.at(p);
-                if(ins==null||p+ins.width>end)throw new ScanException("invalid_block_extent:"+p);
+                if(ins==null)throw new ScanException("instruction_missing_inside_block:"+p);
                 if(ins.payload) {
-                    if(previous!=null&&!previous.payload&&!isGoto(previous.opcode)&&!isTerminal(previous.opcode))
+                    if(body.isEmpty())throw new ScanException("payload_block_start:"+p);
+                    Instruction previous=body.get(body.size()-1);
+                    if(!isGoto(previous.opcode)&&!isTerminal(previous.opcode))
                         throw new ScanException("payload_reachable_by_fallthrough:"+p);
-                } else {
-                    body.add(ins);
+                    break;
                 }
-                previous=ins; p+=ins.width;
+                if(p+ins.width>limit)throw new ScanException("invalid_block_extent:"+p);
+                body.add(ins);
+                p+=ins.width;
             }
             if(body.isEmpty())throw new ScanException("empty_basic_block:"+start);
+            int end=body.get(body.size()-1).offset+body.get(body.size()-1).width;
             blockAt.put(start,blocks.size());blocks.add(new BasicBlock(start,end,body));
         }
         List<Edge> edges=new ArrayList<Edge>();
