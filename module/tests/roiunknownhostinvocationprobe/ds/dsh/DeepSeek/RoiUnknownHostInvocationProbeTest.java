@@ -195,6 +195,18 @@ public final class RoiUnknownHostInvocationProbeTest {
                             installed[0] = callback;
                         }
                     };
+            check(!installer.install(flag, candidate, method,
+                    HostFixture.class.getClassLoader(), registrar),
+                    "probe must not install when its independent switch is off");
+            write(flag, "ENABLE\\n");
+            RoiUnknownHostInvocationProbePolicy.Candidate unverified =
+                    new RoiUnknownHostInvocationProbePolicy.Candidate(owner, "transport",
+                            descriptor, scope,
+                            RoiUnknownHostInvocationProbePolicy.Role.HTTP_TRANSPORT,
+                            true, false, true);
+            check(!installer.install(flag, unverified, method,
+                    HostFixture.class.getClassLoader(), registrar),
+                    "unverified semantic role must block installation");
             check(!installer.install(flag, candidate, method, new ClassLoader(
                     HostFixture.class.getClassLoader()) {}, registrar),
                     "a parent loader must not be treated as a child host scope");
