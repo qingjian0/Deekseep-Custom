@@ -107,6 +107,7 @@ final class RoiDexKitDiscovery {
                     String report = inspect(root, apkPath, splitApkPaths, pass == 0);
                     Main.log("[ROI_DEXKIT]\npass=" + (pass + 1) + "\n" + report);
                 }
+                Main.finalizeRoiUnknownHostChatRequestDiscovery();
             } catch (VirtualMachineError fatal) {
                 throw fatal;
             } catch (ThreadDeath fatal) {
