@@ -297,12 +297,12 @@ public final class RoiDexRegisterFlowAnalyzerTest {
         RoiDexReachingDefinitions.Result reaching =
                 RoiDexReachingDefinitions.analyze(flow);
         RoiDexReachingDefinitions.BlockResult dead = blockAt(reaching, 2);
-        RoiDexReachingDefinitions.BlockResult live = blockAt(reaching, 5);
+        RoiDexReachingDefinitions.BlockResult live = blockAt(reaching, 6);
         check(dead != null && !dead.reachableFromEntry,
                 "dead block is explicitly marked unreachable from method entry");
         check(live != null && live.reachableFromEntry && live.reachingIn.length == 0,
                 "definition from unreachable predecessor cannot contaminate live code");
-        RoiDexUseDefChains.UseSite use = useAt(chains(code, 1), 5, 0);
+        RoiDexUseDefChains.UseSite use = useAt(chains(code, 1), 6, 0);
         check(use != null && use.reachingDefinitions.length == 0
                         && use.mayBeEntryOrUnknownValue && use.reachableFromEntry,
                 "reachable use is not linked to a dead-block definition");
