@@ -1850,6 +1850,28 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         }
     }
 
+    /** Finalize bounded DEX discovery before authorizing any unknown-host feature adapter. */
+    static void finalizeRoiUnknownHostChatRequestDiscovery() {
+        Main active = roiMainInstance;
+        if (active == null || HostCompat.supportsMaintainedFeatureRuntime()
+                || !RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
+                        new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE))) return;
+        try {
+            List<RoiUnknownHostChatRequestResolver.Candidate> candidates =
+                    ROI_UNKNOWN_HOST_CHAT_REQUEST_RESOLVER.finalizeDiscovery();
+            log("[ROI_AUTO_FEATURE_HOOK] discovery finalized; uniqueChatRequestCandidates="
+                    + candidates.size());
+            for (RoiUnknownHostChatRequestResolver.Candidate candidate : candidates) {
+                registerRoiUnknownHostChatRequestCandidate(candidate);
+            }
+        } catch (Throwable error) {
+            if (error instanceof VirtualMachineError) throw (VirtualMachineError) error;
+            if (error instanceof ThreadDeath) throw (ThreadDeath) error;
+            log("[ROI_AUTO_FEATURE_HOOK] discovery finalization failed="
+                    + error.getClass().getName());
+        }
+    }
+
     /** Register a DEX-derived chat request constructor for the explicit unknown-host feature lane. */
     static void registerRoiUnknownHostChatRequestCandidate(
             RoiUnknownHostChatRequestResolver.Candidate candidate) {
