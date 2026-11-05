@@ -24,6 +24,8 @@ final class RoiRuntimeInvocationObserver {
             new IdentityHashMap<Object, String>();
     private static final Map<Object, String> FLOW_REQUEST_KEYS =
             new IdentityHashMap<Object, String>();
+    private static final Map<Object, Long> FLOW_REQUEST_TIMESTAMPS =
+            new IdentityHashMap<Object, Long>();
     private static volatile RoiRuntimeInvocationRecorder recorder;
     private static volatile String hostFingerprint = "";
     private static volatile boolean recordingEnabled;
@@ -131,8 +133,13 @@ final class RoiRuntimeInvocationObserver {
             synchronized (REQUEST_KEYS) { key = REQUEST_KEYS.remove(request); }
             if (key == null || flow == null) return;
             synchronized (FLOW_REQUEST_KEYS) {
-                if (FLOW_REQUEST_KEYS.size() >= 512) FLOW_REQUEST_KEYS.clear();
+                pruneFlowBindings(now);
+                if (FLOW_REQUEST_KEYS.size() >= 512) {
+                    FLOW_REQUEST_KEYS.clear();
+                    FLOW_REQUEST_TIMESTAMPS.clear();
+                }
                 FLOW_REQUEST_KEYS.put(flow, key);
+                FLOW_REQUEST_TIMESTAMPS.put(flow, Long.valueOf(now));
             }
         } catch (Throwable ignored) {
             rethrowFatal(ignored);
@@ -148,7 +155,10 @@ final class RoiRuntimeInvocationObserver {
                     || !collectorType.isInterface() || !collectorType.isInstance(collector)
                     || active == null || !activeEnabled(active)) return collector;
             final String key;
-            synchronized (FLOW_REQUEST_KEYS) { key = FLOW_REQUEST_KEYS.remove(flow); }
+            synchronized (FLOW_REQUEST_KEYS) {
+                pruneFlowBindings(System.currentTimeMillis());
+                key = FLOW_REQUEST_KEYS.get(flow);
+            }
             if (key == null) return collector;
             // Kotlin FlowCollector.emit is a suspend method. Preserve collector identity and
             // record the exact unsupported capability instead of silently losing coverage.
@@ -255,10 +265,26 @@ final class RoiRuntimeInvocationObserver {
         RoiRuntimeInvocationRecorder previous = recorder;
         if (previous != null) previous.clear();
         synchronized (REQUEST_KEYS) { REQUEST_KEYS.clear(); }
-        synchronized (FLOW_REQUEST_KEYS) { FLOW_REQUEST_KEYS.clear(); }
+        synchronized (FLOW_REQUEST_KEYS) {
+            FLOW_REQUEST_KEYS.clear();
+            FLOW_REQUEST_TIMESTAMPS.clear();
+        }
         recorder = null;
         hostFingerprint = "";
         recordingEnabled = false;
+    }
+
+    /** Retain identity bindings briefly so a cold Flow may be collected more than once. */
+    private static void pruneFlowBindings(long nowMillis) {
+        java.util.Iterator<Map.Entry<Object, Long>> it = FLOW_REQUEST_TIMESTAMPS.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<Object, Long> entry = it.next();
+            long created = entry.getValue() == null ? 0L : entry.getValue().longValue();
+            if (created <= 0L || nowMillis < created || nowMillis - created > 120000L) {
+                FLOW_REQUEST_KEYS.remove(entry.getKey());
+                it.remove();
+            }
+        }
     }
 
     private static boolean activeEnabled(RoiRuntimeInvocationRecorder active) {
