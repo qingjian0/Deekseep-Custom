@@ -3002,6 +3002,62 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         }
     }
 
+    private static boolean isExplicitEnableMarker(String path) {
+        if (path == null) return false;
+        return RoiUnknownHostHookPolicy.isExplicitlyEnabled(new File(path));
+    }
+
+    private static boolean setExplicitEnableMarker(String path, boolean enabled) {
+        if (path == null) return false;
+        File marker = new File(path);
+        try {
+            if (enabled) {
+                overwriteTextFile(path, RoiUnknownHostHookPolicy.ENABLE_TOKEN);
+            } else if (marker.exists() && !marker.delete()) {
+                return false;
+            }
+            return isExplicitEnableMarker(path) == enabled;
+        } catch (Throwable error) {
+            log("unknown-host gate preference update failed: " + safeThrowableMessage(error));
+            return false;
+        }
+    }
+
+    static boolean isUnknownVersionHookAttemptsEnabled() {
+        return isExplicitEnableMarker(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE);
+    }
+
+    static boolean setUnknownVersionHookAttemptsEnabled(boolean enabled) {
+        return setExplicitEnableMarker(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE, enabled);
+    }
+
+    static boolean isUnknownHostDiagnosticProbesEnabled() {
+        return isExplicitEnableMarker(ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE);
+    }
+
+    static boolean setUnknownHostDiagnosticProbesEnabled(boolean enabled) {
+        return setExplicitEnableMarker(ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE, enabled);
+    }
+
+    static boolean isUnknownHostFeatureHooksAuthorized() {
+        return isExplicitEnableMarker(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE);
+    }
+
+    static boolean setUnknownHostFeatureHooksAuthorized(boolean enabled) {
+        return setExplicitEnableMarker(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE, enabled);
+    }
+
+    static String unknownHostHookGateStatus() {
+        boolean unknown = isUnknownVersionHookAttemptsEnabled();
+        boolean probes = isUnknownHostDiagnosticProbesEnabled();
+        boolean features = isUnknownHostFeatureHooksAuthorized();
+        if (!unknown && !probes && !features) return "全部关闭：未知版本不尝试，诊断探针和功能 Hook 均不运行";
+        if (!unknown && probes) return "诊断探针已授权；未知版本兼容性尝试与功能 Hook 仍被阻止";
+        if (!unknown && features) return "功能 Hook 授权已保存，但未知版本尝试开关关闭，因此不会执行";
+        if (unknown && !features) return "允许未知版本兼容性尝试；功能 Hook 因未授权而被阻止";
+        return "未知版本尝试与功能 Hook 授权均已开启；具体 Hook 仍须通过运行时校验";
+    }
+
     static boolean isLegacySettingsEntryEnabled() {
         return !HookUiSurface.isNativeSettingsEntryEnabled();
     }
