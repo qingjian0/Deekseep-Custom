@@ -108,7 +108,8 @@ public final class RoiDexInstructionScanner {
             int next=i.offset+i.width;
             for(int target:i.targets)starts.add(target);
             if(isConditional(i.opcode)||isGoto(i.opcode)||isSwitch(i.opcode)||isTerminal(i.opcode)) {
-                if(next<code.length && scan.isInstructionBoundary(next))starts.add(next);
+                int executableNext=nextExecutableOffset(scan,next);
+                if(executableNext<code.length)starts.add(executableNext);
             }
             if(isSwitch(i.opcode)) {
                 int payloadOffset=checkedTarget(i.offset,s32(code,i.offset+1));
@@ -128,8 +129,9 @@ public final class RoiDexInstructionScanner {
             int p=start;
             while(p<end) {
                 Instruction ins=scan.at(p);
-                if(ins==null||ins.payload||p+ins.width>end)throw new ScanException("invalid_block_extent:"+p);
-                body.add(ins);p+=ins.width;
+                if(ins==null||p+ins.width>end)throw new ScanException("invalid_block_extent:"+p);
+                if(!ins.payload)body.add(ins);
+                p+=ins.width;
             }
             if(body.isEmpty())throw new ScanException("empty_basic_block:"+start);
             blockAt.put(start,blocks.size());blocks.add(new BasicBlock(start,end,body));
@@ -137,7 +139,7 @@ public final class RoiDexInstructionScanner {
         List<Edge> edges=new ArrayList<Edge>();
         for(int bi=0;bi<blocks.size();bi++) {
             BasicBlock b=blocks.get(bi);Instruction last=b.instructions[b.instructions.length-1];
-            int next=last.offset+last.width;
+            int next=nextExecutableOffset(scan,last.offset+last.width);
             if(isGoto(last.opcode)) {
                 addEdge(edges,bi,blockAt,last.targets[0],"GOTO");
             } else if(isConditional(last.opcode)) {
@@ -156,6 +158,16 @@ public final class RoiDexInstructionScanner {
         return new ControlFlowGraph(scan,blocks,edges);
     }
 
+    private static int nextExecutableOffset(ScanResult scan,int offset) {
+        int p=offset;
+        while(p<scan.codeUnits) {
+            Instruction ins=scan.at(p);
+            if(ins==null)return scan.codeUnits;
+            if(!ins.payload)return p;
+            p+=ins.width;
+        }
+        return scan.codeUnits;
+    }
     private static void addFallthrough(List<Edge> e,int from,int target,Map<Integer,Integer> blocks,String kind)throws ScanException {
         Integer to=blocks.get(target);
         if(to!=null)e.add(new Edge(from,to,kind));
