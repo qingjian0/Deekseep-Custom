@@ -198,7 +198,7 @@ public final class RoiUnknownHostInvocationProbeTest {
             check(!installer.install(flag, candidate, method,
                     HostFixture.class.getClassLoader(), registrar),
                     "probe must not install when its independent switch is off");
-            write(flag, "ENABLE\\n");
+            write(flag, "ENABLE\n");
             RoiUnknownHostInvocationProbePolicy.Candidate unverified =
                     new RoiUnknownHostInvocationProbePolicy.Candidate(owner, "transport",
                             descriptor, scope,
