@@ -67,12 +67,17 @@ final class RoiUnknownHostInvocationProbe {
         long started = System.nanoTime();
         try {
             Object result = call.proceed();
-            record(descriptor, elapsed(started), null, System.nanoTime());
+            recordSafely(descriptor, elapsed(started), null, System.nanoTime());
             return result;
         } catch (Throwable failure) {
-            record(descriptor, elapsed(started), failure.getClass().getName(), System.nanoTime());
+            recordSafely(descriptor, elapsed(started), failure.getClass().getName(), System.nanoTime());
             throw failure;
         }
+    }
+
+    private void recordSafely(String descriptor, long elapsedNanos, String exceptionType, long nowNanos) {
+        try { record(descriptor, elapsedNanos, exceptionType, nowNanos); }
+        catch (Throwable ignored) { /* Diagnostics must never replace the host result or failure. */ }
     }
 
     private synchronized void record(String descriptor, long elapsedNanos,
