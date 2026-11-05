@@ -37,7 +37,8 @@ jobs:
         run: |
           set -euo pipefail
           bash -n module/test-roi-dex-instruction-decoder.sh
-          bash -n module/test-roi-dex-file-reader.sh\n          bash -n module/test-roi-dex-data-reader.sh
+          bash -n module/test-roi-dex-file-reader.sh
+          bash -n module/test-roi-dex-data-reader.sh
           bash -n module/test-roi-hook-resolver.sh
           bash -n module/test-roi-dexkit-discovery.sh
           bash -n module/test-roi-candidate-graph.sh
@@ -58,6 +59,7 @@ jobs:
           bash -n module/test-roi-runtime-recorder.sh
           bash module/test-roi-dex-instruction-decoder.sh
           bash module/test-roi-dex-file-reader.sh
+          bash module/test-roi-dex-data-reader.sh
           bash module/test-roi-hook-resolver.sh
           bash module/test-roi-dexkit-discovery.sh
           bash module/test-roi-candidate-graph.sh
@@ -67,6 +69,7 @@ jobs:
           bash module/test-roi-class-load-observer.sh
           bash module/test-roi-discovery-budget.sh
           bash module/test-roi-dex-file-reader.sh
+          bash module/test-roi-dex-data-reader.sh
           bash module/test-roi-semantic-role-hints.sh
           bash module/test-roi-functional-role-classifier.sh
           bash module/test-roi-runtime-recorder.sh
