@@ -168,7 +168,7 @@ public final class RoiUnknownHostInvocationProbeTest {
         RoiUnknownHostInvocationProbeInstaller installer =
                 new RoiUnknownHostInvocationProbeInstaller(probe);
         try {
-            write(flag, "ENABLE\\n");
+            write(flag, "ENABLE\n");
             java.lang.reflect.Method method = HostFixture.class.getDeclaredMethod(
                     "transport", String.class);
             RoiLoadedClassInspector.Snapshot snapshot =
@@ -215,7 +215,7 @@ public final class RoiUnknownHostInvocationProbeTest {
             check(calls[0] == 1 && result == marker,
                     "installed callback must preserve exactly-once result");
 
-            write(flag, "DISABLE\\n");
+            write(flag, "DISABLE\n");
             installed[0].invoke(new RoiUnknownHostInvocationProbe.ProceedingCall() {
                 @Override public Object proceed() { calls[0]++; return marker; }
             });
@@ -226,7 +226,7 @@ public final class RoiUnknownHostInvocationProbeTest {
             RoiUnknownHostInvocationProbe freshProbe = new RoiUnknownHostInvocationProbe();
             RoiUnknownHostInvocationProbeInstaller failingInstaller =
                     new RoiUnknownHostInvocationProbeInstaller(freshProbe);
-            write(flag, "ENABLE\\n");
+            write(flag, "ENABLE\n");
             try {
                 failingInstaller.install(flag, candidate, method,
                         HostFixture.class.getClassLoader(),
