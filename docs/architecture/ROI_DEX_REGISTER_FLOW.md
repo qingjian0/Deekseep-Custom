@@ -28,7 +28,9 @@ The worklist, definition count, and block-by-definition state space have explici
 - Loop-carried definitions are included after the reaching-definitions fixed point.
 - Wide values are represented as two register-word use sites.
 - Repeated operands remain distinct through their operand index.
-- A use with no modeled reaching definition is marked `mayBeEntryOrUnknownValue`; it is not declared uninitialized.
+- A separate must-defined dataflow pass marks `mayBeEntryOrUnknownValue` whenever at least one reachable path can arrive without a modeled definition; this includes a method's initial entry path even when a loop back-edge contributes definitions.
+- Parameter and receiver register words remain entry/unknown until method prototype and `ins_size` metadata are supplied; the analysis does not guess which incoming words are `this` or arguments.
+- Unreachable use sites are explicitly marked `reachableFromEntry=false`.
 - Use-site and chain-link budgets fail closed instead of returning partial chains.
 
 These chains inherit the normal-CFG-only limitation from phase 2. Exception-handler edges, method parameter register mapping, and receiver/parameter provenance are not yet modeled.
