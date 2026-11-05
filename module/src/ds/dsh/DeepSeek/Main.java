@@ -1692,8 +1692,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     /**
      * Installs one opt-in BaseDexClassLoader.findClass observer for the host process.
-     * Maintained hosts use the class-load observation switch; unknown hosts require the
-     * separate explicit ROI unknown-host switch. The callback proceeds first and only inspects
+     * Maintained hosts use the class-load observation switch; unknown hosts require either the
+     * explicit metadata-observation switch or the independent invocation-probe switch. The
+     * callback proceeds first and only inspects
      * classes defined by the host root loader or one of its child loaders.
      */
     private void installRoiClassLoadObserver(final ClassLoader hostRoot,
