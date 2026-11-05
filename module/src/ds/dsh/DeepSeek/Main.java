@@ -1186,17 +1186,20 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         if (!HostCompat.supportsMaintainedFeatureRuntime()) {
             String unsupported = bootstrapVersion == null || bootstrapVersion.length() == 0
                     ? HostCompat.generationName() : bootstrapVersion;
+            final RoiUnknownHostActivationGates unknownHostGates =
+                    RoiUnknownHostActivationGates.of(
+                            RoiUnknownHostHookPolicy.isExplicitlyEnabled(
+                                    new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE)),
+                            RoiUnknownHostInvocationProbePolicy.isExplicitlyEnabled(
+                                    new File(ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE)),
+                            RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
+                                    new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE)));
             final boolean unknownVersionAttemptsEnabled =
-                    RoiUnknownHostHookPolicy.allowsMetadataObservation(false,
-                            new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE));
-            final boolean diagnosticProbesEnabled =
-                    RoiUnknownHostInvocationProbePolicy.isExplicitlyEnabled(
-                            new File(ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE));
-            final boolean featureHooksAuthorized =
-                    RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
-                            new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE));
-            final boolean unknownHostActivationEnabled = unknownVersionAttemptsEnabled
-                    || diagnosticProbesEnabled || featureHooksAuthorized;
+                    unknownHostGates.unknownVersionAttemptsEnabled;
+            final boolean diagnosticProbesEnabled = unknownHostGates.diagnosticProbesEnabled;
+            final boolean featureHooksAuthorized = unknownHostGates.featureHooksAuthorized;
+            final boolean unknownHostActivationEnabled =
+                    unknownHostGates.requiresClassLoadDispatcher();
             log("unknown/unmaintained host: isolated opt-in lanes"
                     + " unknownVersionAttempts=" + unknownVersionAttemptsEnabled
                     + ", diagnosticProbes=" + diagnosticProbesEnabled
@@ -1735,10 +1738,17 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 Object receiver = chain.getThisObject();
                 if (receiver instanceof ClassLoader && loaded instanceof Class<?>) {
                     try {
+                        RoiUnknownHostActivationGates liveGates =
+                                RoiUnknownHostActivationGates.of(
+                                        unknownHostOptIn && RoiUnknownHostHookPolicy.isExplicitlyEnabled(
+                                                new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE)),
+                                        RoiUnknownHostInvocationProbePolicy.isExplicitlyEnabled(
+                                                new File(ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE)),
+                                        RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
+                                                new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE)));
                         boolean metadataObservationEnabled = maintainedHost
                                 ? new File(ROI_CLASS_LOAD_OBSERVATION_ENABLE_FILE).isFile()
-                                : (unknownHostOptIn && RoiUnknownHostHookPolicy.isExplicitlyEnabled(
-                                        new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE)));
+                                : liveGates.allowsMetadataObservation();
                         if (metadataObservationEnabled) {
                             RoiClassLoadObserver.EventSnapshot event =
                                     ROI_CLASS_LOAD_OBSERVER.observe(
@@ -1757,9 +1767,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                         }
                         // The remaining lanes are deliberately independent of metadata logging.
                         // A probe or feature-Hook switch must not turn metadata diagnostics on.
-                        if (!maintainedHost && RoiUnknownHostInvocationProbePolicy
-                                .isExplicitlyEnabled(new File(
-                                        ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE))) {
+                        if (!maintainedHost && liveGates.allowsDiagnosticProbes()) {
                             int autoInstalled = ROI_UNKNOWN_HOST_AUTO_PROBE.observeLoadedClass(
                                     (Class<?>) loaded, hostRoot,
                                     new RoiUnknownHostAutoProbeCoordinator.Installer() {
@@ -1775,8 +1783,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                                         + ", candidates=" + ROI_UNKNOWN_HOST_AUTO_PROBE.candidateCount());
                             }
                         }
-                        if (!maintainedHost && RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
-                                new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE))) {
+                        if (!maintainedHost && liveGates.allowsFeatureHookAttempts()) {
                             int featureHooks = ROI_UNKNOWN_HOST_CHAT_REQUEST_RESOLVER
                                     .observeLoadedClass((Class<?>) loaded, hostRoot,
                                             new RoiUnknownHostChatRequestResolver.Installer() {
