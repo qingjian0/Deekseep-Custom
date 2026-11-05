@@ -22,6 +22,7 @@ public final class RoiUnknownHostChatRequestResolverTest {
         testClassLoadAfterCandidate();
         testWeakIdentityAndDuplicateSuppression();
         testFailClosedInputs();
+        testFeatureHookPolicy();
         System.out.println("ROI unknown-host chat request resolver tests passed");
     }
 
@@ -111,6 +112,47 @@ public final class RoiUnknownHostChatRequestResolverTest {
         resolver.observeLoadedClass(RequestFixture.class, root, installer);
         check(installs.get() == 1, "same runtime constructor must never be installed twice");
         check(resolver.observedClassCount() == 1, "class identity is deduplicated");
+    }
+
+    private static void testFeatureHookPolicy() throws Throwable {
+        RoiUnknownHostChatRequestResolver resolver = new RoiUnknownHostChatRequestResolver();
+        ClassLoader root = RequestFixture.class.getClassLoader();
+        String scope = RoiCandidateIdentity.forClassLoader(root);
+        String constructor = constructorDescriptor(RequestFixture.class.getDeclaredConstructors()[0]);
+        for (String anchor : new String[]{"chat_session_id", "parent_message_id",
+                "thinking_enabled", "search_enabled"}) {
+            resolver.observeDexCandidate(scope, anchor,
+                    "Lserializer/RequestSerializer;->deserialize()V",
+                    Arrays.asList(constructor));
+        }
+        RoiUnknownHostChatRequestResolver.Candidate candidate = resolver.bestCandidate(scope);
+        Constructor<?> target = RequestFixture.class.getDeclaredConstructors()[0];
+        java.io.File switchFile = java.io.File.createTempFile("roi-feature-hook", ".switch");
+        try {
+            write(switchFile, "DISABLED\\n");
+            check(!RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
+                    false, switchFile, candidate, target, root), "feature switch defaults closed");
+            write(switchFile, "ENABLE\\n");
+            check(RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
+                    false, switchFile, candidate, target, root), "exact adapter candidate authorized");
+            check(!RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
+                    true, switchFile, candidate, target, root), "maintained host does not use unknown lane");
+            check(!RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
+                    false, switchFile, null, target, root), "missing candidate rejected");
+            check(!RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
+                    false, switchFile, candidate, WrongFixture.class.getDeclaredConstructors()[0], root),
+                    "different constructor rejected");
+            write(switchFile, "ENABLE\\nEXTRA\\n");
+            check(!RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(
+                    false, switchFile, candidate, target, root), "extra switch line rejected");
+        } finally {
+            switchFile.delete();
+        }
+    }
+
+    private static void write(java.io.File file, String value) throws Exception {
+        java.io.FileWriter writer = new java.io.FileWriter(file, false);
+        try { writer.write(value); } finally { writer.close(); }
     }
 
     private static void testFailClosedInputs() {
