@@ -7,13 +7,14 @@ HOST_DISCOVERY="$ROOT/module/src/ds/dsh/DeepSeek/RoiHostDiscovery.java"
 MAIN="$ROOT/module/src/ds/dsh/DeepSeek/Main.java"
 GRAPH="$ROOT/module/src/ds/dsh/DeepSeek/RoiCandidateGraph.java"
 ROLE_HINTS="$ROOT/module/src/ds/dsh/DeepSeek/RoiSemanticRoleHints.java"
+LOADER_PROFILE="$ROOT/module/src/ds/dsh/DeepSeek/RoiClassLoaderProfile.java"
 
 python3 - "$DISCOVERY" "$HOST_DISCOVERY" "$MAIN" "$GRAPH" "$ROLE_HINTS" <<'PY'
 import pathlib
 import re
 import sys
 
-discovery, host_discovery, main, graph, role_hints = [pathlib.Path(p).read_text(encoding="utf-8") for p in sys.argv[1:]]
+discovery, host_discovery, main, graph, role_hints, loader_profile = [pathlib.Path(p).read_text(encoding="utf-8") for p in sys.argv[1:]]
 
 def require(source, pattern, label):
     if not re.search(pattern, source, re.S):
@@ -26,6 +27,12 @@ require(discovery, r'for \(int i = 0; i < apkPaths\.size\(\); i\+\+\)', "APK pat
 require(discovery, r'SEMANTIC_ANCHORS', "semantic query anchors are defined")
 require(discovery, r'RoiCandidateIdentity[.]forClassLoader[(]loaders[.]get[(]i[)][)]', "loader identity uses the actual object")
 require(discovery, r'RoiCandidateIdentity[.]forApkPath[(]apkPaths[.]get[(]i[)][)]', "APK identity uses its path")
+require(loader_profile, r'InMemoryDexClassLoader', "in-memory DEX loader is classified")
+require(loader_profile, r'DexClassLoader', "file-backed DEX loader is classified")
+require(loader_profile, r'encryptedDexAssessment', "encryption assessment is explicit")
+require(loader_profile, r'unconfirmed_custom_loader_requires_runtime_dex_evidence', "custom loader is not treated as encryption proof")
+require(discovery, r'RoiClassLoaderProfile[.]inspect[(]loaders[.]get[(]i[)][)]', "live loader profile is reported")
+require(discovery, r'profile[.]encryptedDexAssessment=', "encryption assessment is emitted as diagnostic only")
 require(discovery, r'RoiCandidateIdentity[.]candidateId[(]', "candidate IDs include source scope")
 require(discovery, r'RoiHookResolver[.]Candidate[(][^;]*sourceScope, candidateId', "resolver candidate retains source identity")
 require(discovery, r'appendCallRelations[(][^;]*sourceScope', "call relation observations retain source scope")
