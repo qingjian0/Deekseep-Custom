@@ -15,6 +15,7 @@ public final class RoiDexUseDefChains {
 
     private static final int MAX_USE_SITES = 200000;
     private static final long MAX_CHAIN_LINKS = 2000000L;
+    private static final long MAX_DEFINITE_FLOW_CELLS = 20000000L;
 
     public static final class AnalysisException extends Exception {
         public AnalysisException(String message) { super(message); }
@@ -154,6 +155,8 @@ public final class RoiDexUseDefChains {
         }
         if (registerCount > 0xffff)
             throw new AnalysisException("register_domain_exceeded");
+        if ((long) blocks * registerCount > MAX_DEFINITE_FLOW_CELLS)
+            throw new AnalysisException("definite_definition_memory_budget_exceeded");
 
         @SuppressWarnings("unchecked")
         List<Integer>[] predecessors = new List[blocks];
