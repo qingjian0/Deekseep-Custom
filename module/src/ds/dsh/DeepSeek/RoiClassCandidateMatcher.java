@@ -2,14 +2,21 @@ package ds.dsh.DeepSeek;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
- * Conservative association between a DexKit method candidate and an already-observed
- * runtime class. This class performs no class loading, reflection, invocation, or hooking.
+ * Conservative association between DexKit candidates and classes already observed by
+ * the host ClassLoader. Matching is metadata-only and never authorizes or installs hooks.
  */
 final class RoiClassCandidateMatcher {
     enum Status { EXACT_MATCH, STRUCTURAL_MATCH, PARTIAL_MATCH, CONFLICT, UNMATCHED }
+
+    private static final int MAX_REGISTERED_CANDIDATES = 512;
+    private static final int MAX_MATCH_REPORTS_PER_CLASS = 8;
+    private static final Map<String, Candidate> REGISTERED =
+            new LinkedHashMap<String, Candidate>();
 
     static final class Candidate {
         final String sourceScope, owner, methodName, descriptor;
@@ -48,6 +55,52 @@ final class RoiClassCandidateMatcher {
     }
 
     private RoiClassCandidateMatcher() {}
+
+    /** Retain only process-local ClassLoader candidates; APK-only candidates cannot be correlated. */
+    static synchronized void registerCandidate(Candidate candidate) {
+        if (candidate == null || !candidate.sourceScope.startsWith("loader:")
+                || candidate.owner.length() == 0 || candidate.methodName.length() == 0
+                || candidate.descriptor.length() == 0) return;
+        String key = candidateKey(candidate);
+        REGISTERED.put(key, candidate);
+        while (REGISTERED.size() > MAX_REGISTERED_CANDIDATES) {
+            String eldest = REGISTERED.keySet().iterator().next();
+            REGISTERED.remove(eldest);
+        }
+    }
+
+    /** Match an already-loaded Class supplied by the host class-load observer. */
+    static String matchObservedClass(Class<?> type) {
+        if (type == null) return "";
+        String scope = RoiCandidateIdentity.forClassLoader(safeLoader(type));
+        List<Candidate> candidates = new ArrayList<Candidate>();
+        synchronized (RoiClassCandidateMatcher.class) {
+            for (Candidate candidate : REGISTERED.values()) {
+                if (scope.equals(candidate.sourceScope)) candidates.add(candidate);
+            }
+        }
+        if (candidates.isEmpty()) return "";
+
+        RoiLoadedClassInspector.Snapshot snapshot = RoiLoadedClassInspector.inspect(type);
+        LoadedClass loaded = new LoadedClass(snapshot.loaderScope, snapshot.className,
+                snapshot.dexMethodDescriptors, snapshot.methodsTruncated,
+                snapshot.inspectionStatus);
+        StringBuilder report = new StringBuilder();
+        int emitted = 0;
+        for (Candidate candidate : candidates) {
+            Result result = match(candidate, loaded);
+            if (result.status == Status.UNMATCHED) continue;
+            if (emitted++ >= MAX_MATCH_REPORTS_PER_CLASS) break;
+            if (report.length() > 0) report.append('\n');
+            report.append("status=").append(result.status.name())
+                    .append(",owner=").append(candidate.owner)
+                    .append(",method=").append(candidate.methodName)
+                    .append(",descriptor=").append(candidate.descriptor)
+                    .append(",reason=").append(result.reason)
+                    .append(",activationAuthorized=false");
+        }
+        return report.toString();
+    }
 
     static Result match(Candidate candidate, LoadedClass loaded) {
         if (candidate == null || loaded == null
@@ -95,6 +148,16 @@ final class RoiClassCandidateMatcher {
         String value = clean(owner).replace('.', '/');
         if (value.startsWith("L") && value.endsWith(";")) return value;
         return "L" + value + ";";
+    }
+
+    private static String candidateKey(Candidate candidate) {
+        return candidate.sourceScope + "|" + normalizeOwner(candidate.owner) + "->"
+                + candidate.methodName + candidate.descriptor;
+    }
+
+    private static ClassLoader safeLoader(Class<?> type) {
+        try { return type.getClassLoader(); }
+        catch (SecurityException denied) { return null; }
     }
 
     private static Result result(Status status, String reason) {
