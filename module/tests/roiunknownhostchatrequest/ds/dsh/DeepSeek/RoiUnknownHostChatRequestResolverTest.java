@@ -80,6 +80,11 @@ public final class RoiUnknownHostChatRequestResolverTest {
         String scope = RoiCandidateIdentity.forClassLoader(root);
         String constructor = constructorDescriptor(RequestFixture.class.getDeclaredConstructors()[0]);
         String serializer = "Lserializer/RequestSerializer;->deserialize()V";
+        // The runtime class may load before DexKit finishes; retain this observation so
+        // re-finalization can reconcile and install the refreshed exact candidate.
+        check(resolver.observeLoadedClass(RequestFixture.class, root,
+                (candidate, ctor) -> false) == 0,
+                "pre-discovery class observation is retained without installing");
         String[] anchors = {"chat_session_id", "parent_message_id",
                 "thinking_enabled", "search_enabled"};
         for (String anchor : anchors) {
