@@ -1,11 +1,10 @@
 package ds.dsh.DeepSeek;
 public final class RoiDexInstructionDecoderTest {
  public static void main(String[] args)throws Exception{
-  test35c();test35cFiveRegisters();test3rc();testWide();testStatic();testFailures();
+  test35c();test35cFiveRegisters();test3rc();testWide();testStatic();testFailures();testMalformedDescriptors();
   System.out.println("RoiDexInstructionDecoderTest: PASS");
  }
  static void test35c()throws Exception{
-  // invoke-direct {v1,v2,v3}, method@0x123; A=3, G=3.
   short[] c={(short)0x3370,(short)0x0123,(short)0x0321};
   RoiDexInstructionDecoder.Decoded d=RoiDexInstructionDecoder.decode(c,0,8);
   eq(3,d.width);eq(0x70,d.opcode);eq(0x123,d.referenceIndex);eq(3,d.registers.length);
@@ -27,7 +26,20 @@ public final class RoiDexInstructionDecoderTest {
   eq(-1,map(s,false,0));eq(0,map(s,false,1));eq(1,map(s,false,2));
   eq(1,map(s,false,3));eq(2,map(s,false,4));eq(2,map(s,false,5));eq(3,map(s,false,6));
  }
- static void testStatic()throws Exception{eq(0,map("(JD)V",true,0));eq(0,map("(JD)V",true,1));eq(1,map("(JD)V",true,2));}
+ static void testStatic()throws Exception{
+  eq(0,map("(JD)V",true,0));eq(0,map("(JD)V",true,1));eq(1,map("(JD)V",true,2));
+  eq(1,map("(JD)Ljava/lang/String;",true,2));
+ }
+ static void testMalformedDescriptors()throws Exception{
+  badDescriptor("(V)V");badDescriptor("([V)V");badDescriptor("(L;)V");
+  badDescriptor("(Lfoo//Bar;)V");badDescriptor("(Ljava.lang.String;)V");
+  badDescriptor("(I)");badDescriptor("(I)Vjunk");badDescriptor("(I)Q");
+  badDescriptor("(Lfoo/Bar)V");badDescriptor("([[[)V");
+ }
+ static void badDescriptor(String s)throws Exception{
+  try{map(s,true,0);}catch(RoiDexInstructionDecoder.DecodeException expected){return;}
+  throw new AssertionError("expected invalid descriptor: "+s);
+ }
  static int map(String s,boolean st,int p)throws Exception{return RoiDexInstructionDecoder.parameterIndexForRegisterPosition(s,st,p);}
  static void testFailures()throws Exception{
   fail(new short[]{(short)0x0028},0,4);
