@@ -23,7 +23,8 @@ final class RoiUnknownHostActivationGates {
     }
 
     boolean requiresClassLoadDispatcher() {
-        return unknownVersionAttemptsEnabled || diagnosticProbesEnabled || featureHooksAuthorized;
+        // Feature authorization alone must not start an unknown-version attempt.
+        return unknownVersionAttemptsEnabled || diagnosticProbesEnabled;
     }
 
     boolean allowsMetadataObservation() {
@@ -35,6 +36,7 @@ final class RoiUnknownHostActivationGates {
     }
 
     boolean allowsFeatureHookAttempts() {
-        return featureHooksAuthorized;
+        // Unknown-host feature Hooks require both the version-attempt gate and user authorization.
+        return unknownVersionAttemptsEnabled && featureHooksAuthorized;
     }
 }
