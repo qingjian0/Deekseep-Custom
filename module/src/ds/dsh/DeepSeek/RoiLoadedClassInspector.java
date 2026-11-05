@@ -65,7 +65,7 @@ final class RoiLoadedClassInspector {
         ClassLoader loader = safeClassLoader(type);
         String scope = RoiCandidateIdentity.forClassLoader(loader);
         String name = safeName(type);
-        String descriptor = "L" + name.replace('.', '/') + ";";
+        String descriptor = typeDescriptor(type);
         String parent = "";
         List<String> interfaces = new ArrayList<String>();
         List<String> methods = new ArrayList<String>();
