@@ -23,7 +23,6 @@ grep -Fq 'return false;' "$HOOK_POLICY"
 
 COORDINATOR="$ROOT/module/src/ds/dsh/DeepSeek/RoiUnknownHostAutoProbeCoordinator.java"
 test -s "$COORDINATOR"
-grep -Fq 'RoiUnknownHostAutoProbeCoordinator.registerCandidate' "$DISCOVERY" || true
 grep -Fq 'registerRoiUnknownHostAutoProbeCandidate' "$DISCOVERY"
 grep -Fq 'ROI_UNKNOWN_HOST_AUTO_PROBE.observeLoadedClass' "$MAIN"
 grep -Fq 'RoiUnknownHostAutoProbeCoordinator.Installer' "$MAIN"
