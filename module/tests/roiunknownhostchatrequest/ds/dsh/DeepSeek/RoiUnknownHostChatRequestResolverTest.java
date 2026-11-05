@@ -33,7 +33,7 @@ public final class RoiUnknownHostChatRequestResolverTest {
         String constructor = constructorDescriptor(RequestFixture.class.getDeclaredConstructors()[0]);
 
         AtomicInteger installs = new AtomicInteger();
-        resolver.observeLoadedClass(RequestFixture.class, (candidate, ctor) -> {
+        resolver.observeLoadedClass(RequestFixture.class, root, (candidate, ctor) -> {
             installs.incrementAndGet();
             return true;
         });
@@ -82,7 +82,7 @@ public final class RoiUnknownHostChatRequestResolverTest {
             installs.incrementAndGet();
             return true;
         }) == 0, "no runtime class means no hook");
-        check(resolver.observeLoadedClass(RequestFixture.class, (resolved, ctor) -> {
+        check(resolver.observeLoadedClass(RequestFixture.class, root, (resolved, ctor) -> {
             installs.incrementAndGet();
             return true;
         }) == 1, "later class load completes exact binding");
