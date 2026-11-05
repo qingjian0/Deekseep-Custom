@@ -52,7 +52,7 @@ Effective permission is evaluated as follows:
 
 - Unknown-version candidate attempt: `unknownVersionHookAttemptsEnabled`.
 - Diagnostic probe installation/execution: `diagnosticProbesEnabled`.
-- Feature Hook installation/execution: `featureHooksAuthorized && featureSpecificRuntimeChecksPass`.
+- Unknown-host feature Hook installation/execution: `unknownVersionHookAttemptsEnabled && featureHooksAuthorized && featureSpecificRuntimeChecksPass`.
 
 A denied gate must fail closed and return a stable, machine-readable reason. Suggested reason identifiers:
 
@@ -61,7 +61,7 @@ A denied gate must fail closed and return a stable, machine-readable reason. Sug
 - `feature_hooks_not_authorized`
 - `feature_runtime_validation_failed`
 
-The unknown-version gate and feature-Hook gate are separate: enabling unknown-version attempts must never implicitly authorize feature Hooks on that version.
+The unknown-version gate and feature-Hook gate are cumulative for unknown-host feature Hooks: enabling unknown-version attempts must never implicitly authorize feature Hooks, and enabling feature-Hook authorization alone must never start an unknown-version attempt.
 
 ## Settings and UX requirements
 
@@ -76,14 +76,16 @@ The unknown-version gate and feature-Hook gate are separate: enabling unknown-ve
 ## Acceptance criteria
 
 1. Fresh install: all three switches are OFF.
-2. Enabling unknown-version attempts does not enable diagnostic probes or feature Hooks.
-3. Enabling diagnostic probes does not enable unknown-version attempts or feature Hooks.
-4. Enabling feature-Hook authorization does not enable diagnostics or unknown-version attempts.
+2. Enabling unknown-version attempts does not enable diagnostic probes or feature-Hook authorization.
+3. Enabling diagnostic probes does not enable unknown-version attempts or feature-Hook authorization.
+4. Enabling feature-Hook authorization alone does not enable diagnostics, start an unknown-version attempt, or activate a feature Hook.
 5. Static-analysis success with feature-Hook authorization OFF results in a denied feature Hook.
-6. Static-analysis failure or ambiguity never becomes authorization, even when the feature-Hook switch is ON.
-7. Unknown-version attempt enabled + runtime mismatch results in a fail-closed denial, not a forced Hook.
-8. Preference read failure defaults to OFF.
-9. Tests cover all combinations of the three switches and verify no cross-gate activation.
+6. Static-analysis failure or ambiguity never becomes authorization, even when both unknown-version attempts and the feature-Hook switch are ON.
+7. Unknown-version attempt enabled + feature-Hook authorization OFF results in no feature Hook.
+8. Feature-Hook authorization ON + unknown-version attempts OFF results in no unknown-host feature Hook attempt.
+9. Unknown-version attempt enabled + runtime mismatch results in a fail-closed denial, not a forced Hook.
+10. Preference read failure defaults to OFF.
+11. Tests cover all combinations of the three switches and verify no cross-gate activation.
 
 ## Implementation boundary
 
