@@ -1191,10 +1191,10 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                             new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE))
                     || RoiUnknownHostInvocationProbePolicy.isExplicitlyEnabled(
                             new File(ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE))
-                    || RoiUnknownHostHookPolicy.isExplicitlyEnabled(
+                    || RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
                             new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE));
             log("unknown/unmaintained host: entering ROI "
-                    + (unknownHostHookEnabled ? "opt-in metadata-hook" : "read-only")
+                    + (unknownHostHookEnabled ? "opt-in ROI observation/feature-hook" : "read-only")
                     + " discovery version=" + unsupported
                     + ", detected=" + HostCompat.generationName());
             RoiHostDiscovery.schedule(cl,
@@ -1207,15 +1207,14 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 installBestEffortHook("roi.unknown-host.class-load-observer",
                         () -> installRoiClassLoadObserver(cl, true),
                         "unknown-host ROI metadata observer unavailable: ");
-                log("unknown-host ROI observation enabled: bounded class metadata and "
-                        + "opt-in pass-through invocation probes; functional feature hooks "
-                        + "remain gated by adapter proof");
+                log("unknown-host ROI observation enabled: bounded class metadata, diagnostic probes, "
+                        + "and individually authorized chat-request prompt adapter");
             } else {
                 log("host symbol table is not maintained; functional Hook bootstrap suppressed; "
                         + "unknown-host switch is absent or disabled");
             }
-            // The opt-in switch permits only bounded class metadata observation. It never
-            // falls through to legacy feature hooks or authorizes an unreviewed adapter.
+            // Unknown-host switches never fall through to legacy feature hooks. The separate
+            // feature switch can authorize only the serializer-verified chat prompt adapter.
             return;
         }
         // This host-level Compose hook is deliberately installed only after the verified
@@ -1711,7 +1710,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         final boolean invocationProbeEnabled =
                 RoiUnknownHostInvocationProbePolicy.isExplicitlyEnabled(
                         new File(ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE));
-        final boolean featureHookEnabled = RoiUnknownHostHookPolicy.isExplicitlyEnabled(
+        final boolean featureHookEnabled = RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
                 new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE));
         if (hostRoot == null || (!maintainedHost
                 && !(unknownHostOptIn && (unknownSwitchEnabled || invocationProbeEnabled
@@ -1739,7 +1738,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                                         new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE))
                                     || RoiUnknownHostInvocationProbePolicy.isExplicitlyEnabled(
                                         new File(ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE))
-                                    || RoiUnknownHostHookPolicy.isExplicitlyEnabled(
+                                    || RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
                                         new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE))));
                         if (!observationEnabled) return loaded;
                         RoiClassLoadObserver.EventSnapshot event =
@@ -1773,13 +1772,18 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                                             + ", candidates=" + ROI_UNKNOWN_HOST_AUTO_PROBE.candidateCount());
                                 }
                             }
-                            if (!maintainedHost && RoiUnknownHostHookPolicy.isExplicitlyEnabled(
+                            if (!maintainedHost && RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
                                     new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE))) {
                                 int featureHooks = ROI_UNKNOWN_HOST_CHAT_REQUEST_RESOLVER
                                         .observeLoadedClass((Class<?>) loaded, hostRoot,
                                                 new RoiUnknownHostChatRequestResolver.Installer() {
-                                    @Override public boolean install(Constructor<?> constructor)
-                                            throws Throwable {
+                                    @Override public boolean install(
+                                            RoiUnknownHostChatRequestResolver.Candidate candidate,
+                                            Constructor<?> constructor) throws Throwable {
+                                        if (!RoiUnknownHostFeatureHookPolicy
+                                                .allowsChatRequestPromptHook(false,
+                                                        new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE),
+                                                        candidate, constructor, hostRoot)) return false;
                                         return HookChatPipeline.INSTANCE
                                                 .hookUnknownHostChatRequest(constructor);
                                     }
@@ -1849,13 +1853,18 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             RoiUnknownHostChatRequestResolver.Candidate candidate) {
         Main active = roiMainInstance;
         if (active == null || HostCompat.supportsMaintainedFeatureRuntime()
-                || !RoiUnknownHostHookPolicy.isExplicitlyEnabled(
+                || !RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
                         new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE))) return;
         try {
             int installed = ROI_UNKNOWN_HOST_CHAT_REQUEST_RESOLVER.registerCandidate(
                     candidate, hostClassLoader,
                     new RoiUnknownHostChatRequestResolver.Installer() {
-                @Override public boolean install(Constructor<?> constructor) throws Throwable {
+                @Override public boolean install(
+                        RoiUnknownHostChatRequestResolver.Candidate resolved,
+                        Constructor<?> constructor) throws Throwable {
+                    if (!RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(false,
+                            new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE),
+                            resolved, constructor, hostClassLoader)) return false;
                     return HookChatPipeline.INSTANCE.hookUnknownHostChatRequest(constructor);
                 }
             });
