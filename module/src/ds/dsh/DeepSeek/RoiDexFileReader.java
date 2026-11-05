@@ -212,6 +212,7 @@ public final class RoiDexFileReader {
             if(data==null)continue;
             ClassDef owner=classValues[ci];
             String ownerDescriptor=typeDescriptors[owner.classIndex];
+            validateTypeDescriptor(ownerDescriptor,false);
             out.addAll(resolveMethodGroup(data.directMethods,true,owner,ownerDescriptor,
                     methodIds,protoIds,protoParameters,typeDescriptors,strings,seen));
             out.addAll(resolveMethodGroup(data.virtualMethods,false,owner,ownerDescriptor,
