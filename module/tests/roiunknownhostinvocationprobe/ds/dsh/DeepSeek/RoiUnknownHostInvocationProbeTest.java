@@ -142,6 +142,17 @@ public final class RoiUnknownHostInvocationProbeTest {
         probe.clear();
         check(probe.snapshot().isEmpty(), "clear must release probe state");
 
+        check(probe.register("loader:a|" + DESCRIPTOR, DESCRIPTOR),
+                "first loader-scoped method should register");
+        check(probe.register("loader:b|" + DESCRIPTOR, DESCRIPTOR),
+                "same descriptor under a different loader should register independently");
+        check(probe.snapshot().size() == 2,
+                "same obfuscated descriptor from different loaders must not be merged");
+        check(probe.snapshot().get(0).descriptor.equals(DESCRIPTOR)
+                        && probe.snapshot().get(1).descriptor.equals(DESCRIPTOR),
+                "snapshots must expose method descriptors, not internal loader keys");
+        probe.clear();
+
         check(probe.register(DESCRIPTOR), "rate test method should register");
         for (int i = 0; i < 40; i++) {
             try {
