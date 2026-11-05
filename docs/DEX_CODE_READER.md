@@ -1,7 +1,11 @@
-# DEX class-data and code-item reader
+# DEX class-data, code-item, instruction scanner and CFG
 
-`RoiDexCodeReader` adds bounded, read-only parsing for `class_data_item`, delta-encoded fields/methods, `code_item` headers and raw 16-bit instruction units. It validates ULEB128/SLEB128 widths, field/method index bounds, duplicate delta indices, code offsets, register/ins word counts, debug-info offsets, instruction extents, try-item extents, handler offsets and catch type/address references. Try/catch handler lists are structurally walked rather than silently skipped.
+`RoiDexCodeReader` parses bounded `class_data_item` and `code_item` structures, including encoded fields/methods, instruction code units, try items and encoded catch-handler lists. `RoiDexFileReader` associates class definitions with parsed class data and code items.
 
-`RoiDexFileReader` now parses each non-zero class_data offset and exposes the resulting per-class `ClassData` in its DexFile model. Each encoded method with a non-zero code offset is also resolved to a bounded `CodeItem`, including instruction code units and structurally checked try/catch metadata. The reader is still not connected to DexKit DEX export. It does not perform control-flow analysis or register data-flow tracing. Raw code units are not Hook evidence. Unsupported or malformed data fails closed. No Hook policy or authorization was changed.
+`RoiDexInstructionDecoder` is a semantic decoder for a deliberately small instruction subset. It must not be used as a whole-method boundary scanner.
 
-Next gate: connect class definitions to parsed class data and code items, then decode supported instructions and implement conservative register-flow analysis with branch-join ambiguity rejection.
+`RoiDexInstructionScanner` is a separate structural pass. It recognizes standard DEX 035 opcodes and the DEX 038 additions (invoke-polymorphic, invoke-custom, method-handle and method-type constants), assigns instruction widths, parses packed-switch/sparse-switch/fill-array-data payload extents, and rejects reserved opcodes, truncation, malformed payloads, payload-reference mismatches, unaligned payloads and branch targets that do not land on instruction boundaries. Width recognition does not mean the semantic decoder understands an opcode.
+
+The CFG builder creates basic blocks and explicit goto, conditional, switch, default and fallthrough edges. Return and throw terminate a block. Switch payload case offsets are interpreted relative to the switch instruction. Payload data is never treated as executable code.
+
+This remains read-only analysis. It does not perform register def-use tracing, does not connect to DexKit export, and does not create Hook evidence or authorization. Unsupported semantics and ambiguity must fail closed. No unknown-version Hook policy is changed. A real-device validation is still required before claiming cross-version Hook support.
