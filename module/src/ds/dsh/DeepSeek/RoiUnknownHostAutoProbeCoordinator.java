@@ -157,7 +157,8 @@ final class RoiUnknownHostAutoProbeCoordinator {
 
     private static boolean withinHostLoader(ClassLoader candidate, ClassLoader root) {
         if (candidate == null || root == null) return false;
-        for (ClassLoader cursor = candidate; cursor != null; cursor = cursor.getParent()) {
+        ClassLoader cursor = candidate;
+        for (int depth = 0; cursor != null && depth < 64; depth++, cursor = cursor.getParent()) {
             if (cursor == root) return true;
         }
         return false;
