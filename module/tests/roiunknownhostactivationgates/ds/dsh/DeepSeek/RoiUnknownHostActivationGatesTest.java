@@ -17,6 +17,12 @@ public final class RoiUnknownHostActivationGatesTest {
             check(gates.requiresClassLoadDispatcher() == (unknown || diagnostics || features),
                     "dispatcher activation mismatch " + mask);
         }
+        RoiUnknownHostActivationGates featureOnly =
+                RoiUnknownHostActivationGates.of(false, false, true);
+        check(!featureOnly.requiresClassLoadDispatcher(),
+                "feature authorization alone must not attempt an unknown host");
+        check(!featureOnly.allowsFeatureHookAttempts(),
+                "feature authorization cannot bypass unknown-version attempt gate");
         RoiUnknownHostActivationGates defaults = RoiUnknownHostActivationGates.of(false, false, false);
         check(!defaults.requiresClassLoadDispatcher(), "fresh-install defaults must be all OFF");
         System.out.println("ROI unknown-host activation gate tests passed");
