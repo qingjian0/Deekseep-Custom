@@ -2528,6 +2528,79 @@ public final class DeekseepUi {
         card.addView(warning, insetParams(act, 12, 12));
         card.addView(makeDivider(act, divColor));
 
+        TextView roiGateHeading = new TextView(act);
+        roiGateHeading.setText("未知版本兼容性与 Hook 授权");
+        roiGateHeading.setTextColor(textColor);
+        roiGateHeading.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        roiGateHeading.setTypeface(Typeface.DEFAULT_BOLD);
+        roiGateHeading.setPadding(dp(act, 16), dp(act, 16), dp(act, 16), dp(act, 6));
+        card.addView(roiGateHeading);
+        TextView roiGateStatus = infoBox(act, Main.unknownHostHookGateStatus(), subColor, dark);
+        card.addView(roiGateStatus, insetParams(act, 8, 8));
+
+        card.addView(configurableSwitchRow(act, "允许未知版本尝试 Hook",
+                "允许兼容性解析、候选匹配和受限运行时校验。开启不代表候选已验证，也不会自动授权功能 Hook。",
+                Main.isUnknownVersionHookAttemptsEnabled(), textColor, subColor, dark,
+                new CompoundButton.OnCheckedChangeListener() {
+                    private boolean reverting;
+                    @Override public void onCheckedChanged(CompoundButton button, boolean checked) {
+                        if (reverting) return;
+                        if (Main.setUnknownVersionHookAttemptsEnabled(checked)) {
+                            roiGateStatus.setText(Main.unknownHostHookGateStatus());
+                            Toast.makeText(act, checked ? "已允许未知版本兼容性尝试" : "已关闭未知版本尝试",
+                                    Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        reverting = true;
+                        button.setChecked(!checked);
+                        reverting = false;
+                        Toast.makeText(act, "未知版本开关保存失败", Toast.LENGTH_SHORT).show();
+                    }
+                }, null, null));
+        card.addView(makeDivider(act, divColor));
+
+        card.addView(configurableSwitchRow(act, "允许诊断探针",
+                "仅允许显式标记的诊断型透传探针。默认关闭；不会因此授权功能 Hook，也不会自动开启未知版本尝试。",
+                Main.isUnknownHostDiagnosticProbesEnabled(), textColor, subColor, dark,
+                new CompoundButton.OnCheckedChangeListener() {
+                    private boolean reverting;
+                    @Override public void onCheckedChanged(CompoundButton button, boolean checked) {
+                        if (reverting) return;
+                        if (Main.setUnknownHostDiagnosticProbesEnabled(checked)) {
+                            roiGateStatus.setText(Main.unknownHostHookGateStatus());
+                            Toast.makeText(act, checked ? "诊断探针已授权" : "诊断探针已关闭",
+                                    Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        reverting = true;
+                        button.setChecked(!checked);
+                        reverting = false;
+                        Toast.makeText(act, "诊断探针开关保存失败", Toast.LENGTH_SHORT).show();
+                    }
+                }, null, null));
+        card.addView(makeDivider(act, divColor));
+
+        card.addView(configurableSwitchRow(act, "授权功能 Hook",
+                "允许已审查的功能 Hook 进入安装校验；未知版本还必须同时开启上方的未知版本尝试开关。静态分析结果不能替代授权或运行时校验。",
+                Main.isUnknownHostFeatureHooksAuthorized(), textColor, subColor, dark,
+                new CompoundButton.OnCheckedChangeListener() {
+                    private boolean reverting;
+                    @Override public void onCheckedChanged(CompoundButton button, boolean checked) {
+                        if (reverting) return;
+                        if (Main.setUnknownHostFeatureHooksAuthorized(checked)) {
+                            roiGateStatus.setText(Main.unknownHostHookGateStatus());
+                            Toast.makeText(act, checked ? "功能 Hook 授权已保存" : "功能 Hook 授权已撤销",
+                                    Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        reverting = true;
+                        button.setChecked(!checked);
+                        reverting = false;
+                        Toast.makeText(act, "功能 Hook 授权保存失败", Toast.LENGTH_SHORT).show();
+                    }
+                }, null, null));
+        card.addView(makeDivider(act, divColor));
+
         card.addView(toolActionRow(act, "聊天外观",
                 "背景、页面贴纸和气泡；支持全屏/半屏、无固定上限缩放、截断、镜像或边缘像素延展、取景、旋转、景深与曲线位移。",
                 textColor, subColor, new View.OnClickListener() {
