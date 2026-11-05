@@ -27,6 +27,7 @@ public final class RoiDexRegisterFlowAnalyzerTest {
         testMethodEntryLayoutMapsReceiverAndWideParameters();
         testMethodEntryLayoutRejectsInsSizeMismatch();
         testUseDefClassifiesReceiverEntryUse();
+        testUseDefClassifiesWideStaticParameter();
         testUnsupportedOpcodeFailsClosed();
         testRegisterBounds();
         System.out.println("RoiDexRegisterFlowAnalyzer tests passed");
@@ -369,6 +370,25 @@ public final class RoiDexRegisterFlowAnalyzerTest {
         check(use != null && use.mayBeEntryOrUnknownValue
                         && use.entryValueKind == RoiDexUseDefChains.EntryValueKind.RECEIVER,
                 "receiver use is explicitly identified as the method entry receiver");
+    }
+
+
+    private static void testUseDefClassifiesWideStaticParameter() throws Exception {
+        RoiDexRegisterFlowAnalyzer.Result flow =
+                RoiDexRegisterFlowAnalyzer.analyze(new short[]{(short) 0x0110}, 3);
+        RoiDexReachingDefinitions.Result reaching =
+                RoiDexReachingDefinitions.analyze(flow);
+        RoiDexMethodEntryLayout.Result layout =
+                RoiDexMethodEntryLayout.analyze(3, 2, 0x0008, "(J)J");
+        RoiDexUseDefChains.Result chains =
+                RoiDexUseDefChains.analyze(flow, reaching, layout);
+        RoiDexUseDefChains.UseSite low = useAt(chains, 0, 1);
+        RoiDexUseDefChains.UseSite high = useAt(chains, 0, 2);
+        check(layout.receiver == null && low != null && high != null
+                        && low.entryValueKind == RoiDexUseDefChains.EntryValueKind.PARAMETER
+                        && high.entryValueKind == RoiDexUseDefChains.EntryValueKind.PARAMETER
+                        && low.entryParameterIndex == 0 && high.entryParameterIndex == 0,
+                "both words of a wide static parameter map to parameter zero");
     }
 
     private static RoiDexUseDefChains.Result chains(short[] code, int registers)
