@@ -238,7 +238,7 @@ public final class RoiUnknownHostChatRequestResolverTest {
                 "Lserializer/RequestSerializer;->deserialize()V",
                 Arrays.asList("Lbad/Request;-><init>(Ljava/lang/String;Ljava/lang/String;)V"));
         check(resolver.candidateCount() == 0, "APK-only, unknown anchor and wrong shape rejected");
-        check(RoiUnknownHostChatRequestResolver.bestCandidate("loader:fixture") == null,
+        check(resolver.bestCandidate("loader:fixture") == null,
                 "no unsupported candidate can be activated");
         check(!RoiUnknownHostChatRequestResolver.isChatRequestConstructor(
                 "Lbad/Request;-><init>(Ljava/lang/String;)V"), "short constructor rejected");
@@ -253,10 +253,25 @@ public final class RoiUnknownHostChatRequestResolverTest {
         return "L" + type.getName().replace('.', '/') + ";";
     }
 
-    private static String constructorDescriptor(Class<?> type) {
-        String owner = descriptor(type);
-        return owner + "-><init>(Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;"
-                + "Ljava/lang/Object;ZZLjava/lang/String;ZLjava/lang/String;Ljava/lang/String;I)V";
+    private static String constructorDescriptor(Constructor<?> constructor) {
+        StringBuilder out = new StringBuilder(descriptor(constructor.getDeclaringClass()))
+                .append("-><init>(");
+        for (Class<?> parameter : constructor.getParameterTypes()) {
+            if (parameter.isArray()) {
+                out.append(parameter.getName().replace('.', '/'));
+            } else if (!parameter.isPrimitive()) {
+                out.append('L').append(parameter.getName().replace('.', '/')).append(';');
+            } else if (parameter == boolean.class) out.append('Z');
+            else if (parameter == byte.class) out.append('B');
+            else if (parameter == char.class) out.append('C');
+            else if (parameter == short.class) out.append('S');
+            else if (parameter == int.class) out.append('I');
+            else if (parameter == long.class) out.append('J');
+            else if (parameter == float.class) out.append('F');
+            else if (parameter == double.class) out.append('D');
+            else throw new IllegalArgumentException("Unsupported constructor parameter");
+        }
+        return out.append(")V").toString();
     }
 
     private static void check(boolean value, String message) {
