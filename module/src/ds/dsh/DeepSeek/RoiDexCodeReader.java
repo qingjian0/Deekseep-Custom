@@ -27,12 +27,27 @@ public final class RoiDexCodeReader {
   public final long startAddress; public final int instructionCount,handlerOffset;
   TryItem(long s,int n,int h){startAddress=s;instructionCount=n;handlerOffset=h;}
  }
+ public static final class TypedCatch {
+  public final int typeIndex,address;
+  TypedCatch(int t,int a){typeIndex=t;address=a;}
+ }
+ public static final class CatchHandler {
+  /** Offset from the beginning of encoded_catch_handler_list, including its size ULEB128. */
+  public final int relativeOffset;
+  public final int signedSize;
+  public final TypedCatch[] typedCatches;
+  /** -1 means the handler has no catch-all clause. */
+  public final int catchAllAddress;
+  CatchHandler(int o,int s,TypedCatch[] t,int a){relativeOffset=o;signedSize=s;typedCatches=t;catchAllAddress=a;}
+ }
  public static final class CodeItem {
   public final int registersSize,insSize,outsSize,triesSize,debugInfoOffset,instructionsOffset;
-  public final short[] instructions; public final TryItem[] tryItems; public final int nextOffset;
-  CodeItem(int r,int in,int out,int tr,int dbg,int io,short[] ins,TryItem[] ti,int next){
+  public final short[] instructions; public final TryItem[] tryItems;
+  public final CatchHandler[] catchHandlers; public final int nextOffset;
+  CodeItem(int r,int in,int out,int tr,int dbg,int io,short[] ins,TryItem[] ti,
+           CatchHandler[] handlers,int next){
    registersSize=r;insSize=in;outsSize=out;triesSize=tr;debugInfoOffset=dbg;
-   instructionsOffset=io;instructions=ins;tryItems=ti;nextOffset=next;
+   instructionsOffset=io;instructions=ins;tryItems=ti;catchHandlers=handlers;nextOffset=next;
   }
   public RoiDexInstructionDecoder.Decoded decodeInstructionAt(int codeUnitOffset)throws RoiDexInstructionDecoder.DecodeException{
    return RoiDexInstructionDecoder.decode(instructions,codeUnitOffset,registersSize);
@@ -61,6 +76,7 @@ public final class RoiDexCodeReader {
   for(int i=0;i<n;i++)units[i]=(short)u16(b,instructionOffset+i*2);
   long after=(long)instructionOffset+n*2L;
   TryItem[] items=new TryItem[tries];
+  CatchHandler[] handlers=new CatchHandler[0];
   if(tries>0){
    if((n&1)!=0)after+=2;
    if(after>limit||((long)tries*8)>limit-after)throw new CodeException("code_item_try_items_out_of_data");
@@ -71,32 +87,40 @@ public final class RoiDexCodeReader {
     items[i]=new TryItem(start,count,handler);
    }
    int handlersStart=p+tries*8;
-   validateHandlers(b,handlersStart,limit,items,typeCount,n);
-   after=handlersStart;
-   // Parse the list again to locate its exact end.
-   Cursor hc=new Cursor(handlersStart,limit);int handlerCount=count(b,hc);
-   for(int i=0;i<handlerCount;i++){
-    int start=hc.p;int signed=sleb(b,hc);long pairs=Math.abs((long)signed);
-    for(long j=0;j<pairs;j++){int type=ulebInt(b,hc);if(type>=typeCount)throw new CodeException("catch_type_index_out_of_range");ulebInt(b,hc);}
-    if(signed<=0)ulebInt(b,hc);
-    if(hc.p<=start)throw new CodeException("catch_handler_no_progress");
-   }
-   after=hc.p;
+   HandlerList parsed=parseHandlers(b,handlersStart,limit,items,typeCount,n);
+   handlers=parsed.handlers;
+   after=parsed.nextOffset;
   }
-  return new CodeItem(registers,ins,outs,tries,(int)debug,instructionOffset,units,items,(int)after);
+  return new CodeItem(registers,ins,outs,tries,(int)debug,instructionOffset,units,items,handlers,(int)after);
  }
- private static void validateHandlers(byte[] b,int start,int limit,TryItem[] tries,int typeCount,int insns)throws CodeException{
-  Cursor c=new Cursor(start,limit);int count=count(b,c);Set<Integer> starts=new HashSet<Integer>();
+ private static final class HandlerList {
+  final CatchHandler[] handlers; final int nextOffset;
+  HandlerList(CatchHandler[] h,int n){handlers=h;nextOffset=n;}
+ }
+ private static HandlerList parseHandlers(byte[] b,int start,int limit,TryItem[] tries,
+        int typeCount,int insns)throws CodeException {
+  Cursor c=new Cursor(start,limit);int count=count(b,c);
+  if(count>limit-c.p)throw new CodeException("catch_handler_count_invalid");
+  Set<Integer> starts=new HashSet<Integer>();
+  CatchHandler[] handlers=new CatchHandler[count];
   for(int i=0;i<count;i++){
-   int rel=c.p-start;starts.add(rel);int size=sleb(b,c);long pairs=Math.abs((long)size);
+   int rel=c.p-start;starts.add(rel);int signed=sleb(b,c);
+   long pairs=Math.abs((long)signed);
    if(pairs>typeCount)throw new CodeException("catch_handler_count_invalid");
-   for(long j=0;j<pairs;j++){
+   TypedCatch[] typed=new TypedCatch[(int)pairs];
+   for(int j=0;j<typed.length;j++){
     int type=ulebInt(b,c);if(type>=typeCount)throw new CodeException("catch_type_index_out_of_range");
     int addr=ulebInt(b,c);if(addr>=insns)throw new CodeException("catch_handler_address_invalid");
+    typed[j]=new TypedCatch(type,addr);
    }
-   if(size<=0){int addr=ulebInt(b,c);if(addr>=insns)throw new CodeException("catch_all_address_invalid");}
+   int catchAll=-1;
+   if(signed<=0){catchAll=ulebInt(b,c);if(catchAll>=insns)throw new CodeException("catch_all_address_invalid");}
+   if(c.p<=start+rel)throw new CodeException("catch_handler_no_progress");
+   handlers[i]=new CatchHandler(rel,signed,typed,catchAll);
   }
-  for(TryItem t:tries)if(!starts.contains(t.handlerOffset))throw new CodeException("try_handler_offset_invalid");
+  for(TryItem t:tries)if(!starts.contains(t.handlerOffset))
+   throw new CodeException("try_handler_offset_invalid");
+  return new HandlerList(handlers,c.p);
  }
  private static EncodedField[] fields(byte[] b,Cursor c,int count,int max)throws CodeException{
   EncodedField[] out=new EncodedField[count];long index=0;
