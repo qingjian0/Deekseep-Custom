@@ -11,6 +11,8 @@ public final class RoiDexCodeReaderTest {
   p=put(b,p,1);p=put(b,p,2);
   p=put(b,p,2);p=put(b,p,0x10);p=put(b,p,32);
   p=put(b,p,0);p=put(b,p,0x9);p=put(b,p,0);
+  put16(b,32,1);put16(b,34,0);put16(b,36,0);put16(b,38,0);
+  put32(b,40,0);put32(b,44,1);put16(b,48,0x000e);
   RoiDexCodeReader.ClassData d=RoiDexCodeReader.readClassData(b,0,b.length,8,4,4,1);
   eq(1,d.staticFields.length);eq(3,d.staticFields[0].fieldIndex);
   eq(1,d.instanceFields.length);eq(1,d.instanceFields[0].fieldIndex);
