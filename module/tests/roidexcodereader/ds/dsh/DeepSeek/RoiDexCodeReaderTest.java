@@ -28,18 +28,20 @@ public final class RoiDexCodeReaderTest {
  static void tries()throws Exception{
   byte[] b=new byte[64];put16(b,16,1);put16(b,18,1);put16(b,22,1);put32(b,28,2);
   put16(b,32,0x0012);put16(b,34,0x000f);put16(b,36,0);put16(b,38,0);put16(b,40,1);put16(b,42,1);
-  // handlers list: one typed handler; protected const defines v0, handler returns v0.
-  b[44]=1;b[45]=1;b[46]=0;b[47]=1;
+  // One typed catch plus catch-all; protected const defines v0, handler returns v0.
+  b[44]=1;b[45]=0xff;b[46]=0;b[47]=1;b[48]=1;
   RoiDexCodeReader.CodeItem c=RoiDexCodeReader.readCodeItem(b,0,b.length,16,1);
-  eq(1,c.triesSize);eq(1,c.tryItems[0].handlerOffset);eq(48,c.nextOffset);
+  eq(1,c.triesSize);eq(1,c.tryItems[0].handlerOffset);eq(49,c.nextOffset);
   eq(1,c.catchHandlers.length);eq(1,c.catchHandlers[0].typedCatches.length);
   eq(0,c.catchHandlers[0].typedCatches[0].typeIndex);
-  eq(1,c.catchHandlers[0].typedCatches[0].address);eq(-1,c.catchHandlers[0].catchAllAddress);
+  eq(1,c.catchHandlers[0].typedCatches[0].address);eq(1,c.catchHandlers[0].catchAllAddress);
   RoiDexExceptionControlFlow.Result graph=RoiDexExceptionControlFlow.analyze(c);
   if(!graph.exceptionEdgesIncluded)throw new AssertionError("exception edges not marked included");
-  eq(2,graph.normalGraph.blocks.length);eq(1,graph.exceptionEdges.length);
+  eq(2,graph.normalGraph.blocks.length);eq(2,graph.exceptionEdges.length);
   eq(0,graph.exceptionEdges[0].fromBlock);eq(1,graph.exceptionEdges[0].toBlock);
   eq(1,graph.exceptionEdges[0].handlerAddress);eq(0,graph.exceptionEdges[0].catchTypeIndex);
+  if(!graph.exceptionEdges[1].catchAll)throw new AssertionError("catch-all edge missing");
+  eq(-1,graph.exceptionEdges[1].catchTypeIndex);
   RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(c);
   if(!flow.exceptionEdgesIncluded||flow.normalControlFlowOnly)
    throw new AssertionError("register flow omitted exception edges");
