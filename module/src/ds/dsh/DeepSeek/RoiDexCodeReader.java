@@ -81,9 +81,13 @@ public final class RoiDexCodeReader {
    if((n&1)!=0)after+=2;
    if(after>limit||((long)tries*8)>limit-after)throw new CodeException("code_item_try_items_out_of_data");
    int p=(int)after;
+   long previousTryEnd=0;
    for(int i=0;i<tries;i++){
     long start=u32(b,p+i*8);int count=u16(b,p+i*8+4),handler=u16(b,p+i*8+6);
-    if(start>=n||(long)start+count>n||count==0)throw new CodeException("try_item_instruction_range_invalid");
+    long end=start+(long)count;
+    if(start>=n||end>n||count==0)throw new CodeException("try_item_instruction_range_invalid");
+    if(i>0&&start<previousTryEnd)throw new CodeException("try_items_unsorted_or_overlapping");
+    previousTryEnd=end;
     items[i]=new TryItem(start,count,handler);
    }
    int handlersStart=p+tries*8;
