@@ -370,3 +370,14 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - Static source audit found the existing collect hook is shared with the Expert relay path; non-relay Flow collection passes through this observer only when the exact Flow identity was registered by the existing transport callback. No new host Hook target was added.
 - Remaining limitation: no safe suspend-continuation completion observation, parser correlation, stream completion, or explicit scope-mismatch diagnostic has been implemented. Exact ClassLoader matching still intentionally permits false negatives.
 - Verification boundary: source and regression assertions were updated on `dev`; this environment did not execute the Java test script, Android build, or device test. Check the latest Actions run before treating CI as passed.
+
+
+## ROI R2.5.5 — repeated Flow collection and scope diagnostics
+
+- Flow-to-request correlation now retains the exact Flow object identity binding across repeated collection instead of consuming it on the first collect attempt. This supports repeated collection of the same cold Flow while preserving exact identity matching.
+- Flow bindings carry only the opaque request key and a local timestamp, are capped at 512 entries, expire after 120 seconds, and are cleared on observer reset. Expired entries are pruned on registration and collection. No URL, payload, headers, or auth data is stored.
+- Discovery reports exact-scope coverage counts separately from same-adapter/same-descriptor observations found under other ClassLoader scopes. These are explicitly labelled other-scope diagnostics, not merged evidence and not proof that the candidate is the same runtime implementation.
+- Other-scope counts are emitted only for in-memory ClassLoader candidates; APK-path scans are excluded because their source scope cannot be equated with a process ClassLoader identity.
+- Exact matching still requires adapter identity + complete descriptor + identical ClassLoader scope. Other-scope diagnostics do not relax this rule or affect resolver scoring / Hook activation.
+- Static regression guards cover reusable Flow bindings, TTL/capacity policy, and separate scope diagnostics. No new host Hook or Continuation proxy was added.
+- Verification boundary: source and static guards were updated; Java test script, Android build, and device test have not been executed in this environment. Verify current CI before treating the change as passed.
