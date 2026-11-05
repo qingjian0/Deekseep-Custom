@@ -25,6 +25,7 @@ final class RoiLoadedClassInspector {
         final String superclassName;
         final List<String> interfaces;
         final List<String> methods;
+        final List<String> dexMethodDescriptors;
         final List<String> fields;
         final int methodCountReported;
         final int fieldCountReported;
@@ -34,7 +35,7 @@ final class RoiLoadedClassInspector {
 
         Snapshot(String className, String classDescriptor, String loaderScope,
                  String superclassName, List<String> interfaces,
-                 List<String> methods, List<String> fields,
+                 List<String> methods, List<String> dexMethodDescriptors, List<String> fields,
                  int methodCountReported, int fieldCountReported,
                  boolean methodsTruncated, boolean fieldsTruncated,
                  String inspectionStatus) {
@@ -44,6 +45,7 @@ final class RoiLoadedClassInspector {
             this.superclassName = superclassName;
             this.interfaces = immutable(interfaces);
             this.methods = immutable(methods);
+            this.dexMethodDescriptors = immutable(dexMethodDescriptors);
             this.fields = immutable(fields);
             this.methodCountReported = methodCountReported;
             this.fieldCountReported = fieldCountReported;
@@ -59,7 +61,7 @@ final class RoiLoadedClassInspector {
         if (type == null) {
             return new Snapshot("", "", "loader:none", "", Collections.<String>emptyList(),
                     Collections.<String>emptyList(), Collections.<String>emptyList(),
-                    0, 0, false, false, "rejected_null_class");
+                    Collections.<String>emptyList(), 0, 0, false, false, "rejected_null_class");
         }
 
         ClassLoader loader = safeClassLoader(type);
@@ -69,6 +71,7 @@ final class RoiLoadedClassInspector {
         String parent = "";
         List<String> interfaces = new ArrayList<String>();
         List<String> methods = new ArrayList<String>();
+        List<String> dexMethods = new ArrayList<String>();
         List<String> fields = new ArrayList<String>();
         int methodCount = 0;
         int fieldCount = 0;
@@ -96,7 +99,10 @@ final class RoiLoadedClassInspector {
             Method[] values = type.getDeclaredMethods();
             methodCount = values.length;
             int limit = Math.min(values.length, MAX_METHODS);
-            for (int i = 0; i < limit; i++) methods.add(methodDescriptor(values[i]));
+            for (int i = 0; i < limit; i++) {
+                methods.add(methodDescriptor(values[i]));
+                dexMethods.add(dexMethodDescriptor(values[i]));
+            }
             methodsTruncated = values.length > limit;
         } catch (LinkageError | SecurityException error) {
             status = "partial_methods_unavailable";
@@ -112,7 +118,7 @@ final class RoiLoadedClassInspector {
             status = "partial_fields_unavailable";
         }
 
-        return new Snapshot(name, descriptor, scope, parent, interfaces, methods, fields,
+        return new Snapshot(name, descriptor, scope, parent, interfaces, methods, dexMethods, fields,
                 methodCount, fieldCount, methodsTruncated, fieldsTruncated, status);
     }
 
@@ -143,6 +149,15 @@ final class RoiLoadedClassInspector {
             out.append(typeDescriptor(params[i]));
         }
         return out.append(')').toString();
+    }
+
+    private static String dexMethodDescriptor(Method method) {
+        StringBuilder out = new StringBuilder();
+        out.append(typeDescriptor(method.getDeclaringClass())).append("->")
+                .append(method.getName()).append('(');
+        Class<?>[] params = method.getParameterTypes();
+        for (int i = 0; i < params.length; i++) out.append(typeDescriptor(params[i]));
+        return out.append(')').append(typeDescriptor(method.getReturnType())).toString();
     }
 
     private static String fieldDescriptor(Field field) {
