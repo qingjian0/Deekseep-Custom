@@ -225,7 +225,7 @@ public final class RoiDexInstructionScanner {
             if(i.payload)continue;
             int op=i.opcode;
             if(op==0x26||op==0x2b||op==0x2c) {
-                int target=i.offset+s32(c,i.offset+1);Instruction p=s.at(target);
+                int target=checkedTarget(i.offset,s32(c,i.offset+1));Instruction p=s.at(target);
                 int expected=op==0x2b?1:op==0x2c?2:3;
                 if(p==null||!p.payload||p.payloadKind!=expected)
                     throw new ScanException("payload_reference_mismatch:"+i.offset);
