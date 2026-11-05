@@ -36,7 +36,7 @@ final class RoiUnknownHostAutoProbeCoordinator {
         CandidateSpec(String owner, String methodName, String descriptor, String sourceScope,
                       RoiUnknownHostInvocationProbePolicy.Role role,
                       boolean callGraphObserved) {
-            this.owner = clean(owner);
+            this.owner = normalizeOwner(owner);
             this.methodName = clean(methodName);
             this.descriptor = clean(descriptor);
             this.sourceScope = clean(sourceScope);
@@ -147,9 +147,10 @@ final class RoiUnknownHostAutoProbeCoordinator {
     }
 
     private static boolean validIdentity(String owner, String method, String descriptor) {
-        if (!owner.startsWith("L") || !owner.endsWith(";") || method.trim().isEmpty()) return false;
+        String normalizedOwner = normalizeOwner(owner);
+        if (normalizedOwner.length() == 0 || method.trim().isEmpty()) return false;
         int ownerEnd = descriptor.indexOf(";->");
-        if (ownerEnd < 0 || !owner.equals(descriptor.substring(0, ownerEnd + 1))) return false;
+        if (ownerEnd < 0 || !normalizedOwner.equals(descriptor.substring(0, ownerEnd + 1))) return false;
         int open = descriptor.indexOf('(', ownerEnd + 3);
         return open > ownerEnd + 3
                 && method.equals(descriptor.substring(ownerEnd + 3, open));
@@ -185,6 +186,13 @@ final class RoiUnknownHostAutoProbeCoordinator {
         if (type == float.class) return "F";
         if (type == double.class) return "D";
         return "?";
+    }
+
+    private static String normalizeOwner(String value) {
+        String owner = clean(value).replace('.', '/');
+        if (owner.length() == 0) return "";
+        if (owner.charAt(0) == 'L' && owner.endsWith(";")) return owner;
+        return "L" + owner + ";";
     }
 
     private static String clean(String value) { return value == null ? "" : value.trim(); }
