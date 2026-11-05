@@ -2,7 +2,7 @@ package ds.dsh.DeepSeek;
 
 public final class RoiDexInstructionScannerTest {
     public static void main(String[] args)throws Exception {
-        widths(); payloads(); branches(); cfg(); malformed();
+        widths(); payloads(); branches(); cfg(); cfgPayloads(); malformed();
         System.out.println("RoiDexInstructionScannerTest: PASS");
     }
     static void widths()throws Exception {
@@ -36,6 +36,24 @@ public final class RoiDexInstructionScannerTest {
         eq(3,g.blocks.length);eq(2,g.edges.length);
         yes("CONDITIONAL_TRUE".equals(g.edges[0].kind));
         yes("CONDITIONAL_FALSE".equals(g.edges[1].kind));
+    }
+    static void cfgPayloads()throws Exception {
+        short[] valid={(short)0x002b,6,0,(short)0x0029,9,(short)0x0728,
+                (short)0x0100,1,0,0,12,0,(short)0x000e};
+        RoiDexInstructionScanner.ControlFlowGraph g=RoiDexInstructionScanner.buildControlFlowGraph(valid);
+        yes(g.blocks.length>=3);
+        boolean switchDefault=false;
+        for(RoiDexInstructionScanner.Edge e:g.edges)
+            if("SWITCH_DEFAULT".equals(e.kind))switchDefault=true;
+        yes(switchDefault);
+
+        short[] fallsIntoPayload={(short)0x002b,4,0,0,(short)0x0100,1,0,0,10,0,(short)0x000e};
+        try {
+            RoiDexInstructionScanner.buildControlFlowGraph(fallsIntoPayload);
+        } catch(RoiDexInstructionScanner.ScanException expected) {
+            return;
+        }
+        throw new AssertionError("expected CFG to reject fallthrough into payload");
     }
     static void malformed()throws Exception {
         bad(new short[]{(short)0x0073});
