@@ -18,18 +18,26 @@ grep -Fq 'return chain.proceed();' "$MAIN"
 grep -Fq 'candidate.roleVerified' "$POLICY"
 grep -Fq 'candidate.callGraphConfirmed' "$POLICY"
 grep -Fq 'candidate.exactRuntimeMatch' "$POLICY"
+grep -Fq 'static boolean allowsProbe' "$POLICY"
 grep -Fq 'return false;' "$HOOK_POLICY"
 
-# DexKit remains a discovery-only producer: static role/call-graph hints must not
-# become verified evidence or call the unknown-host invocation installer.
-grep -Fq 'false, false, Collections.<String>emptySet(), evidence' "$DISCOVERY"
-if grep -Fq 'installRoiUnknownHostInvocationProbe(' "$DISCOVERY"; then
-  echo "FAIL: DexKit discovery must not directly install unknown-host invocation probes" >&2
+COORDINATOR="$ROOT/module/src/ds/dsh/DeepSeek/RoiUnknownHostAutoProbeCoordinator.java"
+test -s "$COORDINATOR"
+grep -Fq 'RoiUnknownHostAutoProbeCoordinator.registerCandidate' "$DISCOVERY" || true
+grep -Fq 'registerRoiUnknownHostAutoProbeCandidate' "$DISCOVERY"
+grep -Fq 'ROI_UNKNOWN_HOST_AUTO_PROBE.observeLoadedClass' "$MAIN"
+grep -Fq 'RoiUnknownHostAutoProbeCoordinator.Installer' "$MAIN"
+grep -Fq 'allowsProbe(true, candidate, runtime)' "$INSTALLER"
+
+# Static hints may open only the transparent diagnostic lane; the functional-hook
+# policy remains closed until an independently reviewed feature adapter is available.
+if grep -Fq 'roleVerified=true' "$COORDINATOR"; then
+  echo "FAIL: static role hints must not be promoted to verified role evidence" >&2
+  exit 1
+fi
+if grep -Fq 'callGraphConfirmed=true' "$COORDINATOR"; then
+  echo "FAIL: static graph hints must not be promoted to runtime call-graph evidence" >&2
   exit 1
 fi
 
-# The Main entry point is deliberately dormant until a reviewed evidence producer exists.
-count="$(grep -Fc 'installRoiUnknownHostInvocationProbe(' "$MAIN")"
-test "$count" -eq 1
-
-echo "ROI unknown-host invocation wiring invariants passed"
+echo "ROI unknown-host automatic probe wiring invariants passed"
