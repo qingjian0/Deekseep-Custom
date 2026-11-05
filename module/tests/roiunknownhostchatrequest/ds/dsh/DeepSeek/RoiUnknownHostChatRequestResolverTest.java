@@ -69,7 +69,7 @@ public final class RoiUnknownHostChatRequestResolverTest {
             return true;
         });
         check(installed == 1, "late candidate must reconcile against previously observed class");
-        check(installs.get() == 2, "only exact candidate installed");
+        check(installs.get() == 1, "only exact candidate installed");
         check(resolver.installedCount() == 1, "installation recorded");
     }
 
