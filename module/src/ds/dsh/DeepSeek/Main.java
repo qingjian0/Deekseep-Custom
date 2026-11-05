@@ -1186,26 +1186,29 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         if (!HostCompat.supportsMaintainedFeatureRuntime()) {
             String unsupported = bootstrapVersion == null || bootstrapVersion.length() == 0
                     ? HostCompat.generationName() : bootstrapVersion;
-            final boolean unknownHostHookEnabled =
+            final boolean unknownVersionAttemptsEnabled =
                     RoiUnknownHostHookPolicy.allowsMetadataObservation(false,
-                            new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE))
-                    || RoiUnknownHostInvocationProbePolicy.isExplicitlyEnabled(
-                            new File(ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE))
-                    || RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
+                            new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE));
+            final boolean diagnosticProbesEnabled =
+                    RoiUnknownHostInvocationProbePolicy.isExplicitlyEnabled(
+                            new File(ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE));
+            final boolean featureHooksAuthorized =
+                    RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
                             new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE));
-            log("unknown/unmaintained host: entering ROI "
-                    + (unknownHostHookEnabled ? "opt-in ROI observation/feature-hook" : "read-only")
-                    + " discovery version=" + unsupported
+            final boolean unknownHostActivationEnabled = unknownVersionAttemptsEnabled
+                    || diagnosticProbesEnabled || featureHooksAuthorized;
+            log("unknown/unmaintained host: isolated opt-in lanes"
+                    + " unknownVersionAttempts=" + unknownVersionAttemptsEnabled
+                    + ", diagnosticProbes=" + diagnosticProbesEnabled
+                    + ", featureHooksAuthorized=" + featureHooksAuthorized
+                    + ", discovery version=" + unsupported
                     + ", detected=" + HostCompat.generationName());
-            if (unknownHostHookEnabled && cl != null) {
+            if (unknownHostActivationEnabled && cl != null) {
                 installBestEffortHook("roi.unknown-host.class-load-observer",
                         () -> installRoiClassLoadObserver(cl, true),
-                        "unknown-host ROI metadata observer unavailable: ");
-                log("unknown-host ROI observation enabled: bounded class metadata, diagnostic probes, "
-                        + "and individually authorized chat-request prompt adapter");
+                        "unknown-host ROI class-load dispatcher unavailable: ");
             } else {
-                log("host symbol table is not maintained; functional Hook bootstrap suppressed; "
-                        + "unknown-host switch is absent or disabled");
+                log("host symbol table is not maintained; all opt-in ROI lanes are disabled");
             }
             // Install the class-load observer before DexKit starts its scan so classes loaded
             // during discovery are available for exact runtime binding after finalization.
@@ -1698,11 +1701,10 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     }
 
     /**
-     * Installs one opt-in BaseDexClassLoader.findClass observer for the host process.
-     * Maintained hosts use the class-load observation switch; unknown hosts require an explicit
-     * metadata, invocation-probe, or narrowly scoped feature-hook switch. The
-     * callback proceeds first and only inspects
-     * classes defined by the host root loader or one of its child loaders.
+     * Installs one opt-in BaseDexClassLoader.findClass dispatcher for the host process.
+     * Maintained hosts use the class-load observation switch. Unknown hosts may enable this
+     * dispatcher for one or more independent lanes, but each callback action checks only its
+     * own switch: metadata observation, diagnostic invocation probes, or feature Hooks.
      */
     private void installRoiClassLoadObserver(final ClassLoader hostRoot,
                                              final boolean unknownHostOptIn) throws Throwable {
@@ -1733,32 +1735,28 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 Object receiver = chain.getThisObject();
                 if (receiver instanceof ClassLoader && loaded instanceof Class<?>) {
                     try {
-                        boolean observationEnabled = maintainedHost
+                        boolean metadataObservationEnabled = maintainedHost
                                 ? new File(ROI_CLASS_LOAD_OBSERVATION_ENABLE_FILE).isFile()
-                                : (unknownHostOptIn
-                                && (RoiUnknownHostHookPolicy.isExplicitlyEnabled(
-                                        new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE))
-                                    || RoiUnknownHostInvocationProbePolicy.isExplicitlyEnabled(
-                                        new File(ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE))
-                                    || RoiUnknownHostFeatureHookPolicy.isExplicitlyEnabled(
-                                        new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE))));
-                        if (!observationEnabled) return loaded;
-                        RoiClassLoadObserver.EventSnapshot event =
-                                ROI_CLASS_LOAD_OBSERVER.observe(
-                                        (ClassLoader) receiver, (Class<?>) loaded, hostRoot,
-                                        true, true, System.currentTimeMillis());
-                        if (event != null) {
-                            String report = event.toReport();
-                            log("[ROI_CLASS_LOAD] " + (report.length() > 4096
-                                    ? report.substring(0, 4096) + "...<truncated>" : report));
-                            String candidateMatches =
-                                    RoiClassCandidateMatcher.matchObservedClass((Class<?>) loaded);
-                            if (candidateMatches.length() > 0) {
-                                log("[ROI_CLASS_MATCH] " + candidateMatches);
+                                : (unknownHostOptIn && RoiUnknownHostHookPolicy.isExplicitlyEnabled(
+                                        new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE)));
+                        if (metadataObservationEnabled) {
+                            RoiClassLoadObserver.EventSnapshot event =
+                                    ROI_CLASS_LOAD_OBSERVER.observe(
+                                            (ClassLoader) receiver, (Class<?>) loaded, hostRoot,
+                                            true, true, System.currentTimeMillis());
+                            if (event != null) {
+                                String report = event.toReport();
+                                log("[ROI_CLASS_LOAD] " + (report.length() > 4096
+                                        ? report.substring(0, 4096) + "...<truncated>" : report));
+                                String candidateMatches =
+                                        RoiClassCandidateMatcher.matchObservedClass((Class<?>) loaded);
+                                if (candidateMatches.length() > 0) {
+                                    log("[ROI_CLASS_MATCH] " + candidateMatches);
+                                }
                             }
                         }
-                        // Functional binding is independent of the bounded diagnostic event
-                        // quota: a rate-limited metadata report must not suppress a valid hook.
+                        // The remaining lanes are deliberately independent of metadata logging.
+                        // A probe or feature-Hook switch must not turn metadata diagnostics on.
                         if (!maintainedHost && RoiUnknownHostInvocationProbePolicy
                                 .isExplicitlyEnabled(new File(
                                         ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE))) {
