@@ -27,7 +27,7 @@ final class RoiUnknownHostChatRequestResolver {
     };
 
     interface Installer {
-        boolean install(Constructor<?> constructor) throws Throwable;
+        boolean install(Candidate candidate, Constructor<?> constructor) throws Throwable;
     }
 
     static final class Candidate {
@@ -167,7 +167,7 @@ final class RoiUnknownHostChatRequestResolver {
         Constructor<?> target = null;
         try {
             for (Constructor<?> constructor : type.getDeclaredConstructors()) {
-                if (!candidate.constructorDescriptor.equals(constructorDescriptor(constructor))) continue;
+                if (!candidate.constructorDescriptor.equals(constructorDescriptorForPolicy(constructor))) continue;
                 if (!hasExpectedConstructorShape(constructor.getParameterTypes())) return 0;
                 target = constructor;
                 break;
@@ -178,7 +178,7 @@ final class RoiUnknownHostChatRequestResolver {
         if (target == null) return 0;
         String key = candidate.sourceScope + "|" + candidate.constructorDescriptor;
         if (installed.contains(key)) return 0;
-        if (installer.install(target)) {
+        if (installer.install(candidate, target)) {
             installed.add(key);
             return 1;
         }
@@ -251,7 +251,7 @@ final class RoiUnknownHostChatRequestResolver {
         return semicolon > cursor + 1 && semicolon < end ? semicolon + 1 : -1;
     }
 
-    private static String constructorDescriptor(Constructor<?> constructor) {
+    static String constructorDescriptorForPolicy(Constructor<?> constructor) {
         StringBuilder out = new StringBuilder();
         out.append('L').append(constructor.getDeclaringClass().getName().replace('.', '/'))
                 .append(";-><init>(");
