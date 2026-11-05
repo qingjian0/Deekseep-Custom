@@ -360,19 +360,21 @@ final class RoiDexKitDiscovery {
                                 Main.ROI_UNKNOWN_HOST_CHAT_REQUEST_RESOLVER;
                         resolver.observeDexCandidate(sourceScope, anchor, descriptor,
                                 graphObservation.invokes);
+                        // Bind constructor evidence to the exact DEX method carrying this
+                        // semantic anchor. A class-wide scan can incorrectly attribute a
+                        // constructor call from an unrelated method to every string in the class.
                         inspectSerializerOwnerForRequestConstructors(bridge, prefix,
-                                sourceScope, anchor, owner, budget,
+                                sourceScope, anchor, descriptor, budget,
                                 serializerConstructorCache, out);
-                        int callerOwnerScans = 0;
+                        int callerMethodScans = 0;
                         for (String callerDescriptor : graphObservation.callers) {
-                            if (callerOwnerScans >= 2) break;
-                            String callerOwner = ownerFromMethodDescriptor(callerDescriptor);
-                            if (callerOwner.length() == 0
-                                    || callerOwner.equals(normalizeDexClassName(owner))) continue;
+                            if (callerMethodScans >= 2) break;
+                            if (callerDescriptor.length() == 0
+                                    || callerDescriptor.equals(descriptor)) continue;
                             inspectSerializerOwnerForRequestConstructors(bridge, prefix,
-                                    sourceScope, anchor, callerOwner, budget,
+                                    sourceScope, anchor, callerDescriptor, budget,
                                     serializerConstructorCache, out);
-                            callerOwnerScans++;
+                            callerMethodScans++;
                         }
                     }
                     appendSemanticRoleHints(candidatePrefix, graphObservation.invokes, out);
@@ -470,12 +472,14 @@ final class RoiDexKitDiscovery {
      * field anchor with those references.
      */
     private static void inspectSerializerOwnerForRequestConstructors(DexKitBridge bridge,
-            String prefix, String sourceScope, String anchor, String owner,
+            String prefix, String sourceScope, String anchor, String targetMethodDescriptor,
             RoiDiscoveryBudget budget,
             Map<String, List<SerializerConstructorRef>> cache, StringBuilder out) {
-        String className = normalizeDexClassName(owner);
-        if (className.length() == 0) return;
-        String cacheKey = sourceScope + "|" + className;
+        String className = normalizeDexClassName(ownerFromMethodDescriptor(targetMethodDescriptor));
+        if (className.length() == 0 || targetMethodDescriptor == null
+                || targetMethodDescriptor.length() == 0) return;
+        // Cache per exact method, not per owner: evidence must never bleed between sibling methods.
+        String cacheKey = sourceScope + "|" + targetMethodDescriptor;
         List<SerializerConstructorRef> references = cache.get(cacheKey);
         if (references == null) {
             references = new ArrayList<SerializerConstructorRef>();
@@ -495,7 +499,7 @@ final class RoiDexKitDiscovery {
                     if (!budget.tryAcceptCandidate(System.nanoTime())) break;
                     Object methodData = invokeGet(methods, i);
                     String methodDescriptor = safe(readString(methodData, "getDescriptor"));
-                    if (methodDescriptor.length() == 0) continue;
+                    if (!targetMethodDescriptor.equals(methodDescriptor)) continue;
                     Object invokes = readObject(methodData, "getInvokes");
                     int invokeCount = Math.min(invokeSize(invokes), 128);
                     for (int j = 0; j < invokeCount; j++) {
@@ -519,8 +523,10 @@ final class RoiDexKitDiscovery {
                     }
                     if (references.size() >= MAX_REQUEST_CTORS_PER_SERIALIZER) break;
                 }
-                append(out, prefix + ".serializerOwner." + safeKey(className)
-                        + ".methodsScanned=" + count
+                append(out, prefix + ".serializerMethod." + safeKey(targetMethodDescriptor)
+                        + ".owner=" + safe(className)
+                        + ",ownerMethodsScanned=" + count
+                        + ",exactMethodMatched=" + !references.isEmpty()
                         + ",requestConstructorRefs=" + references.size());
             } catch (VirtualMachineError fatal) {
                 throw fatal;
