@@ -1781,6 +1781,25 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         return installed;
     }
 
+    List<RoiUnknownHostInvocationProbe.Snapshot> snapshotRoiUnknownHostInvocationProbe() {
+        if (HostCompat.supportsMaintainedFeatureRuntime()
+                || !RoiUnknownHostInvocationProbePolicy.isExplicitlyEnabled(
+                        new File(ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE))) {
+            return Collections.emptyList();
+        }
+        try {
+            return ROI_UNKNOWN_HOST_INVOCATION_PROBE.snapshot();
+        } catch (Throwable observationError) {
+            if (observationError instanceof VirtualMachineError) {
+                throw (VirtualMachineError) observationError;
+            }
+            if (observationError instanceof ThreadDeath) throw (ThreadDeath) observationError;
+            log("ROI unknown-host invocation snapshot failed="
+                    + observationError.getClass().getName());
+            return Collections.emptyList();
+        }
+    }
+
     public synchronized void installAllFeatureHooks(ClassLoader cl) {
         if (cl == null) cl = hostClassLoader;
         if (cl == null) return;
