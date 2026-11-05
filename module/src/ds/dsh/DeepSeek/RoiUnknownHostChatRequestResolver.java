@@ -83,6 +83,7 @@ final class RoiUnknownHostChatRequestResolver {
     private final List<WeakReference<Class<?>>> observed =
             new ArrayList<WeakReference<Class<?>>>();
     private final Set<String> installed = new LinkedHashSet<String>();
+    private final Set<String> finalizedScopes = new LinkedHashSet<String>();
 
     synchronized void observeDexCandidate(String sourceScope, String anchor,
             String serializerMethodDescriptor, List<String> directInvokes) {
@@ -102,6 +103,7 @@ final class RoiUnknownHostChatRequestResolver {
             }
             candidate.anchors.add(anchor);
             candidate.serializerMethods.add(serializerMethodDescriptor);
+            finalizedScopes.remove(sourceScope);
         }
     }
 
@@ -123,11 +125,16 @@ final class RoiUnknownHostChatRequestResolver {
         return best == null || tied ? null : best.snapshot();
     }
 
+    synchronized List<Candidate> finalizeDiscovery() {
+        for (MutableCandidate candidate : candidates.values()) {
+            finalizedScopes.add(candidate.scope);
+        }
+        return bestCandidates();
+    }
+
     synchronized List<Candidate> bestCandidates() {
-        Set<String> scopes = new LinkedHashSet<String>();
-        for (MutableCandidate candidate : candidates.values()) scopes.add(candidate.scope);
         List<Candidate> result = new ArrayList<Candidate>();
-        for (String scope : scopes) {
+        for (String scope : finalizedScopes) {
             Candidate candidate = bestCandidate(scope);
             if (candidate != null) result.add(candidate);
         }
@@ -138,6 +145,7 @@ final class RoiUnknownHostChatRequestResolver {
             Installer installer) throws Throwable {
         if (candidate == null || hostRoot == null || installer == null
                 || !candidateReady(candidate)) return 0;
+        if (!finalizedScopes.contains(candidate.sourceScope)) return 0;
         Candidate best = bestCandidate(candidate.sourceScope);
         if (!sameCandidate(best, candidate)) return 0;
         int installedNow = 0;
@@ -162,7 +170,9 @@ final class RoiUnknownHostChatRequestResolver {
             if (observed.size() >= MAX_OBSERVED_CLASSES) observed.remove(0);
             observed.add(new WeakReference<Class<?>>(type));
         }
-        Candidate best = bestCandidate(RoiCandidateIdentity.forClassLoader(type.getClassLoader()));
+        String scope = RoiCandidateIdentity.forClassLoader(type.getClassLoader());
+        if (!finalizedScopes.contains(scope)) return 0;
+        Candidate best = bestCandidate(scope);
         return best == null ? 0 : installForClass(type, best, hostRoot, installer);
     }
 
