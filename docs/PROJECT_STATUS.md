@@ -479,3 +479,10 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 回归测试扩展到安装器：默认关闭、未验证角色拒绝、loader 根范围拒绝、精确方法安装、原方法 exactly-once、运行时关闭透传、安装异常回滚。
 - **本阶段仍未安装任何未知版本方法 Hook**：安装入口目前没有候选生产者调用；现有未知版本静态候选不具备 verified 角色与运行时调用图证明。此项是安全边界，不是遗漏的自动激活。
 - CI workflow 已配置 ROI fast audit 与 Regression 执行新脚本；GitHub Combined Status 当前未返回状态项，不能据此报告 CI 通过。本地 JVM、Android 构建及真机验证仍待执行。
+
+## ROI R2.7.6 — invocation wiring safety audit (2026-11-05)
+
+- 新增 `module/test-roi-unknown-host-invocation-wiring.sh`，将未知版本调用探针的关键安全边界固定为 CI 回归：Main 仅经独立 Invocation Probe 开关进入安装器；安装器仍要求精确方法、loader scope、已验证角色和调用图证据；DexKit 静态发现不得直接调用安装入口；未知版本功能 Hook 授权仍恒为 false。
+- 新测试已接入 ROI Fast Audit 与完整 Regression。
+- 本次 CI：旧工作流提交 `69b10ab` 的 run #41994735857 在检查时仍运行中；包含新工作流配置的提交 `fed955e` 的 run #41994754594 当时处于 pending。未据此宣称本轮 CI 通过。
+- 当前 dev 仅增加安全不变量审计；未放宽 candidate proof 门槛、未启用未知版本方法 Hook、未修改 main。未知版本仍无已验证的运行时调用证据生产者。
