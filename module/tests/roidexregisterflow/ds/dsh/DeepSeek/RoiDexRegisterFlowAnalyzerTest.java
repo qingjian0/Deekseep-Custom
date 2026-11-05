@@ -287,9 +287,11 @@ public final class RoiDexRegisterFlowAnalyzerTest {
     }
 
     private static void testUnreachableDefinitionsDoNotReachLiveCode() throws Exception {
-        // goto live return; dead const/4 v0; dead goto; return v0
-        short[] code = {(short) 0x0528, (short) 0x0005,
-                (short) 0x0012, (short) 0x0228, (short) 0x0002, (short) 0x000f};
+        // entry goto live return; unreachable goto; dead const/4 v0 + dead goto; return v0
+        // All branch displacements are relative to their own instruction addresses.
+        short[] code = {(short) 0x0628, (short) 0x0528,
+                (short) 0x0012, (short) 0x0328,
+                (short) 0x0000, (short) 0x0000, (short) 0x000f};
         RoiDexRegisterFlowAnalyzer.Result flow =
                 RoiDexRegisterFlowAnalyzer.analyze(code, 1);
         RoiDexReachingDefinitions.Result reaching =
