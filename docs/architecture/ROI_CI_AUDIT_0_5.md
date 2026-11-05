@@ -162,3 +162,14 @@ The source and static assertions have been updated on the working branch. The la
 - Added regression cases for coverage status, immutable snapshots, disabled-policy rejection, TTL expiry, and clearing.
 - No Continuation proxy, new host Hook target, parser callback, or stream-completion inference was added. ClassLoader mismatch diagnostics remain future work.
 - CI/local/device verification remains separate; no local test, Android build, or real-device pass is claimed by this source update.
+
+
+## R2.5.5 — Flow correlation lifetime and ClassLoader scope diagnostics
+
+- Preserve Flow object-identity correlation across repeated collection rather than consuming the mapping on the first collect callback. This is limited to the exact same Flow object; no structural/equality matching is used.
+- Correlation entries are bounded to 512, carry only opaque request key plus local timestamp, expire after 120 seconds, and clear on observer reset. Registration and collection prune expired entries.
+- Discovery now reports exact-scope coverage separately from same-adapter/same-descriptor evidence observed under other ClassLoader scopes. Other-scope entries are diagnostics only and are never merged into exact evidence.
+- Other-scope diagnostics are restricted to in-memory ClassLoader candidates; APK-path scans remain uncorrelated.
+- Exact evidence matching remains adapter identity + full method descriptor + exact ClassLoader scope. No Resolver or activation changes.
+- Static regression guards added for repeat collection, TTL, bounded storage and scope-diagnostic output. No new Hook target or Continuation proxy.
+- No local Java test, Android build, or real-device verification is claimed.
