@@ -32,14 +32,16 @@ final class RoiDexKitDiscovery {
     private static final int MAX_CANDIDATES_PER_ANCHOR = 8;
     private static final int MAX_RELATIONS_PER_CANDIDATE = 12;
     private static final int MAX_DISCOVERY_PASSES = 3;
-    private static final int MAX_TOTAL_QUERIES_PER_SCAN = 32;
+    private static final int MAX_TOTAL_QUERIES_PER_SCAN = 48;
     private static final int MAX_TOTAL_CANDIDATES_PER_SCAN = 96;
     private static final long SCAN_BUDGET_NANOS = 45_000_000_000L;
     private static final Object LOADER_LOCK = new Object();
     private static final WeakHashMap<ClassLoader, Boolean> REGISTERED_LOADERS =
             new WeakHashMap<ClassLoader, Boolean>();
     private static final String[] SEMANTIC_ANCHORS = {
-            "chat/completions", "application/json", "Authorization", "messages"
+            "chat/completions", "application/json", "Authorization", "messages",
+            "chat_session_id", "parent_message_id", "thinking_enabled",
+            "search_enabled", "preempt"
     };
     private static final java.util.concurrent.atomic.AtomicBoolean SCHEDULED =
             new java.util.concurrent.atomic.AtomicBoolean();
@@ -342,6 +344,12 @@ final class RoiDexKitDiscovery {
                     RoiCandidateGraph.Observation graphObservation = appendCallRelations(
                             item, candidatePrefix, sourceScope, descriptor, anchor, out);
                     graphObservations.add(graphObservation);
+                    if (sourceScope.startsWith("loader:")) {
+                        RoiUnknownHostChatRequestResolver resolver =
+                                Main.ROI_UNKNOWN_HOST_CHAT_REQUEST_RESOLVER;
+                        resolver.observeDexCandidate(sourceScope, anchor, descriptor,
+                                graphObservation.invokes);
+                    }
                     appendSemanticRoleHints(candidatePrefix, graphObservation.invokes, out);
                     appendFunctionalRoleHints(candidatePrefix, graphObservation.invokes, out);
                     appendRuntimeEvidence(candidatePrefix, hostKey, sourceScope, descriptor,
@@ -407,6 +415,16 @@ final class RoiDexKitDiscovery {
                         + ".queryError=" + error.getClass().getName());
             }
             if (out.length() > 8200 || !budget.canContinue(System.nanoTime())) break;
+        }
+        if (sourceScope.startsWith("loader:")) {
+            RoiUnknownHostChatRequestResolver.Candidate chatRequest =
+                    Main.ROI_UNKNOWN_HOST_CHAT_REQUEST_RESOLVER.bestCandidate(sourceScope);
+            if (chatRequest != null) {
+                Main.registerRoiUnknownHostChatRequestCandidate(chatRequest);
+                append(out, prefix + ".autoFeature.chatRequestCandidate="
+                        + chatRequest.ownerDescriptor + ",anchors="
+                        + chatRequest.evidenceCount());
+            }
         }
         appendCandidateGraph(prefix, graphObservations, out);
         return total;
