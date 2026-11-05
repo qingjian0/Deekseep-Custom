@@ -14,7 +14,8 @@ import java.util.Set;
 /**
  * Discovers the DeepSeek ChatFullCompletionRequest constructor from serializer field-name
  * anchors and its exact DEX constructor reference, then binds it to an already-loaded runtime
- * class in the same ClassLoader scope. This resolver never loads or invokes host classes.
+ * class in the same ClassLoader scope. It never loads or invokes host code; after full-scan
+ * finalization it delegates exact constructor installation to a separately authorized callback.
  */
 final class RoiUnknownHostChatRequestResolver {
     static final int MAX_CANDIDATES = 16;
