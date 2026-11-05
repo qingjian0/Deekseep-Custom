@@ -373,7 +373,7 @@ final class RoiDexKitDiscovery {
                                         sourceScope, owner, method, descriptor));
                         if (priorClassMatches.length() > 0) {
                             append(out, candidatePrefix + ".runtimeClassMatches="
-                                    + priorClassMatches.replace('\\n', '|'));
+                                    + priorClassMatches.replace("\\n", "|"));
                         }
                     }
                     RoiHookResolver.Decision decision = RoiHookResolver.resolve(
