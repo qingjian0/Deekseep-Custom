@@ -312,8 +312,8 @@ public final class RoiDexRegisterFlowAnalyzerTest {
     private static void testUseDefDetectsPartiallyUndefinedDiamondPath() throws Exception {
         // if-eqz v1 -> right; left defines v0; both paths join at return v0.
         short[] code = {(short) 0x0138, (short) 5,
-                (short) 0x0012, (short) 0x0428, (short) 4,
-                (short) 0x0228, (short) 2, (short) 0x000f};
+                (short) 0x0012, (short) 0x0429, (short) 4,
+                (short) 0x0229, (short) 2, (short) 0x000f};
         RoiDexUseDefChains.UseSite use = useAt(chains(code, 2), 7, 0);
         check(use != null && use.reachingDefinitions.length == 1,
                 "partial diamond has one reaching definition from the defining branch");
