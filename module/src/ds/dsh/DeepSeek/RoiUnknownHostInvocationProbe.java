@@ -51,6 +51,7 @@ final class RoiUnknownHostInvocationProbe {
     private final Set<String> approvedKeys = new LinkedHashSet<String>();
     private final Map<String, Aggregate> aggregates = new LinkedHashMap<String, Aggregate>();
     private long rateWindowStartNanos;
+    private boolean rateWindowInitialized;
     private int rateWindowEvents;
 
     synchronized boolean register(String descriptor) {
@@ -92,10 +93,11 @@ final class RoiUnknownHostInvocationProbe {
                                      String exceptionType, long nowNanos) {
         String value = clean(probeKey);
         Aggregate aggregate = aggregates.get(value);
-        if (aggregate == null || nowNanos <= 0) return;
-        if (rateWindowStartNanos == 0 || nowNanos - rateWindowStartNanos >= 1_000_000_000L
+        if (aggregate == null) return;
+        if (!rateWindowInitialized || nowNanos - rateWindowStartNanos >= 1_000_000_000L
                 || nowNanos < rateWindowStartNanos) {
             rateWindowStartNanos = nowNanos;
+            rateWindowInitialized = true;
             rateWindowEvents = 0;
         }
         if (rateWindowEvents >= MAX_EVENTS_PER_SECOND) return;
@@ -132,6 +134,7 @@ final class RoiUnknownHostInvocationProbe {
         approvedKeys.clear();
         aggregates.clear();
         rateWindowStartNanos = 0L;
+        rateWindowInitialized = false;
         rateWindowEvents = 0;
     }
 
