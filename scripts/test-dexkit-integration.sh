@@ -44,7 +44,7 @@ for required in (
     "hooksInstalled=false",
     "SEMANTIC_ANCHORS",
     "querySemanticAnchors",
-    "activation=forbidden_without_external_validation",
+    "activation=chat_prompt_adapter_only_after_explicit_opt_in_and_scan_finalization",
 ):
     if required not in dexkit:
         raise SystemExit(f"DexKit discovery contract missing: {required}")
