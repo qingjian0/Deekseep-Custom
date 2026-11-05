@@ -113,7 +113,7 @@ final class RoiClassCandidateMatcher {
     }
 
     private static void appendMatch(StringBuilder report, Candidate candidate, Result result) {
-        if (report.length() > 0) report.append('\\n');
+        if (report.length() > 0) report.append('\n');
         report.append("status=").append(result.status.name())
                 .append(",owner=").append(candidate.owner)
                 .append(",method=").append(candidate.methodName)
