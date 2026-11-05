@@ -416,3 +416,16 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 类加载快照只进入诊断日志，不进入 Resolver 评分，不批准 Adapter，不自动 Hook 新类方法。功能角色识别、运行时验证、Hook plan 与激活仍是后续独立阶段。
 - 新增 JVM 回归覆盖 host/child loader 范围、批准/opt-in gate、兄弟与委派类拒绝、重复类、容量、TTL、速率限制、快照不可变性及空输入；CI fast audit 与 regression 已加入脚本。
 - 验证边界：本轮仅更新远程源码与 CI 配置；尚未执行本地 Java 测试、Android 构建或真机测试。必须以本 commit 对应 GitHub Actions 的最终结果为准。
+
+
+## ROI R2.7.1 — conservative functional-role classification (2026-11-05)
+
+- 新增 `RoiFunctionalRoleClassifier`，把 DexKit 候选方法的直接 invoke 引用映射为 `REQUEST_CONSTRUCTION`、`HTTP_TRANSPORT`、`RESPONSE_DECODING` 三类功能角色。
+- 仅复用已识别的明确 OkHttp / Retrofit / URLConnection / ResponseBody / Gson / Moshi / Jackson / JSONObject API 描述符；类名、方法名、混淆名称、字符串锚点本身不构成功能角色证据。
+- 无明确直接引用时输出 `UNRESOLVED`。当前不推断消息组装、Agent 编排、工具分发、SSE/流消费等角色；这些需要后续独立的精确证据模型。
+- 每个候选输出角色、命中引用、来源 `direct_static_invoke_reference_only` 和静态置信度上限 0.45。此值仅供诊断排序，不进入 Resolver evidence，不可授权 Hook。
+- `RoiDexKitDiscovery` 已将功能角色诊断接入每个候选方法报告；输出 `functionalRole.activationAuthorized=false`。
+- 新增 JVM 测试覆盖请求构造与传输不混淆、响应解码识别、未知混淆方法保持 unresolved、空输入保持 unresolved。
+- CI fast audit 与 regression 已接入 `test-roi-functional-role-classifier.sh`；DexKit discovery 静态审计也检查功能角色输出始终不可授权。
+- 本阶段只做静态功能角色分类，尚未把加载类元数据与 DexKit 候选做精确类身份关联，也未形成跨候选的完整请求/响应流水线。没有修改 Resolver 授权策略、Adapter 审批或 Hook 激活逻辑。
+- 验证边界：源码和 CI 配置已提交；需等待最新 Actions 完成。未声称本地 JVM 测试、Android 构建或真机验证通过。
