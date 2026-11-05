@@ -31,6 +31,7 @@ public final class RoiDexRegisterFlowAnalyzerTest {
         testUseDefRejectsMismatchedRegisterCount();
         testUnsupportedOpcodeFailsClosed();
         testRegisterBounds();
+        testTypedAndCatchAllExceptionEdges();
         System.out.println("RoiDexRegisterFlowAnalyzer tests passed");
     }
 
@@ -446,6 +447,57 @@ public final class RoiDexRegisterFlowAnalyzerTest {
             check(expected.getMessage().contains(fragment),
                     "failure contains " + fragment + ": " + expected.getMessage());
         }
+    }
+
+    private static void testTypedAndCatchAllExceptionEdges() throws Exception {
+        byte[] bytes = new byte[64];
+        put16(bytes, 16, 1); // registers_size
+        put16(bytes, 18, 0); // ins_size
+        put16(bytes, 20, 0); // outs_size
+        put16(bytes, 22, 1); // tries_size
+        put32(bytes, 24, 0); // debug_info_off
+        put32(bytes, 28, 2); // insns_size
+        put16(bytes, 32, 0x0000); // nop, protected
+        put16(bytes, 34, 0x000e); // return-void
+        put32(bytes, 36, 0); // try start_addr
+        put16(bytes, 40, 1); // try insn_count
+        put16(bytes, 42, 1); // handler_off relative to encoded handler list
+        bytes[44] = 1; // encoded_catch_handler_list size
+        bytes[45] = (byte) 0x7f; // sleb128 -1: one typed catch plus catch-all
+        bytes[46] = 0; // type_idx
+        bytes[47] = 0; // typed handler addr
+        bytes[48] = 1; // catch-all addr
+
+        RoiDexCodeReader.CodeItem code =
+                RoiDexCodeReader.readCodeItem(bytes, 0, bytes.length, 16, 1);
+        check(code.catchHandlers.length == 1
+                        && code.catchHandlers[0].typedCatches.length == 1
+                        && code.catchHandlers[0].catchAllAddress == 1,
+                "typed and catch-all clauses are parsed from signed handler size");
+        RoiDexRegisterFlowAnalyzer.Result flow =
+                RoiDexRegisterFlowAnalyzer.analyze(code);
+        check(flow.exceptionEdgesIncluded && !flow.completeForExceptionFlow
+                        && flow.exceptionEdges.length == 2,
+                "conservative exception CFG reports typed and catch-all edges without claiming completeness");
+        boolean typed = false, catchAll = false;
+        for (RoiDexExceptionControlFlow.ExceptionEdge edge : flow.exceptionEdges) {
+            typed |= !edge.catchAll && edge.catchTypeIndex == 0 && edge.handlerAddress == 0;
+            catchAll |= edge.catchAll && edge.handlerAddress == 1;
+        }
+        check(typed && catchAll, "exception edges preserve handler type and target identity");
+        RoiDexReachingDefinitions.Result reaching =
+                RoiDexReachingDefinitions.analyze(flow);
+        check(reaching.exceptionEdgesIncluded && !reaching.completeForExceptionFlow,
+                "reaching definitions explicitly records conservative exception edges");
+    }
+
+    private static void put16(byte[] bytes, int offset, int value) {
+        bytes[offset] = (byte) value;
+        bytes[offset + 1] = (byte) (value >>> 8);
+    }
+
+    private static void put32(byte[] bytes, int offset, int value) {
+        for (int i = 0; i < 4; i++) bytes[offset + i] = (byte) (value >>> (8 * i));
     }
 
     private static void check(boolean condition, String message) {
