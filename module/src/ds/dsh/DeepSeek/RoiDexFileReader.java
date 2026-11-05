@@ -103,6 +103,9 @@ public final class RoiDexFileReader {
         if(dataSize==0&&dataOff!=0)throw new DexException("empty_data_nonzero_offset");
         if(dataSize>0&&(dataOff<HEADER_SIZE||dataOff%4!=0))throw new DexException("invalid_data_offset");
         if(dataSize>0&&dataOff+dataSize>fileSize)throw new DexException("data_out_of_file");
+        if(mapOff!=0&&(dataSize==0||mapOff<dataOff||(long)mapOff>=((long)dataOff+dataSize)))
+            throw new DexException("map_out_of_data");
+        validateTableLayout(fileSize,dataOff,dataSize,strings,types,protos,fields,methods,classes);
 
         Header h=new Header(version,checksum,signature,fileSize,headerSize,linkSize,linkOff,
                 mapOff,dataSize,dataOff,strings,types,protos,fields,methods,classes);
@@ -142,7 +145,7 @@ public final class RoiDexFileReader {
         ClassDef[] classValues=new ClassDef[classes.size];
         for(int i=0;i<classValues.length;i++){
             int p=classes.offset+i*32;int[] v=new int[8];
-            for(int j=0;j<8;j++)v[j]=u32int(bytes,p+j*4);
+            for(int j=0;j<8;j++)v[j]=(int)u32(bytes,p+j*4);
             indexRef(v[0],types.size,"class_index");
             if(v[2]!=-1)indexRef(v[2],types.size,"superclass_index");
             if(v[4]!=-1)indexRef(v[4],strings.size,"source_file_index");
@@ -153,6 +156,21 @@ public final class RoiDexFileReader {
             classValues[i]=new ClassDef(v);
         }
         return new DexFile(h,stringOffsets,typeStrings,protoValues,fieldValues,methodValues,classValues);
+    }
+
+    private static void validateTableLayout(int fileSize,int dataOff,int dataSize,Section... sections)throws DexException{
+        for(int i=0;i<sections.length;i++){
+            Section a=sections[i];
+            if(a.size==0)continue;
+            long aEnd=(long)a.offset+(long)a.size*a.itemWidth;
+            if(dataSize>0&&aEnd>dataOff)throw new DexException("id_table_overlaps_data");
+            for(int j=i+1;j<sections.length;j++){
+                Section b=sections[j];
+                if(b.size==0)continue;
+                long bEnd=(long)b.offset+(long)b.size*b.itemWidth;
+                if((long)a.offset<bEnd&&(long)b.offset<aEnd)throw new DexException("id_tables_overlap");
+            }
+        }
     }
 
     private static Section section(byte[] b,int file,int headerOffset,int width,String name)throws DexException{
