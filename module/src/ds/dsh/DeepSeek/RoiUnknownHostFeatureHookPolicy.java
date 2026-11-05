@@ -36,6 +36,15 @@ final class RoiUnknownHostFeatureHookPolicy {
             ClassLoader hostRoot) {
         if (maintainedHost || !isExplicitlyEnabled(switchFile) || candidate == null
                 || constructor == null || hostRoot == null
+                || candidate.fieldAnchors == null
+                || !candidate.fieldAnchors.contains("chat_session_id")
+                || !candidate.fieldAnchors.contains("thinking_enabled")
+                || !candidate.fieldAnchors.contains("search_enabled")
+                || !(candidate.fieldAnchors.contains("parent_message_id")
+                    || candidate.fieldAnchors.contains("preempt"))
+                || candidate.fieldAnchors.size()
+                        < RoiUnknownHostChatRequestResolver.MIN_FIELD_ANCHORS
+                || candidate.serializerMethods == null || candidate.serializerMethods.isEmpty()
                 || !RoiUnknownHostChatRequestResolver.hasExpectedConstructorShape(
                         constructor.getParameterTypes())) return false;
         String owner = "L" + constructor.getDeclaringClass().getName().replace('.', '/') + ";";
