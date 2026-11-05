@@ -62,9 +62,9 @@ final class RoiUnknownHostInvocationProbe {
         String identity = clean(key);
         String value = clean(descriptor);
         if (identity.length() == 0 || value.length() == 0) return false;
-        if (approvedDescriptors.contains(identity)) return true;
-        if (approvedDescriptors.size() >= MAX_PROBED_METHODS) return false;
-        approvedDescriptors.add(identity);
+        if (approvedKeys.contains(identity)) return true;
+        if (approvedKeys.size() >= MAX_PROBED_METHODS) return false;
+        approvedKeys.add(identity);
         aggregates.put(identity, new Aggregate(value));
         return true;
     }
@@ -78,7 +78,7 @@ final class RoiUnknownHostInvocationProbe {
             recordSafely(probeKey, elapsed(started), null, System.nanoTime());
             return result;
         } catch (Throwable failure) {
-            recordSafely(descriptor, elapsed(started), failure.getClass().getName(), System.nanoTime());
+            recordSafely(probeKey, elapsed(started), failure.getClass().getName(), System.nanoTime());
             throw failure;
         }
     }
@@ -113,7 +113,7 @@ final class RoiUnknownHostInvocationProbe {
 
     synchronized boolean unregister(String key) {
         String identity = clean(key);
-        approvedDescriptors.remove(identity);
+        approvedKeys.remove(identity);
         aggregates.remove(identity);
         return true;
     }
@@ -129,7 +129,7 @@ final class RoiUnknownHostInvocationProbe {
     }
 
     synchronized void clear() {
-        approvedDescriptors.clear();
+        approvedKeys.clear();
         aggregates.clear();
         rateWindowStartNanos = 0L;
         rateWindowEvents = 0;
