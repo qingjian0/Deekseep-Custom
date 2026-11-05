@@ -368,9 +368,13 @@ final class RoiDexKitDiscovery {
                             sourceScope, candidateId,
                             false, false, Collections.<String>emptySet(), evidence);
                     if (sourceScope.startsWith("loader:") && shape != null) {
-                        RoiClassCandidateMatcher.registerCandidate(
+                        String priorClassMatches = RoiClassCandidateMatcher.registerCandidate(
                                 new RoiClassCandidateMatcher.Candidate(
                                         sourceScope, owner, method, descriptor));
+                        if (priorClassMatches.length() > 0) {
+                            append(out, candidatePrefix + ".runtimeClassMatches="
+                                    + priorClassMatches.replace('\\n', '|'));
+                        }
                     }
                     RoiHookResolver.Decision decision = RoiHookResolver.resolve(
                             candidate, RoiHookResolver.Policy.discoveryOnly());
