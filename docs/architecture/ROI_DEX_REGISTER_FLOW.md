@@ -19,6 +19,19 @@ The worklist, definition count, and block-by-definition state space have explici
 
 **Scope limitation:** the current CFG has normal control-flow edges only. It does not parse DEX try/catch handler tables or add exceptional edges. Results therefore explicitly report `exceptionEdgesIncluded=false` and `completeForExceptionFlow=false`. They must not be represented as complete method-wide reaching definitions when exception handlers matter.
 
+## Phase 3: instruction-level use-def chains
+
+`RoiDexUseDefChains` walks each basic block from its reaching-IN state, emits one use site per register-word operand, links it to every definition that can reach that exact instruction, and then applies the instruction's definitions before processing the next instruction.
+
+- Branch joins retain all reaching definition sites until a later write kills them.
+- Loop-carried definitions are included after the reaching-definitions fixed point.
+- Wide values are represented as two register-word use sites.
+- Repeated operands remain distinct through their operand index.
+- A use with no modeled reaching definition is marked `mayBeEntryOrUnknownValue`; it is not declared uninitialized.
+- Use-site and chain-link budgets fail closed instead of returning partial chains.
+
+These chains inherit the normal-CFG-only limitation from phase 2. Exception-handler edges, method parameter register mapping, and receiver/parameter provenance are not yet modeled.
+
 ## Hook-safety boundary
 
 These analyses are static evidence only. They do not authorize Hook installation, infer semantic roles by themselves, or prove a runtime Flow/decoder path. Unknown versions remain read-only and feature Hooks remain separately gated.
