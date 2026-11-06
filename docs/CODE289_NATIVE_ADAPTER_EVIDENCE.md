@@ -92,4 +92,4 @@ One additional 1,463-byte capture contains only API validation traces: requests 
 
 ### Next probe enhancement
 
-The diagnostic probe now inventories the ly1 constructors and the observed request-factory stack methods (mw1.y/e, jr2.y/m, mr2.h), and records at most 16 constructor events with runtime argument class/field-shape metadata only. It does not capture argument values or request field values.
+The diagnostic probe now inventories the ly1 constructors and the observed request-factory stack methods (mw1.y/e, jr2.y/m, mr2.h), and records at most 16 constructor events with runtime argument class/field-shape metadata only. It does not capture argument values or request field values. The current follow-up adds a bounded call-stack snapshot to each of those constructor-entry records, allowing the next schema-7 capture to identify the actual factory caller chain while preserving the value-free policy. Constructor exit records retain only the request instance identity hash and declared field-name/type shape.
