@@ -34,6 +34,16 @@ build_gradle = pathlib.Path(sys.argv[3]).read_text(encoding="utf-8")
 if '(!protectedDistribution || localApiIncluded).toString()' not in build_gradle:
     raise SystemExit("Open builds must enable the declared Local API companion components")
 required = {
+    "HTTP chunked transfer encoding is accepted": '"chunked".equalsIgnoreCase(transferEncoding.trim())' in source,
+    "ambiguous Content-Length and Transfer-Encoding are rejected": '"Ambiguous request framing"' in source,
+    "unknown transfer encodings are rejected": '"Unsupported transfer encoding"' in source,
+    "chunked bodies use a dedicated bounded decoder": "body = readChunkedBody(in);" in source,
+    "decoded chunked body is bounded by MAX_BODY_BYTES": "chunkSize > MAX_BODY_BYTES - body.size()" in source,
+    "chunk terminators require CRLF": '"Invalid chunk terminator"' in source,
+    "chunk size lines require strict CRLF": "private static String readCrlfLine(InputStream in, int maxBytes)" in source,
+    "chunk trailers are bounded": '"Request trailers too large"' in source,
+    "security-sensitive framing trailers are rejected": '"Forbidden request trailer"' in source,
+    "truncated chunk payloads fail closed": '"Truncated chunk data"' in source,
     "active Android network lookup": "manager.getActiveNetwork()",
     "active network address lookup": "lanAddress(manager, active)",
     "all-network callback registration": "manager.registerNetworkCallback(",
