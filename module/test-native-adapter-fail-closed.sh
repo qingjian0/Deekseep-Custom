@@ -201,7 +201,7 @@ require(
 )
 require(
     probe,
-    r'line\(out, "report\.schema", "2"\)',
+    r'line\(out, "report\.schema", "3"\)',
     "probe report schema is versioned",
 )
 require(
@@ -495,7 +495,7 @@ require(
 
 require(
     probe,
-    r'installCallbackObserver\(Object callback, String role\).*?getDeclaredMethods\(\).*?installed < 12.*?chain\.getThisObject\(\).*?System\.identityHashCode\(receiver\)',
+    r'installCallbackObserver\(Object callback, String role\).*?installed < 12.*?getDeclaredMethods\(\).*?chain\.getThisObject\(\).*?System\.identityHashCode\(receiver\)',
     "continuation callback implementations are traced with bounded method hooks and identity correlation",
 )
 require(
