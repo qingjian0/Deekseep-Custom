@@ -14,5 +14,6 @@ javac -source 8 -target 8 -nowarn -d "$OUT" \
  "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexReachingDefinitions.java" \
  "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexMethodEntryLayout.java" \
  "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexUseDefChains.java" \
+ "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexMethodAnalysis.java" \
  "$ROOT/module/tests/roidexfilereader/ds/dsh/DeepSeek/RoiDexFileReaderTest.java"
 java -cp "$OUT" ds.dsh.DeepSeek.RoiDexFileReaderTest
