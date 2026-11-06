@@ -506,7 +506,7 @@ public final class RoiDexRegisterFlowAnalyzerTest {
         put16(bytes, 36, 0);
         put16(bytes, 38, 0);
         put16(bytes, 40, 0x000e); // normal return
-        put16(bytes, 42, 0x0101); // handler: move v0, v1
+        put16(bytes, 42, 0x1001); // handler: move v0, v1
         put16(bytes, 44, 0x000f); // return v0
         put32(bytes, 48, 0); // try start_addr
         put16(bytes, 52, 4); // protect const + invoke
