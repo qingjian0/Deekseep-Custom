@@ -409,7 +409,7 @@ final class OpenLocalApiGateway {
         return "本机地址：" + baseUrl() + "\n"
                 + "聊天接口：" + endpoint() + "/v1/chat/completions\n"
                 + "本地 API Key：" + apiKey() + "\n"
-                + "可用模型：deepseek-chat、deepseek-reasoner\n"
+                + "可用模型：deepseek-chat、deepseek-reasoner；兼容别名：deepseek-flash\n"
                 + (lanEnabled
                         ? (boundLanAddress.length() > 0
                                 ? "局域网地址：" + lanEndpoint() + "\n" : "")
@@ -501,10 +501,13 @@ final class OpenLocalApiGateway {
                 // independently return 503 until the native adapter is genuinely ready.
                 JSONObject model = new JSONObject().put("id", "deepseek-chat")
                         .put("object", "model").put("owned_by", "local");
+                // Compatibility alias retained for clients using the pre-Open model catalog.
+                JSONObject flashAlias = new JSONObject().put("id", "deepseek-flash")
+                        .put("object", "model").put("owned_by", "local");
                 JSONObject reasoner = new JSONObject().put("id", "deepseek-reasoner")
                         .put("object", "model").put("owned_by", "local");
                 sendJson(out, 200, new JSONObject().put("object", "list")
-                        .put("data", new JSONArray().put(model).put(reasoner)));
+                        .put("data", new JSONArray().put(model).put(reasoner).put(flashAlias)));
                 return;
             }
             if (!"POST".equals(request.method)
@@ -547,7 +550,11 @@ final class OpenLocalApiGateway {
                 sendError(out, 400, "invalid_model", "model must be a string");
                 return;
             }
-            String model = body.optString("model", "deepseek-chat").trim();
+            String requestedModel = body.optString("model", "deepseek-chat").trim();
+            // The earlier model catalog used deepseek-flash for the default native route.
+            // Canonicalize it to deepseek-chat rather than forwarding an unsupported ID.
+            String model = "deepseek-flash".equals(requestedModel)
+                    ? "deepseek-chat" : requestedModel;
             if (!"deepseek-chat".equals(model) && !"deepseek-reasoner".equals(model)) {
                 String reportedModel = model.replace('\r', ' ').replace('\n', ' ');
                 if (reportedModel.length() > 128) {
@@ -556,7 +563,7 @@ final class OpenLocalApiGateway {
                 Main.log("Open Local API rejected model id: " + reportedModel);
                 sendError(out, 400, "model_not_found",
                         "不支持的模型名称：" + reportedModel
-                                + "；当前可用模型：deepseek-chat、deepseek-reasoner");
+                                + "；当前可用模型：deepseek-chat、deepseek-reasoner（兼容别名：deepseek-flash）");
                 return;
             }
             String prompt;
