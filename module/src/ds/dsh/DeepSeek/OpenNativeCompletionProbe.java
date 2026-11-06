@@ -36,6 +36,11 @@ final class OpenNativeCompletionProbe {
             new java.util.concurrent.atomic.AtomicBoolean();
     private static final java.util.concurrent.atomic.AtomicBoolean OBSERVATION_Y60 =
             new java.util.concurrent.atomic.AtomicBoolean();
+    private static final AtomicBoolean OBSERVATION_LY1_CONSTRUCTORS = new AtomicBoolean();
+    private static final AtomicBoolean OBSERVATION_REQUEST_FACTORY_METADATA =
+            new AtomicBoolean();
+    private static final java.util.concurrent.atomic.AtomicInteger REQUEST_CONSTRUCTOR_EVENTS =
+            new java.util.concurrent.atomic.AtomicInteger();
     private static final java.util.concurrent.ConcurrentHashMap<String, Boolean>
             OBSERVED_CALLBACK_CLASSES = new java.util.concurrent.ConcurrentHashMap<String, Boolean>();
     private static final java.util.concurrent.atomic.AtomicLong OBSERVATION_IDS =
@@ -462,6 +467,8 @@ final class OpenNativeCompletionProbe {
             Class<?> requestType = Class.forName("ly1", false, loader);
             Class<?> requestMarker = Class.forName("wu1", false, loader);
             if (!requestMarker.isAssignableFrom(requestType)) return;
+            logRequestFactoryMetadata(loader, requestType);
+            installRequestConstructorObserver(requestType);
             installObservedMethod(loader, "jw3", "g", requestMarker,
                     OBSERVATION_JW3, "transport-low-level");
             installObservedMethod(loader, "zn3", "o", requestMarker,
@@ -474,6 +481,117 @@ final class OpenNativeCompletionProbe {
             observerLog("[OPEN_NATIVE_CALL_OBSERVER] setup failed: "
                     + error.getClass().getName());
         }
+    }
+
+    /**
+     * The transport trace identifies ly1 but not who constructs it. Record only constructor
+     * signatures/runtime argument types and the known request-factory call-site signatures.
+     * No argument values or request field values are read.
+     */
+    private static void logRequestFactoryMetadata(ClassLoader loader, Class<?> requestType) {
+        if (!OBSERVATION_REQUEST_FACTORY_METADATA.compareAndSet(false, true)) return;
+        observerLog("[OPEN_NATIVE_CALL_OBSERVER] request-class=" + requestType.getName()
+                + " interfaces=" + interfaces(requestType));
+        Constructor<?>[] constructors = requestType.getDeclaredConstructors();
+        observerLog("[OPEN_NATIVE_CALL_OBSERVER] request-constructor-count="
+                + constructors.length);
+        for (int i = 0; i < constructors.length && i < 12; i++) {
+            observerLog("[OPEN_NATIVE_CALL_OBSERVER] request-constructor-candidate="
+                    + requestType.getName() + ".<init>("
+                    + parameters(constructors[i].getParameterTypes()) + ")");
+        }
+        String[][] callSites = {
+                {"mw1", "y"}, {"mw1", "e"},
+                {"jr2", "y"}, {"jr2", "m"},
+                {"mr2", "h"}
+        };
+        for (String[] callSite : callSites) {
+            String ownerName = callSite[0];
+            String methodName = callSite[1];
+            try {
+                Class<?> owner = Class.forName(ownerName, false, loader);
+                int matches = 0;
+                for (Method method : owner.getDeclaredMethods()) {
+                    if (!methodName.equals(method.getName())) continue;
+                    observerLog("[OPEN_NATIVE_CALL_OBSERVER] request-factory-candidate="
+                            + observedMethodDescriptor(method)
+                            + " modifiers=" + Modifier.toString(method.getModifiers()));
+                    if (++matches >= 8) break;
+                }
+                if (matches == 0) {
+                    observerLog("[OPEN_NATIVE_CALL_OBSERVER] request-factory-unavailable="
+                            + ownerName + "." + methodName);
+                }
+            } catch (VirtualMachineError fatal) {
+                throw fatal;
+            } catch (ThreadDeath fatal) {
+                throw fatal;
+            } catch (Throwable error) {
+                observerLog("[OPEN_NATIVE_CALL_OBSERVER] request-factory-metadata-error="
+                        + ownerName + "." + methodName + " exception="
+                        + error.getClass().getName());
+            }
+        }
+    }
+
+    /** Constructor hooks are transparent and bounded; they never inspect field values. */
+    private static void installRequestConstructorObserver(final Class<?> requestType) {
+        if (!OBSERVATION_LY1_CONSTRUCTORS.compareAndSet(false, true)) return;
+        int installed = 0;
+        for (Constructor<?> constructor : requestType.getDeclaredConstructors()) {
+            if (installed >= 8) break;
+            final Constructor<?> target = constructor;
+            try {
+                Main.MODULE.hook(target).intercept(new LegacyXposedModule.Hooker() {
+                    @Override public Object intercept(LegacyXposedModule.Chain chain)
+                            throws Throwable {
+                        if (!Main.isOpenNativeCompletionProbeEnabled()) return chain.proceed();
+                        int event = REQUEST_CONSTRUCTOR_EVENTS.incrementAndGet();
+                        List<?> args = chain.getArgs();
+                        if (event <= 16) {
+                            observerLog("[OPEN_NATIVE_CALL_OBSERVER] request-constructor-enter event="
+                                    + event + " signature=" + target.getDeclaringClass().getName()
+                                    + ".<init>(" + parameters(target.getParameterTypes()) + ")"
+                                    + " args=" + observedArgumentTypes(args)
+                                    + " argShapes=" + observedArgumentShapes(args));
+                        }
+                        Object result = chain.proceed();
+                        if (event <= 16) {
+                            Object instance = chain.getThisObject();
+                            observerLog("[OPEN_NATIVE_CALL_OBSERVER] request-constructor-exit event="
+                                    + event + " instanceId="
+                                    + (instance == null ? 0 : System.identityHashCode(instance))
+                                    + " shape=" + observedObjectShape(instance));
+                        }
+                        return result;
+                    }
+                });
+                installed++;
+            } catch (VirtualMachineError fatal) {
+                throw fatal;
+            } catch (ThreadDeath fatal) {
+                throw fatal;
+            } catch (Throwable error) {
+                observerLog("[OPEN_NATIVE_CALL_OBSERVER] request-constructor-install-failed "
+                        + "signature=" + requestType.getName() + ".<init>("
+                        + parameters(target.getParameterTypes()) + ") exception="
+                        + error.getClass().getName());
+            }
+        }
+        observerLog("[OPEN_NATIVE_CALL_OBSERVER] request-constructor-observer-installed="
+                + installed);
+    }
+
+    private static String observedArgumentShapes(List<?> args) {
+        if (args == null || args.isEmpty()) return "[]";
+        StringBuilder out = new StringBuilder("[");
+        int count = Math.min(args.size(), 8);
+        for (int i = 0; i < count; i++) {
+            if (i > 0) out.append(',');
+            out.append(observedObjectShape(args.get(i)));
+        }
+        if (args.size() > count) out.append(",...+").append(args.size() - count);
+        return out.append(']').toString();
     }
 
     private static void installObservedMethod(ClassLoader loader, String ownerName,
