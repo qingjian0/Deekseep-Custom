@@ -382,3 +382,32 @@ A missing host acknowledgement is not equivalent to a user disabling Local API. 
 ## Open Gateway protocol audit (2026-11-06)
 
 The Open direct-Java gateway currently exposes only `GET /v1/models` and `POST /v1/chat/completions`. Model discovery returns the configured IDs even while the native engine is unavailable; chat completions remain HTTP 503 until a verified Open adapter exists. Text and text-part messages are accepted; image parts, tools, Responses API, Anthropic Messages API, and usage accounting are not implemented in this Open gateway. Reasoning text is preserved as `reasoning_content` for non-stream responses and SSE deltas. The API accepts `max_tokens` and `max_completion_tokens` from 1 through 8192. Custom Bearer keys accept 8–256 visible ASCII characters and survive restart using the same validator. This capability statement applies to the Open direct-Java path, not the separate Closed payload gateway.
+
+## Schema 4 real-device capture evidence and callback-hook scope correction (2026-11-06)
+
+Five persisted logs were committed to the repository:
+
+- `open-native-1793943324391.log`
+- `open-native-1793943423710.log`
+- `open-native-1793943498745.log`
+- `open-native-1793943559724.log`
+- `open-native-1793943712606.log`
+
+The captures establish that the reviewed `zn3.o(wu1, Long) -> y60` dispatch method and `jw3.g(wu1, Long) -> y60` low-level method execute on real host traffic. The same request object is observed across the nested synchronous boundary. The returned `y60` object reaches its `b(fl4, yb3) -> Object` continuation boundary, and concrete callback implementations including `cr9`, `ec0`, `s5`, `qa`, `k41`, and `x0` are observed.
+
+The logs show callback return type `zgb`, continuation return type `cd3`, and `us4` exceptions from `x0.y(Object)` in two sessions. The capture does not include a Throwable message or complete stack trace, so the exception meaning is unknown. It also does not prove that a complete network response was decoded or consumed by the UI.
+
+The first log contains six Local API HTTP 400 rejections at `feature-validation`: five for `tools` and one for `stream_options.include_usage`. These are gateway feature-validation rejections, not evidence of a native Transport failure.
+
+### Corrective probe policy
+
+The schema-4 logs exposed excessive inherited-method instrumentation. Hooking callback superclass methods recorded large volumes of unrelated calls (including `zb3.t()`) and synchronously flushed every event to the app-private file. The follow-up branch `fix/native-probe-concrete-callback-hooks` changes callback observation to:
+
+- inspect only methods declared by the concrete callback implementation class;
+- exclude static, abstract, bridge, synthetic, zero-argument, more-than-two-argument, and void-returning methods;
+- attempt at most 12 eligible methods per concrete callback class;
+- never traverse or hook callback superclasses;
+- retain pass-through execution and type-only argument/result logging;
+- persist all events for the selected methods and preserve aggregate counters.
+
+The diagnostic report schema is now 5 and explicitly reports this narrower coverage. This is a diagnostic coverage tradeoff, not an adapter implementation. The branch has not yet been merged or CI/build-validated. Keep the Gateway fail-closed until Request construction, Challenge/PoW, Transport lifecycle, response decoding, cancellation, session isolation, and error mapping are independently verified.
