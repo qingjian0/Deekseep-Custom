@@ -398,10 +398,18 @@ final class RoiDexKitDiscovery {
                         boolean exactDexMethodJoin = parsedDexMethods.contains(descriptor);
                         append(out, candidatePrefix + ".dexJoin.exactMethod=" + exactDexMethodJoin);
                         if (exactDexMethodJoin) {
+                            List<String> dexBackedInvokes = new ArrayList<String>();
+                            for (String invokedDescriptor : graphObservation.invokes) {
+                                if (parsedDexMethods.contains(invokedDescriptor)) {
+                                    dexBackedInvokes.add(invokedDescriptor);
+                                }
+                            }
+                            append(out, candidatePrefix + ".dexJoin.definedInvokes="
+                                    + dexBackedInvokes.size());
                             RoiUnknownHostChatRequestResolver resolver =
                                     Main.ROI_UNKNOWN_HOST_CHAT_REQUEST_RESOLVER;
                             resolver.observeDexCandidate(sourceScope, anchor, descriptor,
-                                    graphObservation.invokes);
+                                    dexBackedInvokes);
                         // Bind constructor evidence to the exact DEX method carrying this
                         // semantic anchor. A class-wide scan can incorrectly attribute a
                         // constructor call from an unrelated method to every string in the class.
