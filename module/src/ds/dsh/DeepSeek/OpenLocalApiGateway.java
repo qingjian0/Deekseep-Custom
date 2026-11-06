@@ -736,19 +736,17 @@ final class OpenLocalApiGateway {
         };
         try {
             z2.CompletionResult result = current.complete(request, sink);
+            if (result == null) {
+                OpenNativeCompletionProbe.apiTrace("stream-empty requestId=" + requestId
+                        + " durationMs=" + ((System.nanoTime() - streamStartedNanos) / 1000000L));
+                throw new z2.GatewayException(502, "empty_upstream_response",
+                        "server_error", "Native model returned no result");
+            }
             if (disconnected.get()) {
                 OpenNativeCompletionProbe.apiTrace("stream-disconnected requestId=" + requestId
                         + " events=" + eventCount.get()
                         + " durationMs=" + ((System.nanoTime() - streamStartedNanos) / 1000000L));
             } else {
-                OpenNativeCompletionProbe.apiTrace("stream-complete requestId=" + requestId
-                        + " events=" + eventCount.get()
-                        + " textChars=" + textChars.get()
-                        + " reasoningChars=" + reasoningChars.get()
-                        + " durationMs=" + ((System.nanoTime() - streamStartedNanos) / 1000000L)
-                        + " finishReason=" + result.finishReason);
-            }
-            if (!disconnected.get()) {
                 JSONObject choice = new JSONObject().put("index", 0)
                         .put("delta", new JSONObject()).put("finish_reason", result.finishReason);
                 JSONObject finalEvent = new JSONObject().put("id", requestId)
@@ -757,6 +755,12 @@ final class OpenLocalApiGateway {
                 out.write(("data: " + finalEvent.toString() + "\n\ndata: [DONE]\n\n")
                         .getBytes(StandardCharsets.UTF_8));
                 out.flush();
+                OpenNativeCompletionProbe.apiTrace("stream-complete requestId=" + requestId
+                        + " events=" + eventCount.get()
+                        + " textChars=" + textChars.get()
+                        + " reasoningChars=" + reasoningChars.get()
+                        + " durationMs=" + ((System.nanoTime() - streamStartedNanos) / 1000000L)
+                        + " finishReason=" + result.finishReason);
             }
         } catch (Exception failure) {
             boolean gatewayFailure = failure instanceof z2.GatewayException;
