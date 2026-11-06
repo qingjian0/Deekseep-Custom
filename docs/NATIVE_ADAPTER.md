@@ -277,8 +277,9 @@ To collect a report on a test device:
 2. In DeepSeek module settings, open **工程 → 本地 API · 实验性** and enable Local API if it is not already enabled.
 3. In the same page, separately enable **启用原生适配诊断探针**. This authorizes only the reviewed, read-only diagnostic inventory and code289 call-boundary observer; it does not authorize feature Hook installation and does not make Native Completion available.
 4. Force-stop DeepSeek, launch it again, and allow startup to settle. The probe is passive and does not send a completion request.
-5. Retrieve the external mirror file `/storage/emulated/0/deekseep_vision_m.log`. The primary private app file is `/data/data/com.deepseek.chat/files/deekseep_vision.log` and normally requires an authorized app-private/log collection path.
-6. Extract the complete block beginning `[OPEN_NATIVE_COMPLETION_PROBE]`, including all lines through the final `probe.elapsedMs` field. Do not trim candidate or loader-chain lines.
+5. Send one ordinary, non-sensitive test message in DeepSeek so the reviewed `jw3.g` / `zn3.o` boundaries are actually exercised.
+6. Return to the Local API page and tap **复制原生适配诊断与运行轨迹**. The copied text includes the structural inventory plus a bounded in-memory `[OPEN_NATIVE_CALL_OBSERVER_BUFFER]` containing runtime enter/exit/throw traces. The buffer retains at most 12,000 characters; older trace lines are discarded when full.
+7. For a complete external log, optionally retrieve `/storage/emulated/0/deekseep_vision_m.log`. The primary private app file is `/data/data/com.deepseek.chat/files/deekseep_vision.log` and normally requires an authorized app-private/log collection path. The external log may contain more observer events than the in-memory copy.
 
 Turning the diagnostic switch off makes any already-installed call-observer wrapper immediately call the original host method exactly once and return its original result without recording further observation events. The wrapper is not uninstalled from the process, but it becomes transparent.
 
