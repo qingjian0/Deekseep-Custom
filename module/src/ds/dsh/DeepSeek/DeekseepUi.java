@@ -2869,6 +2869,23 @@ public final class DeekseepUi {
         final TextView keepAliveStatus = infoBox(act,
                 Main.localApiKeepAliveStatus(), textColor, dark);
         card.addView(keepAliveStatus, insetParams(act, 0, 6));
+        final String xiaomiGuideText = Main.localApiXiaomiBackgroundGuide(act);
+        if (xiaomiGuideText.length() > 0) {
+            TextView xiaomiGuide = infoBox(act, xiaomiGuideText, textColor, dark);
+            xiaomiGuide.setTextIsSelectable(true);
+            card.addView(xiaomiGuide, insetParams(act, 0, 8));
+            TextView xiaomiGuideAction = dialogAction(act, "查看小米后台保活设置", 0xFF2E9E5B, dark);
+            xiaomiGuideAction.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View view) {
+                    new android.app.AlertDialog.Builder(act)
+                            .setTitle("MIUI / HyperOS 后台保活")
+                            .setMessage(xiaomiGuideText)
+                            .setPositiveButton("知道了", null)
+                            .show();
+                }
+            });
+            card.addView(xiaomiGuideAction, insetParams(act, 0, 4));
+        }
 
         final Switch floatingSwitch;
         final TextView floatingStatus;
