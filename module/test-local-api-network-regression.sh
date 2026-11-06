@@ -79,6 +79,12 @@ if 'localApiFloatingWindowError = "";' not in security:
     raise SystemExit("Missing independent floating-window error storage")
 if 'localApiFloatingWindowError = "小窗保活启动失败：" + safeThrowableMessage(error);' not in main:
     raise SystemExit("Floating-window launch failure is not stored independently")
+if "power.isIgnoringBatteryOptimizations(TARGET)" not in main or "power.isIgnoringBatteryOptimizations(SELF)" not in main:
+    raise SystemExit("Battery policy must be checked independently for host and module service packages")
+if "moduleDozeExempt" not in main or "hostDozeExempt" not in main:
+    raise SystemExit("Keepalive background status must report host and module battery policy separately")
+if "localApiXiaomiBackgroundGuide" not in main or "Autostart" not in main or "自启动管理" not in main:
+    raise SystemExit("Missing Xiaomi MIUI/HyperOS autostart and background policy guidance")
 if 'String error = HookAccountLoginSecurity.localApiKeepAliveError;' not in main:
     raise SystemExit("Foreground status no longer reads its own error field")
 if 'String error = HookAccountLoginSecurity.localApiFloatingWindowError;' not in main:
