@@ -22,6 +22,7 @@ public final class RoiDexApkCli {
     private static final int MAX_METHODS_SCANNED = 150000;
     private static final int MAX_SELECTED_METHODS = 64;
     private static final int MAX_ANALYSIS_METHODS = 192;
+    private static final int MAX_FIRST_HOP_METHODS = 128;
     private static final long MAX_CODE_UNITS = 20000000L;
     private static final String[] ANCHORS = {
             "chat/completions", "application/json", "Authorization", "messages",
@@ -143,12 +144,12 @@ public final class RoiDexApkCli {
         // Hop 1: include in-DEX helpers called directly by string/field anchor methods.
         for (RoiDexCandidateEvidence.MethodEvidence method : seedEvidence.methods) {
             for (String callee : method.invokes) {
-                if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;
+                if (expandedMethods.size() >= MAX_FIRST_HOP_METHODS) break;
                 if (definedMethods.contains(callee) && expandedMethods.add(callee)) {
                     directCalleeMethods.add(callee);
                 }
             }
-            if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;
+            if (expandedMethods.size() >= MAX_FIRST_HOP_METHODS) break;
         }
         // Hop 2: follow calls made by those helpers. This is important for dispatchers
         // such as fu0.s(...), which delegates the built JSON to the next request layer.
