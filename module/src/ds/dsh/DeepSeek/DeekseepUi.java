@@ -3408,7 +3408,7 @@ public final class DeekseepUi {
             }
         });
         if ("Open".equals(BuildInfo.BUILD_EDITION)) {
-            protocolValue.setText(UiLanguage.text(act, "OpenAI（Chat Completions + Responses）", "OpenAI (Chat Completions + Responses)"));
+            protocolValue.setText(UiLanguage.text(act, "OpenAI + Anthropic Messages（固定）", "OpenAI + Anthropic Messages (fixed)"));
             protocolValue.setClickable(false);
             protocolValue.setAlpha(0.72f);
         } else {
@@ -3526,16 +3526,19 @@ public final class DeekseepUi {
     private static String localApiProtocolDescription() {
         if ("Open".equals(BuildInfo.BUILD_EDITION)) {
             return UiLanguage.text(
-                    "Open 版当前提供 OpenAI Chat Completions 与 Responses HTTP 接入层："
-                    + "GET /v1/models、POST /v1/chat/completions、POST /v1/responses；Base URL 以 /v1 结尾。"
+                    "Open 版提供 OpenAI Chat Completions、Responses 与 Anthropic Messages："
+                    + "POST /v1/chat/completions、POST /v1/responses、POST /v1/messages。"
+                    + "OpenAI Base URL 使用 /v1；Anthropic Base URL 使用根地址（不附加 /v1）。"
                     + "注意：DeepSeek 原生 Completion Adapter 尚未接通，聊天请求当前返回 503。"
-                    + "非流式 Chat Completions 已接入客户端工具调用解析与回传；工具执行由客户端负责。"
-                    + "工具调用暂不支持 stream=true；Responses 支持文本 JSON/SSE 与函数工具 JSON 回传；previous_response_id 使用最多64条、30分钟的内存状态（服务重启清空），工具流式输出暂不支持。Anthropic Messages 和多模态尚未实现。",
-                    "The Open build exposes OpenAI Chat Completions and Responses HTTP endpoints: "
-                    + "GET /v1/models, POST /v1/chat/completions, and POST /v1/responses with a /v1 base URL. "
-                    + "The native DeepSeek completion adapter is not connected, so chat requests return 503. "
-                    + "Non-streaming tool-call parsing and client handoff are wired; the client executes tools. "
-                    + "Tool calls with stream=true are not supported. Responses supports text JSON/SSE and JSON function-call handoff; previous_response_id uses bounded in-memory state (up to 64 responses for 30 minutes; cleared on restart), and streamed tool calls are unavailable. Anthropic Messages and multimodal input remain unavailable.");
+                    + "OpenAI 非流式工具调用与 Anthropic 非流式 tool_use/tool_result 均由客户端执行工具。"
+                    + "工具调用流式输出暂不支持；Responses 支持文本 JSON/SSE 与非流式函数工具回传；previous_response_id 使用最多64条、30分钟的内存状态（服务重启清空）。"
+                    + "Anthropic 支持文本 JSON/SSE 与 thinking；图片输入、count_tokens 和精确 usage 统计尚未实现。",
+                    "The Open build exposes OpenAI Chat Completions, Responses, and Anthropic Messages at /v1/chat/completions, /v1/responses, and /v1/messages. "
+                    + "Use a /v1 base URL for OpenAI and the root URL (without /v1) for Anthropic. "
+                    + "The native DeepSeek completion adapter is not connected, so generation requests currently return 503. "
+                    + "Non-streaming OpenAI tool calls and Anthropic tool_use/tool_result are returned for client-side execution. "
+                    + "Tool-call streaming is unavailable. Responses supports text JSON/SSE and non-streaming function handoff; previous_response_id is bounded in memory (64 entries/30 minutes; cleared on restart). "
+                    + "Anthropic supports text JSON/SSE and thinking; images, count_tokens, and exact usage accounting are not implemented.");
         }
         if (z2.PROTOCOL_ANTHROPIC.equals(Main.localApiProtocol())) {
             return "Anthropic 格式已选中。base URL 使用页面显示的本机或局域网根地址（不附加 /v1），"
@@ -3554,11 +3557,13 @@ public final class DeekseepUi {
                     + "GET /v1/models 可用于检查网关和读取模型列表。"
                     + "POST /v1/chat/completions 的原生执行适配器尚未接通，当前会返回 503。"
                     + "非流式 Chat Completions 与 Responses 可将模型工具调用回传给客户端，客户端负责执行并提交 tool 结果；"
-                    + "Responses 的 previous_response_id 使用短期内存状态（最多64条、30分钟，重启清空），工具流式输出暂不支持；Anthropic、图片输入和 usage 统计尚未实现。"
+                    + "Responses 的 previous_response_id 使用短期内存状态（最多64条、30分钟，重启清空）；Anthropic Messages 已支持文本 JSON/SSE、thinking 与非流式 tool_use/tool_result。"
+                    + "工具流式输出、图片输入、count_tokens 和精确 usage 统计尚未实现。"
                     + "请勿把当前 Open 版配置为可工作的 Codex / Claude Code 后端，原生适配器仍未接通。",
                     "Configured Open model IDs: deepseek-chat and deepseek-reasoner. "
                     + "Non-streaming Chat Completions and Responses can return parsed tool calls for client-side execution and tool-result continuation. "
-                    + "Responses uses short-lived in-memory previous_response_id state (64 entries/30 minutes; cleared on restart) and does not stream tool calls. Anthropic, image input, and usage accounting are unavailable. "
+                    + "Responses uses short-lived in-memory previous_response_id state (64 entries/30 minutes; cleared on restart). Anthropic Messages supports text JSON/SSE, thinking, and non-streaming tool_use/tool_result. "
+                    + "Tool-call streaming, images, count_tokens, and exact usage accounting are unavailable. "
                     + "The native execution adapter is still disconnected; do not configure this Open build as a working Codex or Claude Code backend.");
         }
         String modelHelp = isClosedV236OrV241Feature() && !Main.isLocalApiLegacyModelRouteEnabled()
