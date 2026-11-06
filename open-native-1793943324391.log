@@ -1,0 +1,15 @@
+[OPEN_NATIVE_CALL_OBSERVER] session-start schema=4 epochMs=1793943324391
+[OPEN_NATIVE_CALL_OBSERVER] installed role=transport-low-level method=jw3.g return=y60
+[OPEN_NATIVE_CALL_OBSERVER] installed role=transport-dispatch method=zn3.o return=y60
+[OPEN_NATIVE_API_TRACE] http-authenticated method=POST path=/v1/chat/completions
+[OPEN_NATIVE_API_TRACE] request-rejected stage=feature-validation parameter=tools status=400 code=unsupported_feature
+[OPEN_NATIVE_API_TRACE] http-authenticated method=POST path=/v1/chat/completions
+[OPEN_NATIVE_API_TRACE] http-authenticated method=POST path=/v1/chat/completions
+[OPEN_NATIVE_API_TRACE] request-rejected stage=feature-validation parameter=stream_options.include_usage status=400 code=unsupported_feature
+[OPEN_NATIVE_API_TRACE] request-rejected stage=feature-validation parameter=tools status=400 code=unsupported_feature
+[OPEN_NATIVE_API_TRACE] http-authenticated method=POST path=/v1/chat/completions
+[OPEN_NATIVE_API_TRACE] request-rejected stage=feature-validation parameter=tools status=400 code=unsupported_feature
+[OPEN_NATIVE_API_TRACE] http-authenticated method=POST path=/v1/chat/completions
+[OPEN_NATIVE_API_TRACE] request-rejected stage=feature-validation parameter=tools status=400 code=unsupported_feature
+[OPEN_NATIVE_API_TRACE] http-authenticated method=POST path=/v1/chat/completions
+[OPEN_NATIVE_API_TRACE] request-rejected stage=feature-validation parameter=tools status=400 code=unsupported_feature
