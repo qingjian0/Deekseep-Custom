@@ -32,7 +32,7 @@ public final class RoiDexInstructionDecoder {
         if(code==null||offset<0||offset>=code.length||registerCount<0)throw new DecodeException("invalid_input");
         int first=u(code[offset]),op=first&255,width,ref=-1,resultWords=0;
         boolean moveException=false,hasLiteral=false; long literalValue=0L;
-        int[] regs=new int[0]; ReferenceKind referenceKind=ReferenceKind.NONE;
+        int[] regs=new int[0]; Decoded.ReferenceKind referenceKind=Decoded.ReferenceKind.NONE;
         switch(op){
             case 0x01: case 0x04: case 0x07:
                 width=1; regs=checked(new int[]{(first>>>8)&15,(first>>>12)&15},registerCount); break;
@@ -67,30 +67,30 @@ public final class RoiDexInstructionDecoder {
                 literalValue=((long)(short)u(code[offset+1]))<<16;hasLiteral=true;break;
             case 0x1a:
                 width=2; require(code,offset,width); regs=checked(new int[]{(first>>>8)&255},registerCount);
-                ref=u(code[offset+1]); referenceKind=ReferenceKind.STRING; break;
+                ref=u(code[offset+1]); referenceKind=Decoded.ReferenceKind.STRING; break;
             case 0x1b:
                 width=3; require(code,offset,width); regs=checked(new int[]{(first>>>8)&255},registerCount);
-                ref=u(code[offset+1])|(u(code[offset+2])<<16); referenceKind=ReferenceKind.STRING; break;
+                ref=u(code[offset+1])|(u(code[offset+2])<<16); referenceKind=Decoded.ReferenceKind.STRING; break;
             case 0x1c: case 0x1f:
                 width=2; require(code,offset,width); regs=checked(new int[]{(first>>>8)&255},registerCount);
-                ref=u(code[offset+1]); referenceKind=ReferenceKind.TYPE; break;
+                ref=u(code[offset+1]); referenceKind=Decoded.ReferenceKind.TYPE; break;
             case 0x54: case 0x5b:
                 width=2; require(code,offset,width);
                 regs=checked(new int[]{(first>>>8)&15,(first>>>12)&15},registerCount);
-                ref=u(code[offset+1]); referenceKind=ReferenceKind.FIELD; break;
+                ref=u(code[offset+1]); referenceKind=Decoded.ReferenceKind.FIELD; break;
             case 0x6e: case 0x6f: case 0x70: case 0x71: case 0x72:
                 width=3; require(code,offset,width);
                 int count=(first>>>8)&15, packed=u(code[offset+2]);
                 if(count>5)throw new DecodeException("invoke_35c_argument_count");
                 int[] all={packed&15,(packed>>>4)&15,(packed>>>8)&15,(packed>>>12)&15,(first>>>12)&15};
                 regs=new int[count]; System.arraycopy(all,0,regs,0,count); regs=checked(regs,registerCount);
-                ref=u(code[offset+1]); referenceKind=ReferenceKind.METHOD; break;
+                ref=u(code[offset+1]); referenceKind=Decoded.ReferenceKind.METHOD; break;
             case 0x74: case 0x75: case 0x76: case 0x77: case 0x78:
                 width=3; require(code,offset,width);
                 int rangeCount=(first>>>8)&255, start=u(code[offset+2]);
                 if(start+rangeCount>registerCount)throw new DecodeException("invoke_3rc_register_range");
                 regs=new int[rangeCount]; for(int i=0;i<rangeCount;i++)regs[i]=start+i;
-                ref=u(code[offset+1]); referenceKind=ReferenceKind.METHOD; break;
+                ref=u(code[offset+1]); referenceKind=Decoded.ReferenceKind.METHOD; break;
             default: throw new DecodeException("unsupported_opcode_0x"+Integer.toHexString(op));
         }
         return new Decoded(offset,op,width,regs,ref,resultWords,moveException,referenceKind,
