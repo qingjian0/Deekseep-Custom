@@ -263,6 +263,7 @@ gateway_checks = {
     "null upstream result returns 502": '"empty_upstream_response"' in source,
     "HTTP query strings do not break endpoint routing": "int queryStart = path.indexOf('?');" in source,
     "HTTP request line validates version and token count": 'first.length != 3' in source and '"HTTP/1.1".equals(first[2])' in source,
+    "chunk parser uses a valid tab character literal": "value != '\\t'" in source,
     "duplicate HTTP headers are rejected": "headers.containsKey(name)" in source,
     "malformed HTTP requests receive an explicit 400/413 response": 'sendError(out, status, status == 413 ? "request_too_large"' in source,
     "Content-Type media type is compared exactly": 'contentType.split(";", 2)[0].trim()' in source and '"application/json".equalsIgnoreCase(mediaType)' in source,
