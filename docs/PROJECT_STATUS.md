@@ -594,3 +594,6 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 安全边界：仍然只观察真实发现的回调对象；排除 static、abstract、bridge、equals/hashCode/toString；不读取参数值、字段值、Prompt、响应正文或凭据；原始方法仍只透传执行一次。
 - 取舍说明：无数量上限意味着诊断文件会持续增长，且同步落盘会增加回调路径开销。仅在用户主动开启诊断时运行；采集结束后应关闭开关。未设置自动删除或文件大小上限，避免静默丢失用户要求的完整事件。
 - 本轮代码提交：`6bc61c67`、`9eb47b01`、`e7cccd73`。待 CI / Android 构建验证，未发布 APK，未声称已完成真机验证。
+
+
+- 完整报告导出补充：复制诊断报告时会从应用私有 session log 读取全部文件内容并附入剪贴板文本；UI 说明已改为完整无数量上限采集，并明确磁盘增长和同步落盘开销。若日志文件创建/写入失败，状态会显示 `callbackPersistentLog=unavailable`，不得把内存预览误称为完整日志。
