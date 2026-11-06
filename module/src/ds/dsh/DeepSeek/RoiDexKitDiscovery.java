@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.WeakHashMap;
 import java.util.List;
@@ -188,13 +189,50 @@ final class RoiDexKitDiscovery {
             DexKitBridge bridge = null;
             try {
                 bridge = DexKitBridge.create(loaders.get(i), true);
-                int count = boundedDexCount(bridge.getDexNum());
+                int rawDexCount = bridge.getDexNum();
+                int count = boundedDexCount(rawDexCount);
                 append(out, "loader." + (i + 1) + ".mode=class_loader_memory_requested");
                 append(out, "loader." + (i + 1) + ".dexCount=" + count);
                 memorySuccess++;
                 totalDex += count;
                 String sourceScope = RoiCandidateIdentity.forClassLoader(loaders.get(i));
                 append(out, "loader." + (i + 1) + ".sourceScope=" + sourceScope);
+                final Set<String> parsedDexMethods = new HashSet<String>();
+                try {
+                    final DexKitBridge exportBridge = bridge;
+                    RoiDexKitExportReader.Result exported = RoiDexKitExportReader.exportAndRead(
+                            new File("/data/data/com.deepseek.chat/cache/.deekseep_roi_dexkit"),
+                            rawDexCount,
+                            new RoiDexKitExportReader.Exporter() {
+                                @Override public void exportTo(String outputDirectory) {
+                                    exportBridge.exportDexFile(outputDirectory);
+                                }
+                            },
+                            new RoiDexKitExportReader.DexConsumer() {
+                                @Override public void accept(File exportedFile,
+                                        RoiDexFileReader.DexFile dex) {
+                                    for (RoiDexFileReader.ResolvedMethod method : dex.definedMethods) {
+                                        parsedDexMethods.add(method.declaringClassDescriptor
+                                                + "->" + method.name + method.prototypeDescriptor);
+                                    }
+                                }
+                            });
+                    append(out, "loader." + (i + 1) + ".dexExport.status=parsed");
+                    append(out, "loader." + (i + 1) + ".dexExport.files=" + exported.dexFiles);
+                    append(out, "loader." + (i + 1) + ".dexExport.bytes=" + exported.bytesRead);
+                    append(out, "loader." + (i + 1) + ".dexExport.definedClasses="
+                            + exported.definedClasses);
+                    append(out, "loader." + (i + 1) + ".dexExport.definedMethods="
+                            + exported.definedMethods);
+                    append(out, "loader." + (i + 1) + ".dexExport.codeMethods="
+                            + exported.codeMethods);
+                    append(out, "loader." + (i + 1) + ".dexExport.methodIndexEntries="
+                            + parsedDexMethods.size());
+                } catch (RoiDexKitExportReader.ExportException exportError) {
+                    append(out, "loader." + (i + 1) + ".dexExport.status=rejected");
+                    append(out, "loader." + (i + 1) + ".dexExport.reason="
+                            + safe(exportError.getMessage()));
+                }
                 RoiClassLoaderProfile loaderProfile =
                         RoiClassLoaderProfile.inspect(loaders.get(i));
                 append(out, "loader." + (i + 1) + ".profile.kinds="
@@ -211,7 +249,7 @@ final class RoiDexKitDiscovery {
                         + loaderProfile.encryptedDexAssessment);
                 candidateCount += querySemanticAnchors(
                         bridge, "loader." + (i + 1), sourceScope, out, budget,
-                        runtimeEvidence, runtimeCoverage, adapterIdentity);
+                        runtimeEvidence, runtimeCoverage, adapterIdentity, parsedDexMethods);
             } catch (Throwable error) {
                 rethrowFatal(error);
                 memoryFailure++;
@@ -247,7 +285,8 @@ final class RoiDexKitDiscovery {
                     append(out, "apk." + (i + 1) + ".sourceScope=" + sourceScope);
                     candidateCount += querySemanticAnchors(
                             bridge, "apk." + (i + 1), sourceScope, out, budget,
-                            runtimeEvidence, runtimeCoverage, adapterIdentity);
+                            runtimeEvidence, runtimeCoverage, adapterIdentity,
+                            Collections.<String>emptySet());
                 } catch (Throwable error) {
                     rethrowFatal(error);
                     append(out, "apk." + (i + 1) + ".error="
@@ -290,7 +329,7 @@ final class RoiDexKitDiscovery {
             StringBuilder out, RoiDiscoveryBudget budget,
             List<RoiRuntimeInvocationRecorder.EvidenceSnapshot> runtimeEvidence,
             List<RoiRuntimeInvocationRecorder.CoverageSnapshot> runtimeCoverage,
-            String adapterIdentity) {
+            String adapterIdentity, Set<String> parsedDexMethods) {
         int total = 0;
         List<RoiCandidateGraph.Observation> graphObservations =
                 new ArrayList<RoiCandidateGraph.Observation>();
@@ -356,16 +395,19 @@ final class RoiDexKitDiscovery {
                     graphObservations.add(graphObservation);
                     if (sourceScope.startsWith("loader:")
                             && RoiUnknownHostChatRequestResolver.isFieldAnchor(anchor)) {
-                        RoiUnknownHostChatRequestResolver resolver =
-                                Main.ROI_UNKNOWN_HOST_CHAT_REQUEST_RESOLVER;
-                        resolver.observeDexCandidate(sourceScope, anchor, descriptor,
-                                graphObservation.invokes);
+                        boolean exactDexMethodJoin = parsedDexMethods.contains(descriptor);
+                        append(out, candidatePrefix + ".dexJoin.exactMethod=" + exactDexMethodJoin);
+                        if (exactDexMethodJoin) {
+                            RoiUnknownHostChatRequestResolver resolver =
+                                    Main.ROI_UNKNOWN_HOST_CHAT_REQUEST_RESOLVER;
+                            resolver.observeDexCandidate(sourceScope, anchor, descriptor,
+                                    graphObservation.invokes);
                         // Bind constructor evidence to the exact DEX method carrying this
                         // semantic anchor. A class-wide scan can incorrectly attribute a
                         // constructor call from an unrelated method to every string in the class.
                         inspectSerializerOwnerForRequestConstructors(bridge, prefix,
                                 sourceScope, anchor, descriptor, budget,
-                                serializerConstructorCache, out);
+                                serializerConstructorCache, parsedDexMethods, out);
                         int callerMethodScans = 0;
                         for (String callerDescriptor : graphObservation.callers) {
                             if (callerMethodScans >= 2) break;
@@ -373,8 +415,12 @@ final class RoiDexKitDiscovery {
                                     || callerDescriptor.equals(descriptor)) continue;
                             inspectSerializerOwnerForRequestConstructors(bridge, prefix,
                                     sourceScope, anchor, callerDescriptor, budget,
-                                    serializerConstructorCache, out);
+                                    serializerConstructorCache, parsedDexMethods, out);
                             callerMethodScans++;
+                        }
+                        } else {
+                            append(out, candidatePrefix
+                                    + ".dexJoin.rejected=method_descriptor_not_in_exported_runtime_dex");
                         }
                     }
                     appendSemanticRoleHints(candidatePrefix, graphObservation.invokes, out);
@@ -474,7 +520,8 @@ final class RoiDexKitDiscovery {
     private static void inspectSerializerOwnerForRequestConstructors(DexKitBridge bridge,
             String prefix, String sourceScope, String anchor, String targetMethodDescriptor,
             RoiDiscoveryBudget budget,
-            Map<String, List<SerializerConstructorRef>> cache, StringBuilder out) {
+            Map<String, List<SerializerConstructorRef>> cache,
+            Set<String> parsedDexMethods, StringBuilder out) {
         String className = normalizeDexClassName(ownerFromMethodDescriptor(targetMethodDescriptor));
         if (className.length() == 0 || targetMethodDescriptor == null
                 || targetMethodDescriptor.length() == 0) return;
@@ -541,6 +588,12 @@ final class RoiDexKitDiscovery {
         }
         if (references.isEmpty()) return;
         for (SerializerConstructorRef reference : references) {
+            if (!parsedDexMethods.contains(reference.methodDescriptor)
+                    || !parsedDexMethods.contains(reference.constructorDescriptor)) {
+                append(out, prefix + ".serializerMethod.dexJoin=rejected");
+                continue;
+            }
+            append(out, prefix + ".serializerMethod.dexJoin=exact_method_and_constructor");
             Main.ROI_UNKNOWN_HOST_CHAT_REQUEST_RESOLVER.observeDexCandidate(
                     sourceScope, anchor, reference.methodDescriptor,
                     Collections.singletonList(reference.constructorDescriptor));
