@@ -3172,11 +3172,11 @@ public final class DeekseepUi {
         TextView nativeProbeTitle = sectionTitle(act, "Open 原生适配诊断（DeepSeek 2.7.x）", textColor);
         card.addView(nativeProbeTitle);
         TextView nativeProbeHelp = infoBox(act,
-                "用于定位官方客户端请求对象、传输层与 PoW 管理器。不会读取聊天内容、账号凭据或请求参数。请先打开 DeepSeek 主界面并等待注入完成，再复制诊断信息。",
+                "一次采集官方客户端请求对象、Transport、异步回调，以及 Local API 请求、首个 SSE、结束/异常和阶段耗时。只记录类型、结构、状态与长度，不读取聊天正文、账号凭据、Prompt 或响应内容。开启后发起一次测试请求，完成后复制这一份完整诊断报告。",
                 textColor, dark);
         card.addView(nativeProbeHelp, insetParams(act, 0, 8));
         card.addView(configurableSwitchRow(act, "启用原生适配诊断探针",
-                "默认关闭。开启后仅对国内版 DeepSeek 2.7.2（code289）安装只读调用观察；关闭后已安装观察器立即透传，不记录调用信息。",
+                "默认关闭。开启后仅对国内版 DeepSeek 2.7.2（code289）启用有界只读追踪；覆盖 Transport、异步回调和 Local API 阶段。关闭后观察器立即透传。",
                 Main.isOpenNativeCompletionProbeEnabled(), textColor, subColor, dark,
                 new CompoundButton.OnCheckedChangeListener() {
                     private boolean reverting;
