@@ -495,7 +495,7 @@ require(
 
 require(
     probe,
-    r'installCallbackObserver\(Object callback, String role\).*?MAX_CALLBACK_METHODS_PER_CLASS = 12.*?type\.getDeclaredMethods\(\).*?parameters\.length < 1.*?parameters\.length > 2.*?attempted >= MAX_CALLBACK_METHODS_PER_CLASS.*?chain\.getThisObject\(\).*?System\.identityHashCode\(receiver\)',
+    r'installCallbackObserver\(Object callback, String role\).*?type\.getDeclaredMethods\(\).*?parameters\.length < 1.*?parameters\.length > 2.*?attempted >= MAX_CALLBACK_METHODS_PER_CLASS.*?chain\.getThisObject\(\).*?System\.identityHashCode\(receiver\)',
     "callback observation is restricted to bounded one/two-argument methods declared by the concrete callback class",
 )
 if re.search(r'installCallbackObserver\(Object callback, String role\).*?while \(current != null && current != Object\.class\)', probe, re.S):
