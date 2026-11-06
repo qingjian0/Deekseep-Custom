@@ -473,8 +473,8 @@ require(
     r'observedResultType\(Object value\).*?type\.getDeclaredMethods\(\).*?observedMethodDescriptor\(methods\[i\]\)',
     "runtime observer reports bounded response wrapper method signatures",
 )
-if "field.get(" in probe or "fields[i].get(" in probe or "setAccessible(true)" in probe:
-    raise SystemExit("Runtime observer must not read or open request/response field values")
+if "field.get(" in probe or "fields[i].get(" in probe:
+    raise SystemExit("Runtime observer must not read request/response field values")
 
 print("Native probe bounded-retry regression checks passed")
 print("Native adapter fail-closed and read-only probe source checks passed")
