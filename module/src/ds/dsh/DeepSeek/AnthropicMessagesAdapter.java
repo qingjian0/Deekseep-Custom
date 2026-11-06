@@ -100,9 +100,18 @@ final class AnthropicMessagesAdapter {
 
         Object rawChoice = body.opt("tool_choice");
         Object choice = null;
+        boolean parallelTools = true;
         if (rawChoice != null && rawChoice != JSONObject.NULL) {
             JSONObject toolChoice = body.optJSONObject("tool_choice");
             if (toolChoice == null) throw invalid("invalid_tool_choice", "tool_choice must be an object");
+            if (toolChoice.has("disable_parallel_tool_use")) {
+                Object rawParallel = toolChoice.opt("disable_parallel_tool_use");
+                if (!(rawParallel instanceof Boolean)) {
+                    throw invalid("invalid_tool_choice",
+                            "tool_choice.disable_parallel_tool_use must be a boolean");
+                }
+                parallelTools = !((Boolean) rawParallel).booleanValue();
+            }
             String type = toolChoice.optString("type", "");
             if ("auto".equals(type)) {
                 choice = "auto";
@@ -117,7 +126,7 @@ final class AnthropicMessagesAdapter {
                 throw invalid("invalid_tool_choice", "tool_choice.type must be auto, any, or tool");
             }
         }
-        OpenAiToolBridge.Plan plan = OpenAiToolBridge.chatPlan(openAiTools, choice, true);
+        OpenAiToolBridge.Plan plan = OpenAiToolBridge.chatPlan(openAiTools, choice, parallelTools);
         if (stream && plan.active()) {
             throw invalid("unsupported_streaming_tool_calls",
                     "Streaming tool_use is not yet supported; use stream=false");
