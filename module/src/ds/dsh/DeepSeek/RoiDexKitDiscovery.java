@@ -578,7 +578,43 @@ final class RoiDexKitDiscovery {
                                 if (emittedMethods++ >= 12) break;
                                 append(out, "loader.dexEvidence.method=" + safe(method.methodKey)
                                         + ",analysis=" + (method.analysis != null)
-                                        + ",failure=" + safe(method.analysisFailure));
+                                        + ",failure=" + safe(method.analysisFailure)
+                                        + ",serializerMapping=" + (method.serializerPipeline != null)
+                                        + ",serializerMappingFailure=" + safe(method.serializerPipelineFailure));
+                                if(method.serializerPipeline!=null) {
+                                    append(out, "loader.dexEvidence.serializerMapping="
+                                            + safe(method.methodKey)
+                                            + ",complete=" + method.serializerPipeline.complete
+                                            + ",registrationMethod="
+                                            + safe(method.serializerPipeline.registrationMethodKey)
+                                            + ",elements=" + (method.serializerPipeline.elementIndices==null
+                                                ? 0 : method.serializerPipeline.elementIndices.elements.length)
+                                            + ",parameters=" + (method.serializerPipeline.mapping==null
+                                                || method.serializerPipeline.mapping.constructors.length==0
+                                                ? 0 : method.serializerPipeline.mapping.constructors[0].parameters.length)
+                                            + ",rejected=" + (method.serializerPipeline.mapping==null
+                                                ? 0 : method.serializerPipeline.mapping.rejected.length)
+                                            + ",authorizationGranted=false");
+                                    if(method.serializerPipeline.mapping!=null
+                                            &&method.serializerPipeline.mapping.constructors.length>0) {
+                                        RoiDexSerializerMapper.ParameterMapping[] mapped=
+                                                method.serializerPipeline.mapping.constructors[0].parameters;
+                                        int mappingLimit=Math.min(mapped.length,16);
+                                        for(int mappingIndex=0;mappingIndex<mappingLimit;mappingIndex++) {
+                                            RoiDexSerializerMapper.ParameterMapping parameter=mapped[mappingIndex];
+                                            append(out,"loader.dexEvidence.serializerMapping.parameter="
+                                                    + safe(method.methodKey)
+                                                    + ",constructorParameter=" + parameter.constructorParameterIndex
+                                                    + ",field=" + safe(parameter.fieldName)
+                                                    + ",elementIndex=" + parameter.elementIndex
+                                                    + ",decode=" + safe(parameter.decodeOwner+"->"
+                                                        +parameter.decodeMethod+parameter.decodePrototype)
+                                                    + ",constructorOffset=" + parameter.constructorInvokeOffset
+                                                    + ",decodeOffset=" + parameter.decodeInvokeOffset
+                                                    + ",candidateEvidenceOnly=true");
+                                        }
+                                    }
+                                }
                                 if (method.analysis != null) {
                                     append(out, "loader.dexEvidence.methodFlow="
                                             + safe(method.methodKey)

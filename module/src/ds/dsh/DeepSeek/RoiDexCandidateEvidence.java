@@ -16,6 +16,7 @@ import java.util.HashSet;
  * invoke host code, install hooks, or authorize runtime behavior.
  */
 public final class RoiDexCandidateEvidence {
+    private static final int MAX_SERIALIZER_PIPELINE_ANALYSES=8;
     private RoiDexCandidateEvidence() {}
 
     public static final class EvidenceException extends Exception {
@@ -27,16 +28,21 @@ public final class RoiDexCandidateEvidence {
         public final String methodKey;
         public final List<String> invokes;
         public final RoiDexMethodAnalysis.Result analysis;
+        public final RoiDexSerializerPipeline.Result serializerPipeline;
+        public final String serializerPipelineFailure;
         /** Empty when analysis succeeded; otherwise a stable fail-closed reason. */
         public final String analysisFailure;
 
         MethodEvidence(int index, String key, List<String> calls,
-                RoiDexMethodAnalysis.Result result, String failure) {
+                RoiDexMethodAnalysis.Result result, String failure,
+                RoiDexSerializerPipeline.Result serializerResult,String serializerFailure) {
             methodIndex = index;
             methodKey = key;
             invokes = Collections.unmodifiableList(new ArrayList<String>(calls));
             analysis = result;
             analysisFailure = failure == null ? "" : failure;
+            serializerPipeline=serializerResult;
+            serializerPipelineFailure=serializerFailure==null?"":serializerFailure;
         }
     }
 
@@ -94,6 +100,10 @@ public final class RoiDexCandidateEvidence {
         Set<String> found = new HashSet<String>();
         int analyzed = 0;
         int failures = 0;
+        int serializerAttempts=0;
+        Map<String,RoiDexSerializerPipeline.Result> serializerCache=
+                new LinkedHashMap<String,RoiDexSerializerPipeline.Result>();
+        Map<String,String> serializerFailureCache=new LinkedHashMap<String,String>();
 
         for (RoiDexFileReader.ResolvedMethod method : dex.definedMethods) {
             String key = methodKey(dex, method.methodIndex);
@@ -117,8 +127,36 @@ public final class RoiDexCandidateEvidence {
                     failures++;
                 }
             }
+            RoiDexSerializerPipeline.Result serializerPipeline=null;
+            String serializerFailure="";
+            if(method.codeItem!=null) {
+                String expectedConstructor=null;
+                boolean constructorAmbiguous=false;
+                for(String invoked:invokes) {
+                    if(!RoiDexSerializerPipeline.isRequestConstructorDescriptor(invoked))continue;
+                    if(expectedConstructor==null)expectedConstructor=invoked;
+                    else if(!expectedConstructor.equals(invoked))constructorAmbiguous=true;
+                }
+                if(constructorAmbiguous)serializerFailure="request_constructor_evidence_ambiguous";
+                else if(expectedConstructor!=null) {
+                    String pipelineKey=method.declaringClassDescriptor+"|"+key+"|"+expectedConstructor;
+                    if(serializerCache.containsKey(pipelineKey)) {
+                        serializerPipeline=serializerCache.get(pipelineKey);
+                        serializerFailure=serializerFailureCache.get(pipelineKey);
+                    } else if(serializerAttempts>=MAX_SERIALIZER_PIPELINE_ANALYSES) {
+                        serializerFailure="serializer_pipeline_budget_exceeded";
+                    } else {
+                        serializerAttempts++;
+                        serializerPipeline=RoiDexSerializerPipeline.analyze(dex,method,expectedConstructor);
+                        serializerFailure=serializerPipeline.rejectionReason==null?""
+                                :serializerPipeline.rejectionReason;
+                        serializerCache.put(pipelineKey,serializerPipeline);
+                        serializerFailureCache.put(pipelineKey,serializerFailure);
+                    }
+                }
+            }
             methodEvidence.add(new MethodEvidence(method.methodIndex, key, invokes,
-                    analysis, failure));
+                    analysis, failure,serializerPipeline,serializerFailure));
         }
 
         if (selected != null) {

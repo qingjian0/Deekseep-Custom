@@ -2,7 +2,7 @@ package ds.dsh.DeepSeek;
 
 public final class RoiDexInstructionScannerTest {
     public static void main(String[] args)throws Exception {
-        widths(); payloads(); branches(); cfg(); cfgPayloads(); payloadCfg(); malformed();
+        widths(); payloads(); branches(); cfg(); cfgPayloads(); payloadCfg(); switchCaseMappings(); malformed();
         System.out.println("RoiDexInstructionScannerTest: PASS");
     }
     static void widths()throws Exception {
@@ -71,6 +71,20 @@ public final class RoiDexInstructionScannerTest {
                 RoiDexInstructionScanner.buildControlFlowGraph(switchCode);
         eq(3,sw.blocks.length);
         yes(sw.edges.length>=3);
+    }
+    static void switchCaseMappings()throws Exception {
+        short[] packed={(short)0x002b,4,0,0,(short)0x0100,1,0,0,10,0,(short)0x000e};
+        RoiDexInstructionScanner.SwitchCase[] p=RoiDexInstructionScanner.scan(packed).switchCasesAt(0);
+        eq(1,p.length);eq(0,p[0].key);eq(10,p[0].targetOffset);
+
+        short[] sparse={(short)0x002c,4,0,(short)0x000e,(short)0x0200,2,
+                2,0,5,0,14,0,15,0,(short)0x000e,(short)0x000e};
+        RoiDexInstructionScanner.SwitchCase[] s=RoiDexInstructionScanner.scan(sparse).switchCasesAt(0);
+        eq(2,s.length);eq(2,s[0].key);eq(14,s[0].targetOffset);
+        eq(5,s[1].key);eq(15,s[1].targetOffset);
+        try { RoiDexInstructionScanner.scan(new short[]{(short)0x000e}).switchCasesAt(0); }
+        catch(RoiDexInstructionScanner.ScanException expected){return;}
+        throw new AssertionError("expected non-switch rejection");
     }
     static void malformed()throws Exception {
         bad(new short[]{(short)0x0073});

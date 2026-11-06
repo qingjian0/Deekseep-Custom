@@ -6,6 +6,7 @@ public final class RoiDexFileReaderTest {
   testBadEndian();testFileSize();testSectionOverflow();testBadTypeReference();
   testBadStringOffset();testBadClassOffset();testTableOverlap();testMapOutsideData();
   testResolvedMethodDefinition();
+  testResolveReferencedMethodId();
   testResolvedMethodEntryLayoutIntegration();
   System.out.println("RoiDexFileReaderTest: PASS");
  }
@@ -88,6 +89,31 @@ public final class RoiDexFileReaderTest {
   }
  }
 
+ static void testResolveReferencedMethodId()throws Exception{
+  byte[] b=fixture(205);
+  put32(b,56,3);put32(b,60,112);put32(b,64,2);put32(b,68,124);
+  put32(b,72,1);put32(b,76,132);put32(b,88,1);put32(b,92,144);
+  put32(b,96,1);put32(b,100,152);put32(b,104,21);put32(b,108,184);
+  put32(b,112,192);put32(b,116,197);put32(b,120,200);
+  put32(b,124,0);put32(b,128,1);
+  put32(b,132,1);put32(b,136,1);put32(b,140,0);
+  put16(b,144,0);put16(b,146,0);put32(b,148,2);
+  put32(b,152,0);put32(b,156,1);put32(b,160,-1);put32(b,164,0);
+  put32(b,168,-1);put32(b,172,0);put32(b,176,184);put32(b,180,0);
+  // Empty class_data method lists: method_id[0] is referenced metadata, not a local definition.
+  b[184]=0;b[185]=0;b[186]=0;b[187]=0;
+  b[192]=3;b[193]='L';b[194]='x';b[195]=';';b[196]=0;
+  b[197]=1;b[198]='V';b[199]=0;
+  b[200]=3;b[201]='r';b[202]='u';b[203]='n';b[204]=0;
+  RoiDexFileReader.DexFile d=RoiDexFileReader.read(b);
+  eq(1,d.methods.length);eq(0,d.definedMethods.length);
+  RoiDexFileReader.ResolvedMethodId id=d.resolveMethodId(0);
+  eq(0,id.methodIndex);eq("Lx;",id.ownerDescriptor);eq("run",id.name);
+  eq("()V",id.prototypeDescriptor);
+  try { d.resolveMethodId(1); }
+  catch(RoiDexFileReader.DexException expected){return;}
+  throw new AssertionError("out-of-range method_id must fail closed");
+ }
  static void testResolvedMethodEntryLayoutIntegration()throws Exception{
   byte[] b=fixture(242);
   put32(b,56,4);put32(b,60,112);put32(b,64,2);put32(b,68,128);

@@ -6,6 +6,11 @@ mkdir -p "$OUT"
 javac -source 8 -target 8 -nowarn -d "$OUT" \
  "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexDataReader.java" \
  "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexInstructionDecoder.java" \
+ "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexInvokeResultLinker.java" \
+ "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexValueProvenance.java" \
+ "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexSerializerElementIndex.java" \
+ "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexSerializerMapper.java" \
+ "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexSerializerPipeline.java" \
  "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexCodeReader.java" \
  "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexFileReader.java" \
  "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexKitExportReader.java" \
@@ -18,7 +23,17 @@ javac -source 8 -target 8 -nowarn -d "$OUT" \
  "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexMethodAnalysis.java" \
  "$ROOT/module/src/ds/dsh/DeepSeek/RoiCandidateGraph.java" \
  "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexCandidateEvidence.java" \
+ "$ROOT/module/tests/roidexdecoder/ds/dsh/DeepSeek/RoiDexInstructionDecoderTest.java" \
  "$ROOT/module/tests/roidexfilereader/ds/dsh/DeepSeek/RoiDexFileReaderTest.java" \
- "$ROOT/module/tests/roidexexportreader/ds/dsh/DeepSeek/RoiDexKitExportReaderTest.java"
+ "$ROOT/module/tests/roidexexportreader/ds/dsh/DeepSeek/RoiDexKitExportReaderTest.java" \
+ "$ROOT/module/tests/roidexinvokeresult/ds/dsh/DeepSeek/RoiDexInvokeResultLinkerTest.java" \
+ "$ROOT/module/tests/roidexprovenance/ds/dsh/DeepSeek/RoiDexValueProvenanceTest.java" \
+ "$ROOT/module/tests/roidexserializer/ds/dsh/DeepSeek/RoiDexSerializerElementIndexTest.java" \
+ "$ROOT/module/tests/roidexserializermapper/ds/dsh/DeepSeek/RoiDexSerializerMapperTest.java"
+java -cp "$OUT" ds.dsh.DeepSeek.RoiDexInstructionDecoderTest
+java -cp "$OUT" ds.dsh.DeepSeek.RoiDexInvokeResultLinkerTest
+java -cp "$OUT" ds.dsh.DeepSeek.RoiDexValueProvenanceTest
+java -cp "$OUT" ds.dsh.DeepSeek.RoiDexSerializerElementIndexTest
+java -cp "$OUT" ds.dsh.DeepSeek.RoiDexSerializerMapperTest
 java -cp "$OUT" ds.dsh.DeepSeek.RoiDexFileReaderTest
 java -cp "$OUT" ds.dsh.DeepSeek.RoiDexKitExportReaderTest
