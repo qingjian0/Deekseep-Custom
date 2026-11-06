@@ -1,198 +1,157 @@
 # Local API Audit — 2026-11-06
 
-## Scope
+## Scope and evidence boundary
 
-Audit baseline: `qingjian0/Deekseep-Custom`, Open edition, DeepSeek Android mainland
-2.7.2 / `versionCode=289`. The development baseline is `dev`; diagnostic work is kept on
-`work/local-api-event-decoder-diagnostics` and is not merged into `main` or `dev`.
+- Repository: `qingjian0/Deekseep-Custom`
+- Audited branch: `work/local-api-hybrid-api`
+- Audited source revision: `c355e27a13d88766abe51e58861cde1564ff94a1`
+- Host target: official DeepSeek Android mainland 2.7.2, `versionCode=289`
+- Build edition: Open
+- Stable branches `main` and `dev` are not modified by this work.
 
-This document separates source-confirmed defects, device-observed facts, and work that still needs
-runtime proof. A green source-level test is not evidence that the native model path works.
+This report distinguishes protocol implementation, CI verification, and real-device native execution. A passing build or fake/source regression is not evidence that the code289 model path can generate a response.
 
 ## Executive finding
 
-The current Open Local API is not a working model gateway. It can start an HTTP listener and
-authenticate requests, but the Open backend is deliberately fail-closed because the 2.7.x native
-completion adapter is not implemented. The current HTTP surface also rejects common client
-features before they reach the backend.
+The Open Local API now has a substantially implemented HTTP/protocol layer:
 
-The first real-device API capture contains six HTTP 400 rejections before native execution:
-five requests with `tools`, and one request with `stream_options.include_usage`. Those are
-protocol-surface limitations, not transport failures.
+- OpenAI Chat Completions: text JSON/SSE, reasoning field/deltas, non-stream function-tool handoff and client-side tool-result history.
+- OpenAI Responses: text JSON/SSE, function/custom tool handoff without streaming, and bounded in-memory `previous_response_id` continuation state.
+- Anthropic Messages: text JSON/SSE and non-stream `tool_use/tool_result` handoff, with estimated usage explicitly marked.
+- HTTP/1.1 request parsing includes bounded Content-Length and chunked-body handling, strict framing validation, authentication, and loopback/LAN listener controls.
 
-Separately, five committed device log files are referenced by `docs/NATIVE_ADAPTER.md`. The
-non-empty full observer capture establishes real code289 transport and continuation boundaries,
-but does not establish a complete response lifecycle or a callable adapter.
+However, the Open native completion backend remains deliberately fail-closed. The gateway can accept and validate requests, but cannot yet generate real model output because the code289 request builder, Challenge/PoW, Flow event decoder, and lifecycle contract are not fully proven and integrated.
 
-## Findings
+## Verification status at audited revision
 
-### P0 — Native completion is unavailable in the Open edition
+GitHub Actions run [42203935002](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42203935002) completed successfully for this exact revision:
+
+- ROI fast audit (0.5): passed.
+- Source-only regression checks: passed.
+- Host compatibility and feature regression tests: passed.
+- Android Open release build and Android Lint: passed.
+- APK structure, alignment, and signature verification: passed.
+- Verified APK and lint-report artifact uploads: passed.
+
+These checks establish source/build integrity for the audited revision. They do not establish native model generation, device installation, or end-to-end protocol acceptance on a real code289 device.
+
+## P0 — Native completion remains unavailable
 
 Source-confirmed:
 
-- `z14.available()` returns false and `z14.payloadClass(...)` returns null in the Open build.
-- `Main` backend readiness requires `BuildInfo.LOCAL_API_INCLUDED`, a host ClassLoader,
-  `liveR92`, and `liveQ71`.
-- The legacy q71/transport capture path is skipped for the 2.7.x family.
-- `HookAccountLoginSecurity.executeLocalApiCompletion` delegates to the Closed payload class
-  `ds.dsh.DeepSeek.z18`; the Open stub cannot resolve it.
-- The gateway therefore returns HTTP 503 `native_adapter_unavailable` instead of generating a
-  fake response.
+- The Open edition does not enable the protected `z18` completion payload.
+- `HookAccountLoginSecurity.executeLocalApiCompletion` returns `native_adapter_unavailable` instead of fabricating a response or calling an unavailable protected payload.
+- Gateway readiness is not inferred from the existence of configured model IDs.
+- `GET /v1/models` describes the configured API surface; it does not claim that the native engine is ready.
+- Unknown host versions remain fail-closed; no static candidate alone authorizes a functional Hook.
 
-This is the primary blocker. Do not relax readiness or synthesize model output.
+The user-facing UI must continue to disclose that the native Completion Adapter is not connected.
 
-### P0 — code289 native call boundary is identified, but not yet callable
+## P0 — code289 native boundary is observed but not yet callable
 
-Device-observed in the committed capture:
+Existing device evidence establishes the following runtime boundary:
 
 - Request implementation: `ly1 implements wu1`.
 - Dispatch: `zn3.o(wu1, Long) -> y60`.
-- Low-level transport: `jw3.g(wu1, Long) -> y60`.
-- The same Request object is observed across the nested synchronous boundary.
-- The observed invocation arguments are `[ly1, null]`; the Long argument's meaning is unknown.
+- Nested transport: `jw3.g(wu1, Long) -> y60`.
+- The same Request object identity is observed across the nested synchronous boundary.
 - Returned object: `y60 implements el4`.
-- Continuation boundary: `y60.b(fl4, yb3) -> Object`.
-- Concrete callback implementations observed include `cr9`, `ec0`, `s5`, `qa`,
-  `k41`, and `x0`.
-- Callback return wrappers include `zgb`; continuation results include `cd3`.
+- Continuation boundary: `y60.b(fl4, yb3)`.
+- Concrete callback implementation families include `cr9`, `ec0`, and `s5`; observed wrappers include `zgb` and `cd3`.
 
 Evidence limits:
 
-- The observer does not prove that `el4` is the Kotlin Flow interface until the exact interface
-  mapping is checked against the target APK.
-- The callback event schema is not decoded. Runtime types such as `av1` and `vd6` are candidates,
-  not established text/reasoning/error event types.
-- Request construction, Challenge/PoW, session identity, response terminal events, cancellation,
-  and error mapping remain unverified.
-- The Long argument must not be treated as a timeout or Challenge without call-site evidence.
+- The observed `Long` argument has no proven semantic meaning.
+- Runtime callback classes and payload types have not been mapped conclusively to text, reasoning, tool, terminal, or error events.
+- Request field names/types and constructor/factory call sites are diagnostic clues, not a verified builder contract.
+- Challenge/PoW preparation, session identity, authentication/retry behavior, cancellation, timeout, terminal events, and native cleanup remain unverified.
+- Existing full observer capture is schema 4. The newer schema-7 constructor/factory diagnostics still require a fresh device capture; no schema-7 evidence is claimed here.
+- No genuine successful 2.7.2/code289 completion has been demonstrated.
 
-### P1 — Current Open HTTP surface is intentionally limited
+Do not synthesize `ly1` fields or infer the meaning of `zgb`/`cd3` from their obfuscated names.
 
-Source-confirmed in `OpenLocalApiGateway.java` and
-`test-local-api-network-regression.sh`:
+## P1 — Current protocol surface and limitations
 
-- Implemented routes: `GET /v1/models` and `POST /v1/chat/completions`.
-- Only text and text-part message content is accepted.
-- `tools`, `tool_choice`, `response_format`, named/tool messages, and
-  `stream_options.include_usage` are rejected with HTTP 400.
-- `Transfer-Encoding: chunked` requests are rejected.
-- Responses API, Anthropic Messages API, model detail, health route, and count-token route are
-  absent from the Open gateway.
-- Usage accounting and Agent tool-result continuation are not implemented.
-- Model discovery returns configured model IDs even while the native backend is unavailable.
+### OpenAI Chat Completions
 
-The existing regression script currently treats several of these rejections as expected behavior.
-Those assertions must change when the corresponding feature is implemented; do not weaken tests by
-silently ignoring unsupported request fields.
+Implemented:
 
-### P1 — Compatibility and reliability gaps
+- `POST /v1/chat/completions`, text-only messages.
+- JSON and text/reasoning SSE deltas.
+- Non-stream function-tool request validation and tool-call handoff.
+- Assistant tool-call history and matching client tool-result validation.
+- `max_tokens` / `max_completion_tokens` validation and one-choice-only behavior.
+- Explicit rejection of unsupported multimodal content, generation controls, response formats, and unsupported streaming tool calls.
 
-- No verified end-to-end SSE lifecycle from native Flow start through terminal event.
-- No proven socket-disconnect-to-native-Flow cancellation path.
-- No verified per-client session isolation or hidden-session cleanup for code289.
-- No verified fair account-wide generation permit or recovery after upstream 429/session expiry.
-- No chunked request-body support, which some HTTP clients use.
-- No Responses `previous_response_id` continuation or Anthropic `tool_use/tool_result` bridge.
-- No OpenAI tool envelope parser, schema validator, forced-choice handling, or duplicate side-effect
-  suppression in the current Open gateway.
+Not implemented/accepted:
 
-## Reference implementation research
+- Streaming tool-call handoff.
+- Images, audio, and other multimodal input/output.
+- Actual tool execution inside the gateway; tools are returned to the API client for client-side execution.
 
-The strongest directly relevant reference is
-[Xposed-Modules-Repo/com.dsmod.probe](https://github.com/Xposed-Modules-Repo/com.dsmod.probe).
+### OpenAI Responses
 
-Public files reviewed:
+Implemented:
 
-- `module/src/com/dsmod/probe/LocalApiGateway.java`: HTTP framing, authentication, Chat,
-  Responses, Anthropic, SSE lifecycle, usage, status and session continuation.
-- `module/src/com/dsmod/probe/OpenAiToolBridge.java`: request-scoped tool schemas, tool-choice
-  validation, prompt protocol, parsing and result mapping.
-- `module/src/com/dsmod/probe/OmniRouteToolBridge.java`: tolerant tool-envelope extraction and
-  recovery.
-- `module/tests/com/dsmod/probe/LocalApiGatewayProtocolRegressionTest.java`: fake-backend
-  protocol tests.
-- `docs/LOCAL_DEEPSEEK_API_GATEWAY_PLAN.md`: architecture and device acceptance report.
+- `POST /v1/responses` with string or item-array input.
+- Text JSON/SSE response lifecycle.
+- Function/custom tool handoff in non-stream mode.
+- `previous_response_id` continuation state: max 64 entries, 30-minute TTL, 256 KiB transcript cap; in-memory only and cleared on service stop/restart.
+- Function-call output correlation against pending call IDs.
+- Reasoning effort validation and mapping; selected web-search declarations map to the backend search switch.
 
-The reference design keeps the HTTP gateway in the injected DeepSeek process so it can reuse the
-host's authenticated transport and coroutine objects. It uses one fair account-wide native permit,
-request-scoped tool plans, hashed client-session scopes, a bounded SSE writer, deadlines, 429
-cooldown, invalid-session recovery, and explicit cancellation accounting.
+Not implemented/accepted:
 
-Important limitation: the reference's public gateway and protocol bridge are inspectable, but its
-native execution payload is not fully available as portable Open-edition source. Its reported
-2.2.2 device results do not validate this project's 2.7.2/code289 adapter.
+- Streaming tool-call handoff.
+- Hosted tool execution and unsupported hosted tool types.
+- Durable response state across process/service restart.
+- Structured JSON Schema output beyond supported text format.
 
-Licensing note: the inspected `Xposed-Modules-Repo/com.dsmod.probe` repository declares MIT;
-this project declares GPL-3.0. MIT-licensed portions can be adapted into this GPL-3.0 project while
-retaining the required MIT copyright and permission notice for copied substantial portions. Prefer
-that repository as the source for protocol-layer porting rather than copying GPL-only files from
-other forks without checking their provenance.
+### Anthropic Messages
 
-## Repair sequence
+Implemented:
 
-### Stage A — complete code289 evidence
+- `POST /v1/messages`, `x-api-key` authentication (with bearer fallback), and required `anthropic-version`.
+- System text, user/assistant text and text content blocks.
+- Non-stream `tool_use/tool_result` history and call-ID correlation.
+- Text SSE lifecycle events.
+- Estimated usage fields marked with `dsh_usage_estimated=true`.
 
-1. Use the opt-in schema 6 probe to capture only the first argument's shallow field names/types
-   at the first Flow collector callback.
-2. Correlate the observed event DTOs with the exact code289 APK's declared fields and call sites.
-3. Capture bounded type-only transport receiver shapes and exception stack symbols if required;
-   never capture field values, message content, credentials, cookies, or headers.
-4. Establish the exact Request constructor/factory, Challenge/PoW lifecycle, transport receiver,
-   Flow interface, event types, and terminal/error semantics.
+Not implemented/accepted:
 
-### Stage B — native adapter
+- Signed thinking blocks; reasoning is not leaked as an unsigned thinking block.
+- Streaming `tool_use`.
+- Image blocks, `/v1/messages/count_tokens`, exact tokenizer usage, and unsupported generation parameters.
+- Anthropic SDK conformance has not yet been validated against the full official SDK test suite.
 
-Implement an Open-only, code289-gated adapter with:
+### HTTP, security, and runtime constraints
 
-- verified Request builder;
-- verified Challenge/PoW preparation and serialization;
-- exact transport invocation;
-- single-collection Flow consumer and event decoder;
-- reasoning/text separation and terminal/error mapping;
-- cancellation propagation and cleanup;
-- request-scoped native session isolation;
-- one fair account-wide generation permit and bounded deadline;
-- fail-closed behavior for all unverified host versions.
+Implemented in source and covered by regression checks:
 
-Readiness must become true only after every required adapter component is installed and validated.
-Do not reuse legacy `liveR92/liveQ71` as a proxy for code289 readiness.
+- Loopback listener defaults to `127.0.0.1`; LAN access is opt-in and binds only an explicitly detected `192.168.x.x` address, never `0.0.0.0`.
+- Per-install bearer token; custom token validation; bounded request body and prompt sizes.
+- Strict request-line, header, Content-Length, chunk-size, trailer, and transfer-framing validation.
+- HTTP/1.1 chunked request-body decoding with decoded-body size bounds.
+- Bounded client executor and explicit overload/error handling.
+- Diagnostics avoid logging prompt/completion content, credentials, cookies, authorization headers, or tool arguments.
 
-### Stage C — protocol compatibility
+Still requires real runtime acceptance:
 
-After native text/reasoning streaming is verified:
+- Socket disconnect to native Flow cancellation.
+- Fair account-wide generation permit and verified upstream cooldown/recovery.
+- End-to-end SSE terminal/error semantics from the native Flow.
+- Session isolation and cleanup against the actual host runtime.
+- Network-change and foreground/background behavior on target devices.
 
-1. Add Chat tool/function parsing and tool-result continuation.
-2. Add truthful `stream_options.include_usage` support (estimated usage must be identified as
-   approximate; never fabricate exact token counts).
-3. Add chunked HTTP request framing and request-body limits.
-4. Add OpenAI Responses and `previous_response_id` state.
-5. Add Anthropic Messages, `tool_use/tool_result`, thinking blocks and count_tokens.
-6. Add JSON Schema output and supported generation parameter mapping.
-7. Add protocol-specific error objects and bounded SSE heartbeat/backpressure.
+## Required next work
 
-### Stage D — acceptance
+1. Add executable protocol tests with a deterministic fake backend for Chat, Responses, Anthropic, tool continuation, malformed requests, chunked framing, SSE event order, and disconnect behavior. Current CI includes source assertions and host compatibility tests, but those are not a complete protocol conformance suite.
+2. Continue schema-7 opt-in diagnostics on the exact code289 APK to establish the request constructor/factory and shallow argument shapes.
+3. Correlate constructor/factory evidence with APK call sites; establish the exact request field mapping and Challenge/PoW lifecycle.
+4. Decode the actual Flow interface and callback DTO semantics, including text/reasoning separation, terminal/error events, cancellation, and cleanup.
+5. Implement the Open-only, code289-gated native adapter only after the above evidence is sufficient.
+6. Require genuine device acceptance: non-stream Chat, reasoning, SSE, cancellation, tool handoff/continuation, concurrent requests, invalid credentials, malformed/oversized requests, and lifecycle/network-change behavior.
 
-Required on a real DeepSeek 2.7.2/code289 device:
+## Acceptance rule
 
-- `GET /v1/models` and authenticated health status;
-- non-stream Chat text and reasoning;
-- SSE text/reasoning with exactly one terminal event;
-- client disconnect stops upstream collection;
-- tool call → client tool execution → tool result → model continuation;
-- `include_usage` behavior and documented estimate semantics;
-- chunked request body;
-- concurrent requests serialize without `parallel_chat_limit`;
-- invalid API key, malformed JSON, oversized body, unsupported model and upstream errors map
-  correctly;
-- background/foreground retention and network change;
-- no secrets or prompt content in diagnostic logs.
-
-## Current branch state
-
-- Branch: `work/local-api-event-decoder-diagnostics`.
-- Based on: `fix/native-probe-concrete-callback-hooks`.
-- This branch adds value-free callback argument shape capture and aligns the diagnostic report
-  schema/test expectations to schema 6.
-- It has not been merged to `dev` or `main`.
-- No CI, Android build, APK install, or schema 6 real-device capture is claimed by this audit.
-- The gateway remains fail-closed; the Local API is not yet repaired or accepted as usable.
+The API must remain visibly and technically unavailable for model generation until every required native adapter component is validated. Protocol compatibility improvements may continue independently, but no configured model ID, static analysis result, successful CI run, or fake-backend test may be presented as proof of real model execution.
