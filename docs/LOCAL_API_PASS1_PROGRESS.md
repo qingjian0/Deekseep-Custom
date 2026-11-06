@@ -36,6 +36,15 @@ Status: In progress; not a release acceptance report.
 - Added text-only Responses SSE lifecycle (`response.created`, `response.in_progress`, output/content events, `response.completed`); tool-bearing streaming is rejected explicitly.
 - Added bounded in-memory `previous_response_id` continuation state: up to 64 responses, 30-minute TTL, 256 KiB transcript cap, and automatic loss on service restart. Function/custom tool call IDs remain pending until matching tool outputs arrive.
 
+## Anthropic Messages implementation update
+
+- Added a dedicated AnthropicMessagesAdapter to normalize Anthropic request bodies into the existing z2.CompletionRequest and shared OpenAiToolBridge.Plan contract.
+- Registered POST /v1/messages; supports x-api-key (and bearer fallback), requires anthropic-version, and emits Anthropic-shaped JSON errors.
+- Supports system text, user/assistant text blocks, declared function tools, tool_use / tool_result history with call-ID correlation, non-streaming tool handoff, and text SSE lifecycle.
+- Thinking mode is deliberately rejected until signed thinking-block support exists; reasoning data is not emitted as an unsigned Anthropic thinking block.
+- Tool-call streaming, image blocks, /v1/messages/count_tokens, and exact token usage remain unsupported. usage is omitted rather than fabricated because the current z2.Backend result has no tokenizer counters.
+- Open UI and connection details now disclose both protocol families and show the separate Anthropic root Base URL (without /v1).
+
 ## Native adapter investigation update
 
 - Analyzed four non-empty code289 schema-4 runtime logs plus one API-validation-only log.
@@ -48,7 +57,7 @@ Status: In progress; not a release acceptance report.
 ## Not yet completed
 
 - OpenAI Responses endpoint is implemented for text JSON/SSE and non-streaming function/custom tool handoff; `previous_response_id` uses bounded in-memory state (64 entries, 30-minute TTL, 256 KiB transcript cap, cleared on stop/restart); streamed tool calls remain unsupported.
-- Anthropic Messages and count_tokens endpoints are not yet implemented in the Open gateway.
+- Anthropic Messages text JSON/SSE and non-streaming tool handoff are implemented; thinking signatures, count_tokens, images, streamed tool_use, and usage counters remain unsupported.
 - HTTP chunked decoder has source assertions but has not yet been executed in an Android/JVM test harness.
 - The Android build and regression script have not been executed in this environment. CI was not triggered in this batch to avoid competing with the existing API CI work; the latest commit currently has no reported commit status checks.
 - code289 native request construction, challenge/PoW, Flow collection, semantic event decoding, cancellation, and genuine device generation remain unverified. HookAccountLoginSecurity.executeLocalApiCompletion now explicitly rejects Open builds before attempting the protected-only z18 payload lookup.
@@ -64,7 +73,7 @@ Status: In progress; not a release acceptance report.
 | OpenAI tool parser | Ported and wired to non-stream Chat; execution/build verification pending |
 | OpenAI Chat non-stream tool handoff | Implemented; execution/build verification pending |
 | OpenAI Responses text + non-stream tool handoff | Implemented; execution/build verification pending |
-| Anthropic Messages | Not yet accepted |
+| Anthropic Messages text + non-stream tool handoff | Implemented; source assertions added; build/SDK verification pending |
 | code289 native generation | Not yet accepted; protected z18 path is guarded; native adapter evidence still incomplete |
 | Android build / CI / real device | Not yet verified |
 
@@ -73,5 +82,5 @@ Status: In progress; not a release acceptance report.
 1. Build and install the schema-7 diagnostic build, then capture a fresh ordinary generation to identify the actual ly1 constructor/factory and argument-shape mapping; do not infer field semantics from obfuscated names.
 2. Verify the zn3/jw3 transport call and y60 Flow collection contract, then decode callback events and cancellation.
 3. Add a fake-backend JVM harness for Chat/Responses, HTTP framing, tool continuation, SSE, and session isolation.
-4. Implement Anthropic Messages only after the OpenAI adapter and fake-backend suite are stable.
+4. Add a fake-backend JVM harness and protocol fixtures for Chat, Responses, and Anthropic Messages; verify SDK parsing and SSE event order.
 5. Keep the native backend fail-closed until a genuine code289 device completion and cancellation test pass.
