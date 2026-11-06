@@ -1717,8 +1717,8 @@ Main.log("[RISK] Android ID spoof installed");
                                             || z2.PROTOCOL_ANTHROPIC.equals(protocol))))) {
                             success = false;
                             message = UiLanguage.text(context,
-                                    "Open 版当前仅支持 HTTP + OpenAI Chat Completions",
-                                    "The Open build currently supports HTTP + OpenAI Chat Completions only");
+                                    "Open 版当前仅支持 HTTP + OpenAI 协议",
+                                    "The Open build currently supports the OpenAI protocol over HTTP only");
                         } else if ((operation == null || operation.length() == 0)
                                 && (z2.PROTOCOL_OPENAI.equals(protocol)
                                 || z2.PROTOCOL_ANTHROPIC.equals(protocol))) {
@@ -1745,7 +1745,7 @@ Main.log("[RISK] Android ID spoof installed");
                                 && (z21.OP_SET_HTTPS.equals(operation)
                                 || z21.OP_SET_PROTOCOL.equals(operation))) {
                             success = false;
-                            message = "Open 版当前仅支持 HTTP + OpenAI Chat Completions";
+                            message = "Open 版当前仅支持 HTTP + OpenAI 协议";
                         } else if (z21.OP_SET_PROTOCOL.equals(operation)
                                 && (z2.PROTOCOL_OPENAI.equals(value)
                                 || z2.PROTOCOL_ANTHROPIC.equals(value))) {
