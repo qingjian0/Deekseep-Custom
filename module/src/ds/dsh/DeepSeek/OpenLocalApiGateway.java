@@ -26,6 +26,7 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.UUID;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -842,26 +843,75 @@ final class OpenLocalApiGateway {
     private static String toPrompt(JSONArray messages) throws Exception {
         if (messages == null || messages.length() == 0) return "";
         StringBuilder prompt = new StringBuilder();
+        java.util.HashSet<String> pendingToolCallIds = new java.util.HashSet<String>();
         for (int i = 0; i < messages.length(); i++) {
             JSONObject message = messages.optJSONObject(i);
             if (message == null) throw new IllegalArgumentException("Invalid message");
-            if (message.has("tool_calls") || message.has("function_call")
-                    || message.has("tool_call_id") || message.has("name")) {
-                throw new IllegalArgumentException(
-                        "Named messages, tool messages, and tool calls are not supported");
-            }
             String role = message.optString("role", "");
             if (!"system".equals(role) && !"developer".equals(role)
-                    && !"user".equals(role) && !"assistant".equals(role)) {
+                    && !"user".equals(role) && !"assistant".equals(role)
+                    && !"tool".equals(role)) {
                 throw new IllegalArgumentException("Unsupported message role");
             }
+            if (message.has("name")) {
+                throw new IllegalArgumentException("Named messages are not supported");
+            }
+            if ("tool".equals(role)) {
+                String callId = message.optString("tool_call_id", "").trim();
+                if (callId.length() == 0 || !pendingToolCallIds.remove(callId)) {
+                    throw new IllegalArgumentException("Tool result does not match a preceding assistant tool call");
+                }
+                String toolResult = messageText(message.opt("content"));
+                if (toolResult.trim().length() == 0) {
+                    throw new IllegalArgumentException("Tool result content is empty");
+                }
+                if (prompt.length() > 0) prompt.append("\n");
+                prompt.append("tool result for ").append(callId).append(": ").append(toolResult);
+                continue;
+            }
+            if (message.has("tool_call_id") || message.has("function_call")) {
+                throw new IllegalArgumentException("Invalid tool-call history role or legacy function_call");
+            }
             Object content = message.opt("content");
-            String text = messageText(content);
-            if (text.trim().length() == 0) {
+            String text = content == null || content == JSONObject.NULL
+                    ? "" : messageText(content);
+            JSONArray calls = message.optJSONArray("tool_calls");
+            if (message.has("tool_calls") && !"assistant".equals(role)) {
+                throw new IllegalArgumentException("Only assistant messages may contain tool_calls");
+            }
+            if (text.trim().length() == 0 && (calls == null || calls.length() == 0)) {
                 throw new IllegalArgumentException("Message content is empty");
             }
-            if (prompt.length() > 0) prompt.append("\n");
-            prompt.append(role).append(": ").append(text);
+            if (text.length() > 0) {
+                if (prompt.length() > 0) prompt.append("\n");
+                prompt.append(role).append(": ").append(text);
+            }
+            if (calls != null) {
+                if (calls.length() > 32) {
+                    throw new IllegalArgumentException("Too many historical tool calls");
+                }
+                for (int callIndex = 0; callIndex < calls.length(); callIndex++) {
+                    JSONObject call = calls.optJSONObject(callIndex);
+                    JSONObject function = call == null ? null : call.optJSONObject("function");
+                    String id = call == null ? "" : call.optString("id", "").trim();
+                    String name = function == null ? "" : function.optString("name", "").trim();
+                    Object rawArguments = function == null ? null : function.opt("arguments");
+                    if (call == null || function == null || id.length() == 0 || id.length() > 128
+                            || name.length() == 0 || name.length() > 128
+                            || !"function".equals(call.optString("type", "function"))
+                            || !(rawArguments instanceof String)
+                            || pendingToolCallIds.contains(id)) {
+                        throw new IllegalArgumentException("Invalid assistant tool-call history");
+                    }
+                    String arguments = (String) rawArguments;
+                    new JSONObject(arguments);
+                    pendingToolCallIds.add(id);
+                    if (prompt.length() > 0) prompt.append("\n");
+                    prompt.append("assistant tool call id=").append(id)
+                            .append(" name=").append(name)
+                            .append(" arguments=").append(arguments);
+                }
+            }
             if (prompt.length() > MAX_PROMPT_CHARS) return prompt.toString();
         }
         return prompt.toString();
