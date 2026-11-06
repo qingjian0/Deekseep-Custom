@@ -37,6 +37,9 @@ public final class RoiDexSerializerMapperTest {
         yes(result.complete);eq(1,result.constructors.length);eq(1,result.constructors[0].parameters.length);
         eq("chat_session_id",result.constructors[0].parameters[0].fieldName);
         eq(0,result.constructors[0].parameters[0].elementIndex);
+        eq(0,result.constructors[0].parameters[0].constructorParameterIndex);
+        yes(result.constructors[0].complete);
+        eq(1,result.constructors[0].parameters.length);
     }
 
     static void checkCastSerializableElementMapping()throws Exception {
