@@ -150,9 +150,29 @@ public final class RoiDexSerializerElementIndex {
                     name.value,method.ownerDescriptor));
         }
         if(registrationIndex==0)complete=false;
+        if(registrationBlock>=0&&!isReachableFromEntry(graph,registrationBlock))
+            throw new AnalysisException("descriptor_registration_block_unreachable");
         if(registrationBlock>=0&&hasCycleThroughBlock(graph,registrationBlock))
             throw new AnalysisException("descriptor_registration_loop_or_back_edge");
         return new Result(elements,rejected,complete);
+    }
+
+    private static boolean isReachableFromEntry(
+            RoiDexInstructionScanner.ControlFlowGraph graph,int targetBlock) {
+        if(graph.blocks.length==0||targetBlock<0||targetBlock>=graph.blocks.length)return false;
+        boolean[] visited=new boolean[graph.blocks.length];
+        java.util.ArrayDeque<Integer> queue=new java.util.ArrayDeque<Integer>();
+        visited[0]=true;queue.add(0);
+        while(!queue.isEmpty()) {
+            int block=queue.removeFirst();
+            if(block==targetBlock)return true;
+            for(RoiDexInstructionScanner.Edge edge:graph.edges) {
+                if(edge.fromBlock==block&&!visited[edge.toBlock]) {
+                    visited[edge.toBlock]=true;queue.add(edge.toBlock);
+                }
+            }
+        }
+        return false;
     }
 
     private static boolean hasCycleThroughBlock(
