@@ -146,6 +146,11 @@ require(
     "the Local API page exposes the separate default-off native diagnostic switch",
 )
 require(
+    ui,
+    r'callback-0.*?字段名/字段类型.*?不读取字段值',
+    "the diagnostic UI accurately discloses shallow callback event shape capture without field values",
+)
+require(
     probe,
     r'installObservedMethod\(loader, "jw3", "g".*?installObservedMethod\(loader, "zn3", "o"',
     "runtime observer targets both independently discovered code289 call boundaries",
