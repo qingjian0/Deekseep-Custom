@@ -149,5 +149,7 @@ if "Responses API、Anthropic Messages、工具调用和多模态尚未实现" n
     raise SystemExit("Open UI must not advertise unimplemented API protocols")
 if "原生执行适配器尚未接通" not in ui_open:
     raise SystemExit("Open UI must disclose that native completion is not connected")
+if 'protocolValue.setText("OpenAI（仅 Chat Completions）")' not in ui_open or 'protocolValue.setClickable(false)' not in ui_open:
+    raise SystemExit("Open UI must not expose the unavailable Anthropic protocol picker")
 print("LAN lifecycle, key, URL, selectable UI, API protocol, and truthful Open capability checks passed")
 PY
