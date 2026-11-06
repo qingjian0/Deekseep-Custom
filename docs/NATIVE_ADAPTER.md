@@ -269,15 +269,18 @@ Regression coverage in `module/test-hostmap-regression.sh` checks that code290 s
 
 ## 2.7.x probe report collection (2026-11-04)
 
-The probe is not scheduled on every app launch. In the Open build, `Main.startz1()` first checks the explicit Local API enabled marker; only then does it call `OpenNativeCompletionProbe.scheduleHostInspection(hostClassLoader)`. The inventory runs on a daemon worker and makes at most three attempts (initial, +1 s, +3 s) until a complete non-empty DEX inventory is obtained. A partial or empty inventory remains retryable; a complete inventory becomes terminal for the current process.
+The Open inventory and code289 runtime observer are disabled by default. The Local API enable switch alone does not authorize diagnostic scanning or Hook installation. In the Local API page, the user must separately enable **启用原生适配诊断探针**. Only then may `Main.startz1()` schedule `OpenNativeCompletionProbe.scheduleHostInspection(hostClassLoader)`; the scheduler also checks the explicit diagnostic marker. The inventory runs on a daemon worker and makes at most three attempts (initial, +1 s, +3 s) until a complete non-empty DEX inventory is obtained. A partial or empty inventory remains retryable; a complete inventory becomes terminal for the current process.
 
 To collect a report on a test device:
 
-1. Install an Open build containing the probe diagnostics.
-2. In DeepSeek module settings, open **工程 → 本地 API · 实验性** and explicitly enable Local API. This enables the diagnostic scheduling gate; it does not make Native Completion available and does not mean a model request will succeed.
-3. Force-stop DeepSeek, launch it again, and allow startup to settle. The probe is passive and does not send a completion request.
-4. Retrieve the external mirror file `/storage/emulated/0/deekseep_vision_m.log`. The primary private app file is `/data/data/com.deepseek.chat/files/deekseep_vision.log` and normally requires an authorized app-private/log collection path.
-5. Extract the complete block beginning `[OPEN_NATIVE_COMPLETION_PROBE]`, including all lines through the final `probe.elapsedMs` field. Do not trim candidate or loader-chain lines.
+1. Install an Open build containing the probe diagnostics and the separate opt-in switch.
+2. In DeepSeek module settings, open **工程 → 本地 API · 实验性** and enable Local API if it is not already enabled.
+3. In the same page, separately enable **启用原生适配诊断探针**. This authorizes only the reviewed, read-only diagnostic inventory and code289 call-boundary observer; it does not authorize feature Hook installation and does not make Native Completion available.
+4. Force-stop DeepSeek, launch it again, and allow startup to settle. The probe is passive and does not send a completion request.
+5. Retrieve the external mirror file `/storage/emulated/0/deekseep_vision_m.log`. The primary private app file is `/data/data/com.deepseek.chat/files/deekseep_vision.log` and normally requires an authorized app-private/log collection path.
+6. Extract the complete block beginning `[OPEN_NATIVE_COMPLETION_PROBE]`, including all lines through the final `probe.elapsedMs` field. Do not trim candidate or loader-chain lines.
+
+Turning the diagnostic switch off makes any already-installed call-observer wrapper immediately call the original host method exactly once and return its original result without recording further observation events. The wrapper is not uninstalled from the process, but it becomes transparent.
 
 The report currently records `host`, `loader.chain.*`, `dex.scan.scope`, `dex.classCount`, `dex.eligibleClassNameCount`, `dex.scannedClassCount`, `dex.classLoadFailureCount`, `transport.candidateCount`, `manager.candidateCount`, and `probe.elapsedMs`. The scan covers only the supplied `BaseDexClassLoader.pathList.dexElements`; parent and separate split/dynamic loaders are not recursively enumerated. Candidate entries are structural hints, not proof of a live Transport or manager.
 
@@ -296,7 +299,7 @@ pipeline and does not authorize any unknown-version feature Hook.
 The observer is installed only when all of the following hold:
 
 - Open edition, with no Closed payload;
-- Local API was explicitly enabled (the existing startup gate);
+- Local API is enabled and the separate **启用原生适配诊断探针** switch is explicitly on;
 - HostCompat.hostCode271() == 289;
 - the host loader resolves ly1 and wu1, and wu1.isAssignableFrom(ly1) is true;
 - each target method is unique and has the exact reviewed shape.
