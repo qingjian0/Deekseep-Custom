@@ -102,6 +102,7 @@ final class OpenNativeCompletionProbe {
                 || !SCHEDULED.compareAndSet(false, true)) {
             return;
         }
+        if (SESSION_STARTED_AT_MS == 0L) resetRuntimeTrace();
         Thread worker = new Thread(() -> {
             try {
                 runBoundedInspection(loader);
