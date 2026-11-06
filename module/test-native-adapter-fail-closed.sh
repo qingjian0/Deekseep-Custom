@@ -409,6 +409,11 @@ require(
     r'private static void observerLog\(String message\).*?Main\.extLog\(message\)',
     "only the observerLog mirror writes observer messages directly to the external log",
 )
+observer_start = probe.index("private static void installRuntimeObservation(")
+observer_end = probe.index("private static String observedMethodDescriptor(", observer_start)
+observer_region = probe[observer_start:observer_end]
+if "Main.extLog(" in observer_region:
+    raise SystemExit("Native observer events bypass the bounded diagnostic buffer")
 require(
     probe,
     r'final Deque<String> callStack.*?Object rootRequest.*?boolean hasRootRequest',
