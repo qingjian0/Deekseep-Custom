@@ -5,6 +5,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -133,6 +135,7 @@ public final class RoiDexApkCli {
         String scope = dexPath.getFileName().toString();
         Set<String> expandedMethods = new LinkedHashSet<String>(selected.keySet());
         Set<String> directCalleeMethods = new LinkedHashSet<String>();
+        Map<String, Integer> directCalleePriority = new LinkedHashMap<String, Integer>();
         Set<String> transitiveCalleeMethods = new LinkedHashSet<String>();
         RoiDexCandidateEvidence.Result seedEvidence =
                 RoiDexCandidateEvidence.analyzeSelected(dex, scope, expandedMethods);
@@ -147,6 +150,8 @@ public final class RoiDexApkCli {
                 if (expandedMethods.size() >= MAX_FIRST_HOP_METHODS) break;
                 if (definedMethods.contains(callee) && expandedMethods.add(callee)) {
                     directCalleeMethods.add(callee);
+                    directCalleePriority.put(callee,
+                            anchorPriority(selected.get(method.methodKey)));
                 }
             }
             if (expandedMethods.size() >= MAX_FIRST_HOP_METHODS) break;
@@ -155,8 +160,25 @@ public final class RoiDexApkCli {
         // such as fu0.s(...), which delegates the built JSON to the next request layer.
         RoiDexCandidateEvidence.Result firstHopEvidence =
                 RoiDexCandidateEvidence.analyzeSelected(dex, scope, expandedMethods);
+        final Map<String, RoiDexCandidateEvidence.MethodEvidence> firstHopByKey =
+                new LinkedHashMap<String, RoiDexCandidateEvidence.MethodEvidence>();
         for (RoiDexCandidateEvidence.MethodEvidence method : firstHopEvidence.methods) {
-            if (!directCalleeMethods.contains(method.methodKey)) continue;
+            firstHopByKey.put(method.methodKey, method);
+        }
+        List<String> orderedDirectCallees = new ArrayList<String>(directCalleeMethods);
+        Collections.sort(orderedDirectCallees, new Comparator<String>() {
+            @Override public int compare(String left, String right) {
+                int leftPriority = directCalleePriority.containsKey(left)
+                        ? directCalleePriority.get(left) : 0;
+                int rightPriority = directCalleePriority.containsKey(right)
+                        ? directCalleePriority.get(right) : 0;
+                if (leftPriority != rightPriority) return rightPriority - leftPriority;
+                return left.compareTo(right);
+            }
+        });
+        for (String callerKey : orderedDirectCallees) {
+            RoiDexCandidateEvidence.MethodEvidence method = firstHopByKey.get(callerKey);
+            if (method == null) continue;
             for (String callee : method.invokes) {
                 if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;
                 if (definedMethods.contains(callee) && expandedMethods.add(callee)) {
