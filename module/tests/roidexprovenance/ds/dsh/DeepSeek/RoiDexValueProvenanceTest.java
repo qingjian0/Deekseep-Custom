@@ -226,7 +226,7 @@ public final class RoiDexValueProvenanceTest {
         RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching);
         RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(
                 protectedCode,null,i->"Lx;",flow,reaching,useDef,links);
-        RoiDexValueProvenance.Trace trace=provenance.traceUse(5,1,1);
+        RoiDexValueProvenance.Trace trace=provenance.traceUse(4,1,1);
         yes(!trace.unique);eq("exception_flow_incomplete",trace.rejectionReason);
     }
 
