@@ -201,7 +201,7 @@ require(
 )
 require(
     probe,
-    r'line\(out, "report\.schema", "3"\)',
+    r'line\(out, "report\.schema", "6"\)',
     "probe report schema is versioned",
 )
 require(
@@ -510,7 +510,7 @@ require(
     r'callback-enter role=.*?"callback-0"\.equals\(role\).*?args != null && !args\.isEmpty\(\).*?arg0Shape=.*?observedObjectShape\(args\.get\(0\)\)',
     "only the Flow collector callback captures shallow first-argument field names and types",
 )
-if re.search(r'\\bfield\\.get\\(', probe) or "args.get(0).toString()" in probe:
+if re.search(r'\bfield\.get\(', probe) or "args.get(0).toString()" in probe:
     raise SystemExit("callback event diagnostics must never read or serialize argument field values")
 require(
     probe,
@@ -522,7 +522,7 @@ if "callback.toString()" in probe or "receiver.toString()" in probe:
 
 require(
     probe,
-    r'line\(out, "report\.schema", "5"\).*?diagnostic\.coverage.*?diagnostic\.sensitive_data.*?diagnostic\.callback_hook_limits.*?max-12-methods-per-class.*?no-superclass-traversal',
+    r'line\(out, "report\.schema", "6"\).*?diagnostic\.coverage.*?diagnostic\.sensitive_data.*?diagnostic\.callback_hook_limits.*?max-12-methods-per-class.*?no-superclass-traversal',
     "schema 6 declares bounded concrete-callback and value-free event-shape capture",
 )
 require(
