@@ -41,7 +41,7 @@ Status: In progress; not a release acceptance report.
 - OpenAI Responses endpoint is implemented for text JSON/SSE and non-streaming function/custom tool handoff; disk-backed `previous_response_id` persistence and streamed tool calls remain unsupported.
 - Anthropic Messages and count_tokens endpoints are not yet implemented in the Open gateway.
 - HTTP chunked decoder has source assertions but has not yet been executed in an Android/JVM test harness.
-- No Android build or CI run is claimed. The latest commit has no reported workflow runs or status checks.
+- The Android build and regression script have not been executed in this environment. CI was not triggered in this batch to avoid competing with the existing API CI work; the latest commit currently has no reported commit status checks.
 - code289 native request construction, challenge/PoW, Flow collection, semantic event decoding, cancellation, and genuine device generation remain unverified.
 
 ## Current acceptance status
