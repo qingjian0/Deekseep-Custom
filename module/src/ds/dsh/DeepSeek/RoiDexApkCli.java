@@ -21,6 +21,7 @@ import java.util.Set;
 public final class RoiDexApkCli {
     private static final int MAX_METHODS_SCANNED = 150000;
     private static final int MAX_SELECTED_METHODS = 64;
+    private static final int MAX_ANALYSIS_METHODS = 128;
     private static final long MAX_CODE_UNITS = 20000000L;
     private static final String[] ANCHORS = {
             "chat/completions", "application/json", "Authorization", "messages",
@@ -129,8 +130,26 @@ public final class RoiDexApkCli {
         }
 
         String scope = dexPath.getFileName().toString();
+        Set<String> expandedMethods = new LinkedHashSet<String>(selected.keySet());
+        RoiDexCandidateEvidence.Result seedEvidence =
+                RoiDexCandidateEvidence.analyzeSelected(dex, scope, expandedMethods);
+        Set<String> definedMethods = new LinkedHashSet<String>();
+        for (RoiDexFileReader.ResolvedMethod method : dex.definedMethods) {
+            definedMethods.add(method.declaringClassDescriptor + "->" + method.name
+                    + method.prototypeDescriptor);
+        }
+        // Add one bounded hop of in-DEX callees so request builders expose their
+        // serializer/dispatcher helpers without pulling in external library methods.
+        for (RoiDexCandidateEvidence.MethodEvidence method : seedEvidence.methods) {
+            for (String callee : method.invokes) {
+                if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;
+                if (definedMethods.contains(callee)) expandedMethods.add(callee);
+            }
+            if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;
+        }
+        int expandedDirectCallees = expandedMethods.size() - selected.size();
         RoiDexCandidateEvidence.Result evidence =
-                RoiDexCandidateEvidence.analyzeSelected(dex, scope, selected.keySet());
+                RoiDexCandidateEvidence.analyzeSelected(dex, scope, expandedMethods);
         StringBuilder out = new StringBuilder(8192);
         out.append("{\n");
         field(out, "schema", "1", true);
@@ -147,6 +166,9 @@ public final class RoiDexApkCli {
         field(out, "anchor_constant_field_count", Integer.toString(anchorFieldIds.size()), true);
         field(out, "field_reference_methods_scanned", Integer.toString(fieldReferenceMethodsScanned), true);
         field(out, "candidate_selection_budget", Integer.toString(MAX_SELECTED_METHODS), true);
+        field(out, "anchor_candidate_count", Integer.toString(selected.size()), true);
+        field(out, "expanded_direct_callee_count", Integer.toString(expandedDirectCallees), true);
+        field(out, "analysis_method_budget", Integer.toString(MAX_ANALYSIS_METHODS), true);
         field(out, "candidate_count", Integer.toString(evidence.methods.size()), true);
         field(out, "analyzed_methods", Integer.toString(evidence.analyzedMethods), true);
         field(out, "analysis_failures", Integer.toString(evidence.analysisFailures), true);
@@ -163,9 +185,11 @@ public final class RoiDexApkCli {
             if (i > 0) out.append(",");
             out.append("\n    {");
             out.append("\"method\":").append(quote(method.methodKey));
-            out.append(",\"anchors\":").append(stringArray(selected.get(method.methodKey)));
-            out.append(",\"anchor_priority\":")
-                    .append(anchorPriority(selected.get(method.methodKey)));
+            Set<String> methodAnchors = selected.get(method.methodKey);
+            out.append(",\"candidate_origin\":")
+                    .append(quote(methodAnchors == null ? "direct_callee" : "anchor"));
+            out.append(",\"anchors\":").append(stringArray(methodAnchors));
+            out.append(",\"anchor_priority\":").append(anchorPriority(methodAnchors));
             out.append(",\"analysis_status\":")
                     .append(quote(method.analysis == null ? "failed_or_missing_code" : "analyzed"));
             out.append(",\"analysis_failure\":").append(quote(method.analysisFailure));
@@ -249,6 +273,7 @@ public final class RoiDexApkCli {
     private static String stringArray(Iterable<String> values) {
         StringBuilder out = new StringBuilder("[");
         boolean first = true;
+        if (values == null) return out.append("]").toString();
         for (String value : values) {
             if (!first) out.append(",");
             first = false;
