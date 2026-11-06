@@ -574,14 +574,14 @@ final class OpenLocalApiGateway {
                                 + "；当前可用模型：deepseek-chat、deepseek-reasoner（兼容别名：deepseek-flash）");
                 return;
             }
-            String prompt;
+            String conversationPrompt;
             try {
-                prompt = toPrompt(body.optJSONArray("messages"));
+                conversationPrompt = toPrompt(body.optJSONArray("messages"));
             } catch (Exception invalid) {
                 sendError(out, 400, "invalid_messages", "Messages must contain supported text roles");
                 return;
             }
-            if (prompt.length() == 0 || prompt.length() > MAX_PROMPT_CHARS) {
+            if (conversationPrompt.length() == 0 || conversationPrompt.length() > MAX_PROMPT_CHARS) {
                 sendError(out, 400, "invalid_prompt", "Prompt is empty or too large");
                 return;
             }
@@ -609,11 +609,36 @@ final class OpenLocalApiGateway {
                 }
                 maxTokens = (int) numericMaxTokens;
             }
+            JSONArray rawTools = body.optJSONArray("tools");
+            if (body.has("tools") && body.opt("tools") != JSONObject.NULL && rawTools == null) {
+                sendError(out, 400, "invalid_tools", "tools must be an array");
+                return;
+            }
+            if (body.has("parallel_tool_calls")
+                    && !(body.opt("parallel_tool_calls") instanceof Boolean)) {
+                sendError(out, 400, "invalid_parallel_tool_calls",
+                        "parallel_tool_calls must be a boolean");
+                return;
+            }
+            boolean parallelTools = body.optBoolean("parallel_tool_calls", true);
+            OpenAiToolBridge.Plan toolPlan = OpenAiToolBridge.chatPlan(
+                    rawTools, body.opt("tool_choice"), parallelTools);
             String requestId = "api-" + UUID.randomUUID();
+            String prompt = OpenAiToolBridge.addInstructions(
+                    conversationPrompt, toolPlan, requestId);
+            if (prompt.length() > MAX_PROMPT_CHARS) {
+                sendError(out, 400, "invalid_prompt", "Prompt with tool instructions is too large");
+                return;
+            }
+            if (stream && toolPlan.active()) {
+                sendError(out, 400, "unsupported_streaming_tool_calls",
+                        "Tool calls are currently supported only with stream=false");
+                return;
+            }
             z2.CompletionRequest completion = new z2.CompletionRequest(
-                    requestId, model, "default", prompt, prompt,
+                    requestId, model, "default", conversationPrompt, prompt,
                     "deepseek-reasoner".equals(model), false, maxTokens,
-                    null, null, false);
+                    toolPlan, null, false);
             OpenNativeCompletionProbe.apiTrace("request-accepted requestId=" + requestId
                     + " requestedModel=" + requestedModel + " model=" + model
                     + " stream=" + stream + " promptChars=" + prompt.length()
@@ -663,13 +688,35 @@ final class OpenLocalApiGateway {
                         + " textChars=" + result.text.length()
                         + " reasoningChars=" + result.reasoning.length()
                         + " finishReason=" + result.finishReason);
+                List<OpenAiToolBridge.Call> parsedToolCalls =
+                        OpenAiToolBridge.parseCalls(result.text, toolPlan);
+                if (toolPlan.active() && parsedToolCalls.isEmpty()
+                        && (toolPlan.choice.requiresCall()
+                        || OpenAiToolBridge.resemblesCallSyntax(result.text, toolPlan))) {
+                    sendError(out, 502, "invalid_tool_response",
+                            "The model did not return a valid tool call matching the request schema");
+                    return;
+                }
                 JSONObject message = new JSONObject().put("role", "assistant")
-                        .put("content", result.text);
+                        .put("content", parsedToolCalls.isEmpty()
+                                ? result.text : JSONObject.NULL);
+                if (!parsedToolCalls.isEmpty()) {
+                    JSONArray wireCalls = new JSONArray();
+                    for (OpenAiToolBridge.Call call : parsedToolCalls) {
+                        JSONObject function = new JSONObject()
+                                .put("name", call.name)
+                                .put("arguments", call.arguments);
+                        wireCalls.put(new JSONObject().put("id", call.callId)
+                                .put("type", "function").put("function", function));
+                    }
+                    message.put("tool_calls", wireCalls);
+                }
                 if ("deepseek-reasoner".equals(model) && result.reasoning.length() > 0) {
                     message.put("reasoning_content", result.reasoning);
                 }
                 JSONObject choice = new JSONObject().put("index", 0).put("message", message)
-                        .put("finish_reason", result.finishReason);
+                        .put("finish_reason", parsedToolCalls.isEmpty()
+                                ? result.finishReason : "tool_calls");
                 sendJson(out, 200, new JSONObject().put("id", requestId)
                         .put("object", "chat.completion").put("created", System.currentTimeMillis()/1000)
                         .put("model", model).put("choices", new JSONArray().put(choice)));
@@ -854,17 +901,6 @@ final class OpenLocalApiGateway {
 
     /** Returns the first actually requested unsupported feature, ignoring harmless defaults. */
     private static String unsupportedFeature(JSONObject body) {
-        Object tools = body.opt("tools");
-        if (tools != null && tools != JSONObject.NULL) {
-            if (!(tools instanceof JSONArray) || ((JSONArray) tools).length() > 0) {
-                return "tools";
-            }
-        }
-        Object toolChoice = body.opt("tool_choice");
-        if (toolChoice != null && toolChoice != JSONObject.NULL
-                && !(toolChoice instanceof String && "none".equals(toolChoice))) {
-            return "tool_choice";
-        }
         Object functions = body.opt("functions");
         if (functions != null && functions != JSONObject.NULL) {
             if (!(functions instanceof JSONArray) || ((JSONArray) functions).length() > 0) {
@@ -875,11 +911,6 @@ final class OpenLocalApiGateway {
         if (functionCall != null && functionCall != JSONObject.NULL
                 && !(functionCall instanceof String && "none".equals(functionCall))) {
             return "function_call";
-        }
-        Object parallel = body.opt("parallel_tool_calls");
-        if (parallel != null && parallel != JSONObject.NULL
-                && !Boolean.FALSE.equals(parallel)) {
-            return "parallel_tool_calls";
         }
         Object responseFormat = body.opt("response_format");
         if (responseFormat != null && responseFormat != JSONObject.NULL) {
