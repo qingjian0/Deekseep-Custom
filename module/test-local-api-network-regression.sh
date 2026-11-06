@@ -136,6 +136,8 @@ gateway_checks = {
     "reasoning is returned in non-stream completions": 'message.put("reasoning_content", result.reasoning)' in source,
     "reasoning deltas are emitted in SSE": 'send("reasoning_content", delta)' in source,
     "text deltas are emitted in SSE": 'send("content", delta)' in source,
+    "plain text and text-part message content are supported": "private static String messageText(Object content)" in source and '"input_text".equals(type)' in source,
+    "unsupported multimodal parts are rejected instead of silently discarded": '"Only text content parts are supported"' in source,
     "malformed HTTP requests receive an explicit 400/413 response": 'sendError(out, status, status == 413 ? "request_too_large"' in source,
     "non-JSON request bodies receive 415": 'sendError(out, 415, "unsupported_media_type"' in source,
 }
