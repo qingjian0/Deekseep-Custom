@@ -147,6 +147,7 @@ ui_required = {
 missing_ui = [label for label, token in ui_required.items() if token not in ui]
 if missing_ui:
     raise SystemExit("Missing local API UI contract: " + ", ".join(missing_ui))
+overlay = (pathlib.Path(sys.argv[1]).parent / "LocalApiFloatingOverlay.java").read_text(encoding="utf-8")
 gateway_checks = {
     "model discovery is not blocked by engine readiness": (
         source.index('if ("GET".equals(request.method) && "/v1/models".equals(request.path)) {')
@@ -172,6 +173,8 @@ gateway_checks = {
     "usage streaming is explicitly rejected": 'body.has("stream_options")' in source and "usage streaming" in source,
     "stream must be a boolean": 'body.opt("stream") instanceof Boolean' in source and '"invalid_stream"' in source,
     "model must be a string when supplied": 'body.opt("model") instanceof String' in source and '"invalid_model"' in source,
+    "legacy deepseek-flash model ID is advertised as a compatibility alias": 'new JSONObject().put("id", "deepseek-flash")' in source and "Compatibility alias retained" in source,
+    "legacy deepseek-flash requests are canonicalized to deepseek-chat": '"deepseek-flash".equals(requestedModel)' in source and '"deepseek-chat" : requestedModel' in source,
     "gateway startup failures are visible in connection info": '最近启动错误：' in source and 'lastStartError = error.getClass().getSimpleName();' in source,
     "gateway runtime status distinguishes startup failure": 'Stopped (startup failed: ' in source,
     "floating overlay does not report stale gateway heartbeat as listening": "age <= 15_000L" in overlay and "boolean running = z21.gatewayRunning() && heartbeatFresh;" in overlay and '"保活异常"' in overlay,
@@ -194,7 +197,6 @@ if "Responses API、Anthropic Messages、工具调用和多模态尚未实现" n
     raise SystemExit("Open UI must not advertise unimplemented API protocols")
 if "原生执行适配器尚未接通" not in ui_open:
     raise SystemExit("Open UI must disclose that native completion is not connected")
-overlay = (pathlib.Path(sys.argv[1]).parent / "LocalApiFloatingOverlay.java").read_text(encoding="utf-8")
 hook = (pathlib.Path(sys.argv[1]).parent / "HookAccountLoginSecurity.java").read_text(encoding="utf-8")
 if 'if ("Open".equals(BuildInfo.BUILD_EDITION)) {' not in overlay or 'httpsSwitch = null;' not in overlay:
     raise SystemExit("Open floating overlay must hide unavailable HTTPS controls")
