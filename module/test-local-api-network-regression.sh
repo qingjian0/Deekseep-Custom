@@ -122,5 +122,16 @@ ui_required = {
 missing_ui = [label for label, token in ui_required.items() if token not in ui]
 if missing_ui:
     raise SystemExit("Missing local API UI contract: " + ", ".join(missing_ui))
-print("LAN lifecycle, key, URL, and selectable-connection UI source checks passed")
+gateway_checks = {
+    "model discovery is not blocked by engine readiness": 'if ("GET".equals(request.method) && "/v1/models".equals(request.path)) {\\n                // Model discovery describes the configured API surface' in source,
+    "max_completion_tokens alias is supported": 'body.has("max_completion_tokens")' in source,
+    "max_tokens values are validated instead of silently clamped": 'numericMaxTokens != Math.rint(numericMaxTokens)' in source and '"invalid_max_tokens"' in source,
+    "reasoning is returned in non-stream completions": 'message.put("reasoning_content", result.reasoning)' in source,
+    "reasoning deltas are emitted in SSE": 'send("reasoning_content", delta)' in source,
+    "text deltas are emitted in SSE": 'send("content", delta)' in source,
+}
+missing_gateway = [label for label, ok in gateway_checks.items() if not ok]
+if missing_gateway:
+    raise SystemExit("Missing API protocol behavior: " + ", ".join(missing_gateway))
+print("LAN lifecycle, key, URL, selectable UI, and API protocol source checks passed")
 PY
