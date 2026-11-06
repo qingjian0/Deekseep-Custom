@@ -566,6 +566,8 @@ final class OpenLocalApiGateway {
                     reportedModel = reportedModel.substring(0, 128);
                 }
                 Main.log("Open Local API rejected model id: " + reportedModel);
+                OpenNativeCompletionProbe.apiTrace("request-rejected stage=model-validation"
+                        + " model=" + reportedModel + " status=400 code=model_not_found");
                 sendError(out, 400, "model_not_found",
                         "不支持的模型名称：" + reportedModel
                                 + "；当前可用模型：deepseek-chat、deepseek-reasoner（兼容别名：deepseek-flash）");
