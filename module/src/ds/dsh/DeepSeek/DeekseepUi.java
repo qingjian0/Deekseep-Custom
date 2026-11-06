@@ -2903,9 +2903,13 @@ public final class DeekseepUi {
             floatingTitle.setTypeface(Typeface.DEFAULT_BOLD);
             floatingLabels.addView(floatingTitle);
             TextView floatingDescription = new TextView(act);
-            floatingDescription.setText(UiLanguage.text(act,
-                    "在屏幕边缘显示 DeepSeek 图标；点击可查看实时数据并直接修改 Key、端口、格式与 HTTPS",
-                    "Show a DeepSeek icon at the screen edge; tap it to view live data and edit the API key, port, format, and HTTPS settings."));
+            floatingDescription.setText("Open".equals(BuildInfo.BUILD_EDITION)
+                    ? UiLanguage.text(act,
+                            "在屏幕边缘显示 DeepSeek 图标；点击可查看实时数据并修改 API Key 与端口",
+                            "Show a DeepSeek icon at the screen edge; tap it to view live data and edit the API key and port.")
+                    : UiLanguage.text(act,
+                            "在屏幕边缘显示 DeepSeek 图标；点击可查看实时数据并直接修改 Key、端口、格式与 HTTPS",
+                            "Show a DeepSeek icon at the screen edge; tap it to view live data and edit the API key, port, format, and HTTPS settings."));
             floatingDescription.setTextColor(subColor);
             floatingDescription.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
             floatingLabels.addView(floatingDescription);
