@@ -513,8 +513,10 @@ final class OpenLocalApiGateway {
                 return;
             }
             String contentType = request.headers.get("content-type");
-            if (contentType != null && !contentType.toLowerCase(java.util.Locale.ROOT)
-                    .startsWith("application/json")) {
+            String mediaType = contentType == null ? ""
+                    : contentType.split(";", 2)[0].trim();
+            if (contentType != null
+                    && !"application/json".equalsIgnoreCase(mediaType)) {
                 sendError(out, 415, "unsupported_media_type",
                         "Content-Type must be application/json");
                 return;
