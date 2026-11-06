@@ -29,6 +29,8 @@ final class OpenNativeCompletionProbe {
             new java.util.concurrent.atomic.AtomicBoolean();
     private static final java.util.concurrent.atomic.AtomicBoolean OBSERVATION_ZN3 =
             new java.util.concurrent.atomic.AtomicBoolean();
+    private static final java.util.concurrent.atomic.AtomicBoolean OBSERVATION_Y60 =
+            new java.util.concurrent.atomic.AtomicBoolean();
     private static final java.util.concurrent.atomic.AtomicLong OBSERVATION_IDS =
             new java.util.concurrent.atomic.AtomicLong();
     private static final Object OBSERVATION_LOG_LOCK = new Object();
@@ -501,6 +503,10 @@ final class OpenNativeCompletionProbe {
                     }
                     try {
                         Object result = chain.proceed();
+                        if ("transport-low-level".equals(role)
+                                || "transport-dispatch".equals(role)) {
+                            installContinuationObserver(result);
+                        }
                         try {
                             observerLog("[OPEN_NATIVE_CALL_OBSERVER] exit id="
                                     + (frame == null ? "unknown" : frame.id)
@@ -543,6 +549,79 @@ final class OpenNativeCompletionProbe {
         } catch (Throwable error) {
             observerLog("[OPEN_NATIVE_CALL_OBSERVER] install failed role=" + role
                     + " exception=" + error.getClass().getName());
+        }
+    }
+
+    /**
+     * Observe the verified y60.b(fl4,yb3) continuation/collection boundary after the
+     * transport returns. The wrapper is pass-through only and records type metadata;
+     * it never invokes callbacks itself or reads payload/response values.
+     */
+    private static void installContinuationObserver(Object result) {
+        if (result == null || !Main.isOpenNativeCompletionProbeEnabled()
+                || !OBSERVATION_Y60.compareAndSet(false, true)) return;
+        try {
+            Class<?> owner = result.getClass();
+            Method selected = null;
+            for (Method method : owner.getDeclaredMethods()) {
+                Class<?>[] parameters = method.getParameterTypes();
+                if ("b".equals(method.getName()) && parameters.length == 2
+                        && method.getReturnType() == Object.class) {
+                    if (selected != null) {
+                        observerLog("[OPEN_NATIVE_CALL_OBSERVER] continuation ambiguous owner="
+                                + owner.getName());
+                        OBSERVATION_Y60.set(false);
+                        return;
+                    }
+                    selected = method;
+                }
+            }
+            if (selected == null) {
+                observerLog("[OPEN_NATIVE_CALL_OBSERVER] continuation unavailable owner="
+                        + owner.getName());
+                OBSERVATION_Y60.set(false);
+                return;
+            }
+            final Method target = selected;
+            Main.MODULE.hook(target).intercept(new LegacyXposedModule.Hooker() {
+                @Override public Object intercept(LegacyXposedModule.Chain chain)
+                        throws Throwable {
+                    if (!Main.isOpenNativeCompletionProbeEnabled()) return chain.proceed();
+                    List<?> args = chain.getArgs();
+                    Object first = args != null && args.size() > 0 ? args.get(0) : null;
+                    Object second = args != null && args.size() > 1 ? args.get(1) : null;
+                    observerLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-enter method="
+                            + observedMethodDescriptor(target)
+                            + " thread=" + Thread.currentThread().getName()
+                            + "#" + Thread.currentThread().getId()
+                            + " args=" + observedArgumentTypes(args)
+                            + " arg0Shape=" + observedObjectShape(first)
+                            + " arg1Shape=" + observedObjectShape(second)
+                            + " stack=" + observedStack());
+                    try {
+                        Object value = chain.proceed();
+                        observerLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-exit method="
+                                + observedMethodDescriptor(target)
+                                + " result=" + observedResultType(value));
+                        return value;
+                    } catch (Throwable error) {
+                        observerLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-throw method="
+                                + observedMethodDescriptor(target)
+                                + " exception=" + error.getClass().getName());
+                        throw error;
+                    }
+                }
+            });
+            observerLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-installed method="
+                    + observedMethodDescriptor(target));
+        } catch (VirtualMachineError fatal) {
+            throw fatal;
+        } catch (ThreadDeath fatal) {
+            throw fatal;
+        } catch (Throwable error) {
+            OBSERVATION_Y60.set(false);
+            observerLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-install-failed exception="
+                    + error.getClass().getName());
         }
     }
 
