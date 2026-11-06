@@ -20,13 +20,15 @@ This is the correct integration seam. Protocol code should normalize to this con
 Implemented in the current branch (source assertions added; executable/build verification pending):
 - OpenAI Chat Completions non-stream tool handoff and client-side tool-result continuation
 - OpenAI Responses text JSON/SSE and non-stream function/custom tool handoff
+- Anthropic Messages text JSON/SSE and non-stream tool_use/tool_result handoff
 - Bounded in-memory previous_response_id state (64 entries, 30-minute TTL, 256 KiB transcript cap; cleared on gateway stop/restart)
 - Bounded HTTP chunked transfer decoding
 
 Not yet accepted as complete:
-- Anthropic Messages endpoint and content-block lifecycle
+- Anthropic signed thinking blocks, count_tokens, image blocks, and streamed tool_use
 - Exact usage accounting / include_usage semantics
 - Full protocol-level session isolation and executable lifecycle tests
+- Anthropic SDK response validation (usage omitted because backend tokenizer counters are absent)
 - Streamed tool-call output and tool-result continuation
 - Real code289 native request construction, challenge/PoW, Flow collection, event decoding, cancellation, and genuine device generation
 
@@ -42,7 +44,7 @@ Unsupported fields must fail with explicit protocol errors; never silently disca
 | P1 HTTP | request framing, auth, body bounds, chunked input, status mapping | P0 | 1 |
 | P2 OpenAI Chat | message normalization, roles, tools, JSON output format, response mapping | P0/P1 | 1 |
 | P3 Responses | response objects, items, previous_response_id, streaming events | P0/P1 | 1 |
-| P4 Anthropic | Messages request/response, content blocks, tool use/result, SSE | P0/P1 | 1 |
+| P4 Anthropic | Text Messages JSON/SSE and non-stream tool handoff implemented; signed thinking/count_tokens/images/streamed tool_use pending | P0/P1 | 1 |
 | P5 Tool Bridge | tool schemas, tool_choice, call IDs, result continuation, session scope | P0/P2/P3/P4 | 1 |
 | P6 Protocol tests | fake backend, golden fixtures, malformed/oversize/chunked/SSE/session tests | P0-P5 | 1 |
 | N1 Request Builder | verified code289 payload and request object creation | device/APK evidence | 2 |
@@ -93,3 +95,13 @@ Known observations are leads, not proof: ly1 implements wu1; zn3.o(wu1, Long) an
 - Added bounded chunked transfer decoding to `OpenLocalApiGateway.readRequest`.
 - Added source-regression assertions for framing limits, trailer rejection, tool-plan integration, and attribution.
 - These changes are implementation progress, not proof that the protocol endpoints are fully wired or that the Android build/device tests pass.
+
+## Anthropic Messages implementation note
+
+- POST /v1/messages uses x-api-key and requires anthropic-version.
+- Anthropic Base URL is the root listener URL, without /v1; the OpenAI Base URL remains /v1.
+- Tool calls are client-executed: the gateway returns tool_use blocks and validates subsequent tool_result IDs.
+- Streamed tool calls are rejected; text SSE uses the Anthropic message/content-block lifecycle.
+- Signed thinking blocks are rejected until signature semantics are implemented. The gateway does not leak reasoning into unsigned thinking blocks.
+- usage and /v1/messages/count_tokens are not implemented because z2.CompletionResult currently carries no tokenizer counters.
+- Static source assertions were added, but Android compilation, runtime HTTP tests, and SDK integration tests remain pending.
