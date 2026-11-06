@@ -44,12 +44,13 @@ final class OpenNativeCompletionProbe {
     // synchronously to the app-private session file, so capture volume is not truncated.
     private static final int MAX_OBSERVATION_LOG_CHARS = 48_000;
     private static volatile File SESSION_LOG_FILE;
+    private static FileOutputStream SESSION_LOG_OUTPUT;
     private static final java.util.concurrent.ConcurrentHashMap<String, CallbackStats>
             CALLBACK_STATS = new java.util.concurrent.ConcurrentHashMap<String, CallbackStats>();
-    private static final java.util.concurrent.atomic.AtomicInteger CALLBACK_METHOD_INVOCATIONS =
-            new java.util.concurrent.atomic.AtomicInteger();
-    private static final java.util.concurrent.atomic.AtomicInteger CALLBACK_DETAIL_EVENTS =
-            new java.util.concurrent.atomic.AtomicInteger();
+    private static final java.util.concurrent.atomic.AtomicLong CALLBACK_METHOD_INVOCATIONS =
+            new java.util.concurrent.atomic.AtomicLong();
+    private static final java.util.concurrent.atomic.AtomicLong CALLBACK_DETAIL_EVENTS =
+            new java.util.concurrent.atomic.AtomicLong();
     private static final java.util.concurrent.atomic.AtomicInteger API_TRACE_EVENTS =
             new java.util.concurrent.atomic.AtomicInteger();
     private static volatile long SESSION_STARTED_AT_MS;
@@ -109,6 +110,10 @@ final class OpenNativeCompletionProbe {
     private static void resetRuntimeTrace() {
         synchronized (OBSERVATION_LOG_LOCK) {
             OBSERVATION_LOG.setLength(0);
+            if (SESSION_LOG_OUTPUT != null) {
+                try { SESSION_LOG_OUTPUT.close(); } catch (Throwable ignored) {}
+                SESSION_LOG_OUTPUT = null;
+            }
         }
         CALLBACK_METHOD_INVOCATIONS.set(0);
         CALLBACK_DETAIL_EVENTS.set(0);
@@ -720,9 +725,7 @@ final class OpenNativeCompletionProbe {
                         + current.getName() + " exception=" + error.getClass().getName());
                 break;
             }
-            int examined = 0;
             for (Method method : methods) {
-                examined++;
                 int modifiers = method.getModifiers();
                 String name = method.getName();
                 if (Modifier.isStatic(modifiers) || Modifier.isAbstract(modifiers)
@@ -752,7 +755,7 @@ final class OpenNativeCompletionProbe {
                             List<?> args = chain.getArgs();
                             long started = System.nanoTime();
                             CALLBACK_METHOD_INVOCATIONS.incrementAndGet();
-                            int eventNumber = CALLBACK_DETAIL_EVENTS.incrementAndGet();
+                            long eventNumber = CALLBACK_DETAIL_EVENTS.incrementAndGet();
                             observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-enter role="
                                     + role + " method=" + observedMethodDescriptor(target)
                                     + " receiverId=" + identity
@@ -981,14 +984,18 @@ final class OpenNativeCompletionProbe {
     }
 
     private static void appendSessionLog(String message) {
-        File file = SESSION_LOG_FILE;
-        if (file == null || message == null) return;
+        if (message == null) return;
         synchronized (OBSERVATION_LOG_LOCK) {
-            FileOutputStream output = null;
             try {
-                output = new FileOutputStream(file, true);
-                output.write((message + "\\n").getBytes(StandardCharsets.UTF_8));
-                output.flush();
+                if (SESSION_LOG_FILE == null && SESSION_STARTED_AT_MS != 0L) {
+                    SESSION_LOG_FILE = createSessionLogFile(SESSION_STARTED_AT_MS);
+                }
+                if (SESSION_LOG_FILE == null) return;
+                if (SESSION_LOG_OUTPUT == null) {
+                    SESSION_LOG_OUTPUT = new FileOutputStream(SESSION_LOG_FILE, true);
+                }
+                SESSION_LOG_OUTPUT.write((message + "\n").getBytes(StandardCharsets.UTF_8));
+                SESSION_LOG_OUTPUT.flush();
             } catch (VirtualMachineError fatal) {
                 throw fatal;
             } catch (ThreadDeath fatal) {
@@ -996,9 +1003,11 @@ final class OpenNativeCompletionProbe {
             } catch (Throwable error) {
                 try { Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] persistent-log-write-failed "
                         + error.getClass().getName()); } catch (Throwable ignored) {}
+                try {
+                    if (SESSION_LOG_OUTPUT != null) SESSION_LOG_OUTPUT.close();
+                } catch (Throwable ignored) {}
+                SESSION_LOG_OUTPUT = null;
                 SESSION_LOG_FILE = null;
-            } finally {
-                if (output != null) try { output.close(); } catch (Throwable ignored) {}
             }
         }
     }
