@@ -280,6 +280,7 @@ android {
         )
         java.directories += setOf(
             stagedModuleSources.get().asFile.path,
+            file("../../module-kotlin-runtime/src/main/java").path,
             protectedInputs.get().dir("src").asFile.path,
             file(moduleCompatRoot).path,
             file("src/main/java").path,
