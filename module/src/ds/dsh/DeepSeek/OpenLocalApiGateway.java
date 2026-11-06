@@ -689,8 +689,10 @@ final class OpenLocalApiGateway {
                         + " stage=backend-readiness status=503");
                 return;
             }
+            boolean includeUsage = body.optJSONObject("stream_options") != null
+                    && body.optJSONObject("stream_options").optBoolean("include_usage", false);
             if (stream) {
-                streamCompletion(out, current, completion, model, requestId);
+                streamCompletion(out, current, completion, model, requestId, includeUsage);
             } else {
                 z2.CompletionResult result;
                 long completionStartedNanos = System.nanoTime();
@@ -752,9 +754,17 @@ final class OpenLocalApiGateway {
                 JSONObject choice = new JSONObject().put("index", 0).put("message", message)
                         .put("finish_reason", parsedToolCalls.isEmpty()
                                 ? result.finishReason : "tool_calls");
+                int promptTokens = estimateTokens(completion.prompt);
+                int completionTokens = estimateTokens(result.text)
+                        + estimateTokens(result.reasoning);
+                JSONObject usage = new JSONObject().put("prompt_tokens", promptTokens)
+                        .put("completion_tokens", completionTokens)
+                        .put("total_tokens", promptTokens + completionTokens)
+                        .put("dsh_usage_estimated", true);
                 sendJson(out, 200, new JSONObject().put("id", requestId)
                         .put("object", "chat.completion").put("created", System.currentTimeMillis()/1000)
-                        .put("model", model).put("choices", new JSONArray().put(choice)));
+                        .put("model", model).put("choices", new JSONArray().put(choice))
+                        .put("usage", usage));
             }
         } catch (Exception error) {
             Main.log("Open Local API request failed: " + error.getClass().getSimpleName());
@@ -850,8 +860,8 @@ final class OpenLocalApiGateway {
                 .put("model", normalized.model).put("content", content)
                 .put("stop_reason", stopReason).put("stop_sequence", JSONObject.NULL)
                 .put("usage", new JSONObject()
-                        .put("input_tokens", estimateAnthropicTokens(completion.prompt))
-                        .put("output_tokens", estimateAnthropicTokens(result.text))
+                        .put("input_tokens", estimateTokens(completion.prompt))
+                        .put("output_tokens", estimateTokens(result.text))
                         .put("dsh_usage_estimated", true));
         // z2.Backend does not expose tokenizer counters. Return rough estimates and mark them
         // explicitly so clients do not mistake them for exact DeepSeek tokenizer usage.
@@ -944,7 +954,7 @@ final class OpenLocalApiGateway {
                             .put("delta", new JSONObject().put("stop_reason", stopReason)
                                     .put("stop_sequence", JSONObject.NULL))
                             .put("usage", new JSONObject().put("output_tokens",
-                                    estimateAnthropicTokens(streamedText.length() > 0
+                                    estimateTokens(streamedText.length() > 0
                                             ? streamedText.toString() : result.text))
                                     .put("dsh_usage_estimated", true)));
             sendAnthropicEvent(out, "message_stop", new JSONObject().put("type", "message_stop"));
@@ -962,7 +972,7 @@ final class OpenLocalApiGateway {
      * Rough protocol-compatible usage estimate only. DeepSeek's tokenizer is not exposed by
      * z2.Backend; callers can distinguish these values through dsh_usage_estimated.
      */
-    private static int estimateAnthropicTokens(String value) {
+    private static int estimateTokens(String value) {
         if (value == null || value.length() == 0) return 0;
         int tokens = 0;
         int asciiRun = 0;
@@ -1451,7 +1461,8 @@ final class OpenLocalApiGateway {
     }
 
     private static void streamCompletion(OutputStream out, z2.Backend current,
-            z2.CompletionRequest request, String model, String requestId) throws Exception {
+            z2.CompletionRequest request, String model, String requestId,
+            boolean includeUsage) throws Exception {
         writeHeaders(out, 200, "text/event-stream; charset=utf-8");
         final long streamStartedNanos = System.nanoTime();
         final AtomicBoolean disconnected = new AtomicBoolean(false);
@@ -1523,8 +1534,25 @@ final class OpenLocalApiGateway {
                 JSONObject finalEvent = new JSONObject().put("id", requestId)
                         .put("object", "chat.completion.chunk").put("created", System.currentTimeMillis()/1000)
                         .put("model", model).put("choices", new JSONArray().put(choice));
-                out.write(("data: " + finalEvent.toString() + "\n\ndata: [DONE]\n\n")
+                out.write(("data: " + finalEvent.toString() + "\n\n")
                         .getBytes(StandardCharsets.UTF_8));
+                if (includeUsage) {
+                    int promptTokens = estimateTokens(request.prompt);
+                    int completionTokens = estimateTokens(result.text)
+                            + estimateTokens(result.reasoning);
+                    JSONObject usage = new JSONObject().put("prompt_tokens", promptTokens)
+                            .put("completion_tokens", completionTokens)
+                            .put("total_tokens", promptTokens + completionTokens)
+                            .put("dsh_usage_estimated", true);
+                    JSONObject usageChunk = new JSONObject().put("id", requestId)
+                            .put("object", "chat.completion.chunk")
+                            .put("created", System.currentTimeMillis() / 1000L)
+                            .put("model", model).put("choices", new JSONArray())
+                            .put("usage", usage);
+                    out.write(("data: " + usageChunk.toString() + "\n\n")
+                            .getBytes(StandardCharsets.UTF_8));
+                }
+                out.write("data: [DONE]\n\n".getBytes(StandardCharsets.UTF_8));
                 out.flush();
                 OpenNativeCompletionProbe.apiTrace("stream-complete requestId=" + requestId
                         + " events=" + eventCount.get()
