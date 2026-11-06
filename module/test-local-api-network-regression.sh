@@ -251,7 +251,7 @@ gateway_checks = {
     "Responses reasoning effort is validated and mapped": 'reasoningOptions.optString("effort", "medium")' in source and 'reasoningRequested = reasoningRequested || !"none".equals(effort)' in source,
     "unsupported hosted Responses tools are rejected": '"Unsupported Responses tool type: "' in source,
     "Responses input accepts strings and item arrays": 'responsesInputToPrompt(rawInput, pendingToolCallIds)' in source and '"input must be a string or an array"' in source,
-    "Responses previous_response_id resolves bounded in-memory state": 'loadResponseState(previousId)' in source and '"previous_response_not_found"' in source,
+    "Responses previous_response_id resolves bounded in-memory state": 'LocalApiResponseStateStore.get(previousId)' in source and '"previous_response_not_found"' in source,
     "Responses state delegates to the bounded in-memory store": 'LocalApiResponseStateStore.get(previousId)' in source,
     "Responses continuation state is cleared when the gateway stops": 'LocalApiResponseStateStore.clear();' in source,
     "Responses output state records outstanding tool calls": 'LocalApiResponseStateStore.put(requestId' in source,
