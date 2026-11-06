@@ -2,6 +2,9 @@ package ds.dsh.DeepSeek;
 
 public final class RoiDexSerializerPipelineTest {
     public static void main(String[] args) {
+        eq("serializer_element_registration_candidate_discovery_incomplete",
+                RoiDexSerializerPipeline.registrationCandidateDiscoveryFailureReason(true));
+        yes(RoiDexSerializerPipeline.registrationCandidateDiscoveryFailureReason(false)==null);
         eq("serializer_element_registration_not_found",
                 RoiDexSerializerPipeline.registrationCandidateFailureReason(0,false));
         eq("serializer_element_registration_ambiguous",
