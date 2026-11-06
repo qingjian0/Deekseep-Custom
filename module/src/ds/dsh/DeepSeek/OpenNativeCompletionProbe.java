@@ -469,12 +469,12 @@ final class OpenNativeCompletionProbe {
             Class<?> requestType = Class.forName("ly1", false, loader);
             Class<?> requestMarker = Class.forName("wu1", false, loader);
             if (!requestMarker.isAssignableFrom(requestType)) return;
-            logRequestFactoryMetadata(loader, requestType);
-            installRequestConstructorObserver(requestType);
             installObservedMethod(loader, "jw3", "g", requestMarker,
                     OBSERVATION_JW3, "transport-low-level");
             installObservedMethod(loader, "zn3", "o", requestMarker,
                     OBSERVATION_ZN3, "transport-dispatch");
+            logRequestFactoryMetadata(loader, requestType);
+            installRequestConstructorObserver(requestType);
         } catch (VirtualMachineError fatal) {
             throw fatal;
         } catch (ThreadDeath fatal) {
@@ -548,22 +548,39 @@ final class OpenNativeCompletionProbe {
                     @Override public Object intercept(LegacyXposedModule.Chain chain)
                             throws Throwable {
                         if (!Main.isOpenNativeCompletionProbeEnabled()) return chain.proceed();
-                        int event = REQUEST_CONSTRUCTOR_EVENTS.incrementAndGet();
-                        List<?> args = chain.getArgs();
-                        if (event <= 16) {
-                            observerLog("[OPEN_NATIVE_CALL_OBSERVER] request-constructor-enter event="
-                                    + event + " signature=" + target.getDeclaringClass().getName()
-                                    + ".<init>(" + parameters(target.getParameterTypes()) + ")"
-                                    + " args=" + observedArgumentTypes(args)
-                                    + " argShapes=" + observedArgumentShapes(args));
+                        int event = 0;
+                        try {
+                            event = REQUEST_CONSTRUCTOR_EVENTS.incrementAndGet();
+                            List<?> args = chain.getArgs();
+                            if (event <= 16) {
+                                observerLog("[OPEN_NATIVE_CALL_OBSERVER] request-constructor-enter event="
+                                        + event + " signature=" + target.getDeclaringClass().getName()
+                                        + ".<init>(" + parameters(target.getParameterTypes()) + ")"
+                                        + " args=" + observedArgumentTypes(args)
+                                        + " argShapes=" + observedArgumentShapes(args));
+                            }
+                        } catch (VirtualMachineError fatal) {
+                            throw fatal;
+                        } catch (ThreadDeath fatal) {
+                            throw fatal;
+                        } catch (Throwable observerError) {
+                            // Diagnostics must never block the host's request constructor.
                         }
                         Object result = chain.proceed();
-                        if (event <= 16) {
-                            Object instance = chain.getThisObject();
-                            observerLog("[OPEN_NATIVE_CALL_OBSERVER] request-constructor-exit event="
-                                    + event + " instanceId="
-                                    + (instance == null ? 0 : System.identityHashCode(instance))
-                                    + " shape=" + observedObjectShape(instance));
+                        if (event > 0 && event <= 16) {
+                            try {
+                                Object instance = chain.getThisObject();
+                                observerLog("[OPEN_NATIVE_CALL_OBSERVER] request-constructor-exit event="
+                                        + event + " instanceId="
+                                        + (instance == null ? 0 : System.identityHashCode(instance))
+                                        + " shape=" + observedObjectShape(instance));
+                            } catch (VirtualMachineError fatal) {
+                                throw fatal;
+                            } catch (ThreadDeath fatal) {
+                                throw fatal;
+                            } catch (Throwable observerError) {
+                                // The constructor has already completed; preserve its result.
+                            }
                         }
                         return result;
                     }
@@ -958,6 +975,7 @@ final class OpenNativeCompletionProbe {
     }
 
     private static String observedArgumentTypes(List<?> args) {
+        if (args == null) return "null";
         StringBuilder out = new StringBuilder("[");
         for (int i = 0; i < args.size(); i++) {
             if (i > 0) out.append(',');
