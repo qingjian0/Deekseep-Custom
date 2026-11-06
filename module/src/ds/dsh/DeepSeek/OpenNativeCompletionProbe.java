@@ -48,6 +48,8 @@ final class OpenNativeCompletionProbe {
             CALLBACK_STATS = new java.util.concurrent.ConcurrentHashMap<String, CallbackStats>();
     private static final java.util.concurrent.atomic.AtomicInteger CALLBACK_METHOD_INVOCATIONS =
             new java.util.concurrent.atomic.AtomicInteger();
+    private static final java.util.concurrent.atomic.AtomicInteger CALLBACK_DETAIL_EVENTS =
+            new java.util.concurrent.atomic.AtomicInteger();
     private static final java.util.concurrent.atomic.AtomicInteger API_TRACE_EVENTS =
             new java.util.concurrent.atomic.AtomicInteger();
     private static volatile long SESSION_STARTED_AT_MS;
@@ -110,6 +112,7 @@ final class OpenNativeCompletionProbe {
             OBSERVATION_LOG.setLength(0);
         }
         CALLBACK_METHOD_INVOCATIONS.set(0);
+        CALLBACK_DETAIL_EVENTS.set(0);
         CALLBACK_STATS.clear();
         API_TRACE_EVENTS.set(0);
         CALLBACK_TRACE_TRUNCATED.set(false);
@@ -746,19 +749,21 @@ final class OpenNativeCompletionProbe {
                                 return chain.proceed();
                             }
                             String callbackMethod = observedMethodDescriptor(target);
-                            CallbackStats stats = CALLBACK_STATS.get(callbackMethod);
-                            if (stats == null) {
+                            CallbackStats existingStats = CALLBACK_STATS.get(callbackMethod);
+                            if (existingStats == null) {
                                 CallbackStats created = new CallbackStats();
                                 CallbackStats previous = CALLBACK_STATS.putIfAbsent(callbackMethod, created);
-                                stats = previous == null ? created : previous;
+                                existingStats = previous == null ? created : previous;
                             }
+                            final CallbackStats stats = existingStats;
                             Object receiver = chain.getThisObject();
                             int identity = receiver == null ? 0
                                     : System.identityHashCode(receiver);
                             List<?> args = chain.getArgs();
                             long started = System.nanoTime();
                             CALLBACK_METHOD_INVOCATIONS.incrementAndGet();
-                            boolean recordEvent = CALLBACK_STATS.values().stream().mapToLong(s -> s.invocations.get()).sum() <= MAX_CALLBACK_TRACE_EVENTS;
+                            int eventNumber = CALLBACK_DETAIL_EVENTS.incrementAndGet();
+                            boolean recordEvent = eventNumber <= MAX_CALLBACK_TRACE_EVENTS;
                             if (recordEvent) {
                                 observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-enter role="
                                         + role + " method=" + observedMethodDescriptor(target)
