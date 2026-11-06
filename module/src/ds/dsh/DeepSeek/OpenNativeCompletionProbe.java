@@ -31,6 +31,9 @@ final class OpenNativeCompletionProbe {
             new java.util.concurrent.atomic.AtomicBoolean();
     private static final java.util.concurrent.atomic.AtomicLong OBSERVATION_IDS =
             new java.util.concurrent.atomic.AtomicLong();
+    private static final Object OBSERVATION_LOG_LOCK = new Object();
+    private static final StringBuilder OBSERVATION_LOG = new StringBuilder(4096);
+    private static final int MAX_OBSERVATION_LOG_CHARS = 12_000;
     private static final ThreadLocal<ObservationFrame> OBSERVATION_FRAME =
             new ThreadLocal<ObservationFrame>();
 
@@ -390,7 +393,7 @@ final class OpenNativeCompletionProbe {
         } catch (ThreadDeath fatal) {
             throw fatal;
         } catch (Throwable error) {
-            Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] setup failed: "
+            observerLog("[OPEN_NATIVE_CALL_OBSERVER] setup failed: "
                     + error.getClass().getName());
         }
     }
@@ -650,8 +653,46 @@ final class OpenNativeCompletionProbe {
         Main.extLog("[OPEN_NATIVE_COMPLETION_PROBE]\n" + report);
     }
 
+    private static void observerLog(String message) {
+        if (message == null) return;
+        try {
+            synchronized (OBSERVATION_LOG_LOCK) {
+                int required = message.length() + 1;
+                if (required >= MAX_OBSERVATION_LOG_CHARS) {
+                    OBSERVATION_LOG.setLength(0);
+                    OBSERVATION_LOG.append(message,
+                            message.length() - MAX_OBSERVATION_LOG_CHARS + 1,
+                            message.length()).append('\n');
+                } else {
+                    int overflow = OBSERVATION_LOG.length()
+                            + required - MAX_OBSERVATION_LOG_CHARS;
+                    if (overflow > 0) {
+                        int newline = OBSERVATION_LOG.indexOf("\n", overflow);
+                        OBSERVATION_LOG.delete(0, newline >= 0 ? newline + 1 : overflow);
+                    }
+                    OBSERVATION_LOG.append(message).append('\n');
+                }
+            }
+        } catch (VirtualMachineError fatal) {
+            throw fatal;
+        } catch (ThreadDeath fatal) {
+            throw fatal;
+        } catch (Throwable ignored) {}
+        try {
+            Main.extLog(message);
+        } catch (VirtualMachineError fatal) {
+            throw fatal;
+        } catch (ThreadDeath fatal) {
+            throw fatal;
+        } catch (Throwable ignored) {}
+    }
+
     static String status() {
-        return report;
+        String base = report;
+        synchronized (OBSERVATION_LOG_LOCK) {
+            if (OBSERVATION_LOG.length() == 0) return base;
+            return base + "\n[OPEN_NATIVE_CALL_OBSERVER_BUFFER]\n" + OBSERVATION_LOG;
+        }
     }
 
     private static void appendLoaderChain(StringBuilder out, ClassLoader loader) {
