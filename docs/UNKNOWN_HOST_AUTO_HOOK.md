@@ -77,8 +77,10 @@ These are implemented building blocks, not evidence that unknown-host discovery 
 - Parsed defined methods are indexed by full method descriptor and exported DEX filename. Duplicate method descriptors across exported DEX files are marked ambiguous and excluded. The index is weakly keyed by the exact ClassLoader and reused while its DexKit DEX count remains unchanged; a changed count forces a fresh export and parse. The per-loader method index is capped at 300,000 entries.
 - DexKit anchor candidates must match an exact parsed runtime DEX method descriptor before they can enter the unknown-host resolver. Invoke edges are filtered to methods defined uniquely in the exported runtime DEX set. Serializer method and request-constructor references must both join to unique parsed definitions; their DEX filenames are retained in diagnostics.
 - APK-path scans remain diagnostic supplements and do not contribute to runtime feature authorization.
-- The discovery path does **not yet** run `RoiDexCandidateEvidence.analyze(...)` on the exact matched serializer/deserializer methods, nor does it trace serializer element indices through register definitions into the constructor invoke.
-- The new export-reader fixture cases and updated wiring assertions are committed, but were deliberately not dispatched to CI under the CI-avoidance rule; they remain unexecuted until a safe validation window is available.
+- After DexKit has identified exact serializer candidates and their request-constructor targets, discovery performs one bounded second export pass and calls `RoiDexCandidateEvidence.analyzeSelected(...)` only for up to 32 unique selected methods. Selected methods are grouped by their exact exported DEX filename; unrelated methods do not enter the expensive register-flow pipeline. Diagnostics report analyzed methods, analysis failures, basic-block counts, reaching definitions, use sites, and exception-flow conservatism.
+- The second export pass is an intentional memory/CPU tradeoff: the first pass builds a compact ClassLoader-scoped method identity index; the second reparses DEX one file at a time after candidate selection, avoiding retention of whole multidex object graphs in the weak ClassLoader cache.
+- This integration now executes method-level CFG/register-flow/reaching-definition/use-def analysis for selected methods, but it does **not yet** trace serializer field-name/element-index semantics through decode calls into the exact constructor invoke arguments.
+- The selected-method fixtures and updated wiring assertions are committed, but were deliberately not dispatched to CI under the CI-avoidance rule; they remain unexecuted until a safe validation window is available.
 - The existing runtime adapter still uses the reviewed fixed constructor layout and prompt argument index 2.
 
 This closes the missing **runtime DEX byte hand-off and exact method-identity join**. It does not close semantic argument mapping. DexKit call summaries plus exact method identity still do not prove which constructor parameter receives a decoded serializer field.
@@ -86,8 +88,8 @@ This closes the missing **runtime DEX byte hand-off and exact method-identity jo
 ### Next implementation gate
 
 1. Retain the parsed DEX identity for each matched serializer/deserializer method and invoke target; reject duplicate or cross-DEX ambiguous identities.
-2. Run bounded `RoiDexMethodAnalysis` only on exact matched methods, rather than analyzing every method in a multidex image.
-3. Resolve the serializer descriptor's field-name to element-index mapping, including generated Kotlin serialization descriptors.
+2. Resolve the serializer descriptor's field-name to element-index mapping, including generated Kotlin serialization descriptors.
+3. Use the selected methods' `RoiDexMethodAnalysis` results to resolve deserializer decode calls and element indices to value registers.
 4. Resolve deserializer decode calls and element indices to value registers; trace those registers through moves, casts, move-result operations, and control-flow joins.
 5. Prove the exact constructor invoke receiving the value, then map invoke register words to reflected parameters while accounting for receiver and wide arguments.
 6. Compare the derived constructor descriptor and mapping against the already-loaded runtime class in the same ClassLoader scope.
