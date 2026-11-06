@@ -58,7 +58,7 @@ public final class RoiDexSerializerMapperTest {
         });
         RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(code);
         RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
-        RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching);
+        RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching,entryLayout(code));
         RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(code,null,
                 index->"Lx;",flow,reaching,useDef,links);
         RoiDexSerializerMapper.Result result=RoiDexSerializerMapper.analyze(code,"Lx;",
@@ -85,7 +85,7 @@ public final class RoiDexSerializerMapperTest {
         RoiDexInvokeResultLinker.Result links=RoiDexInvokeResultLinker.analyze(code,index->method(index));
         RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(code);
         RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
-        RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching);
+        RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching,entryLayout(code));
         RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(code,null,
                 flow,reaching,useDef,links);
         RoiDexSerializerMapper.Result result=RoiDexSerializerMapper.analyze(code,"Lx;",
@@ -264,7 +264,7 @@ public final class RoiDexSerializerMapperTest {
         RoiDexInvokeResultLinker.Result links=RoiDexInvokeResultLinker.analyze(code,resolver);
         RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(code);
         RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
-        RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching);
+        RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching,entryLayout(code));
         return RoiDexValueProvenance.analyze(code,null,flow,reaching,useDef,links);
     }
 

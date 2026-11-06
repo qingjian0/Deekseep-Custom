@@ -244,7 +244,7 @@ public final class RoiDexValueProvenanceTest {
         RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(code);
         RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
         RoiDexMethodEntryLayout.Result layout=RoiDexMethodEntryLayout.analyze(
-                2,1,0,"()V");
+                2,2,0,"(Ljava/lang/Object;)V");
         RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching,layout);
         RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(
                 code,null,index->"Lx;",flow,reaching,useDef,links);
