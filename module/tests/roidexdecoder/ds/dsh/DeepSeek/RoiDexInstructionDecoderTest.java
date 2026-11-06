@@ -75,28 +75,28 @@ public final class RoiDexInstructionDecoderTest {
  }
  static void testReferenceKinds()throws Exception{
   RoiDexInstructionDecoder.Decoded string=RoiDexInstructionDecoder.decode(
-   new short[]{(short)0x001a,(short)0x1234},2);
+   new short[]{(short)0x001a,(short)0x1234},0,2);
   if(string.referenceKind!=RoiDexInstructionDecoder.Decoded.ReferenceKind.STRING)throw new AssertionError("const-string kind");
   RoiDexInstructionDecoder.Decoded jumbo=RoiDexInstructionDecoder.decode(
-   new short[]{(short)0x001b,(short)0x5678,(short)0x1234},2);
+   new short[]{(short)0x001b,(short)0x5678,(short)0x1234},0,2);
   eq(0x12345678,jumbo.referenceIndex);
   if(jumbo.referenceKind!=RoiDexInstructionDecoder.Decoded.ReferenceKind.STRING)throw new AssertionError("jumbo string kind");
   RoiDexInstructionDecoder.Decoded type=RoiDexInstructionDecoder.decode(
-   new short[]{(short)0x001c,1},2);
+   new short[]{(short)0x001c,1},0,2);
   if(type.referenceKind!=RoiDexInstructionDecoder.Decoded.ReferenceKind.TYPE)throw new AssertionError("type kind");
   RoiDexInstructionDecoder.Decoded method=RoiDexInstructionDecoder.decode(
-   new short[]{(short)0x0071,1,0},1);
+   new short[]{(short)0x0071,1,0},0,1);
   if(method.referenceKind!=RoiDexInstructionDecoder.Decoded.ReferenceKind.METHOD)throw new AssertionError("method kind");
  }
  static void testIntegerLiterals()throws Exception{
   RoiDexInstructionDecoder.Decoded small=RoiDexInstructionDecoder.decode(
-   new short[]{(short)0x3012},1);
+   new short[]{(short)0x3012},0,1);
   if(!small.hasLiteral)throw new AssertionError("const/4 literal missing");eq(3,(int)small.literalValue);
   RoiDexInstructionDecoder.Decoded signed=RoiDexInstructionDecoder.decode(
-   new short[]{(short)0x0013,(short)0xfffe},1);
+   new short[]{(short)0x0013,(short)0xfffe},0,1);
   eq(-2,(int)signed.literalValue);
   RoiDexInstructionDecoder.Decoded full=RoiDexInstructionDecoder.decode(
-   new short[]{(short)0x0014,(short)0x5678,(short)0x1234},1);
+   new short[]{(short)0x0014,(short)0x5678,(short)0x1234},0,1);
   eq(0x12345678,(int)full.literalValue);
  }
  static void testFailures()throws Exception{
