@@ -414,12 +414,17 @@ final class OpenLocalApiGateway {
         if (!RUNNING.get()) return "本地 API 服务尚未启动"
                 + (lastStartError.length() == 0 ? "" : "\n最近启动错误：" + lastStartError);
         return "本机地址：" + baseUrl() + "\n"
+                + "Anthropic Base URL：" + endpoint() + "\n"
                 + "聊天接口：" + endpoint() + "/v1/chat/completions\n"
+                + "Anthropic Messages：" + endpoint() + "/v1/messages\n"
                 + "本地 API Key：" + apiKey() + "\n"
                 + "可用模型：deepseek-chat、deepseek-reasoner；兼容别名：deepseek-flash\n"
                 + (lanEnabled
                         ? (boundLanAddress.length() > 0
-                                ? "局域网地址：" + lanEndpoint() + "\n" : "")
+                                ? "局域网地址：" + lanEndpoint() + "\n"
+                                        + "局域网 Anthropic Base URL：http://" + boundLanAddress
+                                                + ":" + boundPort + "\n"
+                                : "")
                                 + "局域网绑定状态：" + lanBindingStatus + "\n"
                                 + "网络变化监听：" + lanNetworkMonitorStatus + "\n"
                         : "局域网状态：未启用\n")
