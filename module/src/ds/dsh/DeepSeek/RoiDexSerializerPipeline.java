@@ -87,8 +87,36 @@ public final class RoiDexSerializerPipeline {
             return new Result(registrationKey,"serializer_parameter_mapping_failed:"
                     +safe(error.getMessage()),selectedElements,null,false);
         }
-        return new Result(registrationKey,mapping.complete?"":"serializer_parameter_mapping_incomplete",
-                selectedElements,mapping,mapping.complete);
+        boolean mappingComplete=isCompleteMapping(mapping,selectedElements);
+        return new Result(registrationKey,mappingComplete?"":"serializer_parameter_mapping_incomplete",
+                selectedElements,mapping,mappingComplete);
+    }
+
+    /**
+     * Re-check the mapper contract at the pipeline boundary. A partial mapping object may be
+     * useful diagnostic evidence, but it must never become a successful pipeline result.
+     */
+    static boolean isCompleteMapping(RoiDexSerializerMapper.Result mapping,
+            RoiDexSerializerElementIndex.Result elements) {
+        if(mapping==null||elements==null||!elements.complete
+                ||!elements.registrationOrderProven||!mapping.complete
+                ||mapping.rejected.length!=0||mapping.constructors.length!=1)return false;
+        RoiDexSerializerMapper.ConstructorMapping constructor=mapping.constructors[0];
+        if(constructor==null||!constructor.complete
+                ||constructor.parameters.length!=elements.elements.length)return false;
+        boolean[] seenParameters=new boolean[constructor.parameters.length];
+        java.util.Set<Integer> seenElements=new java.util.HashSet<Integer>();
+        for(RoiDexSerializerMapper.ParameterMapping parameter:constructor.parameters) {
+            if(parameter==null||parameter.constructorParameterIndex<0
+                    ||parameter.constructorParameterIndex>=seenParameters.length
+                    ||seenParameters[parameter.constructorParameterIndex]
+                    ||!seenElements.add(parameter.elementIndex))return false;
+            seenParameters[parameter.constructorParameterIndex]=true;
+        }
+        for(boolean seen:seenParameters)if(!seen)return false;
+        for(RoiDexSerializerElementIndex.Element element:elements.elements)
+            if(element==null||!seenElements.contains(element.index))return false;
+        return seenElements.size()==elements.elements.length;
     }
 
     static String registrationCandidateDiscoveryFailureReason(boolean incomplete) {
