@@ -39,6 +39,8 @@ final class OpenNativeCompletionProbe {
     private static final StringBuilder OBSERVATION_LOG = new StringBuilder(4096);
     private static final int MAX_OBSERVATION_LOG_CHARS = 48_000;
     private static final int MAX_CALLBACK_TRACE_EVENTS = 96;
+    private static final int MAX_CALLBACK_CLASSES = 8;
+    private static final int MAX_CALLBACK_METHODS_INSPECTED = 48;
     private static final java.util.concurrent.atomic.AtomicInteger CALLBACK_METHOD_INVOCATIONS =
             new java.util.concurrent.atomic.AtomicInteger();
     private static final java.util.concurrent.atomic.AtomicInteger API_TRACE_EVENTS =
@@ -653,6 +655,12 @@ final class OpenNativeCompletionProbe {
         Class<?> type = callback.getClass();
         String key = type.getName();
         if (OBSERVED_CALLBACK_CLASSES.putIfAbsent(key, Boolean.TRUE) != null) return;
+        if (OBSERVED_CALLBACK_CLASSES.size() > MAX_CALLBACK_CLASSES) {
+            OBSERVED_CALLBACK_CLASSES.remove(key);
+            observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-class-limit limit="
+                    + MAX_CALLBACK_CLASSES);
+            return;
+        }
         int installed = 0;
         int inspected = 0;
         Class<?> current = type;
@@ -666,8 +674,9 @@ final class OpenNativeCompletionProbe {
                         + current.getName() + " exception=" + error.getClass().getName());
                 break;
             }
+            int examined = 0;
             for (Method method : methods) {
-                if (installed >= 12) break;
+                if (installed >= 12 || examined++ >= MAX_CALLBACK_METHODS_INSPECTED) break;
                 int modifiers = method.getModifiers();
                 String name = method.getName();
                 if (Modifier.isStatic(modifiers) || Modifier.isAbstract(modifiers)
