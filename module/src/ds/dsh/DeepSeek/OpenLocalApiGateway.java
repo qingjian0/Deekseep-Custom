@@ -419,7 +419,17 @@ final class OpenLocalApiGateway {
                         "Only loopback and 192.168.0.0/16 clients are allowed");
                 return;
             }
-            HttpRequest request = readRequest(in);
+            HttpRequest request;
+            try {
+                request = readRequest(in);
+            } catch (Exception malformed) {
+                String detail = malformed.getMessage() == null ? "" : malformed.getMessage();
+                int status = detail.toLowerCase(java.util.Locale.ROOT).contains("too large")
+                        ? 413 : 400;
+                sendError(out, status, status == 413 ? "request_too_large"
+                        : "invalid_http_request", "Invalid HTTP request");
+                return;
+            }
             if (request == null) return;
             if (!"GET".equals(request.method) && !"POST".equals(request.method)) {
                 sendError(out, 405, "method_not_allowed", "Only GET and POST are supported");
@@ -445,6 +455,13 @@ final class OpenLocalApiGateway {
             if (!"POST".equals(request.method)
                     || !"/v1/chat/completions".equals(request.path)) {
                 sendError(out, 404, "not_found", "Unknown API endpoint");
+                return;
+            }
+            String contentType = request.headers.get("content-type");
+            if (contentType != null && !contentType.toLowerCase(java.util.Locale.ROOT)
+                    .startsWith("application/json")) {
+                sendError(out, 415, "unsupported_media_type",
+                        "Content-Type must be application/json");
                 return;
             }
             JSONObject body;
@@ -703,7 +720,8 @@ final class OpenLocalApiGateway {
         String reason = status == 200 ? "OK" : status == 400 ? "Bad Request"
                 : status == 401 ? "Unauthorized" : status == 403 ? "Forbidden"
                 : status == 404 ? "Not Found" : status == 405 ? "Method Not Allowed"
-                : status == 413 ? "Payload Too Large" : status == 429 ? "Too Many Requests"
+                : status == 413 ? "Payload Too Large" : status == 415 ? "Unsupported Media Type"
+                : status == 429 ? "Too Many Requests"
                 : status == 502 ? "Bad Gateway" : status == 503 ? "Service Unavailable"
                 : "Internal Server Error";
         out.write(("HTTP/1.1 " + status + " " + reason + "\r\n"
