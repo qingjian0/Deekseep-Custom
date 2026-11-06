@@ -964,21 +964,113 @@ final class OpenLocalApiGateway {
             }
             headers.put(name, value);
         }
-        if (headers.containsKey("transfer-encoding")) throw new IllegalArgumentException("Chunked requests unsupported");
-        int length = Integer.parseInt(headers.getOrDefault("content-length", "0"));
-        if (length < 0 || length > MAX_BODY_BYTES) throw new IllegalArgumentException("Request too large");
-        byte[] body = new byte[length];
-        int offset=0;
-        while(offset<length) {
-            int count=in.read(body,offset,length-offset);
-            if(count<0) throw new IllegalArgumentException("Truncated request body");
-            offset+=count;
+        String transferEncoding = headers.get("transfer-encoding");
+        String contentLength = headers.get("content-length");
+        if (transferEncoding != null && contentLength != null) {
+            throw new IllegalArgumentException("Ambiguous request framing");
+        }
+        byte[] body;
+        if (transferEncoding != null) {
+            if (!"chunked".equalsIgnoreCase(transferEncoding.trim())) {
+                throw new IllegalArgumentException("Unsupported transfer encoding");
+            }
+            body = readChunkedBody(in);
+        } else {
+            int length;
+            try {
+                length = Integer.parseInt(contentLength == null ? "0" : contentLength);
+            } catch (NumberFormatException invalidLength) {
+                throw new IllegalArgumentException("Invalid content length");
+            }
+            if (length < 0 || length > MAX_BODY_BYTES) {
+                throw new IllegalArgumentException("Request too large");
+            }
+            body = new byte[length];
+            int offset = 0;
+            while (offset < length) {
+                int count = in.read(body, offset, length - offset);
+                if (count < 0) throw new IllegalArgumentException("Truncated request body");
+                offset += count;
+            }
         }
         String path = first[1];
         int queryStart = path.indexOf('?');
         if (queryStart >= 0) path = path.substring(0, queryStart);
         if (!path.startsWith("/")) throw new IllegalArgumentException("Invalid request target");
         return new HttpRequest(first[0], path, headers, body);
+    }
+
+    /**
+     * Reads HTTP/1.1 chunked transfer bodies with strict CRLF framing and a hard decoded-size
+     * limit. Chunk extensions are ignored; trailers are consumed but never trusted as headers.
+     */
+    private static byte[] readChunkedBody(InputStream in) throws Exception {
+        ByteArrayOutputStream body = new ByteArrayOutputStream();
+        int trailerBytes = 0;
+        while (true) {
+            String sizeLine = readCrlfLine(in, 1024);
+            int extension = sizeLine.indexOf(';');
+            String sizeText = (extension >= 0 ? sizeLine.substring(0, extension) : sizeLine).trim();
+            if (sizeText.length() == 0 || sizeText.length() > 16) {
+                throw new IllegalArgumentException("Invalid chunk size");
+            }
+            long chunkSize;
+            try {
+                chunkSize = Long.parseLong(sizeText, 16);
+            } catch (NumberFormatException invalidSize) {
+                throw new IllegalArgumentException("Invalid chunk size");
+            }
+            if (chunkSize < 0 || chunkSize > MAX_BODY_BYTES - body.size()) {
+                throw new IllegalArgumentException("Request too large");
+            }
+            if (chunkSize == 0) {
+                while (true) {
+                    String trailer = readCrlfLine(in, 4096);
+                    trailerBytes += trailer.length() + 2;
+                    if (trailerBytes > MAX_HEADER_BYTES) {
+                        throw new IllegalArgumentException("Request trailers too large");
+                    }
+                    if (trailer.length() == 0) break;
+                    int colon = trailer.indexOf(':');
+                    if (colon <= 0) throw new IllegalArgumentException("Invalid request trailer");
+                    String name = trailer.substring(0, colon).trim()
+                            .toLowerCase(java.util.Locale.ROOT);
+                    if ("content-length".equals(name) || "transfer-encoding".equals(name)
+                            || "host".equals(name) || "authorization".equals(name)) {
+                        throw new IllegalArgumentException("Forbidden request trailer");
+                    }
+                }
+                return body.toByteArray();
+            }
+            byte[] chunk = new byte[(int) chunkSize];
+            int offset = 0;
+            while (offset < chunk.length) {
+                int count = in.read(chunk, offset, chunk.length - offset);
+                if (count < 0) throw new IllegalArgumentException("Truncated chunk data");
+                offset += count;
+            }
+            body.write(chunk);
+            if (in.read() != '\\r' || in.read() != '\\n') {
+                throw new IllegalArgumentException("Invalid chunk terminator");
+            }
+        }
+    }
+
+    private static String readCrlfLine(InputStream in, int maxBytes) throws Exception {
+        ByteArrayOutputStream line = new ByteArrayOutputStream();
+        while (line.size() <= maxBytes) {
+            int value = in.read();
+            if (value < 0) throw new IllegalArgumentException("Truncated chunk framing");
+            if (value == '\\r') {
+                if (in.read() != '\\n') throw new IllegalArgumentException("Invalid chunk line ending");
+                return new String(line.toByteArray(), StandardCharsets.US_ASCII);
+            }
+            if (value == '\\n' || value < 0x20 && value != '\\t') {
+                throw new IllegalArgumentException("Invalid chunk line");
+            }
+            line.write(value);
+        }
+        throw new IllegalArgumentException("Chunk line too large");
     }
 
     private static String bearer(String value) {
