@@ -69,7 +69,7 @@ final class AnthropicMessagesAdapter {
                     "temperature, top_p, top_k, stop_sequences, and metadata are not supported");
         }
 
-        boolean reasoning = false;
+        boolean reasoning = "deepseek-reasoner".equals(model);
         if (body.has("thinking") && body.opt("thinking") != JSONObject.NULL) {
             throw invalid("unsupported_parameter",
                     "Anthropic thinking blocks require signature support, which is not implemented");
