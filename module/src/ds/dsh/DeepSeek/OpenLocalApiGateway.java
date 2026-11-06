@@ -700,8 +700,9 @@ final class OpenLocalApiGateway {
             JSONObject message = messages.optJSONObject(i);
             if (message == null) throw new IllegalArgumentException("Invalid message");
             if (message.has("tool_calls") || message.has("function_call")
-                    || message.has("tool_call_id")) {
-                throw new IllegalArgumentException("Tool messages and tool calls are not supported");
+                    || message.has("tool_call_id") || message.has("name")) {
+                throw new IllegalArgumentException(
+                        "Named messages, tool messages, and tool calls are not supported");
             }
             String role = message.optString("role", "");
             if (!"system".equals(role) && !"developer".equals(role)
@@ -710,6 +711,9 @@ final class OpenLocalApiGateway {
             }
             Object content = message.opt("content");
             String text = messageText(content);
+            if (text.trim().length() == 0) {
+                throw new IllegalArgumentException("Message content is empty");
+            }
             if (prompt.length() > 0) prompt.append("\n");
             prompt.append(role).append(": ").append(text);
             if (prompt.length() > MAX_PROMPT_CHARS) return prompt.toString();
