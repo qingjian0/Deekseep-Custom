@@ -4,7 +4,7 @@ public final class RoiDexValueProvenanceTest {
     public static void main(String[] args)throws Exception {
         singleMoveChain();wideMoveChain();stringConstantThroughMove();integerConstantTrace();
         dynamicIndexInvokeTrace();checkCastPreservesSource();checkCastAfterMove();consecutiveCheckCasts();
-        primitiveSourceCannotBeCast();primitiveTargetCannotBeCast();invalidCheckCastTypeRejected();
+        primitiveSourceCannotBeCast();primitiveTargetCannotBeCast();invalidCheckCastTypeRejected();exceptionFlowIncompleteBlocksTrace();
         branchMergeRejected();unsupportedDefinitionRejected();
         System.out.println("RoiDexValueProvenanceTest: PASS");
     }
@@ -203,6 +203,31 @@ public final class RoiDexValueProvenanceTest {
         RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(
                 code,null,types,flow,reaching,useDef,links);
         return provenance.traceUse(invokeOffset,operand,1);
+    }
+
+    static void exceptionFlowIncompleteBlocksTrace()throws Exception {
+        RoiDexCodeReader.CodeItem base=code(new short[]{
+                (short)0x0071,0,0,
+                (short)0x000c,
+                (short)0x0270,1,(short)0x0002,
+                (short)0x000e
+        },3);
+        RoiDexCodeReader.CodeItem protectedCode=new RoiDexCodeReader.CodeItem(
+                base.registersSize,base.insSize,base.outsSize,1,base.debugInfoOffset,
+                base.instructionsOffset,base.instructions,
+                new RoiDexCodeReader.TryItem[]{new RoiDexCodeReader.TryItem(0,1,0)},
+                new RoiDexCodeReader.CatchHandler[0],base.nextOffset);
+        RoiDexInvokeResultLinker.Result links=RoiDexInvokeResultLinker.analyze(protectedCode,index->
+                new RoiDexFileReader.ResolvedMethodId(index,"Lx;",
+                        index==0?"decodeSerializableElement":"<init>",
+                        index==0?"()Ljava/lang/Object;":"(Lx;)V"));
+        RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(protectedCode);
+        RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
+        RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching);
+        RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(
+                protectedCode,null,i->"Lx;",flow,reaching,useDef,links);
+        RoiDexValueProvenance.Trace trace=provenance.traceUse(5,1,1);
+        yes(!trace.unique);eq("exception_flow_incomplete",trace.rejectionReason);
     }
 
     static void branchMergeRejected()throws Exception {

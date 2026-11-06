@@ -83,6 +83,7 @@ public final class RoiDexValueProvenance {
 
         /** Trace one constructor/invoke argument beginning at its register-word operand index. */
         public Trace traceUse(int instructionOffset,int operandIndex,int valueWords) {
+            if(!completeForExceptionFlow)return rejected("exception_flow_incomplete");
             if(operandIndex<0||(valueWords!=1&&valueWords!=2))
                 return rejected("invalid_operand_or_value_width");
             RoiDexUseDefChains.UseSite[] sites=new RoiDexUseDefChains.UseSite[valueWords];
@@ -95,6 +96,7 @@ public final class RoiDexValueProvenance {
 
         /** Resolve an integer use to a literal constant or a uniquely linked invoke result. */
         public IntTrace traceIntUse(int instructionOffset,int operandIndex) {
+            if(!completeForExceptionFlow)return rejectedInt("exception_flow_incomplete");
             if(code==null)return rejectedInt("code_item_unavailable");
             RoiDexUseDefChains.UseSite use=uses.get(useKey(instructionOffset,operandIndex));
             if(use==null)return rejectedInt("use_site_missing");
@@ -153,6 +155,7 @@ public final class RoiDexValueProvenance {
 
         /** Resolve a string-valued use through explicit move/move-object copies to const-string. */
         public StringTrace traceStringUse(int instructionOffset,int operandIndex) {
+            if(!completeForExceptionFlow)return rejectedString("exception_flow_incomplete");
             if(code==null||stringResolver==null)return rejectedString("string_resolution_context_missing");
             RoiDexUseDefChains.UseSite use=uses.get(useKey(instructionOffset,operandIndex));
             if(use==null)return rejectedString("use_site_missing");
