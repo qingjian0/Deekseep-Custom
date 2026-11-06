@@ -7436,6 +7436,10 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         if (isLocalApiKeepAliveDisabled()) return UiLanguage.text(
                 "前台保活：已由用户关闭（API 仅随 DeepSeek 进程运行）",
                 "Foreground keepalive: disabled by user (API follows the DeepSeek process)");
+        String notificationWarning = HookAccountLoginSecurity.localApiKeepAliveNotificationEnabled
+                ? "" : UiLanguage.text(
+                        "\n通知权限：未开启；系统可能隐藏前台保活通知，请允许 KOI 模块通知。",
+                        "\nNotification permission: disabled; Android may hide the foreground notice. Allow notifications for the KOI module.");
         long heartbeat = HookAccountLoginSecurity.localApiKeepAliveHeartbeatAt;
         long age = heartbeat <= 0L ? -1L
                 : Math.max(0L, SystemClock.elapsedRealtime() - heartbeat);
@@ -7443,11 +7447,12 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             return UiLanguage.text(
                     "前台保活：已连接（最近心跳 " + Math.max(0L, age / 1000L) + " 秒前）",
                     "Foreground keepalive: Connected (last heartbeat "
-                            + Math.max(0L, age / 1000L) + "s ago)");
+                            + Math.max(0L, age / 1000L) + "s ago)") + notificationWarning;
         }
         String error = HookAccountLoginSecurity.localApiKeepAliveError;
         if (error != null && error.length() > 0) return UiLanguage.text(
-                "前台保活：异常 ", "Foreground keepalive: Failed ") + error;
+                "前台保活：异常 ", "Foreground keepalive: Failed ") + error
+                + notificationWarning;
         long now = SystemClock.elapsedRealtime();
         long sinceLaunch = localApiKeepAliveLaunchAt > 0L && now >= localApiKeepAliveLaunchAt
                 ? now - localApiKeepAliveLaunchAt : -1L;
