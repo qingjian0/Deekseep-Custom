@@ -1,6 +1,11 @@
 name: DeepSeek APK read-only intake
 
 on:
+  push:
+    branches: [dev]
+    paths:
+      - '.github/workflows/deepseek-apk-intake.yml'
+      - 'scripts/inspect-deepseek-apk.py'
   workflow_dispatch:
     inputs:
       apk_url:
