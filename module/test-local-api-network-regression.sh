@@ -217,6 +217,7 @@ gateway_checks = {
     "Responses POST route is registered": '"/v1/responses".equals(request.path)' in source and 'handleResponses(out, request)' in source,
     "Responses invalid tool plans return structured errors": 'catch (z2.GatewayException invalidTools)' in source and 'OpenAiToolBridge.responsesPlan(' in source,
     "Responses web search tools map to native search": 'searchRequested = true' in source and 'toolPlan, null, true).withOutputTextFormat(format)' in source,
+    "Responses reasoning effort is validated and mapped": 'reasoningOptions.optString("effort", "medium")' in source and 'reasoningRequested = reasoningRequested || !"none".equals(effort)' in source,
     "unsupported hosted Responses tools are rejected": '"Unsupported Responses tool type: "' in source,
     "Responses input accepts strings and item arrays": 'responsesInputToPrompt(rawInput)' in source and '"input must be a string or an array"' in source,
     "Responses previous_response_id is explicitly not persisted": '"unsupported_previous_response_id"' in source,
