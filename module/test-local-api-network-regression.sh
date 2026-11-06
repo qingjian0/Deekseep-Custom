@@ -36,16 +36,16 @@ parser = pathlib.Path(sys.argv[5]).read_text(encoding="utf-8")
 if '(!protectedDistribution || localApiIncluded).toString()' not in build_gradle:
     raise SystemExit("Open builds must enable the declared Local API companion components")
 required = {
-    "HTTP chunked transfer encoding is accepted": '"chunked".equalsIgnoreCase(transferEncoding.trim())',
-    "ambiguous Content-Length and Transfer-Encoding are rejected": '"Ambiguous request framing"',
-    "unknown transfer encodings are rejected": '"Unsupported transfer encoding"',
-    "chunked bodies use a dedicated bounded decoder": "body = readChunkedBody(in);" in source,
-    "decoded chunked body is bounded by MAX_BODY_BYTES": "chunkSize > MAX_BODY_BYTES - body.size()" in source,
-    "chunk terminators require CRLF": '"Invalid chunk terminator"' in source,
-    "chunk size lines require strict CRLF": "private static String readCrlfLine(InputStream in, int maxBytes)" in source,
-    "chunk trailers are bounded": '"Request trailers too large"' in source,
-    "security-sensitive framing trailers are rejected": '"Forbidden request trailer"' in source,
-    "truncated chunk payloads fail closed": '"Truncated chunk data"' in source,
+    "HTTP chunked transfer encoding is accepted": '"chunked".equalsIgnoreCase(transferEncoding.trim())' in parser,
+    "ambiguous Content-Length and Transfer-Encoding are rejected": '"Ambiguous request framing"' in parser,
+    "unknown transfer encodings are rejected": '"Unsupported transfer encoding"' in parser,
+    "chunked bodies use a dedicated bounded decoder": "body = readChunkedBody(in);" in parser,
+    "decoded chunked body is bounded by MAX_BODY_BYTES": "chunkSize > MAX_BODY_BYTES - body.size()" in parser,
+    "chunk terminators require CRLF": '"Invalid chunk terminator"' in parser,
+    "chunk size lines require strict CRLF": "private static String readCrlfLine(InputStream in, int maxBytes)" in parser,
+    "chunk trailers are bounded": '"Request trailers too large"' in parser,
+    "security-sensitive framing trailers are rejected": '"Forbidden request trailer"' in parser,
+    "truncated chunk payloads fail closed": '"Truncated chunk data"' in parser,
     "active Android network lookup": "manager.getActiveNetwork()",
     "active network address lookup": "lanAddress(manager, active)",
     "all-network callback registration": "manager.registerNetworkCallback(",
@@ -80,10 +80,10 @@ required = {
     "unsupported model is logged without request content": 'Main.log("Open Local API rejected model id: " + reportedModel)',
     "unsupported model diagnostics are bounded": "reportedModel.length() > 128",
 }
-missing = [label for label, token in required.items() if (token not in source if isinstance(token, str) else not token)]
+missing = [label for label, ok in required.items() if not ok]
 if missing:
     raise SystemExit("Missing LAN network lifecycle contract: " + ", ".join(missing))
-if "addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)" not in source:
+if "LocalApiHttpRequestParser.read(in)" not in source:\n    raise SystemExit("Android gateway must delegate HTTP parsing to the JVM-tested parser")\nif "addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)" not in source:
     raise SystemExit("LAN network monitor must observe non-VPN local-only networks")
 if "c < 0x21 || c > 0x7e" not in source:
     raise SystemExit("Custom API key validator must accept visible ASCII")
