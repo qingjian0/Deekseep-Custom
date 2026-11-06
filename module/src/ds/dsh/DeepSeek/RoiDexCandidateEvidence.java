@@ -80,7 +80,7 @@ public final class RoiDexCandidateEvidence {
             Set<String> selectedMethodDescriptors) throws EvidenceException {
         if (selectedMethodDescriptors == null)
             throw new EvidenceException("selected_method_set_required");
-        if (selectedMethodDescriptors.size() > 320)
+        if (selectedMethodDescriptors.size() > 400)
             throw new EvidenceException("selected_method_budget_exceeded");
         return analyzeInternal(dex, sourceScope, new HashSet<String>(selectedMethodDescriptors));
     }
