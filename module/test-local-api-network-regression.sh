@@ -255,7 +255,7 @@ if 'if ("Open".equals(BuildInfo.BUILD_EDITION)) {' not in overlay or 'httpsSwitc
     raise SystemExit("Open floating overlay must hide unavailable HTTPS controls")
 if 'protocolValue.setClickable(false);' not in overlay or 'OpenAI（固定）' not in overlay:
     raise SystemExit("Open floating overlay must keep the protocol fixed to OpenAI")
-if '!"Open".equals(BuildInfo.BUILD_EDITION)' not in hook or 'Open 版当前仅支持 HTTP + OpenAI Chat Completions' not in hook:
+if '!"Open".equals(BuildInfo.BUILD_EDITION)' not in hook or 'Open 版当前仅支持 HTTP + OpenAI 协议' not in hook:
     raise SystemExit("Open host control receiver must reject unsupported HTTPS/protocol changes")
 if '((operation == null || operation.length() == 0)' not in hook or 'z2.PROTOCOL_ANTHROPIC.equals(protocol)' not in hook:
     raise SystemExit("Open host control receiver must guard the legacy protocol broadcast path")
