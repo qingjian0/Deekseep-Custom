@@ -259,7 +259,9 @@ gateway_checks = {
     "Responses streaming emits terminal completed event": '"response.completed"' in source and 'sendResponsesEvent(out' in source,
     "Responses tool streaming is explicitly rejected": '"Responses tool calls are currently supported only with stream=false"' in source,
     "response_format remains explicitly rejected when unsupported": '"unsupported_feature"' in source and 'body.opt("response_format")' in source,
-    "usage streaming is explicitly rejected": 'body.opt("stream_options")' in source and '"stream_options.include_usage"' in source,
+    "Chat usage is returned with an explicit estimate marker": '"prompt_tokens", promptTokens' in source and '"completion_tokens", completionTokens' in source and '"dsh_usage_estimated", true' in source,
+    "stream_options.include_usage accepts boolean true and rejects non-boolean values": 'includeUsage instanceof Boolean' in source and 'optBoolean("include_usage", false)' in source,
+    "stream usage chunk is emitted before the terminal DONE marker": 'if (includeUsage)' in source and 'new JSONArray()).put("usage", usage)' in source and 'out.write("data: [DONE]' in source,
     "stream must be a boolean": 'body.opt("stream") instanceof Boolean' in source and '"invalid_stream"' in source,
     "model must be a string when supplied": 'body.opt("model") instanceof String' in source and '"invalid_model"' in source,
     "legacy deepseek-flash model ID is advertised as a compatibility alias": 'new JSONObject().put("id", "deepseek-flash")' in source and "Compatibility alias retained" in source,
@@ -299,7 +301,7 @@ anthropic_required = {
     "Anthropic text streaming maps to text_delta": '"text_delta"' in source,
     "Anthropic stream lifecycle emits message_stop": '"message_start"' in source and '"message_delta"' in source and '"message_stop"' in source,
     "Anthropic errors use the Anthropic error envelope": 'new JSONObject().put("type", "error")' in source and 'sendAnthropicError' in source,
-    "Anthropic usage is explicitly marked as estimated": '"dsh_usage_estimated", true' in source and "estimateAnthropicTokens" in source,
+    "Anthropic usage is explicitly marked as estimated": '"dsh_usage_estimated", true' in source and "estimateTokens" in source,
 }
 missing_anthropic = [label for label, ok in anthropic_required.items() if not ok]
 if missing_anthropic:
