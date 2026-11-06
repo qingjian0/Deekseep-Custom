@@ -190,7 +190,7 @@ public final class RoiDexSerializerMapper {
                 } else if(indexTrace.unique&&indexTrace.sourceInvoke!=null
                         &&"decodeElementIndex".equals(indexTrace.sourceInvoke.methodName)) {
                     Integer switchKey=resolveSwitchCase(graph,code,provenance,
-                            indexTrace.sourceInvoke,decodeLink.invokeOffset,blockAt);
+                            indexTrace.sourceInvoke,decodeLink.invokeOffset,blockAt,resolver);
                     if(switchKey==null) {
                         rejected.add(new Rejected(instruction.offset,parameter,
                                 "dynamic_element_index_switch_mapping_ambiguous"));
@@ -287,44 +287,38 @@ public final class RoiDexSerializerMapper {
     private static boolean isUniqueDecodeCallForSwitchValue(
             RoiDexInstructionScanner.ControlFlowGraph graph,RoiDexCodeReader.CodeItem code,
             RoiDexValueProvenance.Result provenance,RoiDexInvokeResultLinker.Link indexSource,
-            int expectedDecodeOffset,int decodeBlock) {
+            int expectedDecodeOffset,int decodeBlock,MethodResolver resolver) {
         int matches=0;
         for(RoiDexInstructionScanner.Instruction instruction:graph.blocks[decodeBlock].instructions) {
             if(!isInvoke(instruction.opcode))continue;
             final RoiDexInstructionDecoder.Decoded invoke;
+            final RoiDexFileReader.ResolvedMethodId method;
             try {
                 invoke=code.decodeInstructionAt(instruction.offset);
                 if(invoke.referenceKind!=RoiDexInstructionDecoder.Decoded.ReferenceKind.METHOD)
-                    continue;
-                RoiDexFileReader.ResolvedMethodId method=resolve(
-                        index-> {
-                            throw new RoiDexFileReader.DexException("unavailable");
-                        },-1);
-            } catch(Exception ignored) {
-                // The method identity is resolved below by the provenance link at the target
-                // offset; unrelated or unresolved invokes cannot be counted as decode calls.
-                continue;
+                    return false;
+                method=resolver.resolve(invoke.referenceIndex);
+            } catch(Exception error) {
+                return false;
             }
-        }
-        // Provenance records the decode call selected by the constructor argument. The block
-        // must not contain a second decodeElement call with the same index-source invocation.
-        for(RoiDexInvokeResultLinker.Link link:provenance.links) {
-            if(link==null||!isDecodeElementMethod(link.methodName))continue;
-            if(!Integer.valueOf(decodeBlock).equals(blockForOffset(graph,link.invokeOffset)))continue;
-            int indexParameter;
-            try { indexParameter=findUniqueIntParameter(link.prototypeDescriptor); }
+            if(method==null)return false;
+            if(!isDecodeElementMethod(method.name))continue;
+            final int indexParameter;
+            try { indexParameter=findUniqueIntParameter(method.prototypeDescriptor); }
             catch(RoiDexInstructionDecoder.DecodeException error){return false;}
             if(indexParameter<0)return false;
-            int word;
+            final int indexWord;
             try {
-                word=RoiDexInstructionDecoder.parameterWordPositionFor(
-                        link.prototypeDescriptor,link.isStaticInvoke,indexParameter);
+                boolean isStatic=instruction.opcode==0x71||instruction.opcode==0x77;
+                indexWord=RoiDexInstructionDecoder.parameterWordPositionFor(
+                        method.prototypeDescriptor,isStatic,indexParameter);
             } catch(RoiDexInstructionDecoder.DecodeException error){return false;}
-            RoiDexValueProvenance.IntTrace trace=provenance.traceIntUse(link.invokeOffset,word);
+            RoiDexValueProvenance.IntTrace trace=provenance.traceIntUse(
+                    instruction.offset,indexWord);
             if(trace.unique&&trace.sourceInvoke!=null
                     &&trace.sourceInvoke.invokeOffset==indexSource.invokeOffset) {
                 matches++;
-                if(link.invokeOffset!=expectedDecodeOffset)return false;
+                if(instruction.offset!=expectedDecodeOffset)return false;
             }
         }
         return matches==1;
@@ -350,7 +344,7 @@ public final class RoiDexSerializerMapper {
             RoiDexInvokeResultLinker.Link indexSource,int decodeOffset,Map<Integer,Integer> blockAt) {
         Integer decodeBlock=blockAt.get(decodeOffset);
         if(decodeBlock==null||!isUniqueDecodeCallForSwitchValue(
-                graph,code,provenance,indexSource,decodeOffset,decodeBlock))return null;
+                graph,code,provenance,indexSource,decodeOffset,decodeBlock,resolver))return null;
         RoiDexInstructionScanner.Instruction matchingSwitch=null;
         Integer matchingKey=null;
         for(RoiDexInstructionScanner.Instruction instruction:graph.scan.instructions) {
