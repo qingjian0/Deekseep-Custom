@@ -244,6 +244,7 @@ final class HookAccountLoginSecurity {
     static volatile String localApiFloatingWindowError = "";
 
     static volatile boolean localApiKeepAliveRequested;
+    static volatile boolean localApiKeepAliveNotificationEnabled = true;
 
     private static final Object V236_FREEZER_LOCK_GUARD = new Object();
 
@@ -1792,6 +1793,8 @@ Main.log("[RISK] Android ID spoof installed");
                             z21.EXTRA_OVERLAY_PERMISSION, false);
                     localApiKeepAliveRequested = intent.getBooleanExtra(
                             z21.EXTRA_API_KEEPALIVE_REQUESTED, false);
+                    localApiKeepAliveNotificationEnabled = intent.getBooleanExtra(
+                            z21.EXTRA_NOTIFICATION_ENABLED, true);
                     boolean active = context != null && Main.isLocalApiEnabled();
                     localApiKeepAliveHeartbeatAt = SystemClock.elapsedRealtime();
                     localApiKeepAliveError = "";
