@@ -244,6 +244,22 @@ final class OpenLocalApiGateway {
         return "";
     }
 
+    private static String lanAddress(ConnectivityManager manager, Network network) {
+        if (manager == null || network == null) return "";
+        try {
+            NetworkCapabilities capabilities = manager.getNetworkCapabilities(network);
+            // A VPN's virtual 192.168.x.x address is not necessarily reachable from the LAN.
+            // Bind only to a physical/non-VPN interface and keep VPN changes out of address choice.
+            if (capabilities == null
+                    || !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)) {
+                return "";
+            }
+            return lanAddress(manager.getLinkProperties(network));
+        } catch (RuntimeException error) {
+            return "";
+        }
+    }
+
     private static String firstLanAddress() {
         Context app = appContext;
         if (app == null) return "";
@@ -252,15 +268,14 @@ final class OpenLocalApiGateway {
                     Context.CONNECTIVITY_SERVICE);
             if (manager == null) return "";
             Network active = manager.getActiveNetwork();
-            String activeAddress = active == null ? ""
-                    : lanAddress(manager.getLinkProperties(active));
+            String activeAddress = lanAddress(manager, active);
             if (activeAddress.length() > 0) return activeAddress;
 
             // A VPN may be Android's active/default network while Wi-Fi still owns the
-            // reachable 192.168.x.x interface. Search all live networks as a fallback.
+            // reachable 192.168.x.x interface. Prefer any live non-VPN network.
             for (Network network : manager.getAllNetworks()) {
                 if (network.equals(active)) continue;
-                String address = lanAddress(manager.getLinkProperties(network));
+                String address = lanAddress(manager, network);
                 if (address.length() > 0) return address;
             }
         } catch (Exception error) {
@@ -286,8 +301,8 @@ final class OpenLocalApiGateway {
                         Network network, LinkProperties properties) { refreshLanBinding(); }
             };
             manager.registerNetworkCallback(
-                    new NetworkRequest.Builder()
-                            .removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN).build(), callback);
+                    new NetworkRequest.Builder().clearCapabilities()
+                            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN).build(), callback);
             networkManager = manager;
             networkCallback = callback;
             lanNetworkMonitorStatus = "已注册";
