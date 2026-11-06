@@ -207,6 +207,10 @@ if missing_ui:
     raise SystemExit("Missing local API UI contract: " + ", ".join(missing_ui))
 overlay = (pathlib.Path(sys.argv[1]).parent / "LocalApiFloatingOverlay.java").read_text(encoding="utf-8")
 gateway_checks = {
+    "HTTP method and header names use RFC token validation": "!isHttpToken(first[0])" in source and "!isHttpToken(name)" in source,
+    "chunked transfer encoding is restricted to HTTP/1.1": "Transfer encoding requires HTTP/1.1" in source,
+    "Content-Length accepts decimal digits only": "!isDecimalDigits(contentLength)" in source,
+    "chunk sizes accept hexadecimal digits only": "!isHexDigits(sizeText)" in source,
     "model discovery is not blocked by engine readiness": (
         source.index('if ("GET".equals(request.method) && "/v1/models".equals(request.path)) {')
         < source.index("Model discovery describes the configured API surface")
