@@ -69,25 +69,10 @@ final class AnthropicMessagesAdapter {
                     "temperature, top_p, top_k, stop_sequences, and metadata are not supported");
         }
 
-        boolean reasoning = "deepseek-reasoner".equals(model);
-        if (body.has("thinking")) {
-            JSONObject thinking = body.optJSONObject("thinking");
-            if (thinking == null) throw invalid("invalid_thinking", "thinking must be an object");
-            String type = thinking.optString("type", "disabled");
-            if (!"enabled".equals(type) && !"disabled".equals(type)) {
-                throw invalid("invalid_thinking", "thinking.type must be enabled or disabled");
-            }
-            reasoning = "enabled".equals(type);
-            if (reasoning && thinking.has("budget_tokens")) {
-                Object budget = thinking.opt("budget_tokens");
-                if (!(budget instanceof Number)
-                        || ((Number) budget).doubleValue() < 1
-                        || ((Number) budget).doubleValue() > maxTokens
-                        || ((Number) budget).doubleValue() != Math.rint(
-                                ((Number) budget).doubleValue())) {
-                    throw invalid("invalid_thinking", "thinking.budget_tokens must be an integer within max_tokens");
-                }
-            }
+        boolean reasoning = false;
+        if (body.has("thinking") && body.opt("thinking") != JSONObject.NULL) {
+            throw invalid("unsupported_parameter",
+                    "Anthropic thinking blocks require signature support, which is not implemented");
         }
 
         JSONArray rawTools = body.optJSONArray("tools");
