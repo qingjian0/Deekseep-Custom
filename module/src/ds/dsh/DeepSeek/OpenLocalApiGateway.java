@@ -1830,7 +1830,7 @@ final class OpenLocalApiGateway {
                 if (in.read() != '\n') throw new IllegalArgumentException("Invalid chunk line ending");
                 return new String(line.toByteArray(), StandardCharsets.US_ASCII);
             }
-            if (value == '\n' || value < 0x20 && value != '\\t') {
+            if (value == '\n' || value < 0x20 && value != '\t') {
                 throw new IllegalArgumentException("Invalid chunk line");
             }
             line.write(value);
