@@ -474,6 +474,7 @@ final class OpenNativeCompletionProbe {
                                     + " sameRequestObjectAsRoot=" + sameRequestObjectAsRoot
                                     + " modifiers=" + Modifier.toString(target.getModifiers())
                                     + " thread=" + thread + " depth=" + depth + " args=" + args
+                                    + " requestShape=" + observedObjectShape(requestArg)
                                     + " stack=" + observedStack());
                         } else {
                             observerLog("[OPEN_NATIVE_CALL_OBSERVER] enter id=" + frame.id
@@ -571,6 +572,29 @@ final class OpenNativeCompletionProbe {
     }
 
     /**
+     * Report object structure only: declared field names and types, never field values.
+     * Request payloads, prompts, credentials, cookies, and message content are never read.
+     */
+    private static String observedObjectShape(Object value) {
+        if (value == null) return "null";
+        Class<?> type = value.getClass();
+        StringBuilder out = new StringBuilder(type.getName()).append(" fields=[");
+        try {
+            Field[] fields = type.getDeclaredFields();
+            int count = Math.min(fields.length, 16);
+            for (int i = 0; i < count; i++) {
+                if (i > 0) out.append(',');
+                out.append(fields[i].getName()).append(':')
+                        .append(fields[i].getType().getName());
+            }
+            if (fields.length > count) out.append(",...+").append(fields.length - count);
+        } catch (LinkageError | RuntimeException metadataError) {
+            out.append("<unavailable:").append(metadataError.getClass().getName()).append('>');
+        }
+        return out.append(']').toString();
+    }
+
+    /**
      * Report runtime result type metadata only. This helps distinguish a Flow/event wrapper
      * from an ordinary response object without invoking it or inspecting its contents.
      */
@@ -592,7 +616,22 @@ final class OpenNativeCompletionProbe {
             out.append("<unavailable:")
                     .append(metadataError.getClass().getName()).append('>');
         }
-        return out.append(']').toString();
+        out.append("] fields=").append(observedObjectShape(value));
+        try {
+            Method[] methods = type.getDeclaredMethods();
+            out.append(" methods=[");
+            int count = Math.min(methods.length, 12);
+            for (int i = 0; i < count; i++) {
+                if (i > 0) out.append(',');
+                out.append(observedMethodDescriptor(methods[i]));
+            }
+            if (methods.length > count) out.append(",...+").append(methods.length - count);
+            out.append(']');
+        } catch (LinkageError | RuntimeException metadataError) {
+            out.append(" methods=<unavailable:")
+                    .append(metadataError.getClass().getName()).append('>');
+        }
+        return out.toString();
     }
 
     private static String observedStack() {
