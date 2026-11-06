@@ -245,7 +245,7 @@ final class AnthropicMessagesAdapter {
 
     private static void appendRaw(StringBuilder prompt, String value) {
         if (value == null || value.trim().length() == 0) return;
-        if (prompt.length() > 0) prompt.append("\\n");
+        if (prompt.length() > 0) prompt.append("\n");
         prompt.append(value.trim());
     }
 
