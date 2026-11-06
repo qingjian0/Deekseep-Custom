@@ -211,6 +211,8 @@ gateway_checks = {
     "chunked transfer encoding is restricted to HTTP/1.1": "Transfer encoding requires HTTP/1.1" in source,
     "Content-Length accepts decimal digits only": "!isDecimalDigits(contentLength)" in source,
     "chunk sizes accept hexadecimal digits only": "!isHexDigits(sizeText)" in source,
+    "HTTP header names reject surrounding whitespace": 'substring(0,colon)\n                    .toLowerCase' in source,
+    "chunk-size tokens are not whitespace-trimmed": 'sizeLine.substring(0, extension) : sizeLine;' in source,
     "model discovery is not blocked by engine readiness": (
         source.index('if ("GET".equals(request.method) && "/v1/models".equals(request.path)) {')
         < source.index("Model discovery describes the configured API surface")
