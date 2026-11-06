@@ -29,14 +29,17 @@ public final class RoiDexCandidateEvidence {
         public final RoiDexMethodAnalysis.Result analysis;
         /** Empty when analysis succeeded; otherwise a stable fail-closed reason. */
         public final String analysisFailure;
+        /** Empty only when the method's invoke references were decoded completely. */
+        public final String invokeAnalysisFailure;
 
         MethodEvidence(int index, String key, List<String> calls,
-                RoiDexMethodAnalysis.Result result, String failure) {
+                RoiDexMethodAnalysis.Result result, String failure, String invokeFailure) {
             methodIndex = index;
             methodKey = key;
             invokes = Collections.unmodifiableList(new ArrayList<String>(calls));
             analysis = result;
             analysisFailure = failure == null ? "" : failure;
+            invokeAnalysisFailure = invokeFailure == null ? "" : invokeFailure;
         }
     }
 
@@ -100,9 +103,13 @@ public final class RoiDexCandidateEvidence {
             if (selected != null && !selected.contains(key)) continue;
             if (selected != null && !found.add(key))
                 throw new EvidenceException("selected_method_definition_ambiguous:" + key);
-            List<String> invokes = method.codeItem == null
-                    ? Collections.<String>emptyList()
+            InvokeCollection invokeCollection = method.codeItem == null
+                    ? new InvokeCollection(Collections.<String>emptyList(), "")
                     : collectInvokes(dex, method.codeItem, method.methodIndex);
+            // Never publish a partial call list as a complete graph when one invoke
+            // instruction cannot be decoded. Preserve the candidate and its failure.
+            List<String> invokes = invokeCollection.complete
+                    ? invokeCollection.invokes : Collections.<String>emptyList();
             observations.add(new RoiCandidateGraph.Observation(scope, key, "",
                     invokes, Collections.<String>emptyList()));
 
@@ -118,7 +125,7 @@ public final class RoiDexCandidateEvidence {
                 }
             }
             methodEvidence.add(new MethodEvidence(method.methodIndex, key, invokes,
-                    analysis, failure));
+                    analysis, failure, invokeCollection.failure));
         }
 
         if (selected != null) {
@@ -134,7 +141,18 @@ public final class RoiDexCandidateEvidence {
         return new Result(scope, graph, methodEvidence, analyzed, failures);
     }
 
-    private static List<String> collectInvokes(RoiDexFileReader.DexFile dex,
+    private static final class InvokeCollection {
+        final List<String> invokes;
+        final String failure;
+        final boolean complete;
+        InvokeCollection(List<String> values, String error) {
+            invokes = Collections.unmodifiableList(new ArrayList<String>(values));
+            failure = error == null ? "" : error;
+            complete = failure.length() == 0;
+        }
+    }
+
+    private static InvokeCollection collectInvokes(RoiDexFileReader.DexFile dex,
             RoiDexCodeReader.CodeItem code, int callerMethodIndex)
             throws EvidenceException {
         List<String> invokes = new ArrayList<String>();
@@ -142,8 +160,8 @@ public final class RoiDexCandidateEvidence {
         try {
             scan = RoiDexInstructionScanner.scan(code.instructions);
         } catch (RoiDexInstructionScanner.ScanException error) {
-            throw new EvidenceException("invoke_scan_invalid:method=" + callerMethodIndex
-                    + ":" + error.getMessage());
+            return new InvokeCollection(Collections.<String>emptyList(),
+                    "invoke_scan_invalid:method=" + callerMethodIndex + ":" + error.getMessage());
         }
         for (RoiDexInstructionScanner.Instruction instruction : scan.instructions) {
             if (instruction.payload || !isMethodInvoke(instruction.opcode)) continue;
@@ -151,15 +169,22 @@ public final class RoiDexCandidateEvidence {
             try {
                 decoded = code.decodeInstructionAt(instruction.offset);
             } catch (RoiDexInstructionDecoder.DecodeException error) {
-                throw new EvidenceException("invoke_decode_invalid:method=" + callerMethodIndex
-                        + ":offset=" + instruction.offset + ":" + error.getMessage());
+                int first = code.instructions[instruction.offset] & 0xffff;
+                int opcode = first & 0xff;
+                int argumentWords = (first >>> 8) & 0x0f;
+                return new InvokeCollection(Collections.<String>emptyList(),
+                        "invoke_decode_invalid:method=" + callerMethodIndex
+                                + ":offset=" + instruction.offset
+                                + ":opcode=0x" + Integer.toHexString(opcode)
+                                + ":argument_words=" + argumentWords
+                                + ":" + error.getMessage());
             }
             if (decoded.referenceIndex < 0 || decoded.referenceIndex >= dex.methods.length)
                 throw new EvidenceException("invoke_method_index_out_of_range:method="
                         + callerMethodIndex + ":offset=" + instruction.offset);
             invokes.add(methodKey(dex, decoded.referenceIndex));
         }
-        return invokes;
+        return new InvokeCollection(invokes, "");
     }
 
     private static boolean isMethodInvoke(int opcode) {
