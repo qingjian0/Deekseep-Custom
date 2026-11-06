@@ -335,8 +335,8 @@ final class OpenLocalApiGateway {
     }
     static synchronized String setCustomKey(Context context, String candidate) {
         String value = candidate == null ? "" : candidate.trim();
-        if (!value.matches("sk-[A-Za-z0-9_-]{40,80}")) {
-            return "本地 API Key 必须以 sk- 开头，后接 40 到 80 位字母、数字、下划线或连字符";
+        if (!isValidApiKey(value)) {
+            return "本地 API Key 必须为 8 到 256 位可见 ASCII 字符，不能包含空格或控制字符";
         }
         Context app = context == null ? appContext : context.getApplicationContext();
         if (app == null) return "DeepSeek 上下文尚未就绪";
@@ -682,12 +682,21 @@ final class OpenLocalApiGateway {
                 }
             }
             String existing = new String(stored.toByteArray(), StandardCharsets.US_ASCII).trim();
-            if (existing.matches("sk-[A-Za-z0-9_-]{40,80}")) return existing;
+            if (isValidApiKey(existing)) return existing;
         }
         String value = generateToken();
         persistToken(context, value);
         return value;
     }
+    private static boolean isValidApiKey(String value) {
+        if (value == null || value.length() < 8 || value.length() > 256) return false;
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c < 0x21 || c > 0x7e) return false;
+        }
+        return true;
+    }
+
     private static String generateToken() {
         byte[] random = new byte[32];
         new SecureRandom().nextBytes(random);
