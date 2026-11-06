@@ -629,7 +629,7 @@ require(
 )
 require(
     gateway,
-    r'!"none".equals\(functionCall\).*?return "function_call"',
+    r'functionCall instanceof String && "none".equals\(functionCall\).*?return "function_call"',
     "only non-empty legacy function selection is rejected",
 )
 require(
