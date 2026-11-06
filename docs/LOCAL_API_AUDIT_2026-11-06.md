@@ -122,6 +122,12 @@ Important limitation: the reference's public gateway and protocol bridge are ins
 native execution payload is not fully available as portable Open-edition source. Its reported
 2.2.2 device results do not validate this project's 2.7.2/code289 adapter.
 
+Licensing note: the inspected `Xposed-Modules-Repo/com.dsmod.probe` repository declares MIT;
+this project declares GPL-3.0. MIT-licensed portions can be adapted into this GPL-3.0 project while
+retaining the required MIT copyright and permission notice for copied substantial portions. Prefer
+that repository as the source for protocol-layer porting rather than copying GPL-only files from
+other forks without checking their provenance.
+
 ## Repair sequence
 
 ### Stage A — complete code289 evidence
