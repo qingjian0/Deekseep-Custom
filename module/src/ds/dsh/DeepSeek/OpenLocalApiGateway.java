@@ -500,9 +500,15 @@ final class OpenLocalApiGateway {
             }
             if (body.has("tools") || body.has("tool_choice")
                     || body.has("functions") || body.has("function_call")
-                    || body.has("parallel_tool_calls") || body.has("response_format")) {
+                    || body.has("parallel_tool_calls") || body.has("response_format")
+                    || (body.optJSONObject("stream_options") != null
+                            && body.optJSONObject("stream_options").optBoolean("include_usage", false))) {
                 sendError(out, 400, "unsupported_feature",
-                        "This Open gateway does not yet support tool calling or response_format");
+                        "This Open gateway does not yet support tools, response_format, or usage streaming");
+                return;
+            }
+            if (body.has("model") && !(body.opt("model") instanceof String)) {
+                sendError(out, 400, "invalid_model", "model must be a string");
                 return;
             }
             String model = body.optString("model", "deepseek-chat").trim();
@@ -526,6 +532,10 @@ final class OpenLocalApiGateway {
             }
             if (prompt.length() == 0 || prompt.length() > MAX_PROMPT_CHARS) {
                 sendError(out, 400, "invalid_prompt", "Prompt is empty or too large");
+                return;
+            }
+            if (body.has("stream") && !(body.opt("stream") instanceof Boolean)) {
+                sendError(out, 400, "invalid_stream", "stream must be a boolean");
                 return;
             }
             boolean stream = body.optBoolean("stream", false);
