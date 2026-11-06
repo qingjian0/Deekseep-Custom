@@ -495,7 +495,7 @@ require(
 
 require(
     probe,
-    r'installCallbackObserver\(Object callback, String role\).*?MAX_CALLBACK_METHODS_PER_CLASS = 12.*?type\.getDeclaredMethods\(\).*?parameters\.length < 1.*?parameters\.length > 2.*?installed >= MAX_CALLBACK_METHODS_PER_CLASS.*?chain\.getThisObject\(\).*?System\.identityHashCode\(receiver\)',
+    r'installCallbackObserver\(Object callback, String role\).*?MAX_CALLBACK_METHODS_PER_CLASS = 12.*?type\.getDeclaredMethods\(\).*?parameters\.length < 1.*?parameters\.length > 2.*?attempted >= MAX_CALLBACK_METHODS_PER_CLASS.*?chain\.getThisObject\(\).*?System\.identityHashCode\(receiver\)',
     "callback observation is restricted to bounded one/two-argument methods declared by the concrete callback class",
 )
 if re.search(r'installCallbackObserver\(Object callback, String role\).*?while \(current != null && current != Object\.class\)', probe, re.S):
@@ -535,7 +535,7 @@ require(
 )
 require(
     probe,
-    r'MAX_CALLBACK_METHODS_PER_CLASS = 12.*?getDeclaredMethods\(\).*?installed >= MAX_CALLBACK_METHODS_PER_CLASS.*?scope=concrete-class-declared-only',
+    r'MAX_CALLBACK_METHODS_PER_CLASS = 12.*?getDeclaredMethods\(\).*?attempted >= MAX_CALLBACK_METHODS_PER_CLASS.*?scope=concrete-class-declared-only',
     "callback instrumentation applies an explicit per-concrete-class method cap and never hooks inherited methods",
 )
 require(
