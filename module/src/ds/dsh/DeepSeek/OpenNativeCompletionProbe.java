@@ -1023,7 +1023,7 @@ final class OpenNativeCompletionProbe {
                 + "callbackMethodSignaturesObserved=" + CALLBACK_STATS.size() + "\n"
                 + "callbackClassesObserved=" + OBSERVED_CALLBACK_CLASSES.size() + "\n"
                 + "apiTraceEvents=" + API_TRACE_EVENTS.get() + "\n";
-        StringBuilder callbackSummary = new StringBuilder("\\n[OPEN_NATIVE_CALLBACK_AGGREGATES]\\n");
+        StringBuilder callbackSummary = new StringBuilder("\n[OPEN_NATIVE_CALLBACK_AGGREGATES]\n");
         java.util.ArrayList<String> signatures = new java.util.ArrayList<String>(CALLBACK_STATS.keySet());
         java.util.Collections.sort(signatures);
         for (String signature : signatures) {
@@ -1037,11 +1037,11 @@ final class OpenNativeCompletionProbe {
                     .append(" totalMs=").append(total / 1_000_000L)
                     .append(" maxMs=").append(stats.maxNanos.get() / 1_000_000L)
                     .append(" avgUs=").append(count == 0 ? 0 : total / count / 1_000L)
-                    .append('\\n');
+                    .append('\n');
         }
         synchronized (OBSERVATION_LOG_LOCK) {
             if (OBSERVATION_LOG.length() == 0) return base + summary + callbackSummary;
-            return base + "\\n[OPEN_NATIVE_CALL_OBSERVER_BUFFER]\\n"
+            return base + "\n[OPEN_NATIVE_CALL_OBSERVER_BUFFER]\n"
                     + OBSERVATION_LOG + summary + callbackSummary;
         }
     }
