@@ -2,7 +2,8 @@ package ds.dsh.DeepSeek;
 
 public final class RoiDexSerializerElementIndexTest {
     public static void main(String[] args)throws Exception {
-        registrationOrderNotStringPoolOrder();conditionalPreambleAccepted();branchingRegistrationRejected();
+        registrationOrderNotStringPoolOrder();conditionalPreambleAccepted();
+        branchingRegistrationRejected();unreachableRegistrationRejected();
         System.out.println("RoiDexSerializerElementIndexTest: PASS");
     }
 
@@ -72,6 +73,29 @@ public final class RoiDexSerializerElementIndexTest {
             throw expected;
         }
         throw new AssertionError("branching descriptor registration must be rejected");
+    }
+
+    static void unreachableRegistrationRejected()throws Exception {
+        RoiDexCodeReader.CodeItem code=code(new short[]{
+                (short)0x0029,2,         // goto/16 -> return at offset 2
+                (short)0x000e,           // return; registration block below is unreachable
+                (short)0x001a,0,         // const-string v0, string@0
+                (short)0x036e,0,(short)0x0312, // addElement {v2,v0,v3}
+                (short)0x000e
+        },4);
+        RoiDexInvokeResultLinker.Result links=RoiDexInvokeResultLinker.analyze(code,index->method());
+        RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(code);
+        RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
+        RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching);
+        RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(code,
+                index->"field",flow,reaching,useDef,links);
+        try {
+            RoiDexSerializerElementIndex.analyze(code,index->method(),provenance);
+        } catch(RoiDexSerializerElementIndex.AnalysisException expected) {
+            if(expected.getMessage().contains("block_unreachable"))return;
+            throw expected;
+        }
+        throw new AssertionError("unreachable descriptor registration must be rejected");
     }
 
     static RoiDexFileReader.ResolvedMethodId method() {
