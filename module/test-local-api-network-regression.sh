@@ -108,6 +108,17 @@ if missing_bridge:
     raise SystemExit("Missing OpenAI tool bridge contract: " + ", ".join(missing_bridge))
 if "LocalApiGateway.GatewayException" in tool_bridge:
     raise SystemExit("Ported tool bridge still depends on the reference gateway class")
+omni_bridge = (pathlib.Path(sys.argv[1]).parent / "OmniRouteToolBridge.java").read_text(encoding="utf-8")
+omni_required = {
+    "OmniRoute parser retains upstream copyright": "Copyright (c) 2026 diegosouzapw",
+    "OmniRoute parser retains MIT permission grant": "Permission is hereby granted, free of charge",
+    "strict tool envelope tokenizer is present": "TAG_TOKEN_RE",
+    "loose JSON normalization is present": "normalizeLooseJson",
+    "OmniRoute adapter consumes shared tool definitions": "OpenAiToolBridge.Definition",
+}
+missing_omni = [label for label, token in omni_required.items() if token not in omni_bridge]
+if missing_omni:
+    raise SystemExit("Missing OmniRoute parser contract: " + ", ".join(missing_omni))
 main = (pathlib.Path(sys.argv[1]).parent / "Main.java").read_text(encoding="utf-8")
 security = (pathlib.Path(sys.argv[1]).parent / "HookAccountLoginSecurity.java").read_text(encoding="utf-8")
 if 'localApiFloatingWindowError = "";' not in security:
