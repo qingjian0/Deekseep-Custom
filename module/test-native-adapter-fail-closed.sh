@@ -492,6 +492,24 @@ require(
     "continuation observer installation is one-shot and reports bounded installation status",
 )
 
+require(
+    probe,
+    r'installCallbackObserver\\(Object callback, String role\\).*?getDeclaredMethods\\(\\).*?installed < 12.*?chain\\.getThisObject\\(\\).*?System\\.identityHashCode\\(receiver\\)',
+    "continuation callback implementations are traced with bounded method hooks and identity correlation",
+)
+require(
+    probe,
+    r'callback-enter role=.*?observedArgumentTypes\\(args\\).*?callback-exit role=.*?durationMs=.*?callback-throw role=.*?exception=',
+    "callback trace captures entry, completion, elapsed time, and exception class without payload values",
+)
+require(
+    probe,
+    r'OBSERVED_CALLBACK_CLASSES\\.putIfAbsent.*?OBSERVED_CALLBACK_CLASSES\\.remove',
+    "callback instrumentation is deduplicated and retries when no method can be hooked",
+)
+if "callback.toString()" in probe or "receiver.toString()" in probe:
+    raise SystemExit("callback observer must not serialize callback instances")
+
 print("Native probe bounded-retry regression checks passed")
 print("Native adapter fail-closed and read-only probe source checks passed")
 PY
