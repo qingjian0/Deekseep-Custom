@@ -1361,7 +1361,7 @@ final class OpenLocalApiGateway {
             JSONObject part = parts.optJSONObject(i);
             if (part == null) throw new IllegalArgumentException("Invalid message content part");
             String type = part.optString("type", "");
-            if (!"text".equals(type) && !"input_text".equals(type)) {
+            if (!"text".equals(type) && !"input_text".equals(type) && !"output_text".equals(type)) {
                 throw new IllegalArgumentException("Only text content parts are supported");
             }
             Object value = part.has("text") ? part.opt("text") : part.opt("input_text");
