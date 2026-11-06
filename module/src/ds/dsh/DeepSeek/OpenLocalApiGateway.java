@@ -56,6 +56,7 @@ final class OpenLocalApiGateway {
     private static volatile String token;
     private static volatile int boundPort;
     private static volatile int configuredPort = DEFAULT_PORT;
+    private static volatile String lastStartError = "";
     private static volatile boolean lanEnabled;
     private static volatile ConnectivityManager networkManager;
     private static volatile ConnectivityManager.NetworkCallback networkCallback;
@@ -63,7 +64,12 @@ final class OpenLocalApiGateway {
     private OpenLocalApiGateway() {}
 
     static synchronized void start(Context context, z2.Backend modelBackend) {
-        if (context == null || modelBackend == null || RUNNING.get()) return;
+        if (RUNNING.get()) return;
+        if (context == null || modelBackend == null) {
+            lastStartError = context == null ? "DeepSeek context unavailable"
+                    : "Model backend contract unavailable";
+            return;
+        }
         try {
             Context app = context.getApplicationContext();
             appContext = app;
@@ -94,6 +100,7 @@ final class OpenLocalApiGateway {
                 refreshLanBinding();
                 registerLanNetworkCallback(app);
             }
+            lastStartError = "";
             Main.log("Open Local API listening on 127.0.0.1:" + boundPort
                     + (boundLanAddress.length() == 0 ? ""
                     : " and " + boundLanAddress + ":" + boundPort));
@@ -106,7 +113,8 @@ final class OpenLocalApiGateway {
             if (pool != null) pool.shutdownNow();
             backend = null;
             boundPort = 0;
-            Main.log("Open Local API start failed: " + error.getClass().getSimpleName());
+            lastStartError = error.getClass().getSimpleName();
+            Main.log("Open Local API start failed: " + lastStartError);
         }
     }
 
@@ -120,6 +128,7 @@ final class OpenLocalApiGateway {
         if (pool != null) pool.shutdownNow();
         backend = null;
         boundPort = 0;
+        lastStartError = "";
     }
 
     static boolean isRunning() { return RUNNING.get(); }
@@ -379,7 +388,8 @@ final class OpenLocalApiGateway {
         }
     }
     static String connectionInfo() {
-        if (!RUNNING.get()) return "本地 API 服务尚未启动";
+        if (!RUNNING.get()) return "本地 API 服务尚未启动"
+                + (lastStartError.length() == 0 ? "" : "\n最近启动错误：" + lastStartError);
         return "本机地址：" + baseUrl() + "\n"
                 + "聊天接口：" + endpoint() + "/v1/chat/completions\n"
                 + "本地 API Key：" + apiKey() + "\n"
@@ -398,7 +408,9 @@ final class OpenLocalApiGateway {
         return RUNNING.get() ? "Running on 127.0.0.1"
                 + (boundLanAddress.length() > 0 ? " + " + boundLanAddress
                         : (lanEnabled ? " (LAN unavailable)" : ""))
-                + ":" + boundPort : "Stopped";
+                + ":" + boundPort
+                : (lastStartError.length() == 0 ? "Stopped"
+                        : "Stopped (startup failed: " + lastStartError + ")");
     }
 
     private static void closeServer() {
