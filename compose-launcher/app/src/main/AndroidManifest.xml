@@ -62,6 +62,26 @@
             </intent-filter>
         </activity>
         <activity android:name="ds.dsh.DeepSeek.LocalAudioControlActivity" android:exported="true" android:excludeFromRecents="true" android:noHistory="true" android:taskAffinity="" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <!-- Cross-package trampoline used by the injected DeepSeek process to control the API companion. -->
+        <activity
+            android:name="ds.dsh.DeepSeek.z20"
+            android:enabled="${localApiComponentEnabled}"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <!-- The Open gateway is in-process too; its opt-in keepalive owner must be declared. -->
+        <service
+            android:name="ds.dsh.DeepSeek.z21"
+            android:enabled="${localApiComponentEnabled}"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:stopWithTask="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Maintains the user-enabled DeepSeek local API gateway and host-process heartbeat." />
+        </service>
         <receiver android:name="ds.dsh.DeepSeek.AgentDelayReceiver" android:enabled="true" android:exported="false" />
         <service android:name="ds.dsh.DeepSeek.QqMusicPlaybackService" android:exported="false" android:foregroundServiceType="specialUse" android:stopWithTask="false">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Handles a user-enabled Agent music playback request." />
