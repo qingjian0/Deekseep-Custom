@@ -288,7 +288,7 @@ if re.search(r"method\.invoke\(|constructor\.newInstance\(|field\.get\(", inspec
 require(probe, r"MAX_ATTEMPTS\s*=\s*3", "probe retries are bounded to three attempts")
 require(probe, r"ATTEMPTS\.get\(\)\s*>=\s*MAX_ATTEMPTS", "probe scheduler enforces retry cap")
 require(probe, r"runBoundedInspection\(loader\)", "worker owns bounded retries without another startup callback")
-require(probe, r"while\s*\(!REPORTED\.get\(\)\s*&&\s*ATTEMPTS\.get\(\)\s*<\s*MAX_ATTEMPTS\)", "automatic retry loop respects the attempt cap")
+require(probe, r"while\s*\(!REPORTED\.get\(\)\s*&&\s*ATTEMPTS\.get\(\)\s*<\s*MAX_ATTEMPTS\s*&&\s*Main\.isOpenNativeCompletionProbeEnabled\(\)\)", "automatic retry loop respects both the attempt cap and diagnostic opt-in")
 require(probe, r"Thread\.sleep\(completedAttempts\s*==\s*1\s*\?\s*1000L\s*:\s*3000L\)", "automatic retries use bounded backoff")
 require(probe, r"ATTEMPTS\.incrementAndGet\(\);\s*inspectHost\(loader\)", "each automatic attempt is counted before scanning")
 require(probe, r"finally\s*\{\s*SCHEDULED\.set\(false\);", "probe releases scheduling guard after every worker run")
