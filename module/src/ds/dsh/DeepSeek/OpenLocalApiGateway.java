@@ -757,6 +757,12 @@ final class OpenLocalApiGateway {
                     "This Responses endpoint does not support: " + unsupported);
             return;
         }
+        String unsupportedFeatureName = unsupportedFeature(body);
+        if (unsupportedFeatureName.length() > 0) {
+            sendError(out, 400, "unsupported_feature",
+                    "This Responses endpoint does not support: " + unsupportedFeatureName);
+            return;
+        }
         if (body.has("previous_response_id")
                 && body.optString("previous_response_id", "").trim().length() > 0) {
             sendError(out, 400, "unsupported_previous_response_id",
@@ -806,6 +812,11 @@ final class OpenLocalApiGateway {
         JSONObject textOptions = body.optJSONObject("text");
         if (body.has("text") && textOptions == null) {
             sendError(out, 400, "invalid_text_options", "text must be an object");
+            return;
+        }
+        if (textOptions != null && textOptions.has("format")
+                && textOptions.optJSONObject("format") == null) {
+            sendError(out, 400, "invalid_response_format", "text.format must be an object");
             return;
         }
         JSONObject format = textOptions == null ? null : textOptions.optJSONObject("format");
@@ -1062,10 +1073,7 @@ final class OpenLocalApiGateway {
                                 .put("error", error)));
             }
         }
-        if (!disconnected.get()) {
-            out.write("data: [DONE]\n\n".getBytes(StandardCharsets.UTF_8));
-            out.flush();
-        }
+        if (!disconnected.get()) out.flush();
     }
 
     private static JSONObject responsesEnvelope(String id, String model, String status,
