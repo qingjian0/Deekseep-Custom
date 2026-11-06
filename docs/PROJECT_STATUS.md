@@ -607,3 +607,24 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 真实日志暴露回调观察器沿父类链 Hook 会捕获大量无关调用（例如 `zb3.t()`），并造成高频同步落盘。已在独立分支 `fix/native-probe-concrete-callback-hooks` 将观察范围收窄为回调具体类自身声明的 1～2 参数非 void 方法，每类最多尝试 12 个方法，不遍历父类；持久化日志仍完整记录被选中方法的事件。
 - 诊断报告 schema 升级为 5，并同步更新 UI 文案和回归源码断言。此分支尚未合并到 `dev`，尚未触发 CI / Android 构建；当前修改只完成源码与静态契约核对。
 - 证据边界：上述日志证明运行时调用和回调观察器已工作，但不证明完整网络响应已解析、事件语义已确定或 Open Native Completion Adapter 已接通。Gateway 继续 fail-closed；未知版本默认只读，诊断开关默认关闭，功能 Hook 不自动授权。
+
+
+### 2026-11-06：Local API 全链路审计与 callback event shape 诊断
+
+- 对照检查了 `OpenLocalApiGateway.java`、`Main` Backend readiness、`z14` Open stub、
+  `HookAccountLoginSecurity.executeLocalApiCompletion` 和本地 API 回归脚本。
+- 确认 Open Gateway 当前只提供 `GET /v1/models` 与 `POST /v1/chat/completions`；
+  `tools`、`stream_options.include_usage`、Responses、Anthropic、chunked body、
+  图片内容和 usage accounting 尚未实现。已有设备日志的六次 400 属于请求功能校验拒绝，
+  不属于 Native Transport 失败。
+- 确认 2.7.2/code289 的真实 Transport 调用边界和 `y60.b(fl4, yb3)` continuation；
+  但 Request 构造、Challenge/PoW、事件 DTO 语义、终态、取消和会话隔离仍未证实。
+- 新分支 `work/local-api-event-decoder-diagnostics` 将诊断报告升级为 schema 6：
+  仅对 `callback-0` 首个回调参数记录运行时类型及最多 16 个直接声明字段的名称/类型；
+  不读取字段值、不调用 getter、不调用 `toString()`，不主动收集 Flow。
+- 修正 fail-closed 回归脚本中的旧 schema 3/5 断言，并增加事件参数结构采集的隐私边界断言。
+- 新增 `docs/LOCAL_API_AUDIT_2026-11-06.md`，记录问题分级、其他 Deekseep 本地 API 参考架构、
+  原生适配器完成顺序和 code289 真机验收标准。
+- 当前变更仅完成源码提交和静态契约核对；GitHub commit status 尚无检查结果，
+  未声称 CI、Android 构建或 schema 6 真机验证通过。分支未合并到 `dev` 或 `main`。
+- Gateway 继续 fail-closed。Local API 尚未达到可用验收，不得宣称已修复完成。
