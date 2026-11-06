@@ -125,7 +125,7 @@ final class OpenNativeCompletionProbe {
         OBSERVATION_IDS.set(0L);
         SESSION_STARTED_AT_MS = System.currentTimeMillis();
         SESSION_LOG_FILE = createSessionLogFile(SESSION_STARTED_AT_MS);
-        observerLog("[OPEN_NATIVE_CALL_OBSERVER] session-start schema=5 epochMs="
+        observerLog("[OPEN_NATIVE_CALL_OBSERVER] session-start schema=6 epochMs="
                 + SESSION_STARTED_AT_MS);
     }
 
@@ -197,10 +197,11 @@ final class OpenNativeCompletionProbe {
         int eligibleClassNames = 0;
         int classLoadFailures = 0;
         try {
-            line(out, "report.schema", "5");
+            line(out, "report.schema", "6");
             line(out, "diagnostic.coverage", "host-transport,y60-continuation,callback-implementations,local-api-gateway");
             line(out, "diagnostic.sensitive_data", "message-content,credentials,cookies,auth-headers-not-collected");
             line(out, "diagnostic.callback_detail_capture", "all-events-for-selected-methods-persisted-to-app-private-file");
+            line(out, "diagnostic.callback_argument_shape_capture", "callback-0-first-argument-declared-field-names-and-types-only,max-16-fields,no-values");
             line(out, "diagnostic.callback_aggregate_coverage", "all-invocations-for-every-successfully-hooked-concrete-callback-method");
             line(out, "diagnostic.callback_discovery_limits", "callback-objects-observed-at-y60-continuation-boundary-only");
             line(out, "diagnostic.callback_hook_limits", "concrete-class-declared-methods-only,max-12-methods-per-class,one-or-two-parameters,no-superclass-traversal");
@@ -777,6 +778,8 @@ final class OpenNativeCompletionProbe {
                                 + " thread=" + Thread.currentThread().getName()
                                 + "#" + Thread.currentThread().getId()
                                 + " args=" + observedArgumentTypes(args)
+                                + ("callback-0".equals(role) && args != null && !args.isEmpty()
+                                        ? " arg0Shape=" + observedObjectShape(args.get(0)) : "")
                                 + " stack=" + observedStack());
                         try {
                             Object value = chain.proceed();
