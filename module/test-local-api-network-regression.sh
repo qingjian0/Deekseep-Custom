@@ -158,7 +158,7 @@ gateway_checks = {
     "empty message content is rejected": 'text.trim().length() == 0' in source and '"Message content is empty"' in source,
     "assistant tool call history is not silently discarded": 'message.has("tool_calls")' in source and '"Tool messages and tool calls are not supported"' in source,
     "tool calling and response_format are explicitly rejected": '"unsupported_feature"' in source and 'body.has("tool_choice")' in source and 'body.has("response_format")' in source,
-    "usage streaming is explicitly rejected": 'optBoolean("include_usage", false)' in source and "usage streaming" in source,
+    "usage streaming is explicitly rejected": 'body.has("stream_options")' in source and "usage streaming" in source,
     "stream must be a boolean": 'body.opt("stream") instanceof Boolean' in source and '"invalid_stream"' in source,
     "model must be a string when supplied": 'body.opt("model") instanceof String' in source and '"invalid_model"' in source,
     "gateway startup failures are visible in connection info": '最近启动错误：' in source and 'lastStartError = error.getClass().getSimpleName();' in source,
