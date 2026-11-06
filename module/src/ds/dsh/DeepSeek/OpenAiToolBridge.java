@@ -1,6 +1,6 @@
 /*
  * Adapted from the MIT-licensed reference Local API project.
- * Upstream path: module/src/com/dsmod/probe/OpenAiToolBridge.java
+ * Upstream file: OpenAI tool bridge in the MIT-licensed reference gateway
  * Upstream blob: 6b5847d68c30a6525193f3187dac57fb92564d06
  * Local changes: package migrated to ds.dsh.DeepSeek; exception contract mapped to z2.GatewayException.
  *
