@@ -19,10 +19,13 @@ class loader, native transport and PoW objects to become ready before accepting 
 | POST | `/v1/responses` | Not implemented |
 | POST | `/v1/agent/run` | Not implemented |
 
-Supported model IDs are `deepseek-chat` and `deepseek-reasoner`. The request mapper selects the host's default native model lane and enables reasoning mode for the
-reasoner ID. This mapping is not yet executable in the Open edition: the existing completion
-method still delegates into the Closed-only payload. The Open backend therefore reports itself
-unavailable rather than falsely advertising model readiness.
+The canonical model IDs are `deepseek-chat` and `deepseek-reasoner`. For compatibility with
+clients configured against the earlier internal model catalog, `deepseek-flash` is also advertised
+as a legacy alias and canonicalized to `deepseek-chat` before request construction. The alias does
+not select a separate model lane. The request mapper selects the host's default native model lane
+and enables reasoning mode for the reasoner ID. This mapping is not yet executable in the Open
+edition: the existing completion method still delegates into the Closed-only payload. The Open
+backend therefore reports itself unavailable rather than falsely advertising model readiness.
 
 ## Security and resource limits
 
