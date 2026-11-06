@@ -3514,6 +3514,12 @@ public final class DeekseepUi {
     }
 
     private static String localApiProtocolDescription() {
+        if ("Open".equals(BuildInfo.BUILD_EDITION)) {
+            return "Open 版当前仅提供基础 OpenAI Chat Completions HTTP 接入层："
+                    + "GET /v1/models、POST /v1/chat/completions；Base URL 以 /v1 结尾。"
+                    + "注意：DeepSeek 原生 Completion Adapter 尚未接通，聊天请求当前返回 503。"
+                    + "Responses API、Anthropic Messages、工具调用和多模态尚未实现。";
+        }
         if (z2.PROTOCOL_ANTHROPIC.equals(Main.localApiProtocol())) {
             return "Anthropic 格式已选中。base URL 使用页面显示的本机或局域网根地址（不附加 /v1），"
                     + "提供 POST /v1/messages 与 /v1/messages/count_tokens；支持普通 JSON、"
@@ -3525,6 +3531,13 @@ public final class DeekseepUi {
     }
 
     private static String localApiAgentHelp() {
+        if ("Open".equals(BuildInfo.BUILD_EDITION)) {
+            return "Open 版当前可用模型名称：deepseek-chat、deepseek-reasoner。"
+                    + "GET /v1/models 可用于检查网关和读取模型列表。"
+                    + "POST /v1/chat/completions 的原生执行适配器尚未接通，当前会返回 503。"
+                    + "Responses、Anthropic、Agent 工具调用、图片输入和 usage 统计尚未实现；"
+                    + "请勿把当前 Open 版配置为可工作的 Codex / Claude Code 后端。";
+        }
         String modelHelp = isClosedV236OrV241Feature() && !Main.isLocalApiLegacyModelRouteEnabled()
                 ? "模型名使用 deepseek-flash。"
                 : "模型名使用 deepseek-v4-flash、deepseek-v4-pro 或 deepseek-vision。";
