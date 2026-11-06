@@ -3329,7 +3329,8 @@ Main.log("[RISK] Android ID spoof installed");
             z2.DeltaSink sink) throws Exception {
         if (request != null && request.knownToolCalls != null
                 && !request.knownToolCalls.isEmpty()) {
-            Main.log("local-api incoming known_tool_calls=" + request.knownToolCalls);
+            Main.log("local-api incoming known_tool_calls_count="
+                    + request.knownToolCalls.size());
         }
         // ToolCall.scope="" causes executeHeartbeatToolCalls to silently skip every tool call.
         // z1 only sets clientSessionScope when the client provides an explicit session id; ensure
@@ -3352,12 +3353,7 @@ Main.log("[RISK] Android ID spoof installed");
             m.setAccessible(true);
             z2.CompletionResult result = (z2.CompletionResult) m.invoke(null, request, sink);
             if (result != null && result.hasToolCalls()) {
-                StringBuilder sb = new StringBuilder("local-api tool_calls=")
-                        .append(result.toolCalls.size());
-                for (Object tc : result.toolCalls) {
-                    sb.append(" [").append(tc).append("]");
-                }
-                Main.log(sb.toString());
+                Main.log("local-api tool_calls_count=" + result.toolCalls.size());
             }
             return result;
         } catch (java.lang.reflect.InvocationTargetException e) {
