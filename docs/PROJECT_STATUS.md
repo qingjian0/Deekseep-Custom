@@ -559,3 +559,14 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 新增回归断言，约束 continuation observer 只记录类型/结构信息并保持原始执行路径。提交：`6ae02c49`（诊断实现）、`0ee0387b`（回归保护）。
 - 下一次实机采集重点为 `continuation-installed`、`continuation-enter`、`continuation-exit` / `continuation-throw`。若没有 enter，说明调用者没有走该方法或所选签名不匹配；若有 enter/exit，继续依据 callback 参数类型追踪事件消费边界。
 - 这仍是 opt-in 诊断探针，不是 Open Completion Adapter。未修改未知版本功能 Hook 授权，不调用 Closed 专用 `z18`，也不宣称 API 已可用。
+
+
+### 2026-11-06：Open 原生诊断改为单次完整采集（schema 3）
+
+- 实机确认的调用边界仍为 `zn3.o(wu1, Long) -> jw3.g(wu1, Long) -> y60`，返回对象包含 `y60.b(fl4, yb3) -> Object`。
+- 新增对 `y60.b` 两个实际回调对象的具体实现类观察：最多检查 3 层类层级、每个回调实现最多安装 12 个方法观察器；回调方法记录参数类型、接收者 identity hash、线程、耗时、返回类型或异常类型。观察器始终透传原始方法，不主动调用回调，不读取字段值。
+- 回调调用事件最多记录 96 个，超出后输出一次截断标记；总运行轨迹缓冲区上限 48,000 字符。复制报告末尾附回调类数、回调调用数、API 追踪事件数。
+- Local API 网关现在把认证后的路由、模型规范化、请求接受、后端 readiness、非流式开始/完成/失败、SSE 首个 Delta、事件/字符计数、结束/断连/异常和阶段耗时写入同一个诊断缓冲区。仅记录模型 ID、长度、状态和计时，不记录 Prompt、响应正文、Authorization、Cookie 或凭据。
+- 诊断报告 schema 更新为 3；UI 文案改为一次测试请求后复制同一份完整报告。诊断仍默认关闭，且仅对已验证的 Open mainland code289 目标启用。
+- 本轮代码提交：`c4ba4445`（回调观察器）、`837b2f07`（统一 API 追踪缓冲区）、`0e73bf24` / `9fe38895` / `27dee962`（网关阶段追踪与 SSE 结束时序）、`41db159f`（回调事件限额和汇总）、`14a90589` / `4279f5fe`（回归保护）。
+- 验收边界：CI 通过前不发布 APK；实机一次采集可以证明当前可观察到的调用与阶段，但不能凭诊断日志宣称 Open 原生 Completion Adapter 已接通。当前 Open 后端仍保持 fail-closed。
