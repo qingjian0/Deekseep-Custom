@@ -4464,7 +4464,11 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     /** The one-tap generic API URL is an OpenAI-compatible base and always ends in /v1. */
     static String localApiCopyEndpoint() {
         String value = z13.rootEndpoint();
-        if (value == null) return "";
+        if (value == null || value.trim().length() == 0) {
+            int preferred = z13.preferredPort(hostApplicationContext);
+            if (preferred < 1024 || preferred > 65535) return "";
+            value = "http://127.0.0.1:" + preferred;
+        }
         while (value.endsWith("/")) value = value.substring(0, value.length() - 1);
         return value.endsWith("/v1") ? value : value + "/v1";
     }
