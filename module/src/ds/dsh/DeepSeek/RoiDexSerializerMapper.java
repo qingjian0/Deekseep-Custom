@@ -246,6 +246,9 @@ public final class RoiDexSerializerMapper {
             throw new AnalysisException("method_id_resolution_failed:"+index);
         }
     }
+    private static boolean isInvoke(int opcode) {
+        return (opcode>=0x6e&&opcode<=0x72)||(opcode>=0x74&&opcode<=0x78);
+    }
     private static boolean isInvokeDirect(int opcode){return opcode==0x70||opcode==0x76;}
     private static boolean isDecodeElementMethod(String name) {
         return name!=null&&name.startsWith("decode")&&name.endsWith("Element")
@@ -324,14 +327,6 @@ public final class RoiDexSerializerMapper {
         return matches==1;
     }
 
-    private static Integer blockForOffset(
-            RoiDexInstructionScanner.ControlFlowGraph graph,int offset) {
-        for(int b=0;b<graph.blocks.length;b++)
-            for(RoiDexInstructionScanner.Instruction instruction:graph.blocks[b].instructions)
-                if(instruction.offset==offset)return b;
-        return null;
-    }
-
     private static RoiDexSerializerElementIndex.Element findElement(
             RoiDexSerializerElementIndex.Result elements,int index) {
         for(RoiDexSerializerElementIndex.Element element:elements.elements)
@@ -341,7 +336,8 @@ public final class RoiDexSerializerMapper {
 
     private static Integer resolveSwitchCase(RoiDexInstructionScanner.ControlFlowGraph graph,
             RoiDexCodeReader.CodeItem code,RoiDexValueProvenance.Result provenance,
-            RoiDexInvokeResultLinker.Link indexSource,int decodeOffset,Map<Integer,Integer> blockAt) {
+            RoiDexInvokeResultLinker.Link indexSource,int decodeOffset,Map<Integer,Integer> blockAt,
+            MethodResolver resolver) {
         Integer decodeBlock=blockAt.get(decodeOffset);
         if(decodeBlock==null||!isUniqueDecodeCallForSwitchValue(
                 graph,code,provenance,indexSource,decodeOffset,decodeBlock,resolver))return null;
