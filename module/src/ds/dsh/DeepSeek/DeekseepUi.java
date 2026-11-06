@@ -2878,7 +2878,7 @@ public final class DeekseepUi {
             xiaomiGuideAction.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View view) {
                     new android.app.AlertDialog.Builder(act)
-                            .setTitle("MIUI / HyperOS 后台保活")
+                            .setTitle(UiLanguage.text(act, "MIUI / HyperOS 后台保活", "MIUI / HyperOS background retention"))
                             .setMessage(xiaomiGuideText)
                             .setPositiveButton("知道了", null)
                             .show();
@@ -3404,7 +3404,7 @@ public final class DeekseepUi {
             }
         });
         if ("Open".equals(BuildInfo.BUILD_EDITION)) {
-            protocolValue.setText("OpenAI（仅 Chat Completions）");
+            protocolValue.setText(UiLanguage.text(act, "OpenAI（仅 Chat Completions）", "OpenAI (Chat Completions only)"));
             protocolValue.setClickable(false);
             protocolValue.setAlpha(0.72f);
         } else {
