@@ -520,3 +520,11 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 特性开关在安装时和每次请求时双重检查；删除/改写开关文件后，已安装的拦截器立即退化为原样透传（Hook 本身随宿主进程重启卸载）。
 
 - 开关启用、关闭、日志标识和能力边界说明见 `docs/UNKNOWN_HOST_AUTO_HOOK.md`。
+
+
+### 2026-11-06：小米 MIUI / HyperOS 后台保活修正
+
+- 电池优化检测从只检查 DeepSeek 宿主包，改为分别检查宿主 `com.deepseek.chat` 与模块服务包 `ds.dsh.DeepSeek`；后台活动限制明确指向模块服务进程。
+- Local API 页面在检测到 Xiaomi / Redmi / POCO / MIUI / HyperOS 时显示两包分别配置的无自启动限制指引：电池策略、自启动、最近任务锁定、通知类别和后台运行权限。
+- 前台保活状态不再无限显示“等待心跳”：启动请求 15 秒仍未收到宿主确认，或既有心跳超过 15 秒，明确显示异常并指出排查方向。
+- 以上是源码修复与设置引导；仍需在具体小米设备/系统版本上实测服务启动、进程回收和重启恢复。
