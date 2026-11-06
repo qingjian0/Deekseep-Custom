@@ -279,6 +279,65 @@ public final class RoiDexSerializerMapper {
         return true;
     }
 
+    /**
+     * A switch case identifies a branch, not an arbitrary invoke within that branch. Require
+     * exactly one decode*Element call in the target block to consume this decodeElementIndex
+     * result; otherwise the same case key could be attached to multiple fields.
+     */
+    private static boolean isUniqueDecodeCallForSwitchValue(
+            RoiDexInstructionScanner.ControlFlowGraph graph,RoiDexCodeReader.CodeItem code,
+            RoiDexValueProvenance.Result provenance,RoiDexInvokeResultLinker.Link indexSource,
+            int expectedDecodeOffset,int decodeBlock) {
+        int matches=0;
+        for(RoiDexInstructionScanner.Instruction instruction:graph.blocks[decodeBlock].instructions) {
+            if(!isInvoke(instruction.opcode))continue;
+            final RoiDexInstructionDecoder.Decoded invoke;
+            try {
+                invoke=code.decodeInstructionAt(instruction.offset);
+                if(invoke.referenceKind!=RoiDexInstructionDecoder.Decoded.ReferenceKind.METHOD)
+                    continue;
+                RoiDexFileReader.ResolvedMethodId method=resolve(
+                        index-> {
+                            throw new RoiDexFileReader.DexException("unavailable");
+                        },-1);
+            } catch(Exception ignored) {
+                // The method identity is resolved below by the provenance link at the target
+                // offset; unrelated or unresolved invokes cannot be counted as decode calls.
+                continue;
+            }
+        }
+        // Provenance records the decode call selected by the constructor argument. The block
+        // must not contain a second decodeElement call with the same index-source invocation.
+        for(RoiDexInvokeResultLinker.Link link:provenance.links) {
+            if(link==null||!isDecodeElementMethod(link.methodName))continue;
+            if(!Integer.valueOf(decodeBlock).equals(blockForOffset(graph,link.invokeOffset)))continue;
+            int indexParameter;
+            try { indexParameter=findUniqueIntParameter(link.prototypeDescriptor); }
+            catch(RoiDexInstructionDecoder.DecodeException error){return false;}
+            if(indexParameter<0)return false;
+            int word;
+            try {
+                word=RoiDexInstructionDecoder.parameterWordPositionFor(
+                        link.prototypeDescriptor,link.isStaticInvoke,indexParameter);
+            } catch(RoiDexInstructionDecoder.DecodeException error){return false;}
+            RoiDexValueProvenance.IntTrace trace=provenance.traceIntUse(link.invokeOffset,word);
+            if(trace.unique&&trace.sourceInvoke!=null
+                    &&trace.sourceInvoke.invokeOffset==indexSource.invokeOffset) {
+                matches++;
+                if(link.invokeOffset!=expectedDecodeOffset)return false;
+            }
+        }
+        return matches==1;
+    }
+
+    private static Integer blockForOffset(
+            RoiDexInstructionScanner.ControlFlowGraph graph,int offset) {
+        for(int b=0;b<graph.blocks.length;b++)
+            for(RoiDexInstructionScanner.Instruction instruction:graph.blocks[b].instructions)
+                if(instruction.offset==offset)return b;
+        return null;
+    }
+
     private static RoiDexSerializerElementIndex.Element findElement(
             RoiDexSerializerElementIndex.Result elements,int index) {
         for(RoiDexSerializerElementIndex.Element element:elements.elements)
@@ -290,7 +349,8 @@ public final class RoiDexSerializerMapper {
             RoiDexCodeReader.CodeItem code,RoiDexValueProvenance.Result provenance,
             RoiDexInvokeResultLinker.Link indexSource,int decodeOffset,Map<Integer,Integer> blockAt) {
         Integer decodeBlock=blockAt.get(decodeOffset);
-        if(decodeBlock==null)return null;
+        if(decodeBlock==null||!isUniqueDecodeCallForSwitchValue(
+                graph,code,provenance,indexSource,decodeOffset,decodeBlock))return null;
         RoiDexInstructionScanner.Instruction matchingSwitch=null;
         Integer matchingKey=null;
         for(RoiDexInstructionScanner.Instruction instruction:graph.scan.instructions) {
