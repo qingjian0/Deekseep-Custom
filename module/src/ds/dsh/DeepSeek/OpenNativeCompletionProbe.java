@@ -37,7 +37,7 @@ final class OpenNativeCompletionProbe {
             new java.util.concurrent.atomic.AtomicLong();
     private static final Object OBSERVATION_LOG_LOCK = new Object();
     private static final StringBuilder OBSERVATION_LOG = new StringBuilder(4096);
-    private static final int MAX_OBSERVATION_LOG_CHARS = 12_000;
+    private static final int MAX_OBSERVATION_LOG_CHARS = 48_000;
     private static final ThreadLocal<ObservationFrame> OBSERVATION_FRAME =
             new ThreadLocal<ObservationFrame>();
 
@@ -873,6 +873,12 @@ final class OpenNativeCompletionProbe {
             INSPECTING.set(false);
         }
         Main.extLog("[OPEN_NATIVE_COMPLETION_PROBE]\n" + report);
+    }
+
+    /** API-gateway lifecycle events share the same one-copy diagnostic buffer. */
+    static void apiTrace(String event) {
+        if (event == null || !Main.isOpenNativeCompletionProbeEnabled()) return;
+        observerLog("[OPEN_NATIVE_API_TRACE] " + event);
     }
 
     private static void observerLog(String message) {
