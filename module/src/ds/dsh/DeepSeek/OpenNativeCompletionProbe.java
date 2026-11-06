@@ -5,6 +5,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
@@ -37,13 +40,10 @@ final class OpenNativeCompletionProbe {
             new java.util.concurrent.atomic.AtomicLong();
     private static final Object OBSERVATION_LOG_LOCK = new Object();
     private static final StringBuilder OBSERVATION_LOG = new StringBuilder(4096);
+    // The in-memory copy is only a UI preview. Every diagnostic line is also appended
+    // synchronously to the app-private session file, so capture volume is not truncated.
     private static final int MAX_OBSERVATION_LOG_CHARS = 48_000;
-    // Detailed per-invocation samples are intentionally bounded; aggregate counters below
-    // cover every invocation of every successfully observed callback method.
-    private static final int MAX_CALLBACK_TRACE_EVENTS = 512;
-    private static final int MAX_CALLBACK_CLASSES = 32;
-    private static final int MAX_CALLBACK_METHODS_INSPECTED = 512;
-    private static final int MAX_CALLBACK_METHOD_HOOKS = 256;
+    private static volatile File SESSION_LOG_FILE;
     private static final java.util.concurrent.ConcurrentHashMap<String, CallbackStats>
             CALLBACK_STATS = new java.util.concurrent.ConcurrentHashMap<String, CallbackStats>();
     private static final java.util.concurrent.atomic.AtomicInteger CALLBACK_METHOD_INVOCATIONS =
@@ -53,7 +53,6 @@ final class OpenNativeCompletionProbe {
     private static final java.util.concurrent.atomic.AtomicInteger API_TRACE_EVENTS =
             new java.util.concurrent.atomic.AtomicInteger();
     private static volatile long SESSION_STARTED_AT_MS;
-    private static final AtomicBoolean CALLBACK_TRACE_TRUNCATED = new AtomicBoolean();
     private static final ThreadLocal<ObservationFrame> OBSERVATION_FRAME =
             new ThreadLocal<ObservationFrame>();
 
@@ -115,10 +114,10 @@ final class OpenNativeCompletionProbe {
         CALLBACK_DETAIL_EVENTS.set(0);
         CALLBACK_STATS.clear();
         API_TRACE_EVENTS.set(0);
-        CALLBACK_TRACE_TRUNCATED.set(false);
         OBSERVATION_IDS.set(0L);
         SESSION_STARTED_AT_MS = System.currentTimeMillis();
-        observerLog("[OPEN_NATIVE_CALL_OBSERVER] session-start schema=3 epochMs="
+        SESSION_LOG_FILE = createSessionLogFile(SESSION_STARTED_AT_MS);
+        observerLog("[OPEN_NATIVE_CALL_OBSERVER] session-start schema=4 epochMs="
                 + SESSION_STARTED_AT_MS);
     }
 
@@ -190,14 +189,13 @@ final class OpenNativeCompletionProbe {
         int eligibleClassNames = 0;
         int classLoadFailures = 0;
         try {
-            line(out, "report.schema", "3");
+            line(out, "report.schema", "4");
             line(out, "diagnostic.coverage", "host-transport,y60-continuation,callback-implementations,local-api-gateway");
             line(out, "diagnostic.sensitive_data", "message-content,credentials,cookies,auth-headers-not-collected");
-            line(out, "diagnostic.callback_detail_sample_limit", String.valueOf(MAX_CALLBACK_TRACE_EVENTS));
+            line(out, "diagnostic.callback_detail_capture", "all-events-persisted-to-app-private-file");
             line(out, "diagnostic.callback_aggregate_coverage", "all-invocations-for-every-successfully-hooked-callback-method");
-            line(out, "diagnostic.callback_class_limit", String.valueOf(MAX_CALLBACK_CLASSES));
-            line(out, "diagnostic.callback_method_inspection_limit_per_class", String.valueOf(MAX_CALLBACK_METHODS_INSPECTED));
-            line(out, "diagnostic.callback_method_hook_limit_per_class", String.valueOf(MAX_CALLBACK_METHOD_HOOKS));
+            line(out, "diagnostic.callback_discovery_limits", "none-imposed-by-probe");
+            line(out, "diagnostic.callback_hook_limits", "none-imposed-by-probe");
             Class<?> requestType = HostCompat.load(loader, "ew0");
             line(out, "edition", BuildInfo.BUILD_EDITION);
             line(out, "host", HostCompat.diagnosticSummary());
@@ -711,17 +709,9 @@ final class OpenNativeCompletionProbe {
         Class<?> type = callback.getClass();
         String key = type.getName();
         if (OBSERVED_CALLBACK_CLASSES.putIfAbsent(key, Boolean.TRUE) != null) return;
-        if (OBSERVED_CALLBACK_CLASSES.size() > MAX_CALLBACK_CLASSES) {
-            OBSERVED_CALLBACK_CLASSES.remove(key);
-            observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-class-limit limit="
-                    + MAX_CALLBACK_CLASSES);
-            return;
-        }
         int installed = 0;
-        int inspected = 0;
         Class<?> current = type;
-        while (current != null && current != Object.class && inspected < 8
-                && installed < MAX_CALLBACK_METHOD_HOOKS) {
+        while (current != null && current != Object.class) {
             Method[] methods;
             try {
                 methods = current.getDeclaredMethods();
@@ -732,7 +722,7 @@ final class OpenNativeCompletionProbe {
             }
             int examined = 0;
             for (Method method : methods) {
-                if (installed >= MAX_CALLBACK_METHOD_HOOKS || examined++ >= MAX_CALLBACK_METHODS_INSPECTED) break;
+                examined++;
                 int modifiers = method.getModifiers();
                 String name = method.getName();
                 if (Modifier.isStatic(modifiers) || Modifier.isAbstract(modifiers)
@@ -763,24 +753,18 @@ final class OpenNativeCompletionProbe {
                             long started = System.nanoTime();
                             CALLBACK_METHOD_INVOCATIONS.incrementAndGet();
                             int eventNumber = CALLBACK_DETAIL_EVENTS.incrementAndGet();
-                            boolean recordEvent = eventNumber <= MAX_CALLBACK_TRACE_EVENTS;
-                            if (recordEvent) {
-                                observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-enter role="
-                                        + role + " method=" + observedMethodDescriptor(target)
-                                        + " receiverId=" + identity
-                                        + " event=" + eventNumber
-                                        + " thread=" + Thread.currentThread().getName()
-                                        + "#" + Thread.currentThread().getId()
-                                        + " args=" + observedArgumentTypes(args)
-                                        + " stack=" + observedStack());
-                            } else if (CALLBACK_TRACE_TRUNCATED.compareAndSet(false, true)) {
-                                observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-events-truncated limit="
-                                        + MAX_CALLBACK_TRACE_EVENTS);
-                            }
+                            observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-enter role="
+                                    + role + " method=" + observedMethodDescriptor(target)
+                                    + " receiverId=" + identity
+                                    + " event=" + eventNumber
+                                    + " thread=" + Thread.currentThread().getName()
+                                    + "#" + Thread.currentThread().getId()
+                                    + " args=" + observedArgumentTypes(args)
+                                    + " stack=" + observedStack());
                             try {
                                 Object value = chain.proceed();
                                 stats.record(System.nanoTime() - started, false);
-                                if (recordEvent) {
+                                {
                                     observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-exit role="
                                             + role + " method=" + observedMethodDescriptor(target)
                                             + " receiverId=" + identity
@@ -791,7 +775,7 @@ final class OpenNativeCompletionProbe {
                                 return value;
                             } catch (Throwable error) {
                                 stats.record(System.nanoTime() - started, true);
-                                if (recordEvent) {
+                                {
                                     observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-throw role="
                                             + role + " method=" + observedMethodDescriptor(target)
                                             + " receiverId=" + identity
@@ -821,7 +805,6 @@ final class OpenNativeCompletionProbe {
                         + type.getName() + " exception=" + error.getClass().getName());
                 break;
             }
-            inspected++;
         }
         observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-class-observed class="
                 + type.getName() + " role=" + role + " hookedMethods=" + installed);
@@ -981,8 +964,48 @@ final class OpenNativeCompletionProbe {
         observerLog("[OPEN_NATIVE_API_TRACE] " + event);
     }
 
+    private static File createSessionLogFile(long startedAtMs) {
+        try {
+            android.content.Context context = Main.hostApplicationContext;
+            if (context == null) return null;
+            File directory = new File(context.getFilesDir(), "dsh_open_native_diagnostics");
+            if (!directory.exists() && !directory.mkdirs()) return null;
+            return new File(directory, "open-native-" + startedAtMs + ".log");
+        } catch (VirtualMachineError fatal) {
+            throw fatal;
+        } catch (ThreadDeath fatal) {
+            throw fatal;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static void appendSessionLog(String message) {
+        File file = SESSION_LOG_FILE;
+        if (file == null || message == null) return;
+        synchronized (OBSERVATION_LOG_LOCK) {
+            FileOutputStream output = null;
+            try {
+                output = new FileOutputStream(file, true);
+                output.write((message + "\\n").getBytes(StandardCharsets.UTF_8));
+                output.flush();
+            } catch (VirtualMachineError fatal) {
+                throw fatal;
+            } catch (ThreadDeath fatal) {
+                throw fatal;
+            } catch (Throwable error) {
+                try { Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] persistent-log-write-failed "
+                        + error.getClass().getName()); } catch (Throwable ignored) {}
+                SESSION_LOG_FILE = null;
+            } finally {
+                if (output != null) try { output.close(); } catch (Throwable ignored) {}
+            }
+        }
+    }
+
     private static void observerLog(String message) {
         if (message == null) return;
+        appendSessionLog(message);
         try {
             synchronized (OBSERVATION_LOG_LOCK) {
                 int required = message.length() + 1;
@@ -1019,6 +1042,9 @@ final class OpenNativeCompletionProbe {
         String base = report;
         String summary = "\n[OPEN_NATIVE_DIAGNOSTIC_SUMMARY]\n"
                 + "sessionStartedAtMs=" + SESSION_STARTED_AT_MS + "\n"
+                + "callbackDetailEvents=" + CALLBACK_DETAIL_EVENTS.get() + "\n"
+                + "callbackPersistentLog=" + (SESSION_LOG_FILE == null
+                        ? "unavailable" : SESSION_LOG_FILE.getAbsolutePath()) + "\n"
                 + "callbackMethodInvocations=" + CALLBACK_METHOD_INVOCATIONS.get() + "\n"
                 + "callbackMethodSignaturesObserved=" + CALLBACK_STATS.size() + "\n"
                 + "callbackClassesObserved=" + OBSERVED_CALLBACK_CLASSES.size() + "\n"
