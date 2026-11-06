@@ -523,6 +523,16 @@ require(
 )
 require(
     probe,
+    r'MAX_CALLBACK_CLASSES = 8.*?MAX_CALLBACK_METHODS_INSPECTED = 48.*?callback-class-limit limit=',
+    "callback class and method discovery has independent hard bounds",
+)
+require(
+    gateway,
+    r'request-rejected stage=model-validation.*?code=model_not_found',
+    "rejected model IDs are included in the single diagnostic report",
+)
+require(
+    probe,
     r'OPEN_NATIVE_DIAGNOSTIC_SUMMARY.*?callbackMethodInvocations=.*?callbackClassesObserved=.*?apiTraceEvents=',
     "the copied report ends with aggregate callback and API trace counts",
 )
