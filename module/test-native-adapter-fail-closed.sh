@@ -503,7 +503,10 @@ require(
     r'installCallbackObserver\(Object callback, String role\).*?type\.getDeclaredMethods\(\).*?attempted >= MAX_CALLBACK_METHODS_PER_CLASS.*?parameters\.length < 1.*?parameters\.length > 2.*?chain\.getThisObject\(\).*?System\.identityHashCode\(receiver\)',
     "callback observation is restricted to bounded one/two-argument methods declared by the concrete callback class",
 )
-if re.search(r'installCallbackObserver\(Object callback, String role\).*?while \(current != null && current != Object\.class\)', probe, re.S):
+callback_start = probe.index("private static void installCallbackObserver(")
+callback_end = probe.index("private static String observedMethodDescriptor(", callback_start)
+callback_region = probe[callback_start:callback_end]
+if re.search(r'while \(current != null && current != Object\\.class\)', callback_region):
     raise SystemExit("callback observer must not traverse callback superclasses")
 require(
     probe,
