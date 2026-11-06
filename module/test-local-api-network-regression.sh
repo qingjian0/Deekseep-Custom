@@ -204,7 +204,7 @@ gateway_checks = {
     "unsupported multimodal parts are rejected instead of silently discarded": '"Only text content parts are supported"' in source,
     "unsupported generation controls are rejected instead of ignored": "unsupportedChatOption(body)" in source and '"unsupported_parameter"' in source,
     "only one completion choice is accepted": 'if (body.has("n"))' in source and 'return "n";' in source,
-    "named messages are rejected while valid tool messages are preserved": 'message.has("name")' in source and 'role.equals("tool")' in source and 'Tool result does not match a preceding assistant tool call' in source,
+    "named messages are rejected while valid tool messages are preserved": 'message.has("name")' in source and '"tool".equals(role)' in source and 'Tool result does not match a preceding assistant tool call' in source,
     "empty message content is rejected": 'text.trim().length() == 0' in source and '"Message content is empty"' in source,
     "assistant tool-call history is validated for client-side continuation": 'message.optJSONArray("tool_calls")' in source and 'Invalid assistant tool-call history' in source,
     "tool results must match a preceding assistant call id": 'pendingToolCallIds.remove(callId)' in source and 'Tool result does not match a preceding assistant tool call' in source,
