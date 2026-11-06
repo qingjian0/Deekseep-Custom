@@ -147,6 +147,8 @@ gateway_checks = {
     "usage streaming is explicitly rejected": 'optBoolean("include_usage", false)' in source and "usage streaming" in source,
     "stream must be a boolean": 'body.opt("stream") instanceof Boolean' in source and '"invalid_stream"' in source,
     "model must be a string when supplied": 'body.opt("model") instanceof String' in source and '"invalid_model"' in source,
+    "gateway startup failures are visible in connection info": '最近启动错误：' in source and 'lastStartError = error.getClass().getSimpleName();' in source,
+    "gateway runtime status distinguishes startup failure": 'Stopped (startup failed: ' in source,
     "port restart restores previous port after failure": "新端口启动失败，已恢复原端口" in source and "previousPort" in source,
     "gateway preserves structured upstream HTTP errors": "sendError(out, rejected.status, rejected.code, rejected.type" in source,
     "null upstream result returns 502": '"empty_upstream_response"' in source,
