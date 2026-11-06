@@ -523,6 +523,11 @@ require(
 )
 require(
     probe,
+    r'onExplicitEnable\(ClassLoader loader\).*?resetRuntimeTrace\(\).*?private static void resetRuntimeTrace\(\).*?OBSERVATION_LOG\.setLength\(0\).*?CALLBACK_METHOD_INVOCATIONS\.set\(0\).*?API_TRACE_EVENTS\.set\(0\).*?session-start schema=3',
+    "each explicit enable starts a clean report session without uninstalling transparent hooks",
+)
+require(
+    probe,
     r'MAX_CALLBACK_CLASSES = 8.*?MAX_CALLBACK_METHODS_INSPECTED = 48.*?callback-class-limit limit=',
     "callback class and method discovery has independent hard bounds",
 )
