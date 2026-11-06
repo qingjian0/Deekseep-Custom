@@ -626,8 +626,15 @@ final class OpenLocalApiGateway {
                 return;
             }
             boolean parallelTools = body.optBoolean("parallel_tool_calls", true);
-            OpenAiToolBridge.Plan toolPlan = OpenAiToolBridge.chatPlan(
-                    rawTools, body.opt("tool_choice"), parallelTools);
+            OpenAiToolBridge.Plan toolPlan;
+            try {
+                toolPlan = OpenAiToolBridge.chatPlan(
+                        rawTools, body.opt("tool_choice"), parallelTools);
+            } catch (z2.GatewayException invalidTools) {
+                sendError(out, invalidTools.status, invalidTools.code, invalidTools.type,
+                        invalidTools.getMessage());
+                return;
+            }
             String requestId = "api-" + UUID.randomUUID();
             String prompt = OpenAiToolBridge.addInstructions(
                     conversationPrompt, toolPlan, requestId);
@@ -836,8 +843,15 @@ final class OpenLocalApiGateway {
                     "parallel_tool_calls must be a boolean");
             return;
         }
-        OpenAiToolBridge.Plan toolPlan = OpenAiToolBridge.responsesPlan(
-                rawTools, body.opt("tool_choice"), body.optBoolean("parallel_tool_calls", true));
+        OpenAiToolBridge.Plan toolPlan;
+        try {
+            toolPlan = OpenAiToolBridge.responsesPlan(
+                    rawTools, body.opt("tool_choice"), body.optBoolean("parallel_tool_calls", true));
+        } catch (z2.GatewayException invalidTools) {
+            sendError(out, invalidTools.status, invalidTools.code, invalidTools.type,
+                    invalidTools.getMessage());
+            return;
+        }
         for (OpenAiToolBridge.Definition definition : toolPlan.tools) {
             if (!OpenAiToolBridge.FUNCTION.equals(definition.kind)
                     && !OpenAiToolBridge.CUSTOM.equals(definition.kind)) {
