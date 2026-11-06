@@ -2,7 +2,7 @@ package ds.dsh.DeepSeek;
 
 public final class RoiDexSerializerElementIndexTest {
     public static void main(String[] args)throws Exception {
-        registrationOrderNotStringPoolOrder();conditionalPreambleAccepted();
+        registrationOrderNotStringPoolOrder();conditionalRegistrationBypassRejected();
         branchingRegistrationRejected();unreachableRegistrationRejected();incompleteRegistrationRejected();sparseRegistrationIndicesRejected();
         System.out.println("RoiDexSerializerElementIndexTest: PASS");
     }
@@ -26,11 +26,12 @@ public final class RoiDexSerializerElementIndexTest {
         eq(2,result.elements.length);eq(0,result.rejected.length);
         eq(0,result.elements[0].index);eq("first",result.elements[0].name);
         eq(1,result.elements[1].index);eq("second",result.elements[1].name);
-        yes(result.registrationOrderProven);yes(result.complete);yes(result.candidateEvidenceOnly);
+        yes(result.registrationOrderProven);yes(result.registrationCoverageProven);
+        yes(result.complete);yes(result.candidateEvidenceOnly);
         yes(!result.hookAuthorizationGranted);
     }
 
-    static void conditionalPreambleAccepted()throws Exception {
+    static void conditionalRegistrationBypassRejected()throws Exception {
         RoiDexCodeReader.CodeItem code=code(new short[]{
                 (short)0x0138,3,         // if-eqz v1, target 3
                 (short)0x000e,           // branch bypasses descriptor initialization
@@ -46,7 +47,10 @@ public final class RoiDexSerializerElementIndexTest {
                 index->"chat_session_id",flow,reaching,useDef,links);
         RoiDexSerializerElementIndex.Result result=RoiDexSerializerElementIndex.analyze(
                 code,index->method(),provenance);
-        yes(result.registrationOrderProven);eq(1,result.elements.length);
+        yes(result.registrationOrderProven);
+        yes(!result.registrationCoverageProven);
+        yes(!result.complete);
+        eq(1,result.elements.length);
         eq("chat_session_id",result.elements[0].name);
     }
 
