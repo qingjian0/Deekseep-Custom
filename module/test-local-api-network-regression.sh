@@ -78,7 +78,7 @@ required = {
     "unsupported model is logged without request content": 'Main.log("Open Local API rejected model id: " + reportedModel)',
     "unsupported model diagnostics are bounded": "reportedModel.length() > 128",
 }
-missing = [label for label, token in required.items() if token not in source]
+missing = [label for label, token in required.items() if (token not in source if isinstance(token, str) else not token)]
 if missing:
     raise SystemExit("Missing LAN network lifecycle contract: " + ", ".join(missing))
 if "addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)" not in source:
@@ -134,7 +134,7 @@ probe_required = {
     "constructor observer preserves host behavior on capture errors": "Diagnostics must never block the host's request constructor" in probe,
     "argument type capture is null-safe": 'if (args == null) return "null";' in probe,
 }
-missing_probe = [label for label, token in probe_required.items() if token not in probe]
+missing_probe = [label for label, token in probe_required.items() if (token not in probe if isinstance(token, str) else not token)]
 if missing_probe:
     raise SystemExit("Missing code289 request-construction diagnostics: " + ", ".join(missing_probe))
 if 'throw new z2.GatewayException(503, "native_adapter_unavailable"' not in security:
