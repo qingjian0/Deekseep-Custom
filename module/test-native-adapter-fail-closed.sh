@@ -548,7 +548,7 @@ require(
 )
 require(
     ui,
-    r'一次采集官方客户端请求对象、Transport、异步回调，以及 Local API 请求.*?复制这一份完整诊断报告',
+    r'一次采集官方客户端 Transport、异步回调与 Local API 网关阶段.*?两条轨迹共用同一缓冲区，最后只复制一次报告',
     "the UI explains the one-pass capture and one-report copy workflow",
 )
 require(
