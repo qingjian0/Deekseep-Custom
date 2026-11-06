@@ -83,7 +83,9 @@ required = {
 missing = [label for label, token in required.items() if (token not in source if isinstance(token, str) else not token)]
 if missing:
     raise SystemExit("Missing LAN network lifecycle contract: " + ", ".join(missing))
-if "LocalApiHttpRequestParser.read(in)" not in source:\n    raise SystemExit("Android gateway must delegate HTTP parsing to the JVM-tested parser")\nif "addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)" not in source:
+if "LocalApiHttpRequestParser.read(in)" not in source:
+    raise SystemExit("Android gateway must delegate HTTP parsing to the JVM-tested parser")
+if "addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)" not in source:
     raise SystemExit("LAN network monitor must observe non-VPN local-only networks")
 if "c < 0x21 || c > 0x7e" not in source:
     raise SystemExit("Custom API key validator must accept visible ASCII")
