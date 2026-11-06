@@ -2,6 +2,7 @@ package ds.dsh.DeepSeek;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -25,6 +26,7 @@ public final class RoiDexApkCli {
     private static final int MAX_SELECTED_METHODS = 64;
     private static final int MAX_ANALYSIS_METHODS = 192;
     private static final int MAX_FIRST_HOP_METHODS = 128;
+    private static final int MAX_CROSS_DEX_METHODS = 64;
     private static final long MAX_CODE_UNITS = 20000000L;
     private static final String[] ANCHORS = {
             "chat/completions", "application/json", "Authorization", "messages",
@@ -35,8 +37,8 @@ public final class RoiDexApkCli {
     private RoiDexApkCli() {}
 
     public static void main(String[] args) throws Exception {
-        if (args.length != 2) {
-            System.err.println("usage: RoiDexApkCli <classes.dex> <report.json>");
+        if (args.length != 2 && args.length != 3) {
+            System.err.println("usage: RoiDexApkCli <classes.dex> <report.json> [dex-directory]");
             System.exit(2);
         }
         Path dexPath = Paths.get(args[0]);
@@ -190,6 +192,85 @@ public final class RoiDexApkCli {
         int expandedCalleeCount = directCalleeMethods.size() + transitiveCalleeMethods.size();
         RoiDexCandidateEvidence.Result evidence =
                 RoiDexCandidateEvidence.analyzeSelected(dex, scope, expandedMethods);
+
+        // Resolve cross-DEX callees after local call-graph expansion. Android apps may
+        // place the request dispatcher and transport adapter in different classes*.dex.
+        Map<String, RoiDexFileReader.DexFile> crossDexByMethod =
+                new LinkedHashMap<String, RoiDexFileReader.DexFile>();
+        Map<String, String> crossDexSourceByMethod = new LinkedHashMap<String, String>();
+        Map<RoiDexFileReader.DexFile, Set<String>> crossDexSelections =
+                new LinkedHashMap<RoiDexFileReader.DexFile, Set<String>>();
+        List<RoiDexFileReader.DexFile> crossDexFiles = new ArrayList<RoiDexFileReader.DexFile>();
+        List<String> crossDexScopes = new ArrayList<String>();
+        if (args.length == 3) {
+            Path dexDirectory = Paths.get(args[2]);
+            List<Path> otherDexPaths = new ArrayList<Path>();
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(dexDirectory, "classes*.dex")) {
+                for (Path candidate : stream) {
+                    if (!candidate.getFileName().toString().equals(scope)) otherDexPaths.add(candidate);
+                }
+            }
+            Collections.sort(otherDexPaths, new Comparator<Path>() {
+                @Override public int compare(Path left, Path right) {
+                    return left.getFileName().toString().compareTo(right.getFileName().toString());
+                }
+            });
+            for (Path otherPath : otherDexPaths) {
+                RoiDexFileReader.DexFile otherDex =
+                        RoiDexFileReader.read(Files.readAllBytes(otherPath));
+                String otherScope = otherPath.getFileName().toString();
+                crossDexFiles.add(otherDex);
+                crossDexScopes.add(otherScope);
+                for (RoiDexFileReader.ResolvedMethod method : otherDex.definedMethods) {
+                    String key = method.declaringClassDescriptor + "->" + method.name
+                            + method.prototypeDescriptor;
+                    if (!crossDexByMethod.containsKey(key)) {
+                        crossDexByMethod.put(key, otherDex);
+                        crossDexSourceByMethod.put(key, otherScope);
+                    } else {
+                        // Ambiguous duplicate definitions are not safe to resolve.
+                        crossDexByMethod.remove(key);
+                        crossDexSourceByMethod.remove(key);
+                    }
+                }
+            }
+            int crossSelectedCount = 0;
+            for (RoiDexCandidateEvidence.MethodEvidence method : firstHopEvidence.methods) {
+                for (String callee : method.invokes) {
+                    RoiDexFileReader.DexFile targetDex = crossDexByMethod.get(callee);
+                    if (targetDex == null || crossSelectedCount >= MAX_CROSS_DEX_METHODS) continue;
+                    Set<String> targetSelection = crossDexSelections.get(targetDex);
+                    if (targetSelection == null) {
+                        targetSelection = new LinkedHashSet<String>();
+                        crossDexSelections.put(targetDex, targetSelection);
+                    }
+                    if (targetSelection.add(callee)) crossSelectedCount++;
+                }
+                if (crossSelectedCount >= MAX_CROSS_DEX_METHODS) break;
+            }
+        }
+        List<RoiDexCandidateEvidence.MethodEvidence> allEvidenceMethods =
+                new ArrayList<RoiDexCandidateEvidence.MethodEvidence>(evidence.methods);
+        Map<String, String> crossDexMethodSources = new LinkedHashMap<String, String>();
+        int crossDexAnalyzed = 0;
+        int crossDexFailures = 0;
+        for (Map.Entry<RoiDexFileReader.DexFile, Set<String>> entry : crossDexSelections.entrySet()) {
+            String otherScope = "";
+            for (int i = 0; i < crossDexFiles.size(); i++) {
+                if (crossDexFiles.get(i) == entry.getKey()) {
+                    otherScope = crossDexScopes.get(i);
+                    break;
+                }
+            }
+            RoiDexCandidateEvidence.Result crossEvidence =
+                    RoiDexCandidateEvidence.analyzeSelected(entry.getKey(), otherScope, entry.getValue());
+            allEvidenceMethods.addAll(crossEvidence.methods);
+            crossDexAnalyzed += crossEvidence.analyzedMethods;
+            crossDexFailures += crossEvidence.analysisFailures;
+            for (RoiDexCandidateEvidence.MethodEvidence method : crossEvidence.methods) {
+                crossDexMethodSources.put(method.methodKey, otherScope);
+            }
+        }
         StringBuilder out = new StringBuilder(8192);
         out.append("{\n");
         field(out, "schema", "1", true);
@@ -210,10 +291,10 @@ public final class RoiDexApkCli {
         field(out, "expanded_callee_count", Integer.toString(expandedCalleeCount), true);
         field(out, "direct_callee_count", Integer.toString(directCalleeMethods.size()), true);
         field(out, "transitive_callee_count", Integer.toString(transitiveCalleeMethods.size()), true);
-        field(out, "analysis_method_budget", Integer.toString(MAX_ANALYSIS_METHODS), true);
-        field(out, "candidate_count", Integer.toString(evidence.methods.size()), true);
-        field(out, "analyzed_methods", Integer.toString(evidence.analyzedMethods), true);
-        field(out, "analysis_failures", Integer.toString(evidence.analysisFailures), true);
+        field(out, "analysis_method_budget", Integer.toString(MAX_ANALYSIS_METHODS), true);\n        field(out, "cross_dex_candidate_count", Integer.toString(crossDexMethodSources.size()), true);
+        field(out, "candidate_count", Integer.toString(allEvidenceMethods.size()), true);
+        field(out, "analyzed_methods", Integer.toString(evidence.analyzedMethods + crossDexAnalyzed), true);
+        field(out, "analysis_failures", Integer.toString(evidence.analysisFailures + crossDexFailures), true);
         int invokeFailures = 0;
         for (RoiDexCandidateEvidence.MethodEvidence method : evidence.methods) {
             if (method.invokeAnalysisFailure.length() > 0) invokeFailures++;
@@ -227,9 +308,13 @@ public final class RoiDexApkCli {
             if (i > 0) out.append(",");
             out.append("\n    {");
             out.append("\"method\":").append(quote(method.methodKey));
+            String candidateSourceDex = crossDexMethodSources.get(method.methodKey);
+            out.append(",\"source_dex\":").append(quote(
+                    candidateSourceDex == null ? scope : candidateSourceDex));
             Set<String> methodAnchors = selected.get(method.methodKey);
             out.append(",\"candidate_origin\":")
-                    .append(quote(methodAnchors != null ? "anchor"
+                    .append(quote(candidateSourceDex != null ? "cross_dex_callee"
+                            : methodAnchors != null ? "anchor"
                             : directCalleeMethods.contains(method.methodKey) ? "direct_callee"
                             : transitiveCalleeMethods.contains(method.methodKey) ? "transitive_callee"
                             : "expanded_callee"));
