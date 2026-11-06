@@ -14,18 +14,19 @@ REPORT_TEST="$ROOT/module/tests/nativeprobe/ds/dsh/DeepSeek/NativeProbeReportTes
 DISCOVERY="$ROOT/module/src/ds/dsh/DeepSeek/RoiHostDiscovery.java"
 UI="$ROOT/module/src/ds/dsh/DeepSeek/DeekseepUi.java"
 GATEWAY="$ROOT/module/src/ds/dsh/DeepSeek/OpenLocalApiGateway.java"
+BRIDGE="$ROOT/module/src/ds/dsh/DeepSeek/OpenAiToolBridge.java"
 
 REPORT_OUT="$ROOT/module/build/native-probe-report-test"
 mkdir -p "$REPORT_OUT"
 javac -source 8 -target 8 -nowarn -d "$REPORT_OUT" "$REPORT" "$REPORT_TEST"
 java -cp "$REPORT_OUT" ds.dsh.DeepSeek.NativeProbeReportTest
 
-python - "$MAIN" "$STUB" "$FACADE" "$PROBE" "$Z18" "$HOST_V271" "$CHAT" "$REPORT" "$DISCOVERY" "$UI" "$GATEWAY" <<'PY'
+python - "$MAIN" "$STUB" "$FACADE" "$PROBE" "$Z18" "$HOST_V271" "$CHAT" "$REPORT" "$DISCOVERY" "$UI" "$GATEWAY" "$BRIDGE" <<'PY'
 import pathlib
 import re
 import sys
 
-main, stub, facade, probe, z18, host_v271, chat, report, discovery, ui, gateway = [
+main, stub, facade, probe, z18, host_v271, chat, report, discovery, ui, gateway, bridge = [
     pathlib.Path(path).read_text(encoding="utf-8") for path in sys.argv[1:]
 ]
 
@@ -617,9 +618,14 @@ require(
     "gateway identifies the exact unsupported feature without logging request values",
 )
 require(
-    gateway,
-    r'JSONArray\) \|\| \(\(JSONArray\) tools\)\.length\(\) > 0.*?"none".equals\(toolChoice\)',
-    "empty tools arrays and tool_choice none are harmless defaults",
+    bridge,
+    r"parseDefinitions\(tools, false\).*?if \(tools == null \|\| tools\.length\(\) == 0\) return Collections\.emptyList\(\);",
+    "empty tools arrays produce an empty tool definition set",
+)
+require(
+    bridge,
+    r"if \(tools\.isEmpty\(\)\).*?return new Choice\(Choice\.NONE, null, null\);.*?Choice\.NONE\.equals\(value\)",
+    "empty tools and explicit tool_choice none remain harmless defaults",
 )
 require(
     gateway,
