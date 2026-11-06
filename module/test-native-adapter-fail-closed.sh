@@ -206,7 +206,7 @@ require(
 )
 require(
     probe,
-    r'line\(out, "report\.schema", "6"\)',
+    r'line\(out, "report\.schema", "7"\)',
     "probe report schema is versioned",
 )
 require(
@@ -527,8 +527,8 @@ if "callback.toString()" in probe or "receiver.toString()" in probe:
 
 require(
     probe,
-    r'line\(out, "report\.schema", "6"\).*?diagnostic\.coverage.*?diagnostic\.sensitive_data.*?diagnostic\.callback_hook_limits.*?max-12-methods-per-class.*?no-superclass-traversal',
-    "schema 6 declares bounded concrete-callback and value-free event-shape capture",
+    r'line\(out, "report\.schema", "7"\).*?diagnostic\.coverage.*?diagnostic\.sensitive_data.*?diagnostic\.callback_hook_limits.*?max-12-methods-per-class.*?no-superclass-traversal',
+    "schema 7 declares bounded concrete-callback and value-free event-shape capture",
 )
 require(
     probe,
@@ -542,7 +542,7 @@ require(
 )
 require(
     probe,
-    r'onExplicitEnable\(ClassLoader loader\).*?resetRuntimeTrace\(\).*?private static void resetRuntimeTrace\(\).*?OBSERVATION_LOG\.setLength\(0\).*?CALLBACK_METHOD_INVOCATIONS\.set\(0\).*?API_TRACE_EVENTS\.set\(0\).*?session-start schema=6',
+    r'onExplicitEnable\(ClassLoader loader\).*?resetRuntimeTrace\(\).*?private static void resetRuntimeTrace\(\).*?OBSERVATION_LOG\.setLength\(0\).*?CALLBACK_METHOD_INVOCATIONS\.set\(0\).*?API_TRACE_EVENTS\.set\(0\).*?session-start schema=7',
     "each explicit enable starts a clean report session without uninstalling transparent hooks",
 )
 require(
