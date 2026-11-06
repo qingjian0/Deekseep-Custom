@@ -5,7 +5,8 @@ public final class RoiDexSerializerMapperTest {
         requestConstructorShape();directElementIndexMapping();checkCastSerializableElementMapping();
         dynamicSwitchElementIndexMapping();multipleDecodeCallsForOneSwitchCaseRejected();
         duplicateSwitchTargetRejected();
-        switchTargetWithAlternatePredecessorRejected();incompleteElementCoverageRejected();duplicateElementIdentityRejected();
+        switchTargetWithAlternatePredecessorRejected();incompleteElementCoverageRejected();
+        incompleteElementRegistrationRejected();duplicateElementIdentityRejected();
         System.out.println("RoiDexSerializerMapperTest: PASS");
     }
 
@@ -163,6 +164,34 @@ public final class RoiDexSerializerMapperTest {
                 index->method(index),twoElements(),provenance);
         yes(!result.complete);
         yes(hasRejection(result,"constructor_parameter_element_count_mismatch"));
+    }
+
+    static void incompleteElementRegistrationRejected()throws Exception {
+        RoiDexCodeReader.CodeItem code=code(new short[]{
+                (short)0x0012,
+                (short)0x036e,1,(short)0x0032,
+                (short)0x010c,
+                (short)0x0270,2,(short)0x0014,
+                (short)0x000e
+        },5);
+        RoiDexValueProvenance.Result provenance=provenance(code,index->method(index));
+        java.util.List<RoiDexSerializerElementIndex.Element> values=
+                java.util.Collections.singletonList(new RoiDexSerializerElementIndex.Element(
+                        0,0,1,"chat_session_id","LDescriptor;"));
+        java.util.List<RoiDexSerializerElementIndex.Rejected> rejected=
+                java.util.Collections.singletonList(new RoiDexSerializerElementIndex.Rejected(
+                        1,4,"element_name_unresolved:test"));
+        RoiDexSerializerElementIndex.Result incomplete=new RoiDexSerializerElementIndex.Result(
+                values,rejected,true);
+        yes(incomplete.registrationOrderProven);
+        yes(!incomplete.complete);
+        try {
+            RoiDexSerializerMapper.analyze(code,"Lx;",index->method(index),incomplete,provenance);
+        } catch(RoiDexSerializerMapper.AnalysisException expected) {
+            yes(expected.getMessage().contains("registration_incomplete"));
+            return;
+        }
+        throw new AssertionError("incomplete element registration must be rejected");
     }
 
     static void duplicateElementIdentityRejected()throws Exception {
