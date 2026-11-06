@@ -498,9 +498,17 @@ final class OpenLocalApiGateway {
                 sendError(out, 405, "method_not_allowed", "Only GET and POST are supported");
                 return;
             }
-            String supplied = bearer(request.headers.get("authorization"));
+            boolean anthropicRoute = "POST".equals(request.method)
+                    && "/v1/messages".equals(request.path);
+            String supplied = anthropicRoute
+                    ? request.headers.get("x-api-key") : bearer(request.headers.get("authorization"));
+            if (anthropicRoute && (supplied == null || supplied.length() == 0)) {
+                supplied = bearer(request.headers.get("authorization"));
+            }
             if (token == null || !constantTimeEquals(token, supplied)) {
-                sendError(out, 401, "invalid_api_key", "Invalid bearer token");
+                if (anthropicRoute) sendAnthropicError(out, 401, "authentication_error",
+                        "Invalid API key");
+                else sendError(out, 401, "invalid_api_key", "Invalid bearer token");
                 return;
             }
             OpenNativeCompletionProbe.apiTrace("http-authenticated method=" + request.method
@@ -524,6 +532,10 @@ final class OpenLocalApiGateway {
             }
             if ("POST".equals(request.method) && "/v1/responses".equals(request.path)) {
                 handleResponses(out, request);
+                return;
+            }
+            if (anthropicRoute) {
+                handleAnthropicMessages(out, request);
                 return;
             }
             if (!"POST".equals(request.method)
@@ -745,6 +757,240 @@ final class OpenLocalApiGateway {
                     + error.getClass().getName()
                     + " durationMs=" + ((System.nanoTime() - requestStartedNanos) / 1000000L));
         }
+    }
+
+    private static void handleAnthropicMessages(OutputStream out, HttpRequest request)
+            throws Exception {
+        String version = request.headers.get("anthropic-version");
+        if (version == null || version.trim().length() == 0 || version.length() > 32) {
+            sendAnthropicError(out, 400, "invalid_request_error",
+                    "anthropic-version header is required");
+            return;
+        }
+        String contentType = request.headers.get("content-type");
+        String mediaType = contentType == null ? ""
+                : contentType.split(";", 2)[0].trim();
+        if (contentType != null && !"application/json".equalsIgnoreCase(mediaType)) {
+            sendAnthropicError(out, 415, "invalid_request_error",
+                    "Content-Type must be application/json");
+            return;
+        }
+        JSONObject body;
+        try {
+            body = new JSONObject(new String(request.body, StandardCharsets.UTF_8));
+        } catch (Exception invalid) {
+            sendAnthropicError(out, 400, "invalid_request_error",
+                    "Request body must be valid JSON");
+            return;
+        }
+        final AnthropicMessagesAdapter.Request normalized;
+        try {
+            normalized = AnthropicMessagesAdapter.parse(body);
+        } catch (z2.GatewayException invalid) {
+            sendAnthropicError(out, invalid.status, "invalid_request_error",
+                    invalid.getMessage());
+            return;
+        } catch (Exception invalid) {
+            sendAnthropicError(out, 400, "invalid_request_error",
+                    "Invalid Anthropic Messages request");
+            return;
+        }
+        String requestId = "msg_" + UUID.randomUUID().toString().replace("-", "");
+        z2.CompletionRequest completion = new z2.CompletionRequest(
+                requestId, normalized.model, "default", normalized.prompt, normalized.prompt,
+                normalized.reasoning, false, normalized.maxTokens,
+                normalized.toolPlan, null, false);
+        z2.Backend current = backend;
+        if (current == null || !current.isReady()) {
+            sendAnthropicError(out, 503, "api_error",
+                    current == null ? "Model backend unavailable" : current.readinessDetail());
+            return;
+        }
+        if (normalized.stream) {
+            streamAnthropicMessages(out, current, completion, normalized, requestId);
+            return;
+        }
+        long started = System.nanoTime();
+        final z2.CompletionResult result;
+        try {
+            result = current.complete(completion, null);
+        } catch (z2.GatewayException rejected) {
+            sendAnthropicError(out, rejected.status, "api_error", rejected.getMessage());
+            return;
+        } catch (Exception failure) {
+            sendAnthropicError(out, 502, "api_error", "Native model execution failed");
+            OpenNativeCompletionProbe.apiTrace("anthropic-completion-failed requestId="
+                    + requestId + " exception=" + failure.getClass().getName()
+                    + " durationMs=" + ((System.nanoTime() - started) / 1000000L));
+            return;
+        }
+        if (result == null) {
+            sendAnthropicError(out, 502, "api_error", "Native model returned no result");
+            return;
+        }
+        List<OpenAiToolBridge.Call> calls =
+                OpenAiToolBridge.parseCalls(result.text, normalized.toolPlan);
+        if (normalized.toolPlan.active() && calls.isEmpty()
+                && (normalized.toolPlan.choice.requiresCall()
+                || OpenAiToolBridge.resemblesCallSyntax(result.text, normalized.toolPlan))) {
+            sendAnthropicError(out, 502, "api_error",
+                    "The model did not return a valid tool call matching the request schema");
+            return;
+        }
+        JSONArray content = anthropicContent(result, calls);
+        String stopReason = !calls.isEmpty() ? "tool_use"
+                : "length".equals(result.finishReason) ? "max_tokens" : "end_turn";
+        JSONObject message = new JSONObject().put("id", requestId)
+                .put("type", "message").put("role", "assistant")
+                .put("model", normalized.model).put("content", content)
+                .put("stop_reason", stopReason).put("stop_sequence", JSONObject.NULL);
+        // The current z2.Backend contract does not expose tokenizer usage. Omit usage rather
+        // than fabricate token counts; exact usage is a separate backend-contract extension.
+        sendJson(out, 200, message);
+        OpenNativeCompletionProbe.apiTrace("anthropic-completion-complete requestId="
+                + requestId + " durationMs=" + ((System.nanoTime() - started) / 1000000L)
+                + " textChars=" + result.text.length()
+                + " reasoningChars=" + result.reasoning.length()
+                + " toolCalls=" + calls.size());
+    }
+
+    private static JSONArray anthropicContent(z2.CompletionResult result,
+            List<OpenAiToolBridge.Call> calls) throws Exception {
+        JSONArray content = new JSONArray();
+        if (result.reasoning.length() > 0) {
+            content.put(new JSONObject().put("type", "thinking")
+                    .put("thinking", result.reasoning));
+        }
+        if (result.text.length() > 0 && calls.isEmpty()) {
+            content.put(new JSONObject().put("type", "text").put("text", result.text));
+        }
+        for (OpenAiToolBridge.Call call : calls) {
+            JSONObject input;
+            try { input = new JSONObject(call.arguments); }
+            catch (Exception invalid) { input = new JSONObject(); }
+            content.put(new JSONObject().put("type", "tool_use")
+                    .put("id", call.callId).put("name", call.name).put("input", input));
+        }
+        if (content.length() == 0) {
+            content.put(new JSONObject().put("type", "text").put("text", ""));
+        }
+        return content;
+    }
+
+    private static void streamAnthropicMessages(OutputStream out, z2.Backend current,
+            z2.CompletionRequest completion, AnthropicMessagesAdapter.Request normalized,
+            String requestId) throws Exception {
+        writeHeaders(out, 200, "text/event-stream; charset=utf-8");
+        final AtomicBoolean disconnected = new AtomicBoolean(false);
+        final StringBuilder streamedText = new StringBuilder();
+        final StringBuilder streamedThinking = new StringBuilder();
+        final int[] nextBlock = {0};
+        final int[] textBlock = {-1};
+        final int[] thinkingBlock = {-1};
+        sendAnthropicEvent(out, "message_start", new JSONObject().put("type", "message_start")
+                .put("message", new JSONObject().put("id", requestId)
+                        .put("type", "message").put("role", "assistant")
+                        .put("model", normalized.model).put("content", new JSONArray())
+                        .put("stop_reason", JSONObject.NULL).put("stop_sequence", JSONObject.NULL)));
+        sendAnthropicEvent(out, "ping", new JSONObject().put("type", "ping"));
+        z2.DeltaSink sink = new z2.DeltaSink() {
+            private boolean emitThinking(String delta) throws Exception {
+                if (disconnected.get() || delta == null || delta.length() == 0) return !disconnected.get();
+                if (thinkingBlock[0] < 0) {
+                    thinkingBlock[0] = nextBlock[0]++;
+                    sendAnthropicEvent(out, "content_block_start",
+                            new JSONObject().put("type", "content_block_start")
+                                    .put("index", thinkingBlock[0])
+                                    .put("content_block", new JSONObject()
+                                            .put("type", "thinking").put("thinking", "")));
+                }
+                streamedThinking.append(delta);
+                sendAnthropicEvent(out, "content_block_delta",
+                        new JSONObject().put("type", "content_block_delta")
+                                .put("index", thinkingBlock[0])
+                                .put("delta", new JSONObject().put("type", "thinking_delta")
+                                        .put("thinking", delta)));
+                return true;
+            }
+            private boolean emitText(String delta) throws Exception {
+                if (disconnected.get() || delta == null || delta.length() == 0) return !disconnected.get();
+                if (textBlock[0] < 0) {
+                    textBlock[0] = nextBlock[0]++;
+                    sendAnthropicEvent(out, "content_block_start",
+                            new JSONObject().put("type", "content_block_start")
+                                    .put("index", textBlock[0])
+                                    .put("content_block", new JSONObject()
+                                            .put("type", "text").put("text", "")));
+                }
+                streamedText.append(delta);
+                sendAnthropicEvent(out, "content_block_delta",
+                        new JSONObject().put("type", "content_block_delta")
+                                .put("index", textBlock[0])
+                                .put("delta", new JSONObject().put("type", "text_delta")
+                                        .put("text", delta)));
+                return true;
+            }
+            @Override public boolean onText(String delta) throws Exception {
+                try { return emitText(delta); }
+                catch (Exception failure) { disconnected.set(true); return false; }
+            }
+            @Override public boolean onReasoning(String delta) throws Exception {
+                try { return emitThinking(delta); }
+                catch (Exception failure) { disconnected.set(true); return false; }
+            }
+            @Override public boolean isCancelled() { return disconnected.get(); }
+        };
+        try {
+            z2.CompletionResult result = current.complete(completion, sink);
+            if (result == null) throw new z2.GatewayException(502,
+                    "empty_upstream_response", "Native model returned no result");
+            if (disconnected.get()) return;
+            if (streamedThinking.length() == 0 && result.reasoning.length() > 0) {
+                sink.onReasoning(result.reasoning);
+            }
+            if (streamedText.length() == 0 && result.text.length() > 0) {
+                sink.onText(result.text);
+            }
+            if (thinkingBlock[0] >= 0) {
+                sendAnthropicEvent(out, "content_block_stop",
+                        new JSONObject().put("type", "content_block_stop")
+                                .put("index", thinkingBlock[0]));
+            }
+            if (textBlock[0] >= 0) {
+                sendAnthropicEvent(out, "content_block_stop",
+                        new JSONObject().put("type", "content_block_stop")
+                                .put("index", textBlock[0]));
+            }
+            String stopReason = "length".equals(result.finishReason) ? "max_tokens" : "end_turn";
+            sendAnthropicEvent(out, "message_delta",
+                    new JSONObject().put("type", "message_delta")
+                            .put("delta", new JSONObject().put("stop_reason", stopReason)
+                                    .put("stop_sequence", JSONObject.NULL)));
+            sendAnthropicEvent(out, "message_stop", new JSONObject().put("type", "message_stop"));
+        } catch (Exception failure) {
+            if (!disconnected.get()) {
+                String type = failure instanceof z2.GatewayException
+                        ? "api_error" : "api_error";
+                sendAnthropicEvent(out, "error", new JSONObject().put("type", "error")
+                        .put("error", new JSONObject().put("type", type)
+                                .put("message", "Model execution failed")));
+            }
+        }
+        if (!disconnected.get()) out.flush();
+    }
+
+    private static void sendAnthropicEvent(OutputStream out, String event,
+            JSONObject payload) throws Exception {
+        byte[] bytes = ("event: " + event + "\ndata: " + payload.toString() + "\n\n")
+                .getBytes(StandardCharsets.UTF_8);
+        synchronized (out) { out.write(bytes); out.flush(); }
+    }
+
+    private static void sendAnthropicError(OutputStream out, int status, String type,
+            String message) throws Exception {
+        sendJson(out, status, new JSONObject().put("type", "error")
+                .put("error", new JSONObject().put("type", type == null ? "api_error" : type)
+                        .put("message", message == null ? "Request failed" : message)));
     }
 
     private static void handleResponses(OutputStream out, HttpRequest request)
