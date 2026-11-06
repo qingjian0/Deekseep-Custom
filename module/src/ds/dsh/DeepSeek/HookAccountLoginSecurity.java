@@ -1709,7 +1709,15 @@ Main.log("[RISK] Android ID spoof installed");
                         String value = intent.getStringExtra(z21.EXTRA_VALUE);
                         String protocol = intent.getStringExtra(
                                 z21.EXTRA_PROTOCOL);
-                        if ((operation == null || operation.length() == 0)
+                        if ("Open".equals(BuildInfo.BUILD_EDITION)
+                                && (z21.OP_SET_HTTPS.equals(operation)
+                                    || z21.OP_SET_PROTOCOL.equals(operation)
+                                    || ((operation == null || operation.length() == 0)
+                                        && (z2.PROTOCOL_OPENAI.equals(protocol)
+                                            || z2.PROTOCOL_ANTHROPIC.equals(protocol))))) {
+                            success = false;
+                            message = "Open 版当前仅支持 HTTP + OpenAI Chat Completions";
+                        } else if ((operation == null || operation.length() == 0)
                                 && (z2.PROTOCOL_OPENAI.equals(protocol)
                                 || z2.PROTOCOL_ANTHROPIC.equals(protocol))) {
                             z13.setProtocolMode(context, protocol);
