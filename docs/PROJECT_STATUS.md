@@ -530,3 +530,11 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 以上是源码修复与设置引导；仍需在具体小米设备/系统版本上实测服务启动、进程回收和重启恢复。
 
 - 追加修复：开机后若宿主进程 90 秒内未确认心跳，模块前台服务不再清除用户的保活开关并自行退出；保留用户授权状态，继续按间隔重试。只有宿主明确返回 API disabled 或用户主动关闭时才停止。
+
+
+### 2026-11-06：z20 前台保活组件故障定位
+
+- 用户实机反馈 `ActivityNotFoundException`，明确失败发生在 DeepSeek 宿主启动模块的 `ds.dsh.DeepSeek.z20` Activity 时，早于 MIUI/HyperOS 电池策略与 `z21` 前台服务启动；不能把它误判为省电策略杀进程。
+- 源码核对：Launcher Manifest 声明了 `z20`，Open 构建的 `localApiComponentEnabled` 计算结果应为 true，Open R8 规则保留 `ds.dsh.DeepSeek.**`。但旧安装包的最终合并 Manifest / DEX 是否真的包含并启用该组件，尚无设备侧证据。
+- CI 增加最终 Open APK 检查：使用 AAPT 检查 APK 中存在 `z20` Activity 与 `z21` Service 声明，并检查任一 DEX 实际包含 `Lds/dsh/DeepSeek/z20;`。不再只检查源码 Manifest。
+- 结论：这次提交提高后续 APK 的构建验收能力；在新 APK 通过检查并安装前，不宣称用户设备上的 ActivityNotFoundException 已修复。
