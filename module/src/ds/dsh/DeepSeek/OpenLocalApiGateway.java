@@ -655,7 +655,7 @@ final class OpenLocalApiGateway {
                 synchronized (out) { out.write(bytes); out.flush(); }
             }
             @Override public boolean onText(String delta) throws Exception {
-                try { send("content", delta); return true; }
+                try { send("content", delta); return !disconnected.get(); }
                 catch (Exception failure) { disconnected.set(true); return false; }
             }
             @Override public boolean onReasoning(String delta) {
