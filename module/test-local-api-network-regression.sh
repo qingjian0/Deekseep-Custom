@@ -91,6 +91,23 @@ if "InetAddress.getByName(\"0.0.0.0\")" in source:
 # formatting/line wrapping. The address argument is separately asserted above.
 if "new ServerSocket(configuredPort, 16," not in source:
     raise SystemExit("LAN socket must use the configured port and bounded backlog")
+tool_bridge = (pathlib.Path(sys.argv[1]).parent / "OpenAiToolBridge.java").read_text(encoding="utf-8")
+bridge_required = {
+    "ported tool bridge retains MIT copyright": "Copyright (c) 2026 haoyangtu09-art",
+    "ported tool bridge retains MIT permission grant": "Permission is hereby granted, free of charge",
+    "tool plan implements the shared backend contract": "static final class Plan implements z2.ToolPlan",
+    "tool plan exposes backend readiness": "public boolean active()",
+    "Chat Completions tool definitions are parsed": "static Plan chatPlan(",
+    "Responses tool definitions are parsed": "static Plan responsesPlan(",
+    "tool calls are parsed against request-scoped definitions": "static List<Call> parseCalls(",
+    "tool arguments are schema-validated": "static boolean validArguments(",
+    "forced tool choice is enforced": "static boolean forcedChoiceAllows(",
+}
+missing_bridge = [label for label, token in bridge_required.items() if token not in tool_bridge]
+if missing_bridge:
+    raise SystemExit("Missing OpenAI tool bridge contract: " + ", ".join(missing_bridge))
+if "LocalApiGateway.GatewayException" in tool_bridge:
+    raise SystemExit("Ported tool bridge still depends on the reference gateway class")
 main = (pathlib.Path(sys.argv[1]).parent / "Main.java").read_text(encoding="utf-8")
 security = (pathlib.Path(sys.argv[1]).parent / "HookAccountLoginSecurity.java").read_text(encoding="utf-8")
 if 'localApiFloatingWindowError = "";' not in security:
