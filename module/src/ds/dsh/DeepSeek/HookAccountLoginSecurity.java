@@ -494,13 +494,13 @@ final class HookAccountLoginSecurity {
     }
 
     static String setLocalApiHttpsEnabled(Context context, boolean enabled) {
+        if (context == null) return UiLanguage.text(
+                "DeepSeek 上下文尚未就绪", "DeepSeek context is not ready");
         if ("Open".equals(BuildInfo.BUILD_EDITION) && !BuildInfo.LOCAL_API_INCLUDED) {
             return UiLanguage.text(context,
                     "Open 版当前仅支持 HTTP，HTTPS 暂不可用",
                     "Open currently supports HTTP only; HTTPS is unavailable");
         }
-        if (context == null) return UiLanguage.text(
-                "DeepSeek 上下文尚未就绪", "DeepSeek context is not ready");
         try {
             z5.setEnabled(context, enabled);
             if (z13.isRunning()) z13.stop();
