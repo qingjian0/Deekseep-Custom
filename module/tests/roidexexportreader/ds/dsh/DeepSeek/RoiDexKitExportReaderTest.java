@@ -10,6 +10,7 @@ public final class RoiDexKitExportReaderTest {
         testDexCountMismatch();
         testFilenameLengthMismatch();
         testMalformedDexRejected();
+        testOversizedIdTableRejected();
         System.out.println("RoiDexKitExportReaderTest: PASS");
     }
 
@@ -58,6 +59,17 @@ public final class RoiDexKitExportReaderTest {
         expectFailure(parent, 1,
                 directory -> write(new File(directory, "classes_112.dex"), invalid),
                 "exported_dex_invalid");
+        assertEmpty(parent);
+        delete(parent);
+    }
+
+    private static void testOversizedIdTableRejected() throws Exception {
+        File parent = testParent("oversized-table");
+        byte[] oversized = fixture(112);
+        put32(oversized, 88, 65_536);
+        expectFailure(parent, 1,
+                directory -> write(new File(directory, "classes_112.dex"), oversized),
+                "dex_id_table_count_out_of_bounds");
         assertEmpty(parent);
         delete(parent);
     }
