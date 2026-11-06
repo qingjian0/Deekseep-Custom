@@ -495,9 +495,11 @@ require(
 
 require(
     probe,
-    r'installCallbackObserver\(Object callback, String role\).*?while \(current != null && current != Object\.class\).*?getDeclaredMethods\(\).*?chain\.getThisObject\(\).*?System\.identityHashCode\(receiver\)',
-    "continuation callback implementations are traced across the complete class hierarchy without probe-imposed class or method caps",
+    r'installCallbackObserver\\(Object callback, String role\\).*?MAX_CALLBACK_METHODS_PER_CLASS = 12.*?type\\.getDeclaredMethods\\(\\).*?parameters\\.length < 1.*?parameters\\.length > 2.*?installed >= MAX_CALLBACK_METHODS_PER_CLASS.*?chain\\.getThisObject\\(\\).*?System\\.identityHashCode\\(receiver\\)',
+    "callback observation is restricted to bounded one/two-argument methods declared by the concrete callback class",
 )
+if re.search(r'installCallbackObserver\\(Object callback, String role\\).*?while \\(current != null && current != Object\\.class\\)', probe, re.S):
+    raise SystemExit("callback observer must not traverse callback superclasses")
 require(
     probe,
     r'callback-enter role=.*?observedArgumentTypes\(args\).*?callback-exit role=.*?durationMs=.*?callback-throw role=.*?exception=',
@@ -513,8 +515,8 @@ if "callback.toString()" in probe or "receiver.toString()" in probe:
 
 require(
     probe,
-    r'line\(out, "report\.schema", "4"\).*?diagnostic\.coverage.*?diagnostic\.sensitive_data.*?diagnostic\.callback_discovery_limits.*?none-imposed-by-probe',
-    "schema 4 identifies uncapped persistent native, callback, and gateway capture",
+    r'line\\(out, "report\\.schema", "5"\\).*?diagnostic\\.coverage.*?diagnostic\\.sensitive_data.*?diagnostic\\.callback_hook_limits.*?max-12-methods-per-class.*?no-superclass-traversal',
+    "schema 5 declares bounded concrete-callback hook coverage and persistent selected-method capture",
 )
 require(
     probe,
@@ -528,13 +530,13 @@ require(
 )
 require(
     probe,
-    r'onExplicitEnable\(ClassLoader loader\).*?resetRuntimeTrace\(\).*?private static void resetRuntimeTrace\(\).*?OBSERVATION_LOG\.setLength\(0\).*?CALLBACK_METHOD_INVOCATIONS\.set\(0\).*?API_TRACE_EVENTS\.set\(0\).*?session-start schema=4',
+    r'onExplicitEnable\(ClassLoader loader\).*?resetRuntimeTrace\(\).*?private static void resetRuntimeTrace\(\).*?OBSERVATION_LOG\.setLength\(0\).*?CALLBACK_METHOD_INVOCATIONS\.set\(0\).*?API_TRACE_EVENTS\.set\(0\).*?session-start schema=5',
     "each explicit enable starts a clean report session without uninstalling transparent hooks",
 )
 require(
     probe,
-    r'while \(current != null && current != Object\.class\).*?for \(Method method : methods\).*?Main\.MODULE\.hook\(target\)',
-    "callback discovery and hook installation do not impose fixed class, method, or hook-count limits",
+    r'MAX_CALLBACK_METHODS_PER_CLASS = 12.*?getDeclaredMethods\\(\\).*?installed >= MAX_CALLBACK_METHODS_PER_CLASS.*?scope=concrete-class-declared-only',
+    "callback instrumentation applies an explicit per-concrete-class method cap and never hooks inherited methods",
 )
 require(
     gateway,
