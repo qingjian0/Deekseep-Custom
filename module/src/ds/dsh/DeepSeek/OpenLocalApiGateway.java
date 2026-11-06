@@ -887,7 +887,10 @@ final class OpenLocalApiGateway {
     }
     private static void sendError(OutputStream out, int status, String code, String message)
             throws Exception {
-        sendError(out, status, code, "invalid_request_error", message);
+        String type = status >= 500 ? "server_error"
+                : status == 401 ? "authentication_error"
+                : status == 403 ? "permission_error" : "invalid_request_error";
+        sendError(out, status, code, type, message);
     }
 
     private static void sendError(OutputStream out, int status, String code, String type,
