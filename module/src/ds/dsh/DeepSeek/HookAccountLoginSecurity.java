@@ -494,6 +494,11 @@ final class HookAccountLoginSecurity {
     }
 
     static String setLocalApiHttpsEnabled(Context context, boolean enabled) {
+        if ("Open".equals(BuildInfo.BUILD_EDITION) && !BuildInfo.LOCAL_API_INCLUDED) {
+            return UiLanguage.text(context,
+                    "Open 版当前仅支持 HTTP，HTTPS 暂不可用",
+                    "Open currently supports HTTP only; HTTPS is unavailable");
+        }
         if (context == null) return UiLanguage.text(
                 "DeepSeek 上下文尚未就绪", "DeepSeek context is not ready");
         try {
@@ -1726,6 +1731,11 @@ Main.log("[RISK] Android ID spoof installed");
                             message = success
                                     ? (enabled ? "本地 API 已开启" : "本地 API 已关闭")
                                     : "本地 API 启停失败，请查看运行状态";
+                        } else if ("Open".equals(BuildInfo.BUILD_EDITION)
+                                && (z21.OP_SET_HTTPS.equals(operation)
+                                || z21.OP_SET_PROTOCOL.equals(operation))) {
+                            success = false;
+                            message = "Open 版当前仅支持 HTTP + OpenAI Chat Completions";
                         } else if (z21.OP_SET_PROTOCOL.equals(operation)
                                 && (z2.PROTOCOL_OPENAI.equals(value)
                                 || z2.PROTOCOL_ANTHROPIC.equals(value))) {
@@ -1782,7 +1792,9 @@ Main.log("[RISK] Android ID spoof installed");
                             details.putString(z21.DETAIL_RUNTIME, localApiRuntimeStatus());
                             details.putString(z21.DETAIL_API_KEY, z13.apiKey());
                             details.putString(z21.DETAIL_PROTOCOL, z13.protocolMode());
-                            details.putBoolean("https_enabled", z5.isEnabled(context));
+                            details.putBoolean("https_enabled",
+                                    !"Open".equals(BuildInfo.BUILD_EDITION)
+                                            && z5.isEnabled(context));
                             ordered.setResultExtras(details);
                         }
                         return null;
