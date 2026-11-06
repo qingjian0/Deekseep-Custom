@@ -133,6 +133,7 @@ final class OpenLocalApiGateway {
         clients = null;
         if (pool != null) pool.shutdownNow();
         backend = null;
+        RESPONSE_STATES.clear();
         boundPort = 0;
         lastStartError = "";
     }
