@@ -20,7 +20,7 @@ import java.util.Set;
  */
 public final class RoiDexApkCli {
     private static final int MAX_METHODS_SCANNED = 150000;
-    private static final int MAX_SELECTED_METHODS = 32;
+    private static final int MAX_SELECTED_METHODS = 64;
     private static final long MAX_CODE_UNITS = 20000000L;
     private static final String[] ANCHORS = {
             "chat/completions", "application/json", "Authorization", "messages",
@@ -82,10 +82,28 @@ public final class RoiDexApkCli {
             if (!hits.isEmpty()) {
                 String key = method.declaringClassDescriptor + "->" + method.name
                         + method.prototypeDescriptor;
-                selected.put(key, hits);
-                if (selected.size() >= MAX_SELECTED_METHODS) {
-                    truncated = true;
-                    break;
+                Set<String> existing = selected.get(key);
+                if (existing != null) {
+                    existing.addAll(hits);
+                } else if (selected.size() < MAX_SELECTED_METHODS) {
+                    selected.put(key, hits);
+                } else {
+                    // Scan the full bounded DEX instead of stopping at the first 32
+                    // matches. Keep the highest-value request/transport anchors.
+                    int incomingPriority = anchorPriority(hits);
+                    String lowestKey = null;
+                    int lowestPriority = Integer.MAX_VALUE;
+                    for (Map.Entry<String, Set<String>> entry : selected.entrySet()) {
+                        int priority = anchorPriority(entry.getValue());
+                        if (priority < lowestPriority) {
+                            lowestPriority = priority;
+                            lowestKey = entry.getKey();
+                        }
+                    }
+                    if (lowestKey != null && incomingPriority > lowestPriority) {
+                        selected.remove(lowestKey);
+                        selected.put(key, hits);
+                    }
                 }
             }
         }
@@ -95,7 +113,7 @@ public final class RoiDexApkCli {
                 RoiDexCandidateEvidence.analyzeSelected(dex, scope, selected.keySet());
         StringBuilder out = new StringBuilder(8192);
         out.append("{\n");
-        field(out, "schema", "1", false);
+        field(out, "schema", "1", true);
         field(out, "stage", quote("roi-dex-static-candidate-scan"), true);
         field(out, "source_scope", quote(scope), true);
         field(out, "dex_version", quote(dex.header.version), true);
@@ -105,6 +123,7 @@ public final class RoiDexApkCli {
         field(out, "code_units_scanned", Long.toString(codeUnits), true);
         field(out, "instruction_scan_failures", Integer.toString(scanFailures), true);
         field(out, "scan_truncated", Boolean.toString(truncated), true);
+        field(out, "candidate_selection_budget", Integer.toString(MAX_SELECTED_METHODS), true);
         field(out, "candidate_count", Integer.toString(evidence.methods.size()), true);
         field(out, "analyzed_methods", Integer.toString(evidence.analyzedMethods), true);
         field(out, "analysis_failures", Integer.toString(evidence.analysisFailures), true);
@@ -122,6 +141,8 @@ public final class RoiDexApkCli {
             out.append("\n    {");
             out.append("\"method\":").append(quote(method.methodKey));
             out.append(",\"anchors\":").append(stringArray(selected.get(method.methodKey)));
+            out.append(",\"anchor_priority\":")
+                    .append(anchorPriority(selected.get(method.methodKey)));
             out.append(",\"analysis_status\":")
                     .append(quote(method.analysis == null ? "failed_or_missing_code" : "analyzed"));
             out.append(",\"analysis_failure\":").append(quote(method.analysisFailure));
@@ -151,6 +172,21 @@ public final class RoiDexApkCli {
                 + " analyzed=" + evidence.analyzedMethods
                 + " failures=" + evidence.analysisFailures
                 + " hookAuthorization=false");
+    }
+
+    private static int anchorPriority(Set<String> hits) {
+        if (hits == null) return 0;
+        int score = 0;
+        if (hits.contains("chat/completions")) score += 1000;
+        if (hits.contains("parent_message_id")) score += 900;
+        if (hits.contains("thinking_enabled")) score += 850;
+        if (hits.contains("search_enabled")) score += 850;
+        if (hits.contains("preempt")) score += 800;
+        if (hits.contains("chat_session_id")) score += 700;
+        if (hits.contains("messages")) score += 650;
+        if (hits.contains("Authorization")) score += 300;
+        if (hits.contains("application/json")) score += 200;
+        return score;
     }
 
     private static int u16(short value) { return value & 0xffff; }
