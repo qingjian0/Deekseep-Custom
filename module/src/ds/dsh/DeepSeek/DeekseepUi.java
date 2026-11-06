@@ -3154,6 +3154,28 @@ public final class DeekseepUi {
                 "用于定位官方客户端请求对象、传输层与 PoW 管理器。不会读取聊天内容、账号凭据或请求参数。请先打开 DeepSeek 主界面并等待注入完成，再复制诊断信息。",
                 textColor, dark);
         card.addView(nativeProbeHelp, insetParams(act, 0, 8));
+        card.addView(configurableSwitchRow(act, "启用原生适配诊断探针",
+                "默认关闭。开启后仅对国内版 DeepSeek 2.7.2（code289）安装只读调用观察；关闭后已安装观察器立即透传，不记录调用信息。",
+                Main.isOpenNativeCompletionProbeEnabled(), textColor, subColor, dark,
+                new CompoundButton.OnCheckedChangeListener() {
+                    private boolean reverting;
+                    @Override public void onCheckedChanged(
+                            CompoundButton button, boolean checked) {
+                        if (reverting) return;
+                        if (Main.setOpenNativeCompletionProbeEnabled(checked)) {
+                            Toast.makeText(act, checked
+                                    ? "原生适配诊断探针已开启"
+                                    : "原生适配诊断探针已关闭",
+                                    Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        reverting = true;
+                        button.setChecked(!checked);
+                        reverting = false;
+                        Toast.makeText(act, "原生适配诊断探针开关保存失败",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                }, null, null));
         LinearLayout nativeProbeActions = new LinearLayout(act);
         nativeProbeActions.setOrientation(LinearLayout.HORIZONTAL);
         nativeProbeActions.setPadding(dp(act, 16), dp(act, 4), dp(act, 16), dp(act, 14));
