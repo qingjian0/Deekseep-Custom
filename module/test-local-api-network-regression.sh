@@ -144,5 +144,10 @@ gateway_checks = {
 missing_gateway = [label for label, ok in gateway_checks.items() if not ok]
 if missing_gateway:
     raise SystemExit("Missing API protocol behavior: " + ", ".join(missing_gateway))
-print("LAN lifecycle, key, URL, selectable UI, and API protocol source checks passed")
+ui_open = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
+if "Responses API、Anthropic Messages、工具调用和多模态尚未实现" not in ui_open:
+    raise SystemExit("Open UI must not advertise unimplemented API protocols")
+if "原生执行适配器尚未接通" not in ui_open:
+    raise SystemExit("Open UI must disclose that native completion is not connected")
+print("LAN lifecycle, key, URL, selectable UI, API protocol, and truthful Open capability checks passed")
 PY
