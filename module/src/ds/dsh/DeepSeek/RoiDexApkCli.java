@@ -24,7 +24,7 @@ import java.util.Set;
 public final class RoiDexApkCli {
     private static final int MAX_METHODS_SCANNED = 150000;
     private static final int MAX_SELECTED_METHODS = 64;
-    private static final int MAX_ANALYSIS_METHODS = 320;
+    private static final int MAX_ANALYSIS_METHODS = 400;
     private static final int MAX_FIRST_HOP_METHODS = 128;
     private static final int MAX_CROSS_DEX_METHODS = 64;
     private static final long MAX_CODE_UNITS = 20000000L;
@@ -141,6 +141,8 @@ public final class RoiDexApkCli {
         Set<String> transitiveCalleeMethods = new LinkedHashSet<String>();
         Map<String, Integer> transitiveCalleePriority = new LinkedHashMap<String, Integer>();
         Set<String> thirdLevelCalleeMethods = new LinkedHashSet<String>();
+        Map<String, Integer> thirdLevelCalleePriority = new LinkedHashMap<String, Integer>();
+        Set<String> fourthLevelCalleeMethods = new LinkedHashSet<String>();
         RoiDexCandidateEvidence.Result seedEvidence =
                 RoiDexCandidateEvidence.analyzeSelected(dex, scope, expandedMethods);
         Set<String> definedMethods = new LinkedHashSet<String>();
@@ -228,12 +230,48 @@ public final class RoiDexApkCli {
                 if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;
                 if (definedMethods.contains(callee) && expandedMethods.add(callee)) {
                     thirdLevelCalleeMethods.add(callee);
+                    Integer callerPriority = transitiveCalleePriority.get(callerKey);
+                    int priority = callerPriority == null ? 0 : callerPriority;
+                    if ("Lrkc;->p(Ljava/lang/String;Lorg/json/JSONObject;)V".equals(callerKey))
+                        priority += 10000;
+                    thirdLevelCalleePriority.put(callee, priority);
+                }
+            }
+            if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;
+        }
+        RoiDexCandidateEvidence.Result thirdHopEvidence =
+                RoiDexCandidateEvidence.analyzeSelected(dex, scope, expandedMethods);
+        List<String> orderedThirdLevelCallees =
+                new ArrayList<String>(thirdLevelCalleeMethods);
+        Collections.sort(orderedThirdLevelCallees, new Comparator<String>() {
+            @Override public int compare(String left, String right) {
+                int leftPriority = thirdLevelCalleePriority.containsKey(left)
+                        ? thirdLevelCalleePriority.get(left) : 0;
+                int rightPriority = thirdLevelCalleePriority.containsKey(right)
+                        ? thirdLevelCalleePriority.get(right) : 0;
+                if (leftPriority != rightPriority) return rightPriority - leftPriority;
+                return left.compareTo(right);
+            }
+        });
+        // Hop 4: follow the request adapter's queue/service callbacks to the transport
+        // and response handlers, while keeping the whole traversal strictly bounded.
+        for (String callerKey : orderedThirdLevelCallees) {
+            RoiDexCandidateEvidence.MethodEvidence method = null;
+            for (RoiDexCandidateEvidence.MethodEvidence candidate : thirdHopEvidence.methods) {
+                if (callerKey.equals(candidate.methodKey)) { method = candidate; break; }
+            }
+            if (method == null) continue;
+            for (String callee : method.invokes) {
+                if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;
+                if (definedMethods.contains(callee) && expandedMethods.add(callee)) {
+                    fourthLevelCalleeMethods.add(callee);
                 }
             }
             if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;
         }
         int expandedCalleeCount = directCalleeMethods.size()
-                + transitiveCalleeMethods.size() + thirdLevelCalleeMethods.size();
+                + transitiveCalleeMethods.size() + thirdLevelCalleeMethods.size()
+                + fourthLevelCalleeMethods.size();
         RoiDexCandidateEvidence.Result evidence =
                 RoiDexCandidateEvidence.analyzeSelected(dex, scope, expandedMethods);
 
@@ -280,7 +318,7 @@ public final class RoiDexApkCli {
             }
             int crossSelectedCount = 0;
             List<RoiDexCandidateEvidence.MethodEvidence> crossDexCallers =
-                    new ArrayList<RoiDexCandidateEvidence.MethodEvidence>(secondHopEvidence.methods);
+                    new ArrayList<RoiDexCandidateEvidence.MethodEvidence>(thirdHopEvidence.methods);
             Collections.sort(crossDexCallers,
                     new Comparator<RoiDexCandidateEvidence.MethodEvidence>() {
                 private int priority(RoiDexCandidateEvidence.MethodEvidence method) {
@@ -289,6 +327,8 @@ public final class RoiDexApkCli {
                     if (directPriority != null && directPriority > score) score = directPriority;
                     Integer transitivePriority = transitiveCalleePriority.get(method.methodKey);
                     if (transitivePriority != null && transitivePriority > score) score = transitivePriority;
+                    Integer thirdPriority = thirdLevelCalleePriority.get(method.methodKey);
+                    if (thirdPriority != null && thirdPriority > score) score = thirdPriority;
                     // JSON dispatcher signatures are high-value bridge methods even when
                     // their callers sit in a different DEX.
                     if (method.methodKey.endsWith("(Ljava/lang/String;Lorg/json/JSONObject;)V"))
@@ -373,6 +413,7 @@ public final class RoiDexApkCli {
         field(out, "direct_callee_count", Integer.toString(directCalleeMethods.size()), true);
         field(out, "transitive_callee_count", Integer.toString(transitiveCalleeMethods.size()), true);
         field(out, "third_level_callee_count", Integer.toString(thirdLevelCalleeMethods.size()), true);
+        field(out, "fourth_level_callee_count", Integer.toString(fourthLevelCalleeMethods.size()), true);
         field(out, "analysis_method_budget", Integer.toString(MAX_ANALYSIS_METHODS), true);
         field(out, "cross_dex_candidate_count", Integer.toString(crossDexMethodSources.size()), true);
         field(out, "unresolved_app_call_count", Integer.toString(unresolvedAppCalls.size()), true);
@@ -403,6 +444,7 @@ public final class RoiDexApkCli {
                             : directCalleeMethods.contains(method.methodKey) ? "direct_callee"
                             : transitiveCalleeMethods.contains(method.methodKey) ? "transitive_callee"
                             : thirdLevelCalleeMethods.contains(method.methodKey) ? "third_level_callee"
+                            : fourthLevelCalleeMethods.contains(method.methodKey) ? "fourth_level_callee"
                             : "expanded_callee"));
             out.append(",\"anchors\":").append(stringArray(methodAnchors));
             out.append(",\"anchor_priority\":").append(anchorPriority(methodAnchors));
