@@ -17,7 +17,7 @@
 - 既有 Java/Xposed Hook 与宿主反射边界继续保留。
 - Kotlin 承担新增 Runtime 契约、Agent 调度、确定性策略、持久化与部分 UI。
 - Local API 的 HTTP、认证、请求限制、SSE 和 LAN 监听已有实现。
-- **Open 构建的 DeepSeek 原生 Completion Adapter 尚未打通**。当前 `/v1/models` 与 `/v1/chat/completions` 在适配器不可用时应返回 503；不能把 HTTP 路由可访问描述成模型调用成功。
+- **Open 构建的 DeepSeek 原生 Completion Adapter 尚未打通**。`GET /v1/models` 返回已配置模型清单；`POST /v1/chat/completions` 在适配器未就绪时返回 503；不能把 HTTP 路由可访问描述成模型调用成功。
 
 ## 2. 分支与提交
 
@@ -60,7 +60,7 @@
 
 | 路由 | 当前状态 |
 |---|---|
-| `GET /v1/models` | HTTP 路由已实现；原生适配器未就绪时返回 503 |
+| `GET /v1/models` | 返回配置模型清单；不代表原生执行就绪 |
 | `POST /v1/chat/completions` | HTTP/JSON/SSE 路由已实现；原生适配器未就绪时返回 503 |
 | `POST /v1/responses` | 未实现 |
 | `POST /v1/agent/run` | 未实现 |
