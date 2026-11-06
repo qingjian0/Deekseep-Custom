@@ -3163,16 +3163,19 @@ public final class DeekseepUi {
                             CompoundButton button, boolean checked) {
                         if (reverting) return;
                         if (Main.setOpenNativeCompletionProbeEnabled(checked)) {
-                            Toast.makeText(act, checked
-                                    ? "原生适配诊断探针已开启"
-                                    : "原生适配诊断探针已关闭",
+                            Toast.makeText(act, UiLanguage.text(act,
+                                    checked ? "原生适配诊断探针已开启" : "原生适配诊断探针已关闭",
+                                    checked ? "Native adapter diagnostic probe enabled"
+                                            : "Native adapter diagnostic probe disabled"),
                                     Toast.LENGTH_SHORT).show();
                             return;
                         }
                         reverting = true;
                         button.setChecked(!checked);
                         reverting = false;
-                        Toast.makeText(act, "原生适配诊断探针开关保存失败",
+                        Toast.makeText(act, UiLanguage.text(act,
+                                "原生适配诊断探针开关保存失败",
+                                "Failed to save native adapter diagnostic probe setting"),
                                 Toast.LENGTH_SHORT).show();
                     }
                 }, null, null));
