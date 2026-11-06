@@ -718,6 +718,7 @@ final class OpenNativeCompletionProbe {
         String key = type.getName();
         if (OBSERVED_CALLBACK_CLASSES.putIfAbsent(key, Boolean.TRUE) != null) return;
         int installed = 0;
+        int attempted = 0;
         // Only inspect methods declared by the concrete callback implementation.
         // Parent classes may be shared by unrelated host objects; hooking them caused
         // thousands of unrelated events (for example zb3.t()) in real-device captures.
@@ -731,7 +732,7 @@ final class OpenNativeCompletionProbe {
             return;
         }
         for (Method method : methods) {
-            if (installed >= MAX_CALLBACK_METHODS_PER_CLASS) break;
+            if (attempted >= MAX_CALLBACK_METHODS_PER_CLASS) break;
             int modifiers = method.getModifiers();
             String name = method.getName();
             Class<?>[] parameters;
@@ -749,6 +750,7 @@ final class OpenNativeCompletionProbe {
                     || method.getReturnType() == Void.TYPE) {
                 continue;
             }
+            attempted++;
             final Method target = method;
             try {
                 Main.MODULE.hook(target).intercept(new LegacyXposedModule.Hooker() {
@@ -811,6 +813,7 @@ final class OpenNativeCompletionProbe {
         }
         observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-class-observed class="
                 + type.getName() + " role=" + role + " hookedMethods=" + installed
+                + " hookedMethods=" + installed + " attemptedMethods=" + attempted
                 + " maxMethods=" + MAX_CALLBACK_METHODS_PER_CLASS
                 + " scope=concrete-class-declared-only");
         if (installed == 0) OBSERVED_CALLBACK_CLASSES.remove(key);
