@@ -38,6 +38,12 @@ final class OpenNativeCompletionProbe {
     private static final Object OBSERVATION_LOG_LOCK = new Object();
     private static final StringBuilder OBSERVATION_LOG = new StringBuilder(4096);
     private static final int MAX_OBSERVATION_LOG_CHARS = 48_000;
+    private static final int MAX_CALLBACK_TRACE_EVENTS = 96;
+    private static final java.util.concurrent.atomic.AtomicInteger CALLBACK_METHOD_INVOCATIONS =
+            new java.util.concurrent.atomic.AtomicInteger();
+    private static final java.util.concurrent.atomic.AtomicInteger API_TRACE_EVENTS =
+            new java.util.concurrent.atomic.AtomicInteger();
+    private static final AtomicBoolean CALLBACK_TRACE_TRUNCATED = new AtomicBoolean();
     private static final ThreadLocal<ObservationFrame> OBSERVATION_FRAME =
             new ThreadLocal<ObservationFrame>();
 
@@ -130,7 +136,10 @@ final class OpenNativeCompletionProbe {
         int eligibleClassNames = 0;
         int classLoadFailures = 0;
         try {
-            line(out, "report.schema", "2");
+            line(out, "report.schema", "3");
+            line(out, "diagnostic.coverage", "host-transport,y60-continuation,callback-implementations,local-api-gateway");
+            line(out, "diagnostic.sensitive_data", "prompt,response,credentials,cookies,authorization-not-collected");
+            line(out, "diagnostic.callback_event_limit", String.valueOf(MAX_CALLBACK_TRACE_EVENTS));
             Class<?> requestType = HostCompat.load(loader, "ew0");
             line(out, "edition", BuildInfo.BUILD_EDITION);
             line(out, "host", HostCompat.diagnosticSummary());
@@ -679,27 +688,41 @@ final class OpenNativeCompletionProbe {
                                     : System.identityHashCode(receiver);
                             List<?> args = chain.getArgs();
                             long started = System.nanoTime();
-                            observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-enter role="
-                                    + role + " method=" + observedMethodDescriptor(target)
-                                    + " receiverId=" + identity
-                                    + " thread=" + Thread.currentThread().getName()
-                                    + "#" + Thread.currentThread().getId()
-                                    + " args=" + observedArgumentTypes(args)
-                                    + " stack=" + observedStack());
+                            int eventNumber = CALLBACK_METHOD_INVOCATIONS.incrementAndGet();
+                            boolean recordEvent = eventNumber <= MAX_CALLBACK_TRACE_EVENTS;
+                            if (recordEvent) {
+                                observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-enter role="
+                                        + role + " method=" + observedMethodDescriptor(target)
+                                        + " receiverId=" + identity
+                                        + " event=" + eventNumber
+                                        + " thread=" + Thread.currentThread().getName()
+                                        + "#" + Thread.currentThread().getId()
+                                        + " args=" + observedArgumentTypes(args)
+                                        + " stack=" + observedStack());
+                            } else if (CALLBACK_TRACE_TRUNCATED.compareAndSet(false, true)) {
+                                observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-events-truncated limit="
+                                        + MAX_CALLBACK_TRACE_EVENTS);
+                            }
                             try {
                                 Object value = chain.proceed();
-                                observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-exit role="
-                                        + role + " method=" + observedMethodDescriptor(target)
-                                        + " receiverId=" + identity
-                                        + " durationMs=" + ((System.nanoTime() - started) / 1000000L)
-                                        + " result=" + observedResultType(value));
+                                if (recordEvent) {
+                                    observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-exit role="
+                                            + role + " method=" + observedMethodDescriptor(target)
+                                            + " receiverId=" + identity
+                                            + " event=" + eventNumber
+                                            + " durationMs=" + ((System.nanoTime() - started) / 1000000L)
+                                            + " result=" + observedResultType(value));
+                                }
                                 return value;
                             } catch (Throwable error) {
-                                observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-throw role="
-                                        + role + " method=" + observedMethodDescriptor(target)
-                                        + " receiverId=" + identity
-                                        + " durationMs=" + ((System.nanoTime() - started) / 1000000L)
-                                        + " exception=" + error.getClass().getName());
+                                if (recordEvent) {
+                                    observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-throw role="
+                                            + role + " method=" + observedMethodDescriptor(target)
+                                            + " receiverId=" + identity
+                                            + " event=" + eventNumber
+                                            + " durationMs=" + ((System.nanoTime() - started) / 1000000L)
+                                            + " exception=" + error.getClass().getName());
+                                }
                                 throw error;
                             }
                         }
@@ -878,6 +901,7 @@ final class OpenNativeCompletionProbe {
     /** API-gateway lifecycle events share the same one-copy diagnostic buffer. */
     static void apiTrace(String event) {
         if (event == null || !Main.isOpenNativeCompletionProbeEnabled()) return;
+        API_TRACE_EVENTS.incrementAndGet();
         observerLog("[OPEN_NATIVE_API_TRACE] " + event);
     }
 
@@ -917,9 +941,14 @@ final class OpenNativeCompletionProbe {
 
     static String status() {
         String base = report;
+        String summary = "\n[OPEN_NATIVE_DIAGNOSTIC_SUMMARY]\n"
+                + "callbackMethodInvocations=" + CALLBACK_METHOD_INVOCATIONS.get() + "\n"
+                + "callbackClassesObserved=" + OBSERVED_CALLBACK_CLASSES.size() + "\n"
+                + "apiTraceEvents=" + API_TRACE_EVENTS.get() + "\n";
         synchronized (OBSERVATION_LOG_LOCK) {
-            if (OBSERVATION_LOG.length() == 0) return base;
-            return base + "\n[OPEN_NATIVE_CALL_OBSERVER_BUFFER]\n" + OBSERVATION_LOG;
+            if (OBSERVATION_LOG.length() == 0) return base + summary;
+            return base + "\n[OPEN_NATIVE_CALL_OBSERVER_BUFFER]\n"
+                    + OBSERVATION_LOG + summary;
         }
     }
 
