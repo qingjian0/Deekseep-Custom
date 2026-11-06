@@ -129,6 +129,17 @@ public final class RoiDexFileReaderTest {
     mapped=use.entryValueKind==RoiDexUseDefChains.EntryValueKind.PARAMETER
       &&use.entryParameterIndex==0&&"Lx;".equals(use.entryDescriptor);
   if(!mapped)throw new AssertionError("resolved method pipeline did not map the code_item parameter use");
+  RoiDexCandidateEvidence.Result evidence=RoiDexCandidateEvidence.analyze(d,"apk:test-fixture");
+  eq(1,evidence.graph.uniqueNodes);
+  eq(0,evidence.graph.edgeCount);
+  eq(1,evidence.methods.size());
+  eq(1,evidence.analyzedMethods);
+  eq(0,evidence.analysisFailures);
+  if(!evidence.candidateEvidenceOnly||evidence.hookAuthorizationGranted)
+   throw new AssertionError("DEX candidate evidence must not authorize Hook");
+  if(!evidence.graph.descriptors.contains(
+      "apk:test-fixture|Lx;->run(Lx;)V"))
+   throw new AssertionError("candidate graph lost source scope or resolved method identity");
  }
  static void testBadMagic()throws Exception{byte[] b=fixture(112);b[0]='x';bad(b);}
  static void testTruncated()throws Exception{bad(new byte[111]);}
