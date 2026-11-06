@@ -413,7 +413,7 @@ final class OpenNativeCompletionProbe {
                         && !method.getReturnType().isPrimitive()
                         && method.getReturnType() != Void.TYPE) {
                     if (selected != null) {
-                        Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] ambiguous "
+                        observerLog("[OPEN_NATIVE_CALL_OBSERVER] ambiguous "
                                 + ownerName + "." + methodName);
                         return;
                     }
@@ -421,7 +421,7 @@ final class OpenNativeCompletionProbe {
                 }
             }
             if (selected == null) {
-                Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] method unavailable "
+                observerLog("[OPEN_NATIVE_CALL_OBSERVER] method unavailable "
                         + ownerName + "." + methodName);
                 return;
             }
@@ -468,7 +468,7 @@ final class OpenNativeCompletionProbe {
                         frame.callStack.addLast(currentMethod);
                         stackPushed = true;
                         if (root) {
-                            Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] enter id=" + frame.id
+                            observerLog("[OPEN_NATIVE_CALL_OBSERVER] enter id=" + frame.id
                                     + " role=" + role + " method=" + currentMethod
                                     + " parent=" + parentMethod
                                     + " sameRequestObjectAsRoot=" + sameRequestObjectAsRoot
@@ -476,7 +476,7 @@ final class OpenNativeCompletionProbe {
                                     + " thread=" + thread + " depth=" + depth + " args=" + args
                                     + " stack=" + observedStack());
                         } else {
-                            Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] enter id=" + frame.id
+                            observerLog("[OPEN_NATIVE_CALL_OBSERVER] enter id=" + frame.id
                                     + " role=" + role + " method=" + currentMethod
                                     + " parent=" + parentMethod
                                     + " sameRequestObjectAsRoot=" + sameRequestObjectAsRoot
@@ -501,7 +501,7 @@ final class OpenNativeCompletionProbe {
                     try {
                         Object result = chain.proceed();
                         try {
-                            Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] exit id="
+                            observerLog("[OPEN_NATIVE_CALL_OBSERVER] exit id="
                                     + (frame == null ? "unknown" : frame.id)
                                     + " role=" + role + " method=" + currentMethod
                                     + " parent=" + parentMethod
@@ -512,7 +512,7 @@ final class OpenNativeCompletionProbe {
                         return result;
                     } catch (Throwable original) {
                         try {
-                            Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] throw id="
+                            observerLog("[OPEN_NATIVE_CALL_OBSERVER] throw id="
                                     + (frame == null ? "unknown" : frame.id)
                                     + " role=" + role + " method=" + currentMethod
                                     + " parent=" + parentMethod
@@ -532,7 +532,7 @@ final class OpenNativeCompletionProbe {
                     }
                 }
             });
-            Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] installed role=" + role
+            observerLog("[OPEN_NATIVE_CALL_OBSERVER] installed role=" + role
                     + " method=" + target.getDeclaringClass().getName() + "."
                     + target.getName() + " return=" + target.getReturnType().getName());
         } catch (VirtualMachineError fatal) {
@@ -540,7 +540,7 @@ final class OpenNativeCompletionProbe {
         } catch (ThreadDeath fatal) {
             throw fatal;
         } catch (Throwable error) {
-            Main.extLog("[OPEN_NATIVE_CALL_OBSERVER] install failed role=" + role
+            observerLog("[OPEN_NATIVE_CALL_OBSERVER] install failed role=" + role
                     + " exception=" + error.getClass().getName());
         }
     }
