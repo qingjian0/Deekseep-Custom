@@ -127,7 +127,8 @@ if 'if (context == null) {\n            HookAccountLoginSecurity.localApiFloatin
     raise SystemExit("Floating-window null-context failure is not stored independently")
 ui = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
 ui_required = {
-    "OpenAI base URL copy remains valid while the gateway is stopped": "z13.preferredPort(hostApplicationContext)" in main and 'value = "http://127.0.0.1:" + preferred;' in main,
+    "OpenAI base URL copy remains valid while the gateway is stopped": "z13.preferredPort(hostApplicationContext)",
+    "stopped gateway URL retains the configured loopback port": 'value = "http://127.0.0.1:" + preferred;',
     "connection details allow long-press text selection": "connectionInfo.setTextIsSelectable(true);",
     "OpenAI URL copy includes /v1": "Main.localApiCopyEndpoint()",
     "Anthropic URL copy retains root endpoint": "Main.localApiRootEndpoint()",
