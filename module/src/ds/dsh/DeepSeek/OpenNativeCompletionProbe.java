@@ -45,6 +45,7 @@ final class OpenNativeCompletionProbe {
     // The in-memory copy is only a UI preview. Every diagnostic line is also appended
     // synchronously to the app-private session file, so capture volume is not truncated.
     private static final int MAX_OBSERVATION_LOG_CHARS = 48_000;
+    private static final int MAX_CALLBACK_METHODS_PER_CLASS = 12;
     private static volatile File SESSION_LOG_FILE;
     private static FileOutputStream SESSION_LOG_OUTPUT;
     private static final java.util.concurrent.ConcurrentHashMap<String, CallbackStats>
@@ -124,7 +125,7 @@ final class OpenNativeCompletionProbe {
         OBSERVATION_IDS.set(0L);
         SESSION_STARTED_AT_MS = System.currentTimeMillis();
         SESSION_LOG_FILE = createSessionLogFile(SESSION_STARTED_AT_MS);
-        observerLog("[OPEN_NATIVE_CALL_OBSERVER] session-start schema=4 epochMs="
+        observerLog("[OPEN_NATIVE_CALL_OBSERVER] session-start schema=5 epochMs="
                 + SESSION_STARTED_AT_MS);
     }
 
@@ -196,13 +197,13 @@ final class OpenNativeCompletionProbe {
         int eligibleClassNames = 0;
         int classLoadFailures = 0;
         try {
-            line(out, "report.schema", "4");
+            line(out, "report.schema", "5");
             line(out, "diagnostic.coverage", "host-transport,y60-continuation,callback-implementations,local-api-gateway");
             line(out, "diagnostic.sensitive_data", "message-content,credentials,cookies,auth-headers-not-collected");
-            line(out, "diagnostic.callback_detail_capture", "all-events-persisted-to-app-private-file");
-            line(out, "diagnostic.callback_aggregate_coverage", "all-invocations-for-every-successfully-hooked-callback-method");
-            line(out, "diagnostic.callback_discovery_limits", "none-imposed-by-probe");
-            line(out, "diagnostic.callback_hook_limits", "none-imposed-by-probe");
+            line(out, "diagnostic.callback_detail_capture", "all-events-for-selected-methods-persisted-to-app-private-file");
+            line(out, "diagnostic.callback_aggregate_coverage", "all-invocations-for-every-successfully-hooked-concrete-callback-method");
+            line(out, "diagnostic.callback_discovery_limits", "callback-objects-observed-at-y60-continuation-boundary-only");
+            line(out, "diagnostic.callback_hook_limits", "concrete-class-declared-methods-only,max-12-methods-per-class,one-or-two-parameters,no-superclass-traversal");
             Class<?> requestType = HostCompat.load(loader, "ew0");
             line(out, "edition", BuildInfo.BUILD_EDITION);
             line(out, "host", HostCompat.diagnosticSummary());
@@ -717,102 +718,101 @@ final class OpenNativeCompletionProbe {
         String key = type.getName();
         if (OBSERVED_CALLBACK_CLASSES.putIfAbsent(key, Boolean.TRUE) != null) return;
         int installed = 0;
-        Class<?> current = type;
-        while (current != null && current != Object.class) {
-            Method[] methods;
+        // Only inspect methods declared by the concrete callback implementation.
+        // Parent classes may be shared by unrelated host objects; hooking them caused
+        // thousands of unrelated events (for example zb3.t()) in real-device captures.
+        Method[] methods;
+        try {
+            methods = type.getDeclaredMethods();
+        } catch (LinkageError | SecurityException error) {
+            observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-methods-unavailable class="
+                    + type.getName() + " exception=" + error.getClass().getName());
+            OBSERVED_CALLBACK_CLASSES.remove(key);
+            return;
+        }
+        for (Method method : methods) {
+            if (installed >= MAX_CALLBACK_METHODS_PER_CLASS) break;
+            int modifiers = method.getModifiers();
+            String name = method.getName();
+            Class<?>[] parameters;
             try {
-                methods = current.getDeclaredMethods();
-            } catch (LinkageError | SecurityException error) {
-                observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-methods-unavailable class="
-                        + current.getName() + " exception=" + error.getClass().getName());
-                break;
-            }
-            for (Method method : methods) {
-                int modifiers = method.getModifiers();
-                String name = method.getName();
-                if (Modifier.isStatic(modifiers) || Modifier.isAbstract(modifiers)
-                        || "toString".equals(name) || "hashCode".equals(name)
-                        || "equals".equals(name) || method.isBridge()) {
-                    continue;
-                }
-                final Method target = method;
-                try {
-                    Main.MODULE.hook(target).intercept(new LegacyXposedModule.Hooker() {
-                        @Override public Object intercept(LegacyXposedModule.Chain chain)
-                                throws Throwable {
-                            if (!Main.isOpenNativeCompletionProbeEnabled()) {
-                                return chain.proceed();
-                            }
-                            String callbackMethod = observedMethodDescriptor(target);
-                            CallbackStats existingStats = CALLBACK_STATS.get(callbackMethod);
-                            if (existingStats == null) {
-                                CallbackStats created = new CallbackStats();
-                                CallbackStats previous = CALLBACK_STATS.putIfAbsent(callbackMethod, created);
-                                existingStats = previous == null ? created : previous;
-                            }
-                            final CallbackStats stats = existingStats;
-                            Object receiver = chain.getThisObject();
-                            int identity = receiver == null ? 0
-                                    : System.identityHashCode(receiver);
-                            List<?> args = chain.getArgs();
-                            long started = System.nanoTime();
-                            CALLBACK_METHOD_INVOCATIONS.incrementAndGet();
-                            long eventNumber = CALLBACK_DETAIL_EVENTS.incrementAndGet();
-                            observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-enter role="
-                                    + role + " method=" + observedMethodDescriptor(target)
-                                    + " receiverId=" + identity
-                                    + " event=" + eventNumber
-                                    + " thread=" + Thread.currentThread().getName()
-                                    + "#" + Thread.currentThread().getId()
-                                    + " args=" + observedArgumentTypes(args)
-                                    + " stack=" + observedStack());
-                            try {
-                                Object value = chain.proceed();
-                                stats.record(System.nanoTime() - started, false);
-                                {
-                                    observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-exit role="
-                                            + role + " method=" + observedMethodDescriptor(target)
-                                            + " receiverId=" + identity
-                                            + " event=" + eventNumber
-                                            + " durationMs=" + ((System.nanoTime() - started) / 1000000L)
-                                            + " result=" + observedResultType(value));
-                                }
-                                return value;
-                            } catch (Throwable error) {
-                                stats.record(System.nanoTime() - started, true);
-                                {
-                                    observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-throw role="
-                                            + role + " method=" + observedMethodDescriptor(target)
-                                            + " receiverId=" + identity
-                                            + " event=" + eventNumber
-                                            + " durationMs=" + ((System.nanoTime() - started) / 1000000L)
-                                            + " exception=" + error.getClass().getName());
-                                }
-                                throw error;
-                            }
-                        }
-                    });
-                    installed++;
-                } catch (VirtualMachineError fatal) {
-                    throw fatal;
-                } catch (ThreadDeath fatal) {
-                    throw fatal;
-                } catch (Throwable error) {
-                    observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-install-failed method="
-                            + observedMethodDescriptor(target)
-                            + " exception=" + error.getClass().getName());
-                }
-            }
-            try {
-                current = current.getSuperclass();
+                parameters = method.getParameterTypes();
             } catch (LinkageError | RuntimeException error) {
-                observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-superclass-unavailable class="
+                observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-method-metadata-unavailable class="
                         + type.getName() + " exception=" + error.getClass().getName());
-                break;
+                continue;
+            }
+            if (Modifier.isStatic(modifiers) || Modifier.isAbstract(modifiers)
+                    || "toString".equals(name) || "hashCode".equals(name)
+                    || "equals".equals(name) || method.isBridge() || method.isSynthetic()
+                    || parameters.length < 1 || parameters.length > 2
+                    || method.getReturnType() == Void.TYPE) {
+                continue;
+            }
+            final Method target = method;
+            try {
+                Main.MODULE.hook(target).intercept(new LegacyXposedModule.Hooker() {
+                    @Override public Object intercept(LegacyXposedModule.Chain chain)
+                            throws Throwable {
+                        if (!Main.isOpenNativeCompletionProbeEnabled()) return chain.proceed();
+                        String callbackMethod = observedMethodDescriptor(target);
+                        CallbackStats existingStats = CALLBACK_STATS.get(callbackMethod);
+                        if (existingStats == null) {
+                            CallbackStats created = new CallbackStats();
+                            CallbackStats previous = CALLBACK_STATS.putIfAbsent(callbackMethod, created);
+                            existingStats = previous == null ? created : previous;
+                        }
+                        final CallbackStats stats = existingStats;
+                        Object receiver = chain.getThisObject();
+                        int identity = receiver == null ? 0 : System.identityHashCode(receiver);
+                        List<?> args = chain.getArgs();
+                        long started = System.nanoTime();
+                        CALLBACK_METHOD_INVOCATIONS.incrementAndGet();
+                        long eventNumber = CALLBACK_DETAIL_EVENTS.incrementAndGet();
+                        observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-enter role="
+                                + role + " method=" + observedMethodDescriptor(target)
+                                + " receiverId=" + identity + " event=" + eventNumber
+                                + " thread=" + Thread.currentThread().getName()
+                                + "#" + Thread.currentThread().getId()
+                                + " args=" + observedArgumentTypes(args)
+                                + " stack=" + observedStack());
+                        try {
+                            Object value = chain.proceed();
+                            long durationNanos = System.nanoTime() - started;
+                            stats.record(durationNanos, false);
+                            observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-exit role="
+                                    + role + " method=" + observedMethodDescriptor(target)
+                                    + " receiverId=" + identity + " event=" + eventNumber
+                                    + " durationMs=" + (durationNanos / 1000000L)
+                                    + " result=" + observedResultType(value));
+                            return value;
+                        } catch (Throwable error) {
+                            long durationNanos = System.nanoTime() - started;
+                            stats.record(durationNanos, true);
+                            observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-throw role="
+                                    + role + " method=" + observedMethodDescriptor(target)
+                                    + " receiverId=" + identity + " event=" + eventNumber
+                                    + " durationMs=" + (durationNanos / 1000000L)
+                                    + " exception=" + error.getClass().getName());
+                            throw error;
+                        }
+                    }
+                });
+                installed++;
+            } catch (VirtualMachineError fatal) {
+                throw fatal;
+            } catch (ThreadDeath fatal) {
+                throw fatal;
+            } catch (Throwable error) {
+                observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-install-failed method="
+                        + observedMethodDescriptor(target)
+                        + " exception=" + error.getClass().getName());
             }
         }
         observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-class-observed class="
-                + type.getName() + " role=" + role + " hookedMethods=" + installed);
+                + type.getName() + " role=" + role + " hookedMethods=" + installed
+                + " maxMethods=" + MAX_CALLBACK_METHODS_PER_CLASS
+                + " scope=concrete-class-declared-only");
         if (installed == 0) OBSERVED_CALLBACK_CLASSES.remove(key);
     }
 
