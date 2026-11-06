@@ -3,7 +3,7 @@ package ds.dsh.DeepSeek;
 public final class RoiDexSerializerElementIndexTest {
     public static void main(String[] args)throws Exception {
         registrationOrderNotStringPoolOrder();conditionalPreambleAccepted();
-        branchingRegistrationRejected();unreachableRegistrationRejected();
+        branchingRegistrationRejected();unreachableRegistrationRejected();incompleteRegistrationRejected();
         System.out.println("RoiDexSerializerElementIndexTest: PASS");
     }
 
@@ -26,7 +26,7 @@ public final class RoiDexSerializerElementIndexTest {
         eq(2,result.elements.length);eq(0,result.rejected.length);
         eq(0,result.elements[0].index);eq("first",result.elements[0].name);
         eq(1,result.elements[1].index);eq("second",result.elements[1].name);
-        yes(result.registrationOrderProven);yes(result.candidateEvidenceOnly);
+        yes(result.registrationOrderProven);yes(result.complete);yes(result.candidateEvidenceOnly);
         yes(!result.hookAuthorizationGranted);
     }
 
@@ -96,6 +96,26 @@ public final class RoiDexSerializerElementIndexTest {
             throw expected;
         }
         throw new AssertionError("unreachable descriptor registration must be rejected");
+    }
+
+    static void incompleteRegistrationRejected()throws Exception {
+        RoiDexCodeReader.CodeItem code=code(new short[]{
+                (short)0x001a,0,
+                (short)0x036e,0,(short)0x0312,
+                (short)0x000e
+        },4);
+        RoiDexInvokeResultLinker.Result links=RoiDexInvokeResultLinker.analyze(code,index->method());
+        RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(code);
+        RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
+        RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching);
+        RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(code,
+                index->null,flow,reaching,useDef,links);
+        RoiDexSerializerElementIndex.Result result=RoiDexSerializerElementIndex.analyze(
+                code,index->method(),provenance);
+        yes(result.registrationOrderProven);
+        yes(!result.complete);
+        eq(0,result.elements.length);
+        eq(1,result.rejected.length);
     }
 
     static RoiDexFileReader.ResolvedMethodId method() {
