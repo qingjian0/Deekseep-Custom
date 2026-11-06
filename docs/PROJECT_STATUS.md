@@ -538,3 +538,14 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 源码核对：Launcher Manifest 声明了 `z20`，Open 构建的 `localApiComponentEnabled` 计算结果应为 true，Open R8 规则保留 `ds.dsh.DeepSeek.**`。但旧安装包的最终合并 Manifest / DEX 是否真的包含并启用该组件，尚无设备侧证据。
 - CI 增加最终 Open APK 检查：使用 AAPT 检查 APK 中存在 `z20` Activity 与 `z21` Service 声明，并检查任一 DEX 实际包含 `Lds/dsh/DeepSeek/z20;`。不再只检查源码 Manifest。
 - 结论：这次提交提高后续 APK 的构建验收能力；在新 APK 通过检查并安装前，不宣称用户设备上的 ActivityNotFoundException 已修复。
+
+
+### 2026-11-06：Open Local API 协议层审计
+
+- /v1/models 改为返回已配置的模型清单，不再把原生执行引擎未就绪误报为模型发现失败；这不代表模型可生成回复。
+- Chat Completions 非流式结果保留 reasoning_content；SSE 同时发送 content 与 reasoning_content 增量。
+- 支持 max_completion_tokens 别名；对 max_tokens / max_completion_tokens 校验 1–8192 整数，不再把小于 128 的有效值静默改写为 128。
+- 自定义 API Key 按 UI 约定接受 8–256 位可见 ASCII，不再强制 sk- 前缀；重启读取与设置时采用同一校验，避免自定义 Key 重启后被静默轮换。
+- HTTP 解析错误现在返回明确 400/413；非 JSON Content-Type 返回 415。支持 OpenAI text/input_text 文本片段数组；图片等非文本片段明确拒绝，不静默丢弃。
+- Open UI 的协议说明修正为真实能力边界：当前没有 Responses、Anthropic、Agent tools、多模态和 usage 支持，且原生 Completion Adapter 未接通；不再把 Closed 能力描述套用到 Open。
+- 以上为源码修改，等待 CI 与设备端请求验证；不表示真实 DeepSeek Completion 已可用。
