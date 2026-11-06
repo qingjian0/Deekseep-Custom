@@ -644,8 +644,13 @@ require(
 )
 require(
     gateway,
-    r'!"text".equals\(format\.optString\("type", ""\)\).*?includeUsage instanceof Boolean',
-    "text response format and boolean include_usage values remain valid for chat streaming",
+    r'!"text".equals\(format\.optString\("type", ""\)\)',
+    "text response format remains supported",
+)
+require(
+    gateway,
+    r'includeUsage instanceof Boolean',
+    "stream_options include_usage accepts only boolean values",
 )
 require(
     gateway,
