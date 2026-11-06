@@ -401,7 +401,7 @@ require(
 )
 require(
     probe,
-    r'installRuntimeObservation\(ClassLoader loader\).*?observerLog\("\\[OPEN_NATIVE_CALL_OBSERVER\\] setup failed',
+    r'installRuntimeObservation\(ClassLoader loader\).*?observerLog\("\[OPEN_NATIVE_CALL_OBSERVER\] setup failed',
     "runtime observer setup and call events route through the bounded diagnostic buffer",
 )
 require(
@@ -478,12 +478,12 @@ if "field.get(" in probe or "fields[i].get(" in probe:
 
 require(
     probe,
-    r'installContinuationObserver\(result\).*?installContinuationObserver\(Object result\).*?"b"\\.equals\(method\\.getName\(\)\).*?parameters\\.length == 2.*?method\\.getReturnType\(\) == Object\\.class',
+    r'installContinuationObserver\(result\).*?installContinuationObserver\(Object result\).*?"b"\.equals\(method\.getName\(\)\).*?parameters\.length == 2.*?method\.getReturnType\(\) == Object\.class',
     "the returned y60 continuation boundary is identified by its reviewed two-argument b method shape",
 )
 require(
     probe,
-    r'continuation-enter method=.*?observedArgumentTypes\(args\).*?observedObjectShape\(first\).*?observedObjectShape\(second\).*?chain\\.proceed\(\)',
+    r'continuation-enter method=.*?observedArgumentTypes\(args\).*?observedObjectShape\(first\).*?observedObjectShape\(second\).*?chain\.proceed\(\)',
     "continuation observation records callback argument types/shapes and preserves original execution",
 )
 require(
@@ -494,7 +494,7 @@ require(
 
 require(
     probe,
-    r'installCallbackObserver\(Object callback, String role\).*?getDeclaredMethods\(\).*?installed < 12.*?chain\\.getThisObject\(\).*?System\\.identityHashCode\(receiver\)',
+    r'installCallbackObserver\(Object callback, String role\).*?getDeclaredMethods\(\).*?installed < 12.*?chain\.getThisObject\(\).*?System\.identityHashCode\(receiver\)',
     "continuation callback implementations are traced with bounded method hooks and identity correlation",
 )
 require(
@@ -504,7 +504,7 @@ require(
 )
 require(
     probe,
-    r'OBSERVED_CALLBACK_CLASSES\\.putIfAbsent.*?OBSERVED_CALLBACK_CLASSES\\.remove',
+    r'OBSERVED_CALLBACK_CLASSES\.putIfAbsent.*?OBSERVED_CALLBACK_CLASSES\.remove',
     "callback instrumentation is deduplicated and retries when no method can be hooked",
 )
 if "callback.toString()" in probe or "receiver.toString()" in probe:
