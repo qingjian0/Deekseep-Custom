@@ -80,3 +80,11 @@ Required before enabling native completion:
 - At least one genuine successful 2.7.2 device completion
 
 Known observations are leads, not proof: ly1 implements wu1; zn3.o(wu1, Long) and jw3.g(wu1, Long) return y60; y60 implements el4 and exposes continuation b(fl4, yb3). Do not infer the semantic meaning of DTOs from names alone.
+
+
+## Pass 1 execution update
+
+- Ported `OpenAiToolBridge.java` from upstream blob `6b5847d68c30a6525193f3187dac57fb92564d06`; MIT notice retained and `Plan` now implements `z2.ToolPlan`.
+- Added bounded chunked transfer decoding to `OpenLocalApiGateway.readRequest`.
+- Added source-regression assertions for framing limits, trailer rejection, tool-plan integration, and attribution.
+- These changes are implementation progress, not proof that the protocol endpoints are fully wired or that the Android build/device tests pass.
