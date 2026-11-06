@@ -3,9 +3,10 @@ package ds.dsh.DeepSeek;
 import java.util.Arrays;
 
 /**
- * Dependency-free, read-only parser for the fixed header and ID tables of a standard
- * little-endian DEX file. It deliberately does not interpret string_data, class_data,
- * code_item, annotations, or instructions.
+ * Dependency-free, read-only parser for standard little-endian DEX headers, ID tables,
+ * string data, type lists, class definitions, class_data_item, encoded methods, and code_item.
+ * Instruction code units are retained for the separate bounded decoder and data-flow pipeline.
+ * This parser never loads host classes, invokes host code, installs hooks, or grants authorization.
  */
 public final class RoiDexFileReader {
     public static final int HEADER_SIZE = 0x70;
