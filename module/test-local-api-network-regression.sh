@@ -213,6 +213,8 @@ gateway_checks = {
     "chunk sizes accept hexadecimal digits only": "!isHexDigits(sizeText)" in source,
     "HTTP header names reject surrounding whitespace": 'substring(0,colon)\n                    .toLowerCase' in source,
     "chunk-size tokens are not whitespace-trimmed": 'sizeLine.substring(0, extension) : sizeLine;' in source,
+    "HTTP request lines require exact single-space separators": 'lines[0].split(" ", -1)' in source and 'lines[0].trim().split' not in source,
+    "HTTP request targets reject embedded control whitespace": "first[1].indexOf('\\t') >= 0" in source and "first[1].indexOf('\\r') >= 0" in source,
     "model discovery is not blocked by engine readiness": (
         source.index('if ("GET".equals(request.method) && "/v1/models".equals(request.path)) {')
         < source.index("Model discovery describes the configured API surface")
