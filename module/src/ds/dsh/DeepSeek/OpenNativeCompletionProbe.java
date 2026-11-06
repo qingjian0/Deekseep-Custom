@@ -557,7 +557,8 @@ final class OpenNativeCompletionProbe {
                                         + event + " signature=" + target.getDeclaringClass().getName()
                                         + ".<init>(" + parameters(target.getParameterTypes()) + ")"
                                         + " args=" + observedArgumentTypes(args)
-                                        + " argShapes=" + observedArgumentShapes(args));
+                                        + " argShapes=" + observedArgumentShapes(args)
+                                        + " stack=" + observedStack());
                             }
                         } catch (VirtualMachineError fatal) {
                             throw fatal;
