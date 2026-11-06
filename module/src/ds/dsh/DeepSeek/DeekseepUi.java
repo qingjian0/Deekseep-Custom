@@ -3182,7 +3182,7 @@ public final class DeekseepUi {
         LinearLayout nativeProbeActions = new LinearLayout(act);
         nativeProbeActions.setOrientation(LinearLayout.HORIZONTAL);
         nativeProbeActions.setPadding(dp(act, 16), dp(act, 4), dp(act, 16), dp(act, 14));
-        TextView copyNativeProbe = dialogAction(act, "复制原生适配诊断", BRAND, dark);
+        TextView copyNativeProbe = dialogAction(act, "复制原生适配诊断与运行轨迹", BRAND, dark);
         nativeProbeActions.addView(copyNativeProbe, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         copyNativeProbe.setOnClickListener(new View.OnClickListener() {
