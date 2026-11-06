@@ -466,6 +466,7 @@ final class OpenLocalApiGateway {
     }
 
     private static void handle(Socket socket) {
+        final long requestStartedNanos = System.nanoTime();
         try (Socket client = socket;
              InputStream in = new BufferedInputStream(client.getInputStream());
              OutputStream out = new BufferedOutputStream(client.getOutputStream())) {
@@ -495,6 +496,8 @@ final class OpenLocalApiGateway {
                 sendError(out, 401, "invalid_api_key", "Invalid bearer token");
                 return;
             }
+            OpenNativeCompletionProbe.apiTrace("http-authenticated method=" + request.method
+                    + " path=" + request.path);
             if ("GET".equals(request.method) && "/v1/models".equals(request.path)) {
                 // Model discovery describes the configured API surface, not live engine
                 // readiness. Keep it usable for client setup/diagnostics while completions
@@ -508,6 +511,8 @@ final class OpenLocalApiGateway {
                         .put("object", "model").put("owned_by", "local");
                 sendJson(out, 200, new JSONObject().put("object", "list")
                         .put("data", new JSONArray().put(model).put(reasoner).put(flashAlias)));
+                OpenNativeCompletionProbe.apiTrace("models-list status=200 durationMs="
+                        + ((System.nanoTime() - requestStartedNanos) / 1000000L));
                 return;
             }
             if (!"POST".equals(request.method)
@@ -606,30 +611,55 @@ final class OpenLocalApiGateway {
                     requestId, model, "default", prompt, prompt,
                     "deepseek-reasoner".equals(model), false, maxTokens,
                     null, null, false);
+            OpenNativeCompletionProbe.apiTrace("request-accepted requestId=" + requestId
+                    + " requestedModel=" + requestedModel + " model=" + model
+                    + " stream=" + stream + " promptChars=" + prompt.length()
+                    + " maxTokens=" + maxTokens);
             z2.Backend current = backend;
-            if (current == null || !current.isReady()) {
+            boolean ready = current != null && current.isReady();
+            OpenNativeCompletionProbe.apiTrace("backend-readiness requestId=" + requestId
+                    + " ready=" + ready);
+            if (!ready) {
                 sendError(out, 503, "model_not_ready",
                         current == null ? "Model backend unavailable" : current.readinessDetail());
+                OpenNativeCompletionProbe.apiTrace("request-rejected requestId=" + requestId
+                        + " stage=backend-readiness status=503");
                 return;
             }
             if (stream) {
                 streamCompletion(out, current, completion, model, requestId);
             } else {
                 z2.CompletionResult result;
+                long completionStartedNanos = System.nanoTime();
+                OpenNativeCompletionProbe.apiTrace("completion-start requestId=" + requestId
+                        + " mode=non-stream");
                 try {
                     result = current.complete(completion, null);
                 } catch (z2.GatewayException rejected) {
                     sendError(out, rejected.status, rejected.code, rejected.type,
                             rejected.getMessage());
+                    OpenNativeCompletionProbe.apiTrace("completion-failed requestId=" + requestId
+                            + " status=" + rejected.status + " code=" + rejected.code
+                            + " durationMs=" + ((System.nanoTime() - completionStartedNanos) / 1000000L));
                     return;
                 } catch (Exception upstreamFailure) {
                     sendError(out, 502, "upstream_error", "Native model execution failed");
+                    OpenNativeCompletionProbe.apiTrace("completion-failed requestId=" + requestId
+                            + " status=502 exception=" + upstreamFailure.getClass().getName()
+                            + " durationMs=" + ((System.nanoTime() - completionStartedNanos) / 1000000L));
                     return;
                 }
                 if (result == null) {
                     sendError(out, 502, "empty_upstream_response", "Native model returned no result");
+                    OpenNativeCompletionProbe.apiTrace("completion-empty requestId=" + requestId
+                            + " durationMs=" + ((System.nanoTime() - completionStartedNanos) / 1000000L));
                     return;
                 }
+                OpenNativeCompletionProbe.apiTrace("completion-complete requestId=" + requestId
+                        + " durationMs=" + ((System.nanoTime() - completionStartedNanos) / 1000000L)
+                        + " textChars=" + result.text.length()
+                        + " reasoningChars=" + result.reasoning.length()
+                        + " finishReason=" + result.finishReason);
                 JSONObject message = new JSONObject().put("role", "assistant")
                         .put("content", result.text);
                 if ("deepseek-reasoner".equals(model) && result.reasoning.length() > 0) {
@@ -643,16 +673,37 @@ final class OpenLocalApiGateway {
             }
         } catch (Exception error) {
             Main.log("Open Local API request failed: " + error.getClass().getSimpleName());
+            OpenNativeCompletionProbe.apiTrace("http-handler-failed exception="
+                    + error.getClass().getName()
+                    + " durationMs=" + ((System.nanoTime() - requestStartedNanos) / 1000000L));
         }
     }
 
     private static void streamCompletion(OutputStream out, z2.Backend current,
             z2.CompletionRequest request, String model, String requestId) throws Exception {
         writeHeaders(out, 200, "text/event-stream; charset=utf-8");
+        final long streamStartedNanos = System.nanoTime();
         final AtomicBoolean disconnected = new AtomicBoolean(false);
+        final AtomicBoolean firstDelta = new AtomicBoolean(false);
+        final java.util.concurrent.atomic.AtomicInteger eventCount =
+                new java.util.concurrent.atomic.AtomicInteger();
+        final java.util.concurrent.atomic.AtomicInteger textChars =
+                new java.util.concurrent.atomic.AtomicInteger();
+        final java.util.concurrent.atomic.AtomicInteger reasoningChars =
+                new java.util.concurrent.atomic.AtomicInteger();
+        OpenNativeCompletionProbe.apiTrace("completion-start requestId=" + requestId
+                + " mode=stream");
         z2.DeltaSink sink = new z2.DeltaSink() {
             private void send(String field, String content) throws Exception {
                 if (disconnected.get() || content == null || content.length() == 0) return;
+                eventCount.incrementAndGet();
+                if ("content".equals(field)) textChars.addAndGet(content.length());
+                else if ("reasoning_content".equals(field)) reasoningChars.addAndGet(content.length());
+                if (firstDelta.compareAndSet(false, true)) {
+                    OpenNativeCompletionProbe.apiTrace("first-delta requestId=" + requestId
+                            + " field=" + field + " elapsedMs="
+                            + ((System.nanoTime() - streamStartedNanos) / 1000000L));
+                }
                 JSONObject delta = new JSONObject().put(field, content);
                 JSONObject choice = new JSONObject().put("index", 0).put("delta", delta)
                         .put("finish_reason", JSONObject.NULL);
@@ -665,16 +716,38 @@ final class OpenLocalApiGateway {
             }
             @Override public boolean onText(String delta) throws Exception {
                 try { send("content", delta); return !disconnected.get(); }
-                catch (Exception failure) { disconnected.set(true); return false; }
+                catch (Exception failure) {
+                    disconnected.set(true);
+                    OpenNativeCompletionProbe.apiTrace("stream-write-failed requestId=" + requestId
+                            + " field=content exception=" + failure.getClass().getName());
+                    return false;
+                }
             }
             @Override public boolean onReasoning(String delta) {
                 try { send("reasoning_content", delta); return !disconnected.get(); }
-                catch (Exception failure) { disconnected.set(true); return false; }
+                catch (Exception failure) {
+                    disconnected.set(true);
+                    OpenNativeCompletionProbe.apiTrace("stream-write-failed requestId=" + requestId
+                            + " field=reasoning_content exception=" + failure.getClass().getName());
+                    return false;
+                }
             }
             @Override public boolean isCancelled() { return disconnected.get(); }
         };
         try {
             z2.CompletionResult result = current.complete(request, sink);
+            if (disconnected.get()) {
+                OpenNativeCompletionProbe.apiTrace("stream-disconnected requestId=" + requestId
+                        + " events=" + eventCount.get()
+                        + " durationMs=" + ((System.nanoTime() - streamStartedNanos) / 1000000L));
+            } else {
+                OpenNativeCompletionProbe.apiTrace("stream-complete requestId=" + requestId
+                        + " events=" + eventCount.get()
+                        + " textChars=" + textChars.get()
+                        + " reasoningChars=" + reasoningChars.get()
+                        + " durationMs=" + ((System.nanoTime() - streamStartedNanos) / 1000000L)
+                        + " finishReason=" + result.finishReason);
+            }
             if (!disconnected.get()) {
                 JSONObject choice = new JSONObject().put("index", 0)
                         .put("delta", new JSONObject()).put("finish_reason", result.finishReason);
@@ -686,6 +759,17 @@ final class OpenLocalApiGateway {
                 out.flush();
             }
         } catch (Exception failure) {
+            boolean gatewayFailure = failure instanceof z2.GatewayException;
+            z2.GatewayException traceRejected = gatewayFailure
+                    ? (z2.GatewayException) failure : null;
+            OpenNativeCompletionProbe.apiTrace("stream-failed requestId=" + requestId
+                    + " status=" + (gatewayFailure ? traceRejected.status : 502)
+                    + " code=" + (gatewayFailure ? traceRejected.code : "upstream_error")
+                    + " exception=" + failure.getClass().getName()
+                    + " events=" + eventCount.get()
+                    + " textChars=" + textChars.get()
+                    + " reasoningChars=" + reasoningChars.get()
+                    + " durationMs=" + ((System.nanoTime() - streamStartedNanos) / 1000000L));
             if (!disconnected.get()) {
                 boolean gatewayFailure = failure instanceof z2.GatewayException;
                 z2.GatewayException rejected = gatewayFailure
