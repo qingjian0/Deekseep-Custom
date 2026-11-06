@@ -30,7 +30,6 @@ Status: In progress; not a release acceptance report.
 - Explicitly rejects streaming tool calls until SSE redaction can guarantee that private tool syntax is never leaked.
 - Updated Open-build UI capability disclosures to distinguish implemented non-stream tool handoff from the still-unavailable native adapter.
 
-## Newly completed in this batch
 
 - Added `POST /v1/responses` for text input and message/function-call/function-call-output input items.
 - Added Responses JSON output items for assistant text, function calls, and custom tool calls.
