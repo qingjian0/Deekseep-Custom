@@ -167,6 +167,7 @@ gateway_checks = {
     "model must be a string when supplied": 'body.opt("model") instanceof String' in source and '"invalid_model"' in source,
     "gateway startup failures are visible in connection info": '最近启动错误：' in source and 'lastStartError = error.getClass().getSimpleName();' in source,
     "gateway runtime status distinguishes startup failure": 'Stopped (startup failed: ' in source,
+    "floating overlay does not report stale gateway heartbeat as listening": "age <= 15_000L" in overlay and "boolean running = z21.gatewayRunning() && heartbeatFresh;" in overlay and '"保活异常"' in overlay,
     "port restart restores previous port after failure": "新端口启动失败，已恢复原端口" in source and "previousPort" in source,
     "HTTP error type matches authentication and server status": 'status >= 500 ? "server_error"' in source and 'status == 401 ? "authentication_error"' in source and 'status == 403 ? "permission_error"' in source,
     "gateway preserves structured upstream HTTP errors": "sendError(out, rejected.status, rejected.code, rejected.type" in source,
