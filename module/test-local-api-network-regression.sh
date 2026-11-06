@@ -130,6 +130,9 @@ probe_required = {
     "request factory stack methods are inventoried": 'String[][] callSites = {',
     "request factory inventory includes observed call stack": '{"mw1", "y"}, {"mw1", "e"}',
     "request factory inventory includes transport parent": '{"mr2", "h"}',
+    "diagnostic schema reflects request-construction capture": 'session-start schema=7' in probe and 'line(out, "report.schema", "7")' in probe,
+    "constructor observer preserves host behavior on capture errors": "Diagnostics must never block the host's request constructor" in probe,
+    "argument type capture is null-safe": 'if (args == null) return "null";' in probe,
 }
 missing_probe = [label for label, token in probe_required.items() if token not in probe]
 if missing_probe:
