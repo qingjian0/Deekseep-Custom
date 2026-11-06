@@ -46,14 +46,24 @@ final class OpenNativeCompletionProbe {
 
     private OpenNativeCompletionProbe() {}
 
+    /** Called only after the user explicitly enables the native-adapter diagnostic switch. */
+    static void onExplicitEnable(ClassLoader loader) {
+        if (loader == null || !Main.isOpenNativeCompletionProbeEnabled()) return;
+        if (!OBSERVATION_JW3.get() || !OBSERVATION_ZN3.get()) {
+            REPORTED.set(false);
+            ATTEMPTS.set(0);
+        }
+        scheduleHostInspection(loader);
+    }
+
     /**
      * Schedule the passive inventory once, without creating a worker for every startz1 call.
      * The probe is diagnostic only and must not run on the host startup/UI caller thread.
      */
     static void scheduleHostInspection(final ClassLoader loader) {
         if (!"Open".equals(BuildInfo.BUILD_EDITION)
-                || BuildInfo.LOCAL_API_INCLUDED || loader == null
-                || REPORTED.get() || ATTEMPTS.get() >= MAX_ATTEMPTS
+                || BuildInfo.LOCAL_API_INCLUDED || !Main.isOpenNativeCompletionProbeEnabled()
+                || loader == null || REPORTED.get() || ATTEMPTS.get() >= MAX_ATTEMPTS
                 || !SCHEDULED.compareAndSet(false, true)) {
             return;
         }
@@ -78,7 +88,8 @@ final class OpenNativeCompletionProbe {
      * on another startz1() callback, which may never occur after the first launch.
      */
     private static void runBoundedInspection(ClassLoader loader) {
-        while (!REPORTED.get() && ATTEMPTS.get() < MAX_ATTEMPTS) {
+        while (!REPORTED.get() && ATTEMPTS.get() < MAX_ATTEMPTS
+                && Main.isOpenNativeCompletionProbeEnabled()) {
             int completedAttempts = ATTEMPTS.get();
             if (completedAttempts > 0) {
                 try {
@@ -101,8 +112,9 @@ final class OpenNativeCompletionProbe {
     @SuppressWarnings("unchecked")
     static void inspectHost(ClassLoader loader) {
         if (!"Open".equals(BuildInfo.BUILD_EDITION)
-                || BuildInfo.LOCAL_API_INCLUDED || loader == null
-                || REPORTED.get() || !INSPECTING.compareAndSet(false, true)) {
+                || BuildInfo.LOCAL_API_INCLUDED || !Main.isOpenNativeCompletionProbeEnabled()
+                || loader == null || REPORTED.get()
+                || !INSPECTING.compareAndSet(false, true)) {
             return;
         }
         StringBuilder out = new StringBuilder(8192);
@@ -346,7 +358,7 @@ final class OpenNativeCompletionProbe {
             installRuntimeObservation(loader);
             report = out.toString();
             // Only a complete DEX inventory is terminal. Class-load/scan failures remain retryable.
-            if (completed) REPORTED.set(true);
+            if (completed && Main.isOpenNativeCompletionProbeEnabled()) REPORTED.set(true);
             Main.extLog("[OPEN_NATIVE_COMPLETION_PROBE]\n" + report);
         } finally {
             // Even fatal observer-install or diagnostic failures must release the inspection guard.
@@ -361,6 +373,7 @@ final class OpenNativeCompletionProbe {
      */
     private static void installRuntimeObservation(ClassLoader loader) {
         if (!"Open".equals(BuildInfo.BUILD_EDITION) || BuildInfo.LOCAL_API_INCLUDED
+                || !Main.isOpenNativeCompletionProbeEnabled()
                 || HostCompat.hostCode271() != 289 || loader == null || Main.MODULE == null) {
             return;
         }
@@ -416,6 +429,7 @@ final class OpenNativeCompletionProbe {
             Main.MODULE.hook(target).intercept(new LegacyXposedModule.Hooker() {
                 @Override public Object intercept(LegacyXposedModule.Chain chain)
                         throws Throwable {
+                    if (!Main.isOpenNativeCompletionProbeEnabled()) return chain.proceed();
                     ObservationFrame frame = null;
                     boolean root = false;
                     boolean depthIncremented = false;
