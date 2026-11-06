@@ -500,6 +500,11 @@ require(
 
 require(
     probe,
+    r'installRequestConstructorObserver\(final Class<\?> requestType\).*?request-constructor-enter event=.*?observedArgumentTypes\(args\).*?observedArgumentShapes\(args\).*?stack=.*?observedStack\(\).*?request-constructor-exit event=.*?observedObjectShape\(instance\)',
+    "request constructor trace correlates value-free argument shapes with the factory call stack and constructed instance shape",
+)
+require(
+    probe,
     r'installCallbackObserver\(Object callback, String role\).*?type\.getDeclaredMethods\(\).*?attempted >= MAX_CALLBACK_METHODS_PER_CLASS.*?parameters\.length < 1.*?parameters\.length > 2.*?chain\.getThisObject\(\).*?System\.identityHashCode\(receiver\)',
     "callback observation is restricted to bounded one/two-argument methods declared by the concrete callback class",
 )
