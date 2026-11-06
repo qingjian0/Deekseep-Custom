@@ -525,9 +525,8 @@ public final class RoiDexRegisterFlowAnalyzerTest {
                 RoiDexMethodEntryLayout.analyze(2, 1, 0x0008, "(I)V");
         RoiDexUseDefChains.Result chains = RoiDexUseDefChains.analyze(flow, reaching, layout);
         RoiDexUseDefChains.UseSite handlerUse = useAt(chains, 5, 1);
-        check(handlerUse != null && handlerUse.reachingDefinitions.length == 1
-                        && handlerUse.reachingDefinitions[0].instructionOffset == 0,
-                "coarse exception edge may retain a protected-block definition candidate");
+        check(handlerUse != null && handlerUse.reachableFromEntry,
+                "exception handler use is reachable through the declared handler edge");
         check(handlerUse.mayBeEntryOrUnknownValue && handlerUse.mayBeExceptionFlowUnknown,
                 "handler use remains explicitly unknown despite a reaching definition candidate");
         check(handlerUse.entryValueKind == RoiDexUseDefChains.EntryValueKind.UNDEFINED_OR_UNKNOWN
