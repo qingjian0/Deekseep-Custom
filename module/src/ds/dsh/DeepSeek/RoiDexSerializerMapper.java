@@ -217,6 +217,12 @@ public final class RoiDexSerializerMapper {
                         decodeLink.invokeOffset,parameterType,element.name,decodeLink.ownerDescriptor,
                         decodeLink.methodName,decodeLink.prototypeDescriptor));
             }
+            if(constructorComplete&&!hasCompleteElementBijection(
+                    elementIndices.elements,parameterWidths.length,usedElementIndices,mappings)) {
+                rejected.add(new Rejected(instruction.offset,-1,
+                        "constructor_element_mapping_bijection_incomplete"));
+                constructorComplete=false;
+            }
             constructors.add(new ConstructorMapping(instruction.offset,invoke.referenceIndex,
                     constructor.ownerDescriptor,constructor.prototypeDescriptor,mappings,
                     constructorComplete));
@@ -272,6 +278,36 @@ public final class RoiDexSerializerMapper {
         }
         return found;
     }
+    /**
+     * Final constructor-level invariant: a complete result is a bijection between every
+     * constructor parameter and every registered serializer element. Earlier per-parameter
+     * checks are intentionally repeated here so later mapping changes cannot weaken the
+     * terminal completeness contract.
+     */
+    private static boolean hasCompleteElementBijection(
+            RoiDexSerializerElementIndex.Element[] elements,int parameterCount,
+            Set<Integer> usedElementIndices,List<ParameterMapping> mappings) {
+        if(elements==null||usedElementIndices==null||mappings==null
+                ||parameterCount!=elements.length||mappings.size()!=parameterCount
+                ||usedElementIndices.size()!=elements.length)return false;
+        Set<Integer> registered=new HashSet<Integer>();
+        for(RoiDexSerializerElementIndex.Element element:elements) {
+            if(element==null||!registered.add(element.index)
+                    ||!usedElementIndices.contains(element.index))return false;
+        }
+        Set<Integer> mappedParameters=new HashSet<Integer>();
+        Set<Integer> mappedElements=new HashSet<Integer>();
+        for(ParameterMapping mapping:mappings) {
+            if(mapping==null||mapping.constructorParameterIndex<0
+                    ||mapping.constructorParameterIndex>=parameterCount
+                    ||!mappedParameters.add(mapping.constructorParameterIndex)
+                    ||!registered.contains(mapping.elementIndex)
+                    ||!mappedElements.add(mapping.elementIndex))return false;
+        }
+        return mappedParameters.size()==parameterCount
+                &&mappedElements.size()==elements.length;
+    }
+
     private static boolean hasUniqueElementIdentity(
             RoiDexSerializerElementIndex.Element[] elements) {
         if(elements==null)return false;
