@@ -144,7 +144,7 @@ public final class RoiDexSerializerMapperTest {
     }
 
     static RoiDexValueProvenance.Result provenance(RoiDexCodeReader.CodeItem code,
-            RoiDexSerializerMapper.MethodResolver resolver)throws Exception {
+            RoiDexInvokeResultLinker.MethodResolver resolver)throws Exception {
         RoiDexInvokeResultLinker.Result links=RoiDexInvokeResultLinker.analyze(code,resolver);
         RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(code);
         RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
