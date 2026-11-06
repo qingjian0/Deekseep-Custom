@@ -478,12 +478,12 @@ if "field.get(" in probe or "fields[i].get(" in probe:
 
 require(
     probe,
-    r'installContinuationObserver\\(result\\).*?installContinuationObserver\\(Object result\\).*?"b"\\.equals\\(method\\.getName\\(\\)\\).*?parameters\\.length == 2.*?method\\.getReturnType\\(\\) == Object\\.class',
+    r'installContinuationObserver\(result\).*?installContinuationObserver\(Object result\).*?"b"\\.equals\(method\\.getName\(\)\).*?parameters\\.length == 2.*?method\\.getReturnType\(\) == Object\\.class',
     "the returned y60 continuation boundary is identified by its reviewed two-argument b method shape",
 )
 require(
     probe,
-    r'continuation-enter method=.*?observedArgumentTypes\\(args\\).*?observedObjectShape\\(first\\).*?observedObjectShape\\(second\\).*?chain\\.proceed\\(\\)',
+    r'continuation-enter method=.*?observedArgumentTypes\(args\).*?observedObjectShape\(first\).*?observedObjectShape\(second\).*?chain\\.proceed\(\)',
     "continuation observation records callback argument types/shapes and preserves original execution",
 )
 require(
@@ -494,12 +494,12 @@ require(
 
 require(
     probe,
-    r'installCallbackObserver\\(Object callback, String role\\).*?getDeclaredMethods\\(\\).*?installed < 12.*?chain\\.getThisObject\\(\\).*?System\\.identityHashCode\\(receiver\\)',
+    r'installCallbackObserver\(Object callback, String role\).*?getDeclaredMethods\(\).*?installed < 12.*?chain\\.getThisObject\(\).*?System\\.identityHashCode\(receiver\)',
     "continuation callback implementations are traced with bounded method hooks and identity correlation",
 )
 require(
     probe,
-    r'callback-enter role=.*?observedArgumentTypes\\(args\\).*?callback-exit role=.*?durationMs=.*?callback-throw role=.*?exception=',
+    r'callback-enter role=.*?observedArgumentTypes\(args\).*?callback-exit role=.*?durationMs=.*?callback-throw role=.*?exception=',
     "callback trace captures entry, completion, elapsed time, and exception class without payload values",
 )
 require(
