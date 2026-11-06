@@ -173,6 +173,14 @@ if "Responses API、Anthropic Messages、工具调用和多模态尚未实现" n
     raise SystemExit("Open UI must not advertise unimplemented API protocols")
 if "原生执行适配器尚未接通" not in ui_open:
     raise SystemExit("Open UI must disclose that native completion is not connected")
+overlay = (pathlib.Path(sys.argv[1]).parent / "LocalApiFloatingOverlay.java").read_text(encoding="utf-8")
+hook = (pathlib.Path(sys.argv[1]).parent / "HookAccountLoginSecurity.java").read_text(encoding="utf-8")
+if 'if ("Open".equals(BuildInfo.BUILD_EDITION)) {' not in overlay or 'httpsSwitch = null;' not in overlay:
+    raise SystemExit("Open floating overlay must hide unavailable HTTPS controls")
+if 'protocolValue.setClickable(false);' not in overlay or 'OpenAI（固定）' not in overlay:
+    raise SystemExit("Open floating overlay must keep the protocol fixed to OpenAI")
+if '!"Open".equals(BuildInfo.BUILD_EDITION)' not in hook or 'Open 版当前仅支持 HTTP + OpenAI Chat Completions' not in hook:
+    raise SystemExit("Open host control receiver must reject unsupported HTTPS/protocol changes")
 if 'protocolValue.setText(UiLanguage.text(act, "OpenAI（仅 Chat Completions）"' not in ui_open or 'protocolValue.setClickable(false)' not in ui_open:
     raise SystemExit("Open UI must not expose the unavailable Anthropic protocol picker")
 print("LAN lifecycle, key, URL, selectable UI, API protocol, and truthful Open capability checks passed")
