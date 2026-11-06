@@ -476,6 +476,22 @@ require(
 if "field.get(" in probe or "fields[i].get(" in probe:
     raise SystemExit("Runtime observer must not read request/response field values")
 
+require(
+    probe,
+    r'installContinuationObserver\\(result\\).*?installContinuationObserver\\(Object result\\).*?"b"\\.equals\\(method\\.getName\\(\\)\\).*?parameters\\.length == 2.*?method\\.getReturnType\\(\\) == Object\\.class',
+    "the returned y60 continuation boundary is identified by its reviewed two-argument b method shape",
+)
+require(
+    probe,
+    r'continuation-enter method=.*?observedArgumentTypes\\(args\\).*?observedObjectShape\\(first\\).*?observedObjectShape\\(second\\).*?chain\\.proceed\\(\\)',
+    "continuation observation records callback argument types/shapes and preserves original execution",
+)
+require(
+    probe,
+    r'OBSERVATION_Y60.*?continuation-installed method=.*?continuation-install-failed',
+    "continuation observer installation is one-shot and reports bounded installation status",
+)
+
 print("Native probe bounded-retry regression checks passed")
 print("Native adapter fail-closed and read-only probe source checks passed")
 PY
