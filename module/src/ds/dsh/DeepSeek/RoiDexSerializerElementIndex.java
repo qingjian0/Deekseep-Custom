@@ -42,11 +42,16 @@ public final class RoiDexSerializerElementIndex {
         public final boolean complete;
         public final boolean candidateEvidenceOnly=true;
         public final boolean hookAuthorizationGranted=false;
-        Result(List<Element> elements,List<Rejected> rejected,boolean proven) {
+        Result(List<Element> elements,List<Rejected> rejected,boolean orderProven) {
+            this(elements,rejected,orderProven,orderProven);
+        }
+        Result(List<Element> elements,List<Rejected> rejected,boolean orderProven,
+                boolean registrationsResolved) {
             this.elements=elements.toArray(new Element[0]);
             this.rejected=rejected.toArray(new Rejected[0]);
-            registrationOrderProven=proven;
-            complete=proven&&hasCompleteRegistrationSequence(this.elements,this.rejected);
+            registrationOrderProven=orderProven;
+            complete=registrationsResolved&&orderProven
+                    &&hasCompleteRegistrationSequence(this.elements,this.rejected);
         }
     }
 
@@ -88,6 +93,7 @@ public final class RoiDexSerializerElementIndex {
         int registrationBlock=-1;
         String registrationOwner=null;
         boolean complete=true;
+        boolean registrationOrderProven=true;
         for(RoiDexInstructionScanner.Instruction instruction:graph.scan.instructions) {
             if(instruction.payload||!isInvoke(instruction.opcode))continue;
             final RoiDexInstructionDecoder.Decoded invoke;
@@ -162,12 +168,15 @@ public final class RoiDexSerializerElementIndex {
             elements.add(new Element(currentIndex,instruction.offset,stringOperand,
                     name.value,method.ownerDescriptor));
         }
-        if(registrationIndex==0)complete=false;
+        if(registrationIndex==0) {
+            complete=false;
+            registrationOrderProven=false;
+        }
         if(registrationBlock>=0&&!isReachableFromEntry(graph,registrationBlock))
             throw new AnalysisException("descriptor_registration_block_unreachable");
         if(registrationBlock>=0&&hasCycleThroughBlock(graph,registrationBlock))
             throw new AnalysisException("descriptor_registration_loop_or_back_edge");
-        return new Result(elements,rejected,complete);
+        return new Result(elements,rejected,registrationOrderProven,complete);
     }
 
     private static boolean isReachableFromEntry(
