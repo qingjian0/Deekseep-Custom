@@ -516,6 +516,10 @@ final class OpenLocalApiGateway {
                         + ((System.nanoTime() - requestStartedNanos) / 1000000L));
                 return;
             }
+            if ("POST".equals(request.method) && "/v1/responses".equals(request.path)) {
+                handleResponses(out, request);
+                return;
+            }
             if (!"POST".equals(request.method)
                     || !"/v1/chat/completions".equals(request.path)) {
                 sendError(out, 404, "not_found", "Unknown API endpoint");
@@ -728,6 +732,357 @@ final class OpenLocalApiGateway {
                     + error.getClass().getName()
                     + " durationMs=" + ((System.nanoTime() - requestStartedNanos) / 1000000L));
         }
+    }
+
+    private static void handleResponses(OutputStream out, HttpRequest request)
+            throws Exception {
+        String contentType = request.headers.get("content-type");
+        String mediaType = contentType == null ? ""
+                : contentType.split(";", 2)[0].trim();
+        if (contentType != null && !"application/json".equalsIgnoreCase(mediaType)) {
+            sendError(out, 415, "unsupported_media_type",
+                    "Content-Type must be application/json");
+            return;
+        }
+        JSONObject body;
+        try {
+            body = new JSONObject(new String(request.body, StandardCharsets.UTF_8));
+        } catch (Exception invalid) {
+            sendError(out, 400, "invalid_json", "Request body must be valid JSON");
+            return;
+        }
+        String unsupported = unsupportedChatOption(body);
+        if (unsupported.length() > 0) {
+            sendError(out, 400, "unsupported_parameter",
+                    "This Responses endpoint does not support: " + unsupported);
+            return;
+        }
+        if (body.has("previous_response_id")
+                && body.optString("previous_response_id", "").trim().length() > 0) {
+            sendError(out, 400, "unsupported_previous_response_id",
+                    "Send the complete conversation in input; previous_response_id is not persisted");
+            return;
+        }
+        if (body.has("model") && !(body.opt("model") instanceof String)) {
+            sendError(out, 400, "invalid_model", "model must be a string");
+            return;
+        }
+        String requestedModel = body.optString("model", "deepseek-chat").trim();
+        String model = "deepseek-flash".equals(requestedModel)
+                ? "deepseek-chat" : requestedModel;
+        if (!"deepseek-chat".equals(model) && !"deepseek-reasoner".equals(model)) {
+            sendError(out, 400, "model_not_found", "Unsupported model: " + model);
+            return;
+        }
+        if (body.has("stream") && !(body.opt("stream") instanceof Boolean)) {
+            sendError(out, 400, "invalid_stream", "stream must be a boolean");
+            return;
+        }
+        boolean stream = body.optBoolean("stream", false);
+        Object rawInput = body.opt("input");
+        if (!(rawInput instanceof String) && !(rawInput instanceof JSONArray)) {
+            sendError(out, 400, "invalid_input", "input must be a string or an array");
+            return;
+        }
+        String instructions = body.optString("instructions", "").trim();
+        if (body.has("instructions") && !(body.opt("instructions") instanceof String)) {
+            sendError(out, 400, "invalid_instructions", "instructions must be a string");
+            return;
+        }
+        String basePrompt;
+        try {
+            basePrompt = responsesInputToPrompt(rawInput);
+        } catch (Exception invalid) {
+            sendError(out, 400, "invalid_input", "Responses input contains unsupported or invalid items");
+            return;
+        }
+        if (instructions.length() > 0) {
+            basePrompt = "system: " + instructions + "\n" + basePrompt;
+        }
+        if (basePrompt.trim().length() == 0 || basePrompt.length() > MAX_PROMPT_CHARS) {
+            sendError(out, 400, "invalid_input", "input is empty or too large");
+            return;
+        }
+        JSONObject textOptions = body.optJSONObject("text");
+        if (body.has("text") && textOptions == null) {
+            sendError(out, 400, "invalid_text_options", "text must be an object");
+            return;
+        }
+        JSONObject format = textOptions == null ? null : textOptions.optJSONObject("format");
+        if (format != null && !"text".equals(format.optString("type", "text"))) {
+            sendError(out, 400, "unsupported_response_format",
+                    "Only text output format is currently supported");
+            return;
+        }
+        JSONArray rawTools = body.optJSONArray("tools");
+        if (body.has("tools") && body.opt("tools") != JSONObject.NULL && rawTools == null) {
+            sendError(out, 400, "invalid_tools", "tools must be an array");
+            return;
+        }
+        if (body.has("parallel_tool_calls")
+                && !(body.opt("parallel_tool_calls") instanceof Boolean)) {
+            sendError(out, 400, "invalid_parallel_tool_calls",
+                    "parallel_tool_calls must be a boolean");
+            return;
+        }
+        OpenAiToolBridge.Plan toolPlan = OpenAiToolBridge.responsesPlan(
+                rawTools, body.opt("tool_choice"), body.optBoolean("parallel_tool_calls", true));
+        for (OpenAiToolBridge.Definition definition : toolPlan.tools) {
+            if (!OpenAiToolBridge.FUNCTION.equals(definition.kind)
+                    && !OpenAiToolBridge.CUSTOM.equals(definition.kind)) {
+                sendError(out, 400, "unsupported_tool_type",
+                        "This Responses endpoint currently supports function and custom tools only");
+                return;
+            }
+        }
+        if (stream && toolPlan.active()) {
+            sendError(out, 400, "unsupported_streaming_tool_calls",
+                    "Responses tool calls are currently supported only with stream=false");
+            return;
+        }
+        String requestId = "resp_" + UUID.randomUUID().toString().replace("-", "");
+        String messageId = "msg_" + UUID.randomUUID().toString().replace("-", "");
+        String prompt = OpenAiToolBridge.addInstructions(basePrompt, toolPlan, requestId);
+        if (prompt.length() > MAX_PROMPT_CHARS) {
+            sendError(out, 400, "invalid_input", "input with tool instructions is too large");
+            return;
+        }
+        int maxTokens = 4096;
+        if (body.has("max_output_tokens")) {
+            Object raw = body.opt("max_output_tokens");
+            if (!(raw instanceof Number)) {
+                sendError(out, 400, "invalid_max_output_tokens",
+                        "max_output_tokens must be an integer from 1 to 8192");
+                return;
+            }
+            double value = ((Number) raw).doubleValue();
+            if (value < 1 || value > 8192 || value != Math.rint(value)) {
+                sendError(out, 400, "invalid_max_output_tokens",
+                        "max_output_tokens must be an integer from 1 to 8192");
+                return;
+            }
+            maxTokens = (int) value;
+        }
+        z2.CompletionRequest completion = new z2.CompletionRequest(
+                requestId, model, "default", basePrompt, prompt,
+                "deepseek-reasoner".equals(model), false, maxTokens,
+                toolPlan, null, true).withOutputTextFormat(format);
+        z2.Backend current = backend;
+        if (current == null || !current.isReady()) {
+            sendError(out, 503, "model_not_ready",
+                    current == null ? "Model backend unavailable" : current.readinessDetail());
+            return;
+        }
+        if (stream) {
+            streamResponsesText(out, current, completion, model, requestId, messageId);
+            return;
+        }
+        long started = System.nanoTime();
+        z2.CompletionResult result;
+        try {
+            result = current.complete(completion, null);
+        } catch (z2.GatewayException rejected) {
+            sendError(out, rejected.status, rejected.code, rejected.type, rejected.getMessage());
+            return;
+        } catch (Exception failure) {
+            sendError(out, 502, "upstream_error", "Native model execution failed");
+            return;
+        }
+        if (result == null) {
+            sendError(out, 502, "empty_upstream_response", "Native model returned no result");
+            return;
+        }
+        List<OpenAiToolBridge.Call> calls = OpenAiToolBridge.parseCalls(result.text, toolPlan);
+        if (toolPlan.active() && calls.isEmpty()
+                && (toolPlan.choice.requiresCall()
+                || OpenAiToolBridge.resemblesCallSyntax(result.text, toolPlan))) {
+            sendError(out, 502, "invalid_tool_response",
+                    "The model did not return a valid tool call matching the request schema");
+            return;
+        }
+        JSONArray output = new JSONArray();
+        String outputText = calls.isEmpty() ? result.text : "";
+        if (calls.isEmpty()) {
+            JSONArray content = new JSONArray().put(new JSONObject()
+                    .put("type", "output_text").put("text", result.text)
+                    .put("annotations", new JSONArray()));
+            output.put(new JSONObject().put("id", messageId).put("type", "message")
+                    .put("status", "completed").put("role", "assistant")
+                    .put("content", content));
+        } else {
+            for (OpenAiToolBridge.Call call : calls) {
+                JSONObject item;
+                if (OpenAiToolBridge.CUSTOM.equals(call.kind)) {
+                    item = new JSONObject().put("id", call.itemId)
+                            .put("type", "custom_tool_call").put("status", "completed")
+                            .put("call_id", call.callId).put("name", call.name)
+                            .put("input", call.customInput());
+                } else {
+                    item = new JSONObject().put("id", call.itemId)
+                            .put("type", "function_call").put("status", "completed")
+                            .put("call_id", call.callId).put("name", call.name)
+                            .put("arguments", call.arguments);
+                    if (call.namespace != null) item.put("namespace", call.namespace);
+                }
+                output.put(item);
+            }
+        }
+        JSONObject response = new JSONObject().put("id", requestId)
+                .put("object", "response").put("created_at", System.currentTimeMillis() / 1000L)
+                .put("status", "completed").put("error", JSONObject.NULL)
+                .put("incomplete_details", JSONObject.NULL).put("model", model)
+                .put("output", output).put("output_text", outputText);
+        sendJson(out, 200, response);
+        OpenNativeCompletionProbe.apiTrace("responses-complete requestId=" + requestId
+                + " durationMs=" + ((System.nanoTime() - started) / 1000000L)
+                + " outputItems=" + output.length());
+    }
+
+    private static String responsesInputToPrompt(Object input) throws Exception {
+        if (input instanceof String) return "user: " + (String) input;
+        JSONArray items = (JSONArray) input;
+        StringBuilder prompt = new StringBuilder();
+        java.util.HashSet<String> callIds = new java.util.HashSet<String>();
+        for (int i = 0; i < items.length(); i++) {
+            JSONObject item = items.optJSONObject(i);
+            if (item == null) throw new IllegalArgumentException("Invalid input item");
+            String type = item.optString("type", "message");
+            if ("message".equals(type)) {
+                String role = item.optString("role", "user");
+                if (!"system".equals(role) && !"developer".equals(role)
+                        && !"user".equals(role) && !"assistant".equals(role)) {
+                    throw new IllegalArgumentException("Invalid message role");
+                }
+                String value = messageText(item.opt("content"));
+                if (value.trim().length() == 0) {
+                    throw new IllegalArgumentException("Empty input message");
+                }
+                if (prompt.length() > 0) prompt.append("\n");
+                prompt.append(role).append(": ").append(value);
+            } else if ("function_call".equals(type)) {
+                String callId = item.optString("call_id", "").trim();
+                String name = item.optString("name", "").trim();
+                String arguments = item.optString("arguments", "");
+                if (callId.length() == 0 || name.length() == 0 || callIds.contains(callId)) {
+                    throw new IllegalArgumentException("Invalid function_call history");
+                }
+                new JSONObject(arguments);
+                callIds.add(callId);
+                if (prompt.length() > 0) prompt.append("\n");
+                prompt.append("assistant tool call id=").append(callId)
+                        .append(" name=").append(name).append(" arguments=").append(arguments);
+            } else if ("function_call_output".equals(type)) {
+                String callId = item.optString("call_id", "").trim();
+                if (callId.length() == 0 || !callIds.remove(callId)) {
+                    throw new IllegalArgumentException("Unmatched function_call_output");
+                }
+                Object rawOutput = item.opt("output");
+                String value = rawOutput instanceof String ? (String) rawOutput
+                        : rawOutput == null || rawOutput == JSONObject.NULL
+                                ? "" : String.valueOf(rawOutput);
+                if (prompt.length() > 0) prompt.append("\n");
+                prompt.append("tool result for ").append(callId).append(": ").append(value);
+            } else {
+                throw new IllegalArgumentException("Unsupported Responses input item type");
+            }
+            if (prompt.length() > MAX_PROMPT_CHARS) return prompt.toString();
+        }
+        return prompt.toString();
+    }
+
+    private static void streamResponsesText(OutputStream out, z2.Backend current,
+            z2.CompletionRequest request, String model, String requestId, String messageId)
+            throws Exception {
+        writeHeaders(out, 200, "text/event-stream; charset=utf-8");
+        final AtomicBoolean disconnected = new AtomicBoolean(false);
+        final StringBuilder streamed = new StringBuilder();
+        final int[] sequence = {0};
+        sendResponsesEvent(out, "response.created", ++sequence[0],
+                new JSONObject().put("response", responsesEnvelope(requestId, model,
+                        "in_progress", new JSONArray(), "")));
+        sendResponsesEvent(out, "response.in_progress", ++sequence[0],
+                new JSONObject().put("response", responsesEnvelope(requestId, model,
+                        "in_progress", new JSONArray(), "")));
+        JSONObject item = new JSONObject().put("id", messageId).put("type", "message")
+                .put("status", "in_progress").put("role", "assistant")
+                .put("content", new JSONArray());
+        sendResponsesEvent(out, "response.output_item.added", ++sequence[0],
+                new JSONObject().put("output_index", 0).put("item", item));
+        JSONObject part = new JSONObject().put("type", "output_text")
+                .put("text", "").put("annotations", new JSONArray());
+        sendResponsesEvent(out, "response.content_part.added", ++sequence[0],
+                new JSONObject().put("item_id", messageId).put("output_index", 0)
+                        .put("content_index", 0).put("part", part));
+        z2.DeltaSink sink = new z2.DeltaSink() {
+            @Override public boolean onText(String delta) throws Exception {
+                if (disconnected.get()) return false;
+                try {
+                    streamed.append(delta);
+                    sendResponsesEvent(out, "response.output_text.delta", ++sequence[0],
+                            new JSONObject().put("item_id", messageId).put("output_index", 0)
+                                    .put("content_index", 0).put("delta", delta));
+                    return true;
+                } catch (Exception failure) {
+                    disconnected.set(true);
+                    return false;
+                }
+            }
+            @Override public boolean onReasoning(String delta) { return !disconnected.get(); }
+            @Override public boolean isCancelled() { return disconnected.get(); }
+        };
+        try {
+            z2.CompletionResult result = current.complete(request, sink);
+            if (result == null) throw new z2.GatewayException(502,
+                    "empty_upstream_response", "Native model returned no result");
+            if (disconnected.get()) return;
+            String finalText = streamed.length() > 0 ? streamed.toString() : result.text;
+            sendResponsesEvent(out, "response.output_text.done", ++sequence[0],
+                    new JSONObject().put("item_id", messageId).put("output_index", 0)
+                            .put("content_index", 0).put("text", finalText));
+            JSONObject finalPart = new JSONObject().put("type", "output_text")
+                    .put("text", finalText).put("annotations", new JSONArray());
+            sendResponsesEvent(out, "response.content_part.done", ++sequence[0],
+                    new JSONObject().put("item_id", messageId).put("output_index", 0)
+                            .put("content_index", 0).put("part", finalPart));
+            JSONObject finalItem = new JSONObject().put("id", messageId).put("type", "message")
+                    .put("status", "completed").put("role", "assistant")
+                    .put("content", new JSONArray().put(finalPart));
+            sendResponsesEvent(out, "response.output_item.done", ++sequence[0],
+                    new JSONObject().put("output_index", 0).put("item", finalItem));
+            sendResponsesEvent(out, "response.completed", ++sequence[0],
+                    new JSONObject().put("response", responsesEnvelope(requestId, model,
+                            "completed", new JSONArray().put(finalItem), finalText)));
+        } catch (Exception failure) {
+            if (!disconnected.get()) {
+                JSONObject error = new JSONObject().put("message", "Model execution failed")
+                        .put("type", "server_error").put("code", "upstream_error");
+                sendResponsesEvent(out, "response.failed", ++sequence[0],
+                        new JSONObject().put("response", responsesEnvelope(requestId, model,
+                                "failed", new JSONArray(), "")
+                                .put("error", error)));
+            }
+        }
+        if (!disconnected.get()) {
+            out.write("data: [DONE]\n\n".getBytes(StandardCharsets.UTF_8));
+            out.flush();
+        }
+    }
+
+    private static JSONObject responsesEnvelope(String id, String model, String status,
+            JSONArray output, String outputText) throws Exception {
+        return new JSONObject().put("id", id).put("object", "response")
+                .put("created_at", System.currentTimeMillis() / 1000L)
+                .put("status", status).put("error", JSONObject.NULL)
+                .put("incomplete_details", JSONObject.NULL).put("model", model)
+                .put("output", output).put("output_text", outputText);
+    }
+
+    private static void sendResponsesEvent(OutputStream out, String type, int sequence,
+            JSONObject payload) throws Exception {
+        payload.put("type", type).put("sequence_number", sequence);
+        byte[] bytes = ("event: " + type + "\ndata: " + payload.toString() + "\n\n")
+                .getBytes(StandardCharsets.UTF_8);
+        synchronized (out) { out.write(bytes); out.flush(); }
     }
 
     private static void streamCompletion(OutputStream out, z2.Backend current,
