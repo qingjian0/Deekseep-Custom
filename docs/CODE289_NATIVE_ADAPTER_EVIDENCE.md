@@ -56,3 +56,40 @@ Status: Investigation only; native generation remains fail-closed.
 3. Trace y60 collection and continuation callbacks from an ordinary user-initiated generation.
 4. Correlate callback types with actual visible text/reasoning/terminal/error outcomes, without logging payload contents.
 5. Implement the adapter only after tasks 1–4 are supported by APK and device evidence; then verify cancellation and a real response.
+
+## Device log analysis (schema 4)
+
+Analyzed the four non-empty runtime captures stored at repository root:
+
+| Capture | Lines | Transport dispatches | Continuation enters/exits/throws | Callback method entries |
+|---|---:|---:|---:|---:|
+| open-native-1793943423710.log | 5,644 | 1 | 3 / 2 / 0 | 44 |
+| open-native-1793943498745.log | 3,398 | 1 | 6 / 3 / 2 | 18 |
+| open-native-1793943559724.log | 1,675 | 1 | 3 / 2 / 0 | 2 |
+| open-native-1793943712606.log | 3,390 | 1 | 8 / 4 / 3 | 4 |
+
+One additional 1,463-byte capture contains only API validation traces: requests were rejected for unsupported tools and stream_options.include_usage before reaching native transport. These logs predate the current protocol wiring and use observer schema 4.
+
+### Confirmed from runtime traces
+
+- Every traced generation enters zn3.o(wu1, Long) and then jw3.g(wu1, Long) with the exact same ly1 request object.
+- Both observed calls receive a null second argument in these captures; this is an observation, not proof that null is valid for every request mode.
+- Both transport methods return y60; y60.b(fl4, yb3) is entered asynchronously on DefaultDispatcher worker threads.
+- The observed ly1 instance has declared fields: a:String, b:Integer, c:String, d:List, e:boolean, f:boolean, g:String, h:boolean, i:String, j:String, k:String, l:qh6[]. No field values were captured.
+- y60 continuation callback pairs observed include cr9/k41, ec0/mm4, s5/g0, qa/f0, and null/x0.
+- Callback-0 methods observed include cr9.a(Object,yb3), ec0.a(Object,yb3), s5.a(Object,yb3), and qa.a(Object,yb3). Their first runtime argument classes include av1, vd6, sha, cv1, zgb, and Boolean across captures.
+- Continuation results include zgb and cd3; cd3 exposes enum-style values()/valueOf() methods. Their semantic meaning is not established.
+- Exception class us4 is observed in two captures on continuation/callback paths. It is not yet classified as cancellation, transport failure, or another terminal condition.
+
+### What the traces do not establish
+
+- Which ly1 constructor/factory is used for the observed request and how each field is populated.
+- Whether zn3.o is safe to invoke directly outside the host's normal request-preparation path.
+- Whether the null Long parameter is universally correct or context-specific.
+- The semantic mapping of callback payload classes to text, reasoning, tool, completion, or error events.
+- Whether zgb is a suspension marker or another sentinel; whether cd3 indicates success/failure/cancellation.
+- Correct cancellation propagation, retry behavior, and final user-visible response correctness.
+
+### Next probe enhancement
+
+The diagnostic probe now inventories the ly1 constructors and the observed request-factory stack methods (mw1.y/e, jr2.y/m, mr2.h), and records at most 16 constructor events with runtime argument class/field-shape metadata only. It does not capture argument values or request field values.
