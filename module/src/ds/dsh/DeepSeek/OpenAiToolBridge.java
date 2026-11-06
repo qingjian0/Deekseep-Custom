@@ -115,7 +115,7 @@ final class OpenAiToolBridge {
         }
     }
 
-    static final class Plan {
+    static final class Plan implements z2.ToolPlan {
         final List<Definition> tools;
         final Choice choice;
         final boolean parallel;
@@ -128,7 +128,7 @@ final class OpenAiToolBridge {
             this.responsesApi = responsesApi;
         }
 
-        boolean active() {
+        @Override public boolean active() {
             return !tools.isEmpty() && !Choice.NONE.equals(choice.mode);
         }
 
