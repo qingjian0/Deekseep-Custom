@@ -862,10 +862,6 @@ final class OpenLocalApiGateway {
     private static JSONArray anthropicContent(z2.CompletionResult result,
             List<OpenAiToolBridge.Call> calls) throws Exception {
         JSONArray content = new JSONArray();
-        if (result.reasoning.length() > 0) {
-            content.put(new JSONObject().put("type", "thinking")
-                    .put("thinking", result.reasoning));
-        }
         if (result.text.length() > 0 && calls.isEmpty()) {
             content.put(new JSONObject().put("type", "text").put("text", result.text));
         }
@@ -888,10 +884,8 @@ final class OpenLocalApiGateway {
         writeHeaders(out, 200, "text/event-stream; charset=utf-8");
         final AtomicBoolean disconnected = new AtomicBoolean(false);
         final StringBuilder streamedText = new StringBuilder();
-        final StringBuilder streamedThinking = new StringBuilder();
         final int[] nextBlock = {0};
         final int[] textBlock = {-1};
-        final int[] thinkingBlock = {-1};
         sendAnthropicEvent(out, "message_start", new JSONObject().put("type", "message_start")
                 .put("message", new JSONObject().put("id", requestId)
                         .put("type", "message").put("role", "assistant")
@@ -899,24 +893,6 @@ final class OpenLocalApiGateway {
                         .put("stop_reason", JSONObject.NULL).put("stop_sequence", JSONObject.NULL)));
         sendAnthropicEvent(out, "ping", new JSONObject().put("type", "ping"));
         z2.DeltaSink sink = new z2.DeltaSink() {
-            private boolean emitThinking(String delta) throws Exception {
-                if (disconnected.get() || delta == null || delta.length() == 0) return !disconnected.get();
-                if (thinkingBlock[0] < 0) {
-                    thinkingBlock[0] = nextBlock[0]++;
-                    sendAnthropicEvent(out, "content_block_start",
-                            new JSONObject().put("type", "content_block_start")
-                                    .put("index", thinkingBlock[0])
-                                    .put("content_block", new JSONObject()
-                                            .put("type", "thinking").put("thinking", "")));
-                }
-                streamedThinking.append(delta);
-                sendAnthropicEvent(out, "content_block_delta",
-                        new JSONObject().put("type", "content_block_delta")
-                                .put("index", thinkingBlock[0])
-                                .put("delta", new JSONObject().put("type", "thinking_delta")
-                                        .put("thinking", delta)));
-                return true;
-            }
             private boolean emitText(String delta) throws Exception {
                 if (disconnected.get() || delta == null || delta.length() == 0) return !disconnected.get();
                 if (textBlock[0] < 0) {
@@ -939,10 +915,7 @@ final class OpenLocalApiGateway {
                 try { return emitText(delta); }
                 catch (Exception failure) { disconnected.set(true); return false; }
             }
-            @Override public boolean onReasoning(String delta) throws Exception {
-                try { return emitThinking(delta); }
-                catch (Exception failure) { disconnected.set(true); return false; }
-            }
+            @Override public boolean onReasoning(String delta) { return !disconnected.get(); }
             @Override public boolean isCancelled() { return disconnected.get(); }
         };
         try {
@@ -950,16 +923,8 @@ final class OpenLocalApiGateway {
             if (result == null) throw new z2.GatewayException(502,
                     "empty_upstream_response", "Native model returned no result");
             if (disconnected.get()) return;
-            if (streamedThinking.length() == 0 && result.reasoning.length() > 0) {
-                sink.onReasoning(result.reasoning);
-            }
             if (streamedText.length() == 0 && result.text.length() > 0) {
                 sink.onText(result.text);
-            }
-            if (thinkingBlock[0] >= 0) {
-                sendAnthropicEvent(out, "content_block_stop",
-                        new JSONObject().put("type", "content_block_stop")
-                                .put("index", thinkingBlock[0]));
             }
             if (textBlock[0] >= 0) {
                 sendAnthropicEvent(out, "content_block_stop",
