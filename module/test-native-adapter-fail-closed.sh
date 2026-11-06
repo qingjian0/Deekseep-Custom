@@ -506,7 +506,7 @@ require(
 callback_start = probe.index("private static void installCallbackObserver(")
 callback_end = probe.index("private static String observedMethodDescriptor(", callback_start)
 callback_region = probe[callback_start:callback_end]
-if re.search(r'while \(current != null && current != Object\\.class\)', callback_region):
+if re.search(r'while \(current != null && current != Object\.class\)', callback_region):
     raise SystemExit("callback observer must not traverse callback superclasses")
 require(
     probe,
