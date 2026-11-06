@@ -280,7 +280,7 @@ public final class RoiDexValueProvenance {
         }
         Map<Integer,RoiDexRegisterFlowAnalyzer.InstructionFlow> instructions=
                 new HashMap<Integer,RoiDexRegisterFlowAnalyzer.InstructionFlow>();
-        for(RoiDexRegisterFlowAnalyzer.BasicBlock block:flow.blocks)
+        for(RoiDexRegisterFlowAnalyzer.BasicBlockFlow block:flow.blocks)
             for(RoiDexRegisterFlowAnalyzer.InstructionFlow instruction:block.instructions)
                 if(instructions.put(instruction.offset,instruction)!=null)
                     throw new AnalysisException("duplicate_instruction_offset");
