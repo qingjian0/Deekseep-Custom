@@ -123,6 +123,21 @@ public final class RoiDexSerializerMapper {
                 rejected.add(new Rejected(instruction.offset,-1,"constructor_register_word_count_mismatch"));
                 allComplete=false;continue;
             }
+            if(!hasUniqueElementIdentity(elementIndices.elements)) {
+                rejected.add(new Rejected(instruction.offset,-1,"serializer_element_identity_ambiguous"));
+                constructors.add(new ConstructorMapping(instruction.offset,invoke.referenceIndex,
+                        constructor.ownerDescriptor,constructor.prototypeDescriptor,
+                        new ArrayList<ParameterMapping>(),false));
+                allComplete=false;continue;
+            }
+            if(parameterWidths.length!=elementIndices.elements.length) {
+                rejected.add(new Rejected(instruction.offset,-1,
+                        "constructor_parameter_element_count_mismatch"));
+                constructors.add(new ConstructorMapping(instruction.offset,invoke.referenceIndex,
+                        constructor.ownerDescriptor,constructor.prototypeDescriptor,
+                        new ArrayList<ParameterMapping>(),false));
+                allComplete=false;continue;
+            }
             List<ParameterMapping> mappings=new ArrayList<ParameterMapping>();
             Set<Integer> usedElementIndices=new HashSet<Integer>();
             boolean constructorComplete=true;
@@ -252,6 +267,18 @@ public final class RoiDexSerializerMapper {
         }
         return found;
     }
+    private static boolean hasUniqueElementIdentity(
+            RoiDexSerializerElementIndex.Element[] elements) {
+        if(elements==null)return false;
+        Set<Integer> indices=new HashSet<Integer>();
+        Set<String> names=new HashSet<String>();
+        for(RoiDexSerializerElementIndex.Element element:elements) {
+            if(element==null||element.index<0||element.name==null||element.name.length()==0
+                    ||!indices.add(element.index)||!names.add(element.name))return false;
+        }
+        return true;
+    }
+
     private static RoiDexSerializerElementIndex.Element findElement(
             RoiDexSerializerElementIndex.Result elements,int index) {
         for(RoiDexSerializerElementIndex.Element element:elements.elements)
