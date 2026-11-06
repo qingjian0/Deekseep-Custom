@@ -495,10 +495,10 @@ require(
 
 require(
     probe,
-    r'installCallbackObserver\\(Object callback, String role\\).*?MAX_CALLBACK_METHODS_PER_CLASS = 12.*?type\\.getDeclaredMethods\\(\\).*?parameters\\.length < 1.*?parameters\\.length > 2.*?installed >= MAX_CALLBACK_METHODS_PER_CLASS.*?chain\\.getThisObject\\(\\).*?System\\.identityHashCode\\(receiver\\)',
+    r'installCallbackObserver\(Object callback, String role\).*?MAX_CALLBACK_METHODS_PER_CLASS = 12.*?type\.getDeclaredMethods\(\).*?parameters\.length < 1.*?parameters\.length > 2.*?installed >= MAX_CALLBACK_METHODS_PER_CLASS.*?chain\.getThisObject\(\).*?System\.identityHashCode\(receiver\)',
     "callback observation is restricted to bounded one/two-argument methods declared by the concrete callback class",
 )
-if re.search(r'installCallbackObserver\\(Object callback, String role\\).*?while \\(current != null && current != Object\\.class\\)', probe, re.S):
+if re.search(r'installCallbackObserver\(Object callback, String role\).*?while \(current != null && current != Object\.class\)', probe, re.S):
     raise SystemExit("callback observer must not traverse callback superclasses")
 require(
     probe,
@@ -515,7 +515,7 @@ if "callback.toString()" in probe or "receiver.toString()" in probe:
 
 require(
     probe,
-    r'line\\(out, "report\\.schema", "5"\\).*?diagnostic\\.coverage.*?diagnostic\\.sensitive_data.*?diagnostic\\.callback_hook_limits.*?max-12-methods-per-class.*?no-superclass-traversal',
+    r'line\(out, "report\.schema", "5"\).*?diagnostic\.coverage.*?diagnostic\.sensitive_data.*?diagnostic\.callback_hook_limits.*?max-12-methods-per-class.*?no-superclass-traversal',
     "schema 5 declares bounded concrete-callback hook coverage and persistent selected-method capture",
 )
 require(
@@ -535,7 +535,7 @@ require(
 )
 require(
     probe,
-    r'MAX_CALLBACK_METHODS_PER_CLASS = 12.*?getDeclaredMethods\\(\\).*?installed >= MAX_CALLBACK_METHODS_PER_CLASS.*?scope=concrete-class-declared-only',
+    r'MAX_CALLBACK_METHODS_PER_CLASS = 12.*?getDeclaredMethods\(\).*?installed >= MAX_CALLBACK_METHODS_PER_CLASS.*?scope=concrete-class-declared-only',
     "callback instrumentation applies an explicit per-concrete-class method cap and never hooks inherited methods",
 )
 require(
@@ -565,8 +565,8 @@ require(
 )
 require(
     ui,
-    r'完整采集官方客户端 Transport、全部已发现的异步回调方法与 Local API 网关阶段.*?不设回调类、方法、Hook 或事件数量上限.*?复制完整报告',
-    "the UI explains uncapped callback coverage, persistent full-event logging, and one-report export",
+    r'采集官方客户端 Transport、y60 边界观察到的回调对象.*?每类最多 12 个，不遍历父类.*?复制完整报告',
+    "the UI explains bounded concrete callback coverage and persistent selected-method logging",
 )
 require(
     probe,
