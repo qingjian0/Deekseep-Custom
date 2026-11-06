@@ -18,6 +18,7 @@ No upstream source files have been copied into this branch by this commit. This 
 | Local path | Upstream path | Upstream revision | License notice retained | Local modifications |
 |---|---|---|---|---|
 | module/src/ds/dsh/DeepSeek/OpenAiToolBridge.java | module/src/com/dsmod/probe/OpenAiToolBridge.java | 6b5847d68c30a6525193f3187dac57fb92564d06 | Yes; full MIT notice retained in file header | Package migration; LocalApiGateway.GatewayException mapped to z2.GatewayException; Plan implements z2.ToolPlan |
+| module/src/ds/dsh/DeepSeek/OmniRouteToolBridge.java | module/src/com/dsmod/probe/OmniRouteToolBridge.java (derived from diegosouzapw/OmniRoute) | cda732e97920ef99b3d01fb1559f6255b39d8e7d; upstream OmniRoute commit dffff5d656c169e41c4862cb38affbd9992f24a5 | Yes; diegosouzapw MIT notice retained in file header | Package migration; adapter remains scoped to OpenAiToolBridge.Plan/Definition |
 
 ## Required handling
 
