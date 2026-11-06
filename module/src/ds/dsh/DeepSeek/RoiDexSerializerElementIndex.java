@@ -38,19 +38,26 @@ public final class RoiDexSerializerElementIndex {
         public final Element[] elements;
         public final Rejected[] rejected;
         public final boolean registrationOrderProven;
-        /** True only when every discovered registration produced one resolved element. */
+        /** True only when every normal return path passes through the registration block. */
+        public final boolean registrationCoverageProven;
+        /** True only when order, path coverage, and every discovered registration are complete. */
         public final boolean complete;
         public final boolean candidateEvidenceOnly=true;
         public final boolean hookAuthorizationGranted=false;
         Result(List<Element> elements,List<Rejected> rejected,boolean orderProven) {
-            this(elements,rejected,orderProven,orderProven);
+            this(elements,rejected,orderProven,orderProven,orderProven);
         }
         Result(List<Element> elements,List<Rejected> rejected,boolean orderProven,
                 boolean registrationsResolved) {
+            this(elements,rejected,orderProven,registrationsResolved,orderProven);
+        }
+        Result(List<Element> elements,List<Rejected> rejected,boolean orderProven,
+                boolean registrationsResolved,boolean coverageProven) {
             this.elements=elements.toArray(new Element[0]);
             this.rejected=rejected.toArray(new Rejected[0]);
             registrationOrderProven=orderProven;
-            complete=registrationsResolved&&orderProven
+            registrationCoverageProven=coverageProven;
+            complete=registrationsResolved&&orderProven&&coverageProven
                     &&hasCompleteRegistrationSequence(this.elements,this.rejected);
         }
     }
@@ -176,7 +183,44 @@ public final class RoiDexSerializerElementIndex {
             throw new AnalysisException("descriptor_registration_block_unreachable");
         if(registrationBlock>=0&&hasCycleThroughBlock(graph,registrationBlock))
             throw new AnalysisException("descriptor_registration_loop_or_back_edge");
-        return new Result(elements,rejected,registrationOrderProven,complete);
+        boolean registrationCoverageProven=registrationBlock>=0
+                &&dominatesAllNormalReturns(graph,registrationBlock);
+        return new Result(elements,rejected,registrationOrderProven,complete,
+                registrationCoverageProven);
+    }
+
+    /**
+     * Proves that every reachable normal return is preceded by the registration block.
+     * Track paths that have and have not visited the block; a single bypassing return
+     * invalidates whole-method registration completeness.
+     */
+    private static boolean dominatesAllNormalReturns(
+            RoiDexInstructionScanner.ControlFlowGraph graph,int registrationBlock) {
+        if(graph.blocks.length==0||registrationBlock<0
+                ||registrationBlock>=graph.blocks.length)return false;
+        boolean[][] visited=new boolean[graph.blocks.length][2];
+        java.util.ArrayDeque<int[]> queue=new java.util.ArrayDeque<int[]>();
+        queue.add(new int[]{0,graph.blocks[0].startOffset==graph.blocks[registrationBlock].startOffset?1:0});
+        boolean sawNormalReturn=false;
+        while(!queue.isEmpty()) {
+            int[] state=queue.removeFirst();
+            int block=state[0];
+            boolean passed=state[1]!=0||block==registrationBlock;
+            int stateIndex=passed?1:0;
+            if(visited[block][stateIndex])continue;
+            visited[block][stateIndex]=true;
+            RoiDexInstructionScanner.Instruction[] instructions=graph.blocks[block].instructions;
+            if(instructions.length==0)return false;
+            int lastOpcode=instructions[instructions.length-1].opcode;
+            if(lastOpcode>=0x0e&&lastOpcode<=0x11) {
+                sawNormalReturn=true;
+                if(!passed)return false;
+                continue;
+            }
+            for(RoiDexInstructionScanner.Edge edge:graph.edges)
+                if(edge.fromBlock==block)queue.add(new int[]{edge.toBlock,passed?1:0});
+        }
+        return sawNormalReturn;
     }
 
     private static boolean isReachableFromEntry(
