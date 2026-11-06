@@ -273,7 +273,14 @@ jobs:
             exit 1
           }
           Z20_DEX_FOUND=false
-          for DEX in $(unzip -Z1 "$APK" | grep -E '^classes([0-9]+)?[.]dex            echo "Open APK manifest declares z20 but no DEX contains its class."
+          for DEX in $(unzip -Z1 "$APK" | grep -E '^classes([0-9]+)?[.]dex$'); do
+            if unzip -p "$APK" "$DEX" | strings | grep -Fxq 'Lds/dsh/DeepSeek/z20;'; then
+              Z20_DEX_FOUND=true
+              break
+            fi
+          done
+          test "$Z20_DEX_FOUND" = true || {
+            echo "Open APK manifest declares z20 but no DEX contains its class."
             exit 1
           }
           python3 scripts/verify-dexkit-gradle-apk.py "$APK" compose-launcher/app/build.gradle.kts scripts/verify-elf-load-alignment.py
