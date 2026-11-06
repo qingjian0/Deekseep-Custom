@@ -241,15 +241,28 @@ final class LocalApiFloatingOverlay {
         serviceRow.addView(serviceSwitch, new LinearLayout.LayoutParams(dp(56), dp(34)));
         content.addView(serviceRow);
 
-        LinearLayout protocolRow = settingRow("兼容格式", "OpenAI Chat / Responses 或 Anthropic", ink, secondary);
-        protocolValue = actionText("OpenAI  ›", ink, inset, line);
-        protocolRow.addView(protocolValue);
-        content.addView(protocolRow);
+        if ("Open".equals(BuildInfo.BUILD_EDITION)) {
+            LinearLayout protocolRow = settingRow("API 格式",
+                    "OpenAI Chat Completions（固定；Responses / Anthropic 暂不可用）",
+                    ink, secondary);
+            protocolValue = actionText("OpenAI（固定）", ink, inset, line);
+            protocolValue.setClickable(false);
+            protocolValue.setAlpha(.72f);
+            protocolRow.addView(protocolValue);
+            content.addView(protocolRow);
+            httpsSwitch = null;
+        } else {
+            LinearLayout protocolRow = settingRow("兼容格式",
+                    "OpenAI Chat / Responses 或 Anthropic", ink, secondary);
+            protocolValue = actionText("OpenAI  ›", ink, inset, line);
+            protocolRow.addView(protocolValue);
+            content.addView(protocolRow);
 
-        LinearLayout httpsRow = settingRow("HTTPS", "启用内置 TLS 监听", ink, secondary);
-        httpsSwitch = themedSwitch(dark);
-        httpsRow.addView(httpsSwitch, new LinearLayout.LayoutParams(dp(56), dp(34)));
-        content.addView(httpsRow);
+            LinearLayout httpsRow = settingRow("HTTPS", "启用内置 TLS 监听", ink, secondary);
+            httpsSwitch = themedSwitch(dark);
+            httpsRow.addView(httpsSwitch, new LinearLayout.LayoutParams(dp(56), dp(34)));
+            content.addView(httpsRow);
+        }
 
         content.addView(section("连接凭证", muted));
         keyInput = input("API Key", ink, secondary, inset, line);
@@ -296,17 +309,22 @@ final class LocalApiFloatingOverlay {
                 control(z21.OP_SET_ENABLED, String.valueOf(checked));
             }
         });
-        httpsSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override public void onCheckedChanged(CompoundButton button, boolean checked) {
-                if (updating) return;
-                control(z21.OP_SET_HTTPS, String.valueOf(checked));
-            }
-        });
-        protocolValue.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                control(z21.OP_SET_PROTOCOL, "anthropic".equals(z21.protocolValue()) ? "openai" : "anthropic");
-            }
-        });
+        if (httpsSwitch != null) {
+            httpsSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override public void onCheckedChanged(CompoundButton button, boolean checked) {
+                    if (updating) return;
+                    control(z21.OP_SET_HTTPS, String.valueOf(checked));
+                }
+            });
+        }
+        if (!"Open".equals(BuildInfo.BUILD_EDITION)) {
+            protocolValue.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    control(z21.OP_SET_PROTOCOL,
+                            "anthropic".equals(z21.protocolValue()) ? "openai" : "anthropic");
+                }
+            });
+        }
         saveKey.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { control(z21.OP_SET_KEY, keyInput.getText().toString()); }
         });
@@ -387,8 +405,10 @@ final class LocalApiFloatingOverlay {
             }
             endpoint.setText(displayedEndpoint());
             serviceSwitch.setChecked(z21.apiEnabled());
-            httpsSwitch.setChecked(z21.httpsEnabled());
-            protocolValue.setText("anthropic".equals(z21.protocolValue()) ? "Anthropic  ›" : "OpenAI  ›");
+            if (httpsSwitch != null) httpsSwitch.setChecked(z21.httpsEnabled());
+            protocolValue.setText("Open".equals(BuildInfo.BUILD_EDITION)
+                    ? "OpenAI（固定）"
+                    : ("anthropic".equals(z21.protocolValue()) ? "Anthropic  ›" : "OpenAI  ›"));
             if (!keyInput.hasFocus()) keyInput.setText(z21.apiKeyValue());
             int configuredPort = z21.hasV241PortDetails()
                     ? z21.v241PreferredPort() : z21.gatewayPort();
@@ -435,7 +455,8 @@ final class LocalApiFloatingOverlay {
                 if (split >= 0 && line.substring(0, split).contains("Local address")) return line.substring(split + 2).trim();
             }
         }
-        return (z21.httpsEnabled() ? "https" : "http") + "://127.0.0.1:"
+        return (!"Open".equals(BuildInfo.BUILD_EDITION) && z21.httpsEnabled()
+                ? "https" : "http") + "://127.0.0.1:"
                 + (z21.gatewayPort() > 0 ? z21.gatewayPort() : 8765) + "/v1";
     }
 
