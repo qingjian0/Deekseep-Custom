@@ -30,7 +30,7 @@ ROI 是面向官方 DeepSeek Android 客户端（`com.deepseek.chat`）的 LSPos
 
 | 接口 | 状态 |
 |---|---|
-| `GET /v1/models` | HTTP 路由已实现；原生模型适配未就绪时返回 503 |
+| `GET /v1/models` | 返回配置模型清单；不代表原生执行就绪 |
 | `POST /v1/chat/completions` | HTTP/JSON/SSE 路由已实现；原生模型适配未就绪时返回 503 |
 | `POST /v1/responses` | 未实现 |
 | `POST /v1/agent/run` | 未实现 |
