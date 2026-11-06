@@ -38,12 +38,18 @@ public final class RoiDexSerializerPipeline {
         String registrationKey="";
         int registrationCandidates=0;
         boolean registrationCandidateAnalysisFailed=false;
+        boolean registrationCandidateDiscoveryIncomplete=false;
 
         for(RoiDexFileReader.ResolvedMethod candidate:dex.definedMethods) {
             if(candidate.codeItem==null
                     ||!serializerMethod.declaringClassDescriptor.equals(candidate.declaringClassDescriptor))
                 continue;
-            if(!hasAddElementCall(dex,candidate.codeItem))continue;
+            int registrationMatch=inspectAddElementCall(dex,candidate.codeItem);
+            if(registrationMatch<0) {
+                registrationCandidateDiscoveryIncomplete=true;
+                continue;
+            }
+            if(registrationMatch==0)continue;
             // Count every plausible registration method before attempting analysis. A candidate
             // that fails parsing must still participate in ambiguity decisions.
             registrationCandidates++;
@@ -63,6 +69,8 @@ public final class RoiDexSerializerPipeline {
                 // Failed plausible candidates remain relevant to uniqueness and fail closed.
             }
         }
+        if(registrationCandidateDiscoveryIncomplete)
+            return rejected("serializer_element_registration_candidate_discovery_incomplete");
         String candidateFailure=registrationCandidateFailureReason(
                 registrationCandidates,registrationCandidateAnalysisFailed);
         if(candidateFailure!=null||selectedElements==null)
@@ -131,24 +139,38 @@ public final class RoiDexSerializerPipeline {
         },flow,reaching,useDef,links);
     }
 
-    private static boolean hasAddElementCall(RoiDexFileReader.DexFile dex,
+    /**
+     * Returns 1 for a proven addElement call, 0 when every invoke was inspected and no
+     * registration call exists, and -1 when discovery is incomplete. An unresolved invoke
+     * cannot safely be treated as unrelated: it may be the registration call whose omission
+     * would make the candidate count appear unique.
+     */
+    private static int inspectAddElementCall(RoiDexFileReader.DexFile dex,
             RoiDexCodeReader.CodeItem code) {
         final RoiDexInstructionScanner.ScanResult scan;
         try { scan=RoiDexInstructionScanner.scan(code.instructions); }
-        catch(RoiDexInstructionScanner.ScanException error){return false;}
+        catch(RoiDexInstructionScanner.ScanException error){return -1;}
+        boolean incomplete=false;
         for(RoiDexInstructionScanner.Instruction instruction:scan.instructions) {
             if(instruction.payload||!isInvoke(instruction.opcode))continue;
             try {
                 RoiDexInstructionDecoder.Decoded decoded=code.decodeInstructionAt(instruction.offset);
-                if(decoded.referenceKind!=RoiDexInstructionDecoder.Decoded.ReferenceKind.METHOD)continue;
+                if(decoded.referenceKind!=RoiDexInstructionDecoder.Decoded.ReferenceKind.METHOD) {
+                    incomplete=true;
+                    continue;
+                }
                 RoiDexFileReader.ResolvedMethodId method=dex.resolveMethodId(decoded.referenceIndex);
+                if(method==null) {
+                    incomplete=true;
+                    continue;
+                }
                 if("addElement".equals(method.name)
-                        &&"(Ljava/lang/String;Z)V".equals(method.prototypeDescriptor))return true;
+                        &&"(Ljava/lang/String;Z)V".equals(method.prototypeDescriptor))return 1;
             } catch(Exception ignored) {
-                // An unresolved unrelated method does not create a descriptor registration match.
+                incomplete=true;
             }
         }
-        return false;
+        return incomplete?-1:0;
     }
 
     private static boolean isInvoke(int opcode) {
