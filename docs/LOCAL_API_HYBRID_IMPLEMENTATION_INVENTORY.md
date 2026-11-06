@@ -28,7 +28,7 @@ Not yet accepted as complete:
 - Anthropic signed thinking blocks, count_tokens, image blocks, and streamed tool_use
 - Exact usage accounting / include_usage semantics
 - Full protocol-level session isolation and executable lifecycle tests
-- Anthropic SDK response validation (usage omitted because backend tokenizer counters are absent)
+- Anthropic SDK response validation (usage fields are marked estimated because backend tokenizer counters are absent)
 - Streamed tool-call output and tool-result continuation
 - Real code289 native request construction, challenge/PoW, Flow collection, event decoding, cancellation, and genuine device generation
 
@@ -103,5 +103,5 @@ Known observations are leads, not proof: ly1 implements wu1; zn3.o(wu1, Long) an
 - Tool calls are client-executed: the gateway returns tool_use blocks and validates subsequent tool_result IDs.
 - Streamed tool calls are rejected; text SSE uses the Anthropic message/content-block lifecycle.
 - Signed thinking blocks are rejected until signature semantics are implemented. The gateway does not leak reasoning into unsigned thinking blocks.
-- usage and /v1/messages/count_tokens are not implemented because z2.CompletionResult currently carries no tokenizer counters.
+- usage fields are returned as rough estimates marked dsh_usage_estimated=true; exact tokenizer counters and /v1/messages/count_tokens remain unavailable because z2.CompletionResult carries no tokenizer counters.
 - Static source assertions were added, but Android compilation, runtime HTTP tests, and SDK integration tests remain pending.
