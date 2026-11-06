@@ -17,7 +17,7 @@ No upstream source files have been copied into this branch by this commit. This 
 
 | Local path | Upstream path | Upstream revision | License notice retained | Local modifications |
 |---|---|---|---|---|
-| Pending | Pending | Pending | Pending | Pending |
+| module/src/ds/dsh/DeepSeek/OpenAiToolBridge.java | module/src/com/dsmod/probe/OpenAiToolBridge.java | 6b5847d68c30a6525193f3187dac57fb92564d06 | Yes; full MIT notice retained in file header | Package migration; LocalApiGateway.GatewayException mapped to z2.GatewayException; Plan implements z2.ToolPlan |
 
 ## Required handling
 
