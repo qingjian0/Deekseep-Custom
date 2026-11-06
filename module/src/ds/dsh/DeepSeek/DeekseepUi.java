@@ -3172,11 +3172,11 @@ public final class DeekseepUi {
         TextView nativeProbeTitle = sectionTitle(act, "Open 原生适配诊断（DeepSeek 2.7.x）", textColor);
         card.addView(nativeProbeTitle);
         TextView nativeProbeHelp = infoBox(act,
-                "一次采集官方客户端 Transport、异步回调与 Local API 网关阶段。若要同时覆盖两条独立路径：先在 DeepSeek 主界面发送一条普通消息，再由 API 客户端发送一条 /v1/chat/completions 请求；两条轨迹共用同一缓冲区，最后只复制一次报告。当前 Open 原生后端尚未接通，API 请求会如实记录 readiness 状态。只记录类型、状态、长度和耗时，不记录消息正文或凭据。",
+                "完整采集官方客户端 Transport、全部已发现的异步回调方法与 Local API 网关阶段，不设回调类、方法、Hook 或事件数量上限。所有事件实时追加到应用私有目录文件；内存缓冲区只作预览。若要同时覆盖两条独立路径：先在 DeepSeek 主界面发送一条普通消息，再由 API 客户端发送一条 /v1/chat/completions 请求，最后复制完整报告（包含持久化日志）。当前 Open 原生后端尚未接通，API 请求会如实记录 readiness 状态。只记录类型、状态、长度和耗时，不记录消息正文或凭据。完整采集会持续占用磁盘并增加回调开销，测试结束后请关闭开关。",
                 textColor, dark);
         card.addView(nativeProbeHelp, insetParams(act, 0, 8));
         card.addView(configurableSwitchRow(act, "启用原生适配诊断探针",
-                "默认关闭。开启后仅对国内版 DeepSeek 2.7.2（code289）启用有界只读追踪；覆盖 Transport、异步回调和 Local API 阶段。关闭后观察器立即透传。",
+                "默认关闭。开启后仅对国内版 DeepSeek 2.7.2（code289）启用完整只读追踪；发现的回调类、方法及调用事件不设数量上限，完整日志写入应用私有文件。关闭后观察器立即透传。",
                 Main.isOpenNativeCompletionProbeEnabled(), textColor, subColor, dark,
                 new CompoundButton.OnCheckedChangeListener() {
                     private boolean reverting;
