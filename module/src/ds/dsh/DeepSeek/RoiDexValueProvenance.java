@@ -56,6 +56,17 @@ public final class RoiDexValueProvenance {
         }
     }
 
+    /** Proven identity of an object value at a use site, rooted in one method-entry value. */
+    public static final class ReceiverTrace {
+        public final boolean unique;
+        public final String identity,rejectionReason;
+        public final int[] definitionIds,instructionOffsets;
+        ReceiverTrace(boolean ok,String key,String reason,List<Integer> definitions,List<Integer> offsets) {
+            unique=ok;identity=key;rejectionReason=reason;
+            definitionIds=toArray(definitions);instructionOffsets=toArray(offsets);
+        }
+    }
+
     public static final class AnalysisException extends Exception {
         public AnalysisException(String message){super(message);}
     }
@@ -92,6 +103,60 @@ public final class RoiDexValueProvenance {
                 if(sites[i]==null)return rejected("use_site_missing");
             }
             return trace(sites,valueWords,new HashSet<Integer>());
+        }
+
+        /**
+         * Trace an instance-invoke receiver to its exact method-entry object identity.
+         * Only entry receiver/parameter roots and explicit move-object/check-cast aliases
+         * are accepted. Field loads, invoke results, merges and unknown values fail closed.
+         */
+        public ReceiverTrace traceReceiverUse(int instructionOffset,int operandIndex) {
+            if(!completeForExceptionFlow)return rejectedReceiver("exception_flow_incomplete");
+            if(operandIndex<0)return rejectedReceiver("receiver_operand_invalid");
+            RoiDexUseDefChains.UseSite use=uses.get(useKey(instructionOffset,operandIndex));
+            if(use==null)return rejectedReceiver("receiver_use_site_missing");
+            return traceReceiver(use,new HashSet<Integer>());
+        }
+
+        private ReceiverTrace traceReceiver(RoiDexUseDefChains.UseSite use,Set<Integer> active) {
+            if(use==null)return rejectedReceiver("receiver_use_site_missing");
+            if(use.mayBeExceptionFlowUnknown)return rejectedReceiver("receiver_exception_flow_unknown");
+            if(use.reachingDefinitions.length==0) {
+                if(!use.reachableFromEntry)return rejectedReceiver("receiver_entry_unreachable");
+                if(use.entryValueKind==RoiDexUseDefChains.EntryValueKind.RECEIVER)
+                    return new ReceiverTrace(true,"receiver",null,
+                            new ArrayList<Integer>(),new ArrayList<Integer>());
+                if(use.entryValueKind==RoiDexUseDefChains.EntryValueKind.PARAMETER
+                        &&use.entryParameterIndex>=0&&isReferenceTypeDescriptor(use.entryDescriptor))
+                    return new ReceiverTrace(true,"parameter:"+use.entryParameterIndex+":"
+                            +use.entryDescriptor,null,new ArrayList<Integer>(),new ArrayList<Integer>());
+                return rejectedReceiver("receiver_entry_identity_unknown");
+            }
+            if(use.reachingDefinitions.length!=1)
+                return rejectedReceiver("receiver_multiple_reaching_definitions");
+            RoiDexReachingDefinitions.Definition definition=use.reachingDefinitions[0];
+            if(definition==null||definitions.get(definition.id)==null)
+                return rejectedReceiver("receiver_definition_identity_unknown");
+            if(!active.add(definition.id))return rejectedReceiver("receiver_cyclic_provenance");
+            int opcode=definition.opcode,offset=definition.instructionOffset;
+            if(!((opcode>=0x07&&opcode<=0x09)||opcode==0x1f))
+                return rejectedReceiver("receiver_unsupported_definition");
+            RoiDexRegisterFlowAnalyzer.InstructionFlow instruction=instructions.get(offset);
+            if(instruction==null||instruction.opcode!=opcode||instruction.uses.length!=1
+                    ||instruction.definitions.length!=1||instruction.definitions[0]!=definition.register)
+                return rejectedReceiver("receiver_alias_instruction_invalid");
+            RoiDexUseDefChains.UseSite source=uses.get(useKey(offset,0));
+            if(source==null||source.register!=instruction.uses[0])
+                return rejectedReceiver("receiver_alias_source_missing");
+            ReceiverTrace child=traceReceiver(source,active);
+            if(!child.unique)return child;
+            List<Integer> ids=new ArrayList<Integer>();ids.add(definition.id);append(ids,child.definitionIds);
+            List<Integer> offsets=new ArrayList<Integer>();offsets.add(offset);append(offsets,child.instructionOffsets);
+            return new ReceiverTrace(true,child.identity,null,ids,offsets);
+        }
+
+        private static ReceiverTrace rejectedReceiver(String reason) {
+            return new ReceiverTrace(false,null,reason,new ArrayList<Integer>(),new ArrayList<Integer>());
         }
 
         /** Resolve an integer use to a literal constant or a uniquely linked invoke result. */

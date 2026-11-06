@@ -54,7 +54,7 @@ public final class RoiDexSerializerPipeline {
             // that fails parsing must still participate in ambiguity decisions.
             registrationCandidates++;
             try {
-                RoiDexValueProvenance.Result provenance=analyzeValues(dex,candidate.codeItem);
+                RoiDexValueProvenance.Result provenance=analyzeValues(dex,candidate);
                 RoiDexSerializerElementIndex.Result elements=RoiDexSerializerElementIndex.analyze(
                         candidate.codeItem,dex::resolveMethodId,provenance);
                 if(elements.registrationOrderProven&&elements.complete) {
@@ -80,7 +80,7 @@ public final class RoiDexSerializerPipeline {
 
         final RoiDexSerializerMapper.Result mapping;
         try {
-            RoiDexValueProvenance.Result provenance=analyzeValues(dex,serializerMethod.codeItem);
+            RoiDexValueProvenance.Result provenance=analyzeValues(dex,serializerMethod);
             mapping=RoiDexSerializerMapper.analyze(serializerMethod.codeItem,constructorOwner,
                     constructorPrototype,dex::resolveMethodId,selectedElements,provenance);
         } catch(Exception error) {
@@ -156,11 +156,15 @@ public final class RoiDexSerializerPipeline {
     }
 
     private static RoiDexValueProvenance.Result analyzeValues(RoiDexFileReader.DexFile dex,
-            RoiDexCodeReader.CodeItem code)throws Exception {
+            RoiDexFileReader.ResolvedMethod method)throws Exception {
+        if(method==null||method.codeItem==null)
+            throw new RoiDexValueProvenance.AnalysisException("method_code_item_missing");
+        RoiDexCodeReader.CodeItem code=method.codeItem;
+        RoiDexMethodEntryLayout.Result entryLayout=method.methodEntryLayout();
         RoiDexInvokeResultLinker.Result links=RoiDexInvokeResultLinker.analyze(code,dex);
         RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(code);
         RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
-        RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching);
+        RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching,entryLayout);
         return RoiDexValueProvenance.analyze(code,index->{
             if(index<0||index>=dex.strings.length)
                 throw new RoiDexValueProvenance.AnalysisException("string_index_out_of_range");

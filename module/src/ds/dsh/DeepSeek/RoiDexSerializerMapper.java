@@ -143,6 +143,7 @@ public final class RoiDexSerializerMapper {
             List<ParameterMapping> mappings=new ArrayList<ParameterMapping>();
             Set<Integer> usedElementIndices=new HashSet<Integer>();
             boolean constructorComplete=true;
+            String decoderReceiverIdentity=null;
             for(int parameter=0;parameter<parameterWidths.length;parameter++) {
                 int words=parameterWidths[parameter];
                 final int wordPosition;
@@ -166,6 +167,24 @@ public final class RoiDexSerializerMapper {
                 RoiDexInvokeResultLinker.Link decodeLink=value.source;
                 if(!isDecodeElementMethod(decodeLink.methodName)) {
                     rejected.add(new Rejected(instruction.offset,parameter,"source_is_not_decode_element"));
+                    constructorComplete=false;continue;
+                }
+                if(decodeLink.isStaticInvoke) {
+                    rejected.add(new Rejected(instruction.offset,parameter,
+                            "decoder_receiver_identity_ambiguous:static_decode_method"));
+                    constructorComplete=false;continue;
+                }
+                RoiDexValueProvenance.ReceiverTrace receiver=provenance.traceReceiverUse(
+                        decodeLink.invokeOffset,0);
+                if(!receiver.unique) {
+                    rejected.add(new Rejected(instruction.offset,parameter,
+                            "decoder_receiver_identity_ambiguous:"+receiver.rejectionReason));
+                    constructorComplete=false;continue;
+                }
+                if(decoderReceiverIdentity==null)decoderReceiverIdentity=receiver.identity;
+                else if(!decoderReceiverIdentity.equals(receiver.identity)) {
+                    rejected.add(new Rejected(instruction.offset,parameter,
+                            "decoder_receiver_identity_mismatch"));
                     constructorComplete=false;continue;
                 }
                 String effectiveType=value.effectiveTypeDescriptor;
