@@ -800,7 +800,7 @@ final class OpenLocalApiGateway {
                     "Invalid Anthropic Messages request");
             return;
         }
-        String requestId = "msg_" + UUID.randomUUID().toString().replace("-", "");
+        String requestId = normalized.requestId;
         z2.CompletionRequest completion = new z2.CompletionRequest(
                 requestId, normalized.model, "default", normalized.prompt, normalized.prompt,
                 normalized.reasoning, false, normalized.maxTokens,
