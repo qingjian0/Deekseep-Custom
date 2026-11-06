@@ -213,7 +213,7 @@ gateway_checks = {
     "chunked transfer encoding is restricted to HTTP/1.1": "Transfer encoding requires HTTP/1.1" in parser,
     "Content-Length accepts decimal digits only": "!isDecimalDigits(contentLength)" in parser,
     "chunk sizes accept hexadecimal digits only": "!isHexDigits(sizeText)" in parser,
-    "HTTP header names reject surrounding whitespace": 'substring(0,colon)\n                    .toLowerCase' in parser,
+    "HTTP header names reject surrounding whitespace": 'substring(0, colon).toLowerCase' in parser,
     "chunk-size tokens are not whitespace-trimmed": 'sizeLine.substring(0, extension) : sizeLine;' in parser,
     "HTTP request lines require exact single-space separators": 'lines[0].split(" ", -1)' in parser and 'lines[0].trim().split' not in parser,
     "HTTP request targets reject embedded control whitespace": "!isRequestTarget(first[1])" in parser and "c <= 0x20 || c >= 0x7f" in parser,
