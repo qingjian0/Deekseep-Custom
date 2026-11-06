@@ -41,6 +41,7 @@ public final class RoiDexApkCli {
         RoiDexFileReader.DexFile dex = RoiDexFileReader.read(bytes);
 
         Map<String, Set<String>> selected = new LinkedHashMap<String, Set<String>>();
+        Set<Integer> anchorConstantOwners = new LinkedHashSet<Integer>();
         int scanned = 0;
         int scanFailures = 0;
         long codeUnits = 0L;
@@ -82,28 +83,47 @@ public final class RoiDexApkCli {
             if (!hits.isEmpty()) {
                 String key = method.declaringClassDescriptor + "->" + method.name
                         + method.prototypeDescriptor;
-                Set<String> existing = selected.get(key);
-                if (existing != null) {
-                    existing.addAll(hits);
-                } else if (selected.size() < MAX_SELECTED_METHODS) {
-                    selected.put(key, hits);
-                } else {
-                    // Scan the full bounded DEX instead of stopping at the first 32
-                    // matches. Keep the highest-value request/transport anchors.
-                    int incomingPriority = anchorPriority(hits);
-                    String lowestKey = null;
-                    int lowestPriority = Integer.MAX_VALUE;
-                    for (Map.Entry<String, Set<String>> entry : selected.entrySet()) {
-                        int priority = anchorPriority(entry.getValue());
-                        if (priority < lowestPriority) {
-                            lowestPriority = priority;
-                            lowestKey = entry.getKey();
-                        }
-                    }
-                    if (lowestKey != null && incomingPriority > lowestPriority) {
-                        selected.remove(lowestKey);
-                        selected.put(key, hits);
-                    }
+                addCandidate(selected, key, hits);
+                if ("<clinit>".equals(method.name)) {
+                    anchorConstantOwners.add(method.declaringClassIndex);
+                }
+            }
+        }
+
+        // String constants usually live in <clinit>; actual request methods read the
+        // generated static fields. Follow those field references in a second bounded pass.
+        Set<Integer> anchorFieldIds = new LinkedHashSet<Integer>();
+        for (int i = 0; i < dex.fields.length; i++) {
+            if (anchorConstantOwners.contains(dex.fields[i].classIndex)) anchorFieldIds.add(i);
+        }
+        int fieldReferenceMethodsScanned = 0;
+        if (!anchorFieldIds.isEmpty()) {
+            for (RoiDexFileReader.ResolvedMethod method : dex.definedMethods) {
+                if (method.codeItem == null) continue;
+                final RoiDexInstructionScanner.ScanResult scan;
+                try {
+                    scan = RoiDexInstructionScanner.scan(method.codeItem.instructions);
+                } catch (RoiDexInstructionScanner.ScanException error) {
+                    continue;
+                }
+                Set<String> fieldHits = new LinkedHashSet<String>();
+                short[] units = method.codeItem.instructions;
+                for (RoiDexInstructionScanner.Instruction instruction : scan.instructions) {
+                    if (instruction.payload || instruction.opcode < 0x60
+                            || instruction.opcode > 0x6d) continue;
+                    int fieldIndex = u16(units[instruction.offset + 1]);
+                    if (!anchorFieldIds.contains(fieldIndex)) continue;
+                    RoiDexFileReader.Field field = dex.fields[fieldIndex];
+                    String owner = dex.typeDescriptors[field.classIndex];
+                    String name = dex.strings[field.nameIndex];
+                    fieldHits.add("anchor_constant_field_ref");
+                    fieldHits.add("field:" + owner + "->" + name);
+                }
+                if (!fieldHits.isEmpty()) {
+                    String key = method.declaringClassDescriptor + "->" + method.name
+                            + method.prototypeDescriptor;
+                    addCandidate(selected, key, fieldHits);
+                    fieldReferenceMethodsScanned++;
                 }
             }
         }
@@ -123,6 +143,9 @@ public final class RoiDexApkCli {
         field(out, "code_units_scanned", Long.toString(codeUnits), true);
         field(out, "instruction_scan_failures", Integer.toString(scanFailures), true);
         field(out, "scan_truncated", Boolean.toString(truncated), true);
+        field(out, "anchor_constant_class_count", Integer.toString(anchorConstantOwners.size()), true);
+        field(out, "anchor_constant_field_count", Integer.toString(anchorFieldIds.size()), true);
+        field(out, "field_reference_methods_scanned", Integer.toString(fieldReferenceMethodsScanned), true);
         field(out, "candidate_selection_budget", Integer.toString(MAX_SELECTED_METHODS), true);
         field(out, "candidate_count", Integer.toString(evidence.methods.size()), true);
         field(out, "analyzed_methods", Integer.toString(evidence.analyzedMethods), true);
@@ -174,10 +197,36 @@ public final class RoiDexApkCli {
                 + " hookAuthorization=false");
     }
 
+    private static void addCandidate(Map<String, Set<String>> selected,
+            String key, Set<String> hits) {
+        Set<String> existing = selected.get(key);
+        if (existing != null) {
+            existing.addAll(hits);
+        } else if (selected.size() < MAX_SELECTED_METHODS) {
+            selected.put(key, new LinkedHashSet<String>(hits));
+        } else {
+            int incomingPriority = anchorPriority(hits);
+            String lowestKey = null;
+            int lowestPriority = Integer.MAX_VALUE;
+            for (Map.Entry<String, Set<String>> entry : selected.entrySet()) {
+                int priority = anchorPriority(entry.getValue());
+                if (priority < lowestPriority) {
+                    lowestPriority = priority;
+                    lowestKey = entry.getKey();
+                }
+            }
+            if (lowestKey != null && incomingPriority > lowestPriority) {
+                selected.remove(lowestKey);
+                selected.put(key, new LinkedHashSet<String>(hits));
+            }
+        }
+    }
+
     private static int anchorPriority(Set<String> hits) {
         if (hits == null) return 0;
         int score = 0;
         if (hits.contains("chat/completions")) score += 1000;
+        if (hits.contains("anchor_constant_field_ref")) score += 750;
         if (hits.contains("parent_message_id")) score += 900;
         if (hits.contains("thinking_enabled")) score += 850;
         if (hits.contains("search_enabled")) score += 850;
