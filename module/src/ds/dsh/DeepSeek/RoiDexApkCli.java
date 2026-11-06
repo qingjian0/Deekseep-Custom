@@ -235,7 +235,29 @@ public final class RoiDexApkCli {
                 }
             }
             int crossSelectedCount = 0;
-            for (RoiDexCandidateEvidence.MethodEvidence method : firstHopEvidence.methods) {
+            List<RoiDexCandidateEvidence.MethodEvidence> crossDexCallers =
+                    new ArrayList<RoiDexCandidateEvidence.MethodEvidence>(firstHopEvidence.methods);
+            Collections.sort(crossDexCallers,
+                    new Comparator<RoiDexCandidateEvidence.MethodEvidence>() {
+                private int priority(RoiDexCandidateEvidence.MethodEvidence method) {
+                    int score = anchorPriority(selected.get(method.methodKey));
+                    Integer directPriority = directCalleePriority.get(method.methodKey);
+                    if (directPriority != null && directPriority > score) score = directPriority;
+                    // JSON dispatcher signatures are high-value bridge methods even when
+                    // their callers sit in a different DEX.
+                    if (method.methodKey.endsWith("(Ljava/lang/String;Lorg/json/JSONObject;)V"))
+                        score += 500;
+                    return score;
+                }
+                @Override public int compare(RoiDexCandidateEvidence.MethodEvidence left,
+                        RoiDexCandidateEvidence.MethodEvidence right) {
+                    int leftPriority = priority(left);
+                    int rightPriority = priority(right);
+                    if (leftPriority != rightPriority) return rightPriority - leftPriority;
+                    return left.methodKey.compareTo(right.methodKey);
+                }
+            });
+            for (RoiDexCandidateEvidence.MethodEvidence method : crossDexCallers) {
                 for (String callee : method.invokes) {
                     RoiDexFileReader.DexFile targetDex = crossDexByMethod.get(callee);
                     if (targetDex == null || crossSelectedCount >= MAX_CROSS_DEX_METHODS) continue;
