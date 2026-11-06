@@ -708,7 +708,7 @@ final class OpenNativeCompletionProbe {
 
     /**
      * Observe concrete callback objects supplied to y60.b. Methods are hooked on the exact
-     * callback implementation class (and a short superclass chain), never on global framework
+     * callback implementation class only on the exact callback implementation class, never on parent classes or global framework
      * interfaces. Identity hashes correlate these events with continuation-enter without
      * retaining callback instances or reading callback/payload fields.
      */
