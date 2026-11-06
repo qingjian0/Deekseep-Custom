@@ -7447,16 +7447,16 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         long heartbeat = HookAccountLoginSecurity.localApiKeepAliveHeartbeatAt;
         long age = heartbeat <= 0L ? -1L
                 : Math.max(0L, SystemClock.elapsedRealtime() - heartbeat);
+        String error = HookAccountLoginSecurity.localApiKeepAliveError;
+        if (error != null && error.length() > 0) return UiLanguage.text(
+                "前台保活：异常 ", "Foreground keepalive: Failed ") + error
+                + notificationWarning;
         if (age >= 0L && age <= 15_000L) {
             return UiLanguage.text(
                     "前台保活：已连接（最近心跳 " + Math.max(0L, age / 1000L) + " 秒前）",
                     "Foreground keepalive: Connected (last heartbeat "
                             + Math.max(0L, age / 1000L) + "s ago)") + notificationWarning;
         }
-        String error = HookAccountLoginSecurity.localApiKeepAliveError;
-        if (error != null && error.length() > 0) return UiLanguage.text(
-                "前台保活：异常 ", "Foreground keepalive: Failed ") + error
-                + notificationWarning;
         long now = SystemClock.elapsedRealtime();
         long sinceLaunch = localApiKeepAliveLaunchAt > 0L && now >= localApiKeepAliveLaunchAt
                 ? now - localApiKeepAliveLaunchAt : -1L;
