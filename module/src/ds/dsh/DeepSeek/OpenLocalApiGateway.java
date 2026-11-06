@@ -1779,7 +1779,7 @@ final class OpenLocalApiGateway {
             if (lines[i].length() == 0) continue;
             int colon=lines[i].indexOf(':');
             if(colon<=0) throw new IllegalArgumentException("Invalid HTTP header");
-            String name = lines[i].substring(0,colon).trim()
+            String name = lines[i].substring(0,colon)
                     .toLowerCase(java.util.Locale.ROOT);
             String value = lines[i].substring(colon+1).trim();
             if (!isHttpToken(name) || headers.containsKey(name)) {
@@ -1839,7 +1839,7 @@ final class OpenLocalApiGateway {
         while (true) {
             String sizeLine = readCrlfLine(in, 1024);
             int extension = sizeLine.indexOf(';');
-            String sizeText = (extension >= 0 ? sizeLine.substring(0, extension) : sizeLine).trim();
+            String sizeText = extension >= 0 ? sizeLine.substring(0, extension) : sizeLine;
             if (sizeText.length() > 16 || !isHexDigits(sizeText)) {
                 throw new IllegalArgumentException("Invalid chunk size");
             }
@@ -1862,7 +1862,7 @@ final class OpenLocalApiGateway {
                     if (trailer.length() == 0) break;
                     int colon = trailer.indexOf(':');
                     if (colon <= 0) throw new IllegalArgumentException("Invalid request trailer");
-                    String name = trailer.substring(0, colon).trim()
+                    String name = trailer.substring(0, colon)
                             .toLowerCase(java.util.Locale.ROOT);
                     if ("content-length".equals(name) || "transfer-encoding".equals(name)
                             || "host".equals(name) || "authorization".equals(name)) {
