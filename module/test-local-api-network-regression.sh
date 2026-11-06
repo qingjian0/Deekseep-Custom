@@ -222,6 +222,7 @@ gateway_checks = {
     "Responses input accepts strings and item arrays": 'responsesInputToPrompt(rawInput)' in source and '"input must be a string or an array"' in source,
     "Responses previous_response_id resolves bounded in-memory state": 'loadResponseState(previousId)' in source and '"previous_response_not_found"' in source,
     "Responses state has bounded count, TTL, and transcript size": 'MAX_RESPONSE_STATES = 64' in source and 'RESPONSE_STATE_TTL_MS' in source and 'MAX_RESPONSE_STATE_CHARS' in source,
+    "Responses continuation state is cleared when the gateway stops": 'RESPONSE_STATES.clear();' in source,
     "Responses output state records outstanding tool calls": 'rememberResponseState(requestId, savedTranscript.toString(), savedPendingCalls)' in source,
     "Responses function-call outputs are validated against prior call IDs": 'callIds.remove(callId)' in source and 'Unmatched function_call_output' in source,
     "Responses function calls are serialized as output items": '"function_call".equals(type)' in source and '"function_call"' in source and '"output_text"' in source,
