@@ -971,7 +971,7 @@ final class OpenLocalApiGateway {
             return;
         }
         if (stream) {
-            streamResponsesText(out, current, completion, model, requestId, messageId);
+            streamResponsesText(out, current, completion, model, requestId, messageId, pendingToolCallIds);
             return;
         }
         long started = System.nanoTime();
@@ -1105,8 +1105,8 @@ final class OpenLocalApiGateway {
     }
 
     private static void streamResponsesText(OutputStream out, z2.Backend current,
-            z2.CompletionRequest request, String model, String requestId, String messageId)
-            throws Exception {
+            z2.CompletionRequest request, String model, String requestId, String messageId,
+            java.util.Set<String> pendingToolCallIds) throws Exception {
         writeHeaders(out, 200, "text/event-stream; charset=utf-8");
         final AtomicBoolean disconnected = new AtomicBoolean(false);
         final StringBuilder streamed = new StringBuilder();
@@ -1168,7 +1168,7 @@ final class OpenLocalApiGateway {
                             "completed", new JSONArray().put(finalItem), finalText)));
             rememberResponseState(requestId,
                     request.basePrompt + (finalText.length() == 0 ? "" : "\nassistant: " + finalText),
-                    java.util.Collections.<String>emptySet());
+                    pendingToolCallIds);
         } catch (Exception failure) {
             if (!disconnected.get()) {
                 JSONObject error = new JSONObject().put("message", "Model execution failed")
