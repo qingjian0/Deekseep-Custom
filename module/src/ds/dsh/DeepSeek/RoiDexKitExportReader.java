@@ -114,6 +114,7 @@ final class RoiDexKitExportReader {
                     throw new ExportException("export_total_size_out_of_bounds");
 
                 byte[] bytes = readExact(file, (int) fileLength);
+                validateTableCounts(bytes);
                 final RoiDexFileReader.DexFile dex;
                 try {
                     dex = RoiDexFileReader.read(bytes);
@@ -140,6 +141,27 @@ final class RoiDexKitExportReader {
         } finally {
             if (work != null) deleteTree(work);
         }
+    }
+
+    private static void validateTableCounts(byte[] bytes) throws ExportException {
+        if (bytes == null || bytes.length < RoiDexFileReader.HEADER_SIZE)
+            throw new ExportException("dex_header_truncated_before_parse");
+        long strings = readU32(bytes, 56);
+        long types = readU32(bytes, 64);
+        long protos = readU32(bytes, 72);
+        long fields = readU32(bytes, 80);
+        long methods = readU32(bytes, 88);
+        long classes = readU32(bytes, 96);
+        if (strings > 1_000_000L || types > 65_535L || protos > 65_535L
+                || fields > 65_535L || methods > 65_535L || classes > 65_535L)
+            throw new ExportException("dex_id_table_count_out_of_bounds");
+    }
+
+    private static long readU32(byte[] bytes, int offset) {
+        return ((long) bytes[offset] & 255L)
+                | (((long) bytes[offset + 1] & 255L) << 8)
+                | (((long) bytes[offset + 2] & 255L) << 16)
+                | (((long) bytes[offset + 3] & 255L) << 24);
     }
 
     private static byte[] readExact(File file, int length) throws ExportException {
