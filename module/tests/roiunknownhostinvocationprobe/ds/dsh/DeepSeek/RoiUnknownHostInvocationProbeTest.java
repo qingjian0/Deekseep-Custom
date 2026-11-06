@@ -89,7 +89,18 @@ public final class RoiUnknownHostInvocationProbeTest {
     }
 
     private static void testProbeExactlyOnceAndPayloadFree() throws Throwable {
-        RoiUnknownHostInvocationProbe probe = new RoiUnknownHostInvocationProbe();
+        final int[] eventCount = {0};
+        final String[][] lastEvent = {new String[3]};
+        RoiUnknownHostInvocationProbe probe = new RoiUnknownHostInvocationProbe(
+                new RoiUnknownHostInvocationProbe.EventListener() {
+                    @Override public void onEvent(String descriptor, long elapsedNanos,
+                            String exceptionType) {
+                        eventCount[0]++;
+                        lastEvent[0][0] = descriptor;
+                        lastEvent[0][1] = String.valueOf(elapsedNanos);
+                        lastEvent[0][2] = exceptionType;
+                    }
+                });
         check(probe.register(DESCRIPTOR), "exact descriptor should register");
         final int[] calls = {0};
         Object marker = new Object();
@@ -108,6 +119,9 @@ public final class RoiUnknownHostInvocationProbeTest {
                 "only method descriptor should be retained");
         check(snapshot.get(0).exceptionCounts.isEmpty(),
                 "successful invocation should not report exceptions");
+        check(eventCount[0] == 1 && DESCRIPTOR.equals(lastEvent[0][0])
+                        && lastEvent[0][2] == null,
+                "successful invocation should emit one payload-free diagnostic event");
 
         final int[] failedCalls = {0};
         final IllegalStateException expected = new IllegalStateException("sensitive message must not be retained");
@@ -129,6 +143,9 @@ public final class RoiUnknownHostInvocationProbeTest {
                 "only exception class should be retained");
         check(!snapshot.get(0).exceptionCounts.containsKey(expected.getMessage()),
                 "exception message must not be retained");
+        check(eventCount[0] == 2
+                        && IllegalStateException.class.getName().equals(lastEvent[0][2]),
+                "failure event should expose exception type but never its message");
     }
 
     private static void testProbeBounds() {
