@@ -168,7 +168,7 @@ gateway_checks = {
     "only one completion choice is accepted": 'if (body.has("n"))' in source and 'return "n";' in source,
     "named messages are rejected rather than silently flattened": 'message.has("name")' in source and '"Named messages, tool messages, and tool calls are not supported"' in source,
     "empty message content is rejected": 'text.trim().length() == 0' in source and '"Message content is empty"' in source,
-    "assistant tool call history is not silently discarded": 'message.has("tool_calls")' in source and '"Tool messages and tool calls are not supported"' in source,
+    "assistant tool call history is rejected instead of silently discarded": 'message.has("tool_calls")' in source and '"Named messages, tool messages, and tool calls are not supported"' in source,
     "tool calling and response_format are explicitly rejected": '"unsupported_feature"' in source and 'body.has("tool_choice")' in source and 'body.has("response_format")' in source,
     "usage streaming is explicitly rejected": 'body.has("stream_options")' in source and "usage streaming" in source,
     "stream must be a boolean": 'body.opt("stream") instanceof Boolean' in source and '"invalid_stream"' in source,
