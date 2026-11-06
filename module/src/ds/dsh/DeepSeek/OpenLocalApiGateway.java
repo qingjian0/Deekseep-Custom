@@ -61,6 +61,11 @@ final class OpenLocalApiGateway {
     private static volatile boolean lanEnabled;
     private static volatile ConnectivityManager networkManager;
     private static volatile ConnectivityManager.NetworkCallback networkCallback;
+    private static final int MAX_RESPONSE_STATES = 64;
+    private static final long RESPONSE_STATE_TTL_MS = 30L * 60L * 1000L;
+    private static final int MAX_RESPONSE_STATE_CHARS = 256 * 1024;
+    private static final java.util.LinkedHashMap<String, ResponseState> RESPONSE_STATES =
+            new java.util.LinkedHashMap<String, ResponseState>(16, 0.75f, true);
 
     private OpenLocalApiGateway() {}
 
@@ -771,9 +776,22 @@ final class OpenLocalApiGateway {
             return;
         }
         if (body.has("previous_response_id")
-                && body.optString("previous_response_id", "").trim().length() > 0) {
-            sendError(out, 400, "unsupported_previous_response_id",
-                    "Send the complete conversation in input; previous_response_id is not persisted");
+                && !(body.opt("previous_response_id") instanceof String)) {
+            sendError(out, 400, "invalid_previous_response_id",
+                    "previous_response_id must be a string");
+            return;
+        }
+        String previousId = body.optString("previous_response_id", "").trim();
+        if (previousId.length() > 128) {
+            sendError(out, 400, "invalid_previous_response_id",
+                    "previous_response_id is too long");
+            return;
+        }
+        ResponseState previousState = previousId.length() == 0
+                ? null : loadResponseState(previousId);
+        if (previousId.length() > 0 && previousState == null) {
+            sendError(out, 400, "previous_response_not_found",
+                    "previous_response_id is unknown, expired, or was cleared by a service restart");
             return;
         }
         if (body.has("model") && !(body.opt("model") instanceof String)) {
@@ -802,15 +820,22 @@ final class OpenLocalApiGateway {
             sendError(out, 400, "invalid_instructions", "instructions must be a string");
             return;
         }
-        String basePrompt;
+        java.util.HashSet<String> pendingToolCallIds = previousState == null
+                ? new java.util.HashSet<String>()
+                : new java.util.HashSet<String>(previousState.pendingToolCallIds);
+        String inputPrompt;
         try {
-            basePrompt = responsesInputToPrompt(rawInput);
+            inputPrompt = responsesInputToPrompt(rawInput, pendingToolCallIds);
         } catch (Exception invalid) {
             sendError(out, 400, "invalid_input", "Responses input contains unsupported or invalid items");
             return;
         }
+        String basePrompt = previousState == null ? inputPrompt
+                : previousState.transcript + (inputPrompt.length() == 0 ? "" : "\n" + inputPrompt);
         if (instructions.length() > 0) {
-            basePrompt = "system: " + instructions + "\n" + basePrompt;
+            basePrompt = previousState == null
+                    ? "system: " + instructions + "\n" + basePrompt
+                    : basePrompt + "\nsystem: " + instructions;
         }
         if (basePrompt.trim().length() == 0 || basePrompt.length() > MAX_PROMPT_CHARS) {
             sendError(out, 400, "invalid_input", "input is empty or too large");
@@ -937,7 +962,8 @@ final class OpenLocalApiGateway {
         z2.CompletionRequest completion = new z2.CompletionRequest(
                 requestId, model, "default", basePrompt, prompt,
                 reasoningRequested, searchRequested, maxTokens,
-                toolPlan, null, true).withOutputTextFormat(format);
+                toolPlan, previousId.length() == 0 ? null : previousId, true)
+                .withOutputTextFormat(format);
         z2.Backend current = backend;
         if (current == null || !current.isReady()) {
             sendError(out, 503, "model_not_ready",
@@ -998,6 +1024,20 @@ final class OpenLocalApiGateway {
                 output.put(item);
             }
         }
+        StringBuilder savedTranscript = new StringBuilder(basePrompt);
+        java.util.HashSet<String> savedPendingCalls =
+                new java.util.HashSet<String>(pendingToolCallIds);
+        if (calls.isEmpty()) {
+            if (result.text.length() > 0) savedTranscript.append("\nassistant: ").append(result.text);
+        } else {
+            for (OpenAiToolBridge.Call call : calls) {
+                savedTranscript.append("\nassistant tool call id=").append(call.callId)
+                        .append(" name=").append(call.name)
+                        .append(" arguments=").append(call.arguments);
+                savedPendingCalls.add(call.callId);
+            }
+        }
+        rememberResponseState(requestId, savedTranscript.toString(), savedPendingCalls);
         JSONObject response = new JSONObject().put("id", requestId)
                 .put("object", "response").put("created_at", System.currentTimeMillis() / 1000L)
                 .put("status", "completed").put("error", JSONObject.NULL)
@@ -1009,11 +1049,11 @@ final class OpenLocalApiGateway {
                 + " outputItems=" + output.length());
     }
 
-    private static String responsesInputToPrompt(Object input) throws Exception {
+    private static String responsesInputToPrompt(Object input,
+            java.util.Set<String> callIds) throws Exception {
         if (input instanceof String) return "user: " + (String) input;
         JSONArray items = (JSONArray) input;
         StringBuilder prompt = new StringBuilder();
-        java.util.HashSet<String> callIds = new java.util.HashSet<String>();
         for (int i = 0; i < items.length(); i++) {
             JSONObject item = items.optJSONObject(i);
             if (item == null) throw new IllegalArgumentException("Invalid input item");
@@ -1030,22 +1070,25 @@ final class OpenLocalApiGateway {
                 }
                 if (prompt.length() > 0) prompt.append("\n");
                 prompt.append(role).append(": ").append(value);
-            } else if ("function_call".equals(type)) {
+            } else if ("function_call".equals(type) || "custom_tool_call".equals(type)) {
                 String callId = item.optString("call_id", "").trim();
                 String name = item.optString("name", "").trim();
-                String arguments = item.optString("arguments", "");
-                if (callId.length() == 0 || name.length() == 0 || callIds.contains(callId)) {
-                    throw new IllegalArgumentException("Invalid function_call history");
+                String arguments = "custom_tool_call".equals(type)
+                        ? item.optString("input", "") : item.optString("arguments", "");
+                if (callId.length() == 0 || name.length() == 0) {
+                    throw new IllegalArgumentException("Invalid tool-call history");
                 }
-                new JSONObject(arguments);
-                callIds.add(callId);
-                if (prompt.length() > 0) prompt.append("\n");
-                prompt.append("assistant tool call id=").append(callId)
-                        .append(" name=").append(name).append(" arguments=").append(arguments);
-            } else if ("function_call_output".equals(type)) {
+                if (callIds.add(callId)) {
+                    if ("function_call".equals(type)) new JSONObject(arguments);
+                    if (prompt.length() > 0) prompt.append("\n");
+                    prompt.append("assistant tool call id=").append(callId)
+                            .append(" name=").append(name).append(" arguments=").append(arguments);
+                }
+            } else if ("function_call_output".equals(type)
+                    || "custom_tool_call_output".equals(type)) {
                 String callId = item.optString("call_id", "").trim();
                 if (callId.length() == 0 || !callIds.remove(callId)) {
-                    throw new IllegalArgumentException("Unmatched function_call_output");
+                    throw new IllegalArgumentException("Unmatched tool-call output");
                 }
                 Object rawOutput = item.opt("output");
                 String value = rawOutput instanceof String ? (String) rawOutput
@@ -1123,6 +1166,9 @@ final class OpenLocalApiGateway {
             sendResponsesEvent(out, "response.completed", ++sequence[0],
                     new JSONObject().put("response", responsesEnvelope(requestId, model,
                             "completed", new JSONArray().put(finalItem), finalText)));
+            rememberResponseState(requestId,
+                    request.basePrompt + (finalText.length() == 0 ? "" : "\nassistant: " + finalText),
+                    java.util.Collections.<String>emptySet());
         } catch (Exception failure) {
             if (!disconnected.get()) {
                 JSONObject error = new JSONObject().put("message", "Model execution failed")
@@ -1667,6 +1713,45 @@ final class OpenLocalApiGateway {
                 + "Cache-Control: no-cache, no-store\r\n"
                 + "Connection: close\r\n\r\n").getBytes(StandardCharsets.US_ASCII));
         out.flush();
+    }
+
+    private static synchronized ResponseState loadResponseState(String id) {
+        long now = System.currentTimeMillis();
+        java.util.Iterator<java.util.Map.Entry<String, ResponseState>> iterator =
+                RESPONSE_STATES.entrySet().iterator();
+        while (iterator.hasNext()) {
+            ResponseState state = iterator.next().getValue();
+            if (now - state.updatedAtMs > RESPONSE_STATE_TTL_MS) iterator.remove();
+        }
+        return RESPONSE_STATES.get(id);
+    }
+
+    private static synchronized void rememberResponseState(String id, String transcript,
+            java.util.Set<String> pendingToolCallIds) {
+        if (id == null || transcript == null || transcript.length() > MAX_RESPONSE_STATE_CHARS) {
+            return;
+        }
+        RESPONSE_STATES.put(id, new ResponseState(transcript, pendingToolCallIds));
+        while (RESPONSE_STATES.size() > MAX_RESPONSE_STATES) {
+            java.util.Iterator<String> iterator = RESPONSE_STATES.keySet().iterator();
+            if (!iterator.hasNext()) break;
+            iterator.next();
+            iterator.remove();
+        }
+    }
+
+    private static final class ResponseState {
+        final String transcript;
+        final java.util.HashSet<String> pendingToolCallIds;
+        final long updatedAtMs;
+
+        ResponseState(String transcript, java.util.Set<String> pendingToolCallIds) {
+            this.transcript = transcript;
+            this.pendingToolCallIds = pendingToolCallIds == null
+                    ? new java.util.HashSet<String>()
+                    : new java.util.HashSet<String>(pendingToolCallIds);
+            this.updatedAtMs = System.currentTimeMillis();
+        }
     }
 
     private static final class HttpRequest {
