@@ -32,6 +32,7 @@ public final class RoiDexRegisterFlowAnalyzerTest {
         testUnsupportedOpcodeFailsClosed();
         testRegisterBounds();
         testTypedAndCatchAllExceptionEdges();
+        testExceptionHandlerDoesNotClaimEntryParameterProvenance();
         System.out.println("RoiDexRegisterFlowAnalyzer tests passed");
     }
 
@@ -489,6 +490,49 @@ public final class RoiDexRegisterFlowAnalyzerTest {
                 RoiDexReachingDefinitions.analyze(flow);
         check(reaching.exceptionEdgesIncluded && !reaching.completeForExceptionFlow,
                 "reaching definitions explicitly records conservative exception edges");
+    }
+
+    private static void testExceptionHandlerDoesNotClaimEntryParameterProvenance()
+            throws Exception {
+        byte[] bytes = new byte[80];
+        put16(bytes, 16, 2); // registers_size
+        put16(bytes, 18, 1); // ins_size: v1 is the sole static parameter
+        put16(bytes, 20, 1); // outs_size: invoke uses one word
+        put16(bytes, 22, 1); // tries_size
+        put32(bytes, 24, 0); // debug_info_off
+        put32(bytes, 28, 7); // insns_size
+        put16(bytes, 32, 0x1012); // const/4 v1, #0
+        put16(bytes, 34, 0x0171); // invoke-static {v0}, method@0
+        put16(bytes, 36, 0);
+        put16(bytes, 38, 0);
+        put16(bytes, 40, 0x000e); // normal return
+        put16(bytes, 42, 0x0101); // handler: move v0, v1
+        put16(bytes, 44, 0x000f); // return v0
+        put32(bytes, 48, 0); // try start_addr
+        put16(bytes, 52, 4); // protect const + invoke
+        put16(bytes, 54, 1); // handler_off relative to encoded handler list
+        bytes[56] = 1; // encoded_catch_handler_list size
+        bytes[57] = (byte) 0x7f; // one typed catch plus catch-all
+        bytes[58] = 0; // type_idx
+        bytes[59] = 5; // typed handler addr
+        bytes[60] = 5; // catch-all addr
+
+        RoiDexCodeReader.CodeItem code =
+                RoiDexCodeReader.readCodeItem(bytes, 0, bytes.length, 16, 1);
+        RoiDexRegisterFlowAnalyzer.Result flow = RoiDexRegisterFlowAnalyzer.analyze(code);
+        RoiDexReachingDefinitions.Result reaching = RoiDexReachingDefinitions.analyze(flow);
+        RoiDexMethodEntryLayout.Result layout =
+                RoiDexMethodEntryLayout.analyze(2, 1, 0x0008, "(I)V");
+        RoiDexUseDefChains.Result chains = RoiDexUseDefChains.analyze(flow, reaching, layout);
+        RoiDexUseDefChains.UseSite handlerUse = useAt(chains, 5, 1);
+        check(handlerUse != null && handlerUse.reachingDefinitions.length == 1
+                        && handlerUse.reachingDefinitions[0].instructionOffset == 0,
+                "coarse exception edge may retain a protected-block definition candidate");
+        check(handlerUse.mayBeEntryOrUnknownValue && handlerUse.mayBeExceptionFlowUnknown,
+                "handler use remains explicitly unknown despite a reaching definition candidate");
+        check(handlerUse.entryValueKind == RoiDexUseDefChains.EntryValueKind.UNDEFINED_OR_UNKNOWN
+                        && handlerUse.entryParameterIndex == -1 && handlerUse.entryDescriptor == null,
+                "exception-flow ambiguity must not be mislabeled as a method-entry parameter");
     }
 
     private static void put16(byte[] bytes, int offset, int value) {
