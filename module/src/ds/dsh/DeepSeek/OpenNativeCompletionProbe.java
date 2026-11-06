@@ -1050,24 +1050,26 @@ final class OpenNativeCompletionProbe {
     }
 
     private static String readCompleteSessionLog() {
-        File file = SESSION_LOG_FILE;
-        if (file == null || !file.isFile()) return null;
-        FileInputStream input = null;
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
-        try {
-            input = new FileInputStream(file);
-            byte[] buffer = new byte[16 * 1024];
-            int count;
-            while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
-            return new String(output.toByteArray(), StandardCharsets.UTF_8);
-        } catch (VirtualMachineError fatal) {
-            throw fatal;
-        } catch (ThreadDeath fatal) {
-            throw fatal;
-        } catch (Throwable ignored) {
-            return null;
-        } finally {
-            if (input != null) try { input.close(); } catch (Throwable ignored) {}
+        synchronized (OBSERVATION_LOG_LOCK) {
+            File file = SESSION_LOG_FILE;
+            if (file == null || !file.isFile()) return null;
+            FileInputStream input = null;
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            try {
+                input = new FileInputStream(file);
+                byte[] buffer = new byte[16 * 1024];
+                int count;
+                while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+                return new String(output.toByteArray(), StandardCharsets.UTF_8);
+            } catch (VirtualMachineError fatal) {
+                throw fatal;
+            } catch (ThreadDeath fatal) {
+                throw fatal;
+            } catch (Throwable ignored) {
+                return null;
+            } finally {
+                if (input != null) try { input.close(); } catch (Throwable ignored) {}
+            }
         }
     }
 
