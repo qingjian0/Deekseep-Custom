@@ -37,30 +37,37 @@ public final class RoiDexSerializerPipeline {
         RoiDexSerializerElementIndex.Result selectedElements=null;
         String registrationKey="";
         int registrationCandidates=0;
+        boolean registrationCandidateAnalysisFailed=false;
 
         for(RoiDexFileReader.ResolvedMethod candidate:dex.definedMethods) {
             if(candidate.codeItem==null
                     ||!serializerMethod.declaringClassDescriptor.equals(candidate.declaringClassDescriptor))
                 continue;
             if(!hasAddElementCall(dex,candidate.codeItem))continue;
+            // Count every plausible registration method before attempting analysis. A candidate
+            // that fails parsing must still participate in ambiguity decisions.
+            registrationCandidates++;
             try {
                 RoiDexValueProvenance.Result provenance=analyzeValues(dex,candidate.codeItem);
                 RoiDexSerializerElementIndex.Result elements=RoiDexSerializerElementIndex.analyze(
                         candidate.codeItem,dex::resolveMethodId,provenance);
                 if(elements.registrationOrderProven) {
-                    registrationCandidates++;
                     selectedElements=elements;
                     registrationKey=candidate.declaringClassDescriptor+"->"+candidate.name
                             +candidate.prototypeDescriptor;
+                } else {
+                    registrationCandidateAnalysisFailed=true;
                 }
             } catch(Exception ignored) {
-                // Incomplete descriptor methods are not substituted with guessed field ordering.
+                registrationCandidateAnalysisFailed=true;
+                // Failed plausible candidates remain relevant to uniqueness and fail closed.
             }
         }
-        if(registrationCandidates!=1||selectedElements==null)
-            return rejected(registrationCandidates==0
-                    ?"serializer_element_registration_not_found"
-                    :"serializer_element_registration_ambiguous");
+        String candidateFailure=registrationCandidateFailureReason(
+                registrationCandidates,registrationCandidateAnalysisFailed);
+        if(candidateFailure!=null||selectedElements==null)
+            return rejected(candidateFailure==null
+                    ?"serializer_element_registration_analysis_incomplete":candidateFailure);
 
         final RoiDexSerializerMapper.Result mapping;
         try {
@@ -73,6 +80,14 @@ public final class RoiDexSerializerPipeline {
         }
         return new Result(registrationKey,mapping.complete?"":"serializer_parameter_mapping_incomplete",
                 selectedElements,mapping,mapping.complete);
+    }
+
+    static String registrationCandidateFailureReason(int candidateCount,boolean analysisFailed) {
+        if(candidateCount<0)return "serializer_element_registration_candidate_count_invalid";
+        if(candidateCount==0)return "serializer_element_registration_not_found";
+        if(candidateCount>1)return "serializer_element_registration_ambiguous";
+        if(analysisFailed)return "serializer_element_registration_analysis_incomplete";
+        return null;
     }
 
     public static boolean isRequestConstructorDescriptor(String descriptor) {
