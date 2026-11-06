@@ -12,18 +12,19 @@ CHAT="$ROOT/module/src/ds/dsh/DeepSeek/HookChatPipeline.java"
 REPORT="$ROOT/module/src/ds/dsh/DeepSeek/NativeProbeReport.java"
 REPORT_TEST="$ROOT/module/tests/nativeprobe/ds/dsh/DeepSeek/NativeProbeReportTest.java"
 DISCOVERY="$ROOT/module/src/ds/dsh/DeepSeek/RoiHostDiscovery.java"
+UI="$ROOT/module/src/ds/dsh/DeepSeek/DeekseepUi.java"
 
 REPORT_OUT="$ROOT/module/build/native-probe-report-test"
 mkdir -p "$REPORT_OUT"
 javac -source 8 -target 8 -nowarn -d "$REPORT_OUT" "$REPORT" "$REPORT_TEST"
 java -cp "$REPORT_OUT" ds.dsh.DeepSeek.NativeProbeReportTest
 
-python - "$MAIN" "$STUB" "$FACADE" "$PROBE" "$Z18" "$HOST_V271" "$CHAT" "$REPORT" "$DISCOVERY" <<'PY'
+python - "$MAIN" "$STUB" "$FACADE" "$PROBE" "$Z18" "$HOST_V271" "$CHAT" "$REPORT" "$DISCOVERY" "$UI" <<'PY'
 import pathlib
 import re
 import sys
 
-main, stub, facade, probe, z18, host_v271, chat, report, discovery = [
+main, stub, facade, probe, z18, host_v271, chat, report, discovery, ui = [
     pathlib.Path(path).read_text(encoding="utf-8") for path in sys.argv[1:]
 ]
 
@@ -107,6 +108,41 @@ require(
     probe,
     r'HostCompat\.hostCode271\(\) != 289.*?Class\.forName\("ly1", false, loader\).*?Class\.forName\("wu1", false, loader\)',
     "runtime call observer is gated to the verified mainland 2.7.2/code289 request contract",
+)
+require(
+    main,
+    r'OPEN_NATIVE_COMPLETION_PROBE_ENABLE_FILE.*?deekseep_open_native_completion_probe_enabled',
+    "Open native diagnostics use a dedicated opt-in marker",
+)
+require(
+    main,
+    r'static boolean isOpenNativeCompletionProbeEnabled\(\).*?isExplicitEnableMarker\(OPEN_NATIVE_COMPLETION_PROBE_ENABLE_FILE\)',
+    "Open native diagnostics default to disabled unless the explicit marker exists",
+)
+require(
+    main,
+    r'static boolean setOpenNativeCompletionProbeEnabled\(boolean enabled\).*?setExplicitEnableMarker\(.*?OpenNativeCompletionProbe\.onExplicitEnable',
+    "the UI switch is the explicit authorization path for Open native diagnostics",
+)
+require(
+    probe,
+    r'scheduleHostInspection\(final ClassLoader loader\).*?!Main\.isOpenNativeCompletionProbeEnabled\(\)',
+    "the DEX inventory scheduler refuses to run when native diagnostics are disabled",
+)
+require(
+    probe,
+    r'while \(!REPORTED\.get\(\).*?Main\.isOpenNativeCompletionProbeEnabled\(\)\)',
+    "bounded inventory retries stop when the user disables diagnostics",
+)
+require(
+    probe,
+    r'if \(!Main\.isOpenNativeCompletionProbeEnabled\(\)\) return chain\.proceed\(\);',
+    "installed native observer wrappers immediately become transparent after opt-out",
+)
+require(
+    ui,
+    r'启用原生适配诊断探针.*?Main\.isOpenNativeCompletionProbeEnabled\(\).*?Main\.setOpenNativeCompletionProbeEnabled\(checked\)',
+    "the Local API page exposes the separate default-off native diagnostic switch",
 )
 require(
     probe,
