@@ -82,7 +82,7 @@ Therefore, the full DEX parser and register-analysis code must not be described 
 
 ### Next implementation gate
 
-1. Establish a bounded DEX-byte source for the exact runtime ClassLoader scope. Evaluate DexKit export support and APK/split-Dex extraction separately; never silently substitute APK evidence for a different runtime loader.
+1. Establish a bounded DEX-byte source for the exact runtime ClassLoader scope. Use the DexKit 2.3.0 export API only with a fresh private directory, file-count verification, duplicate-length collision detection, per-file/aggregate size limits, and guaranteed cleanup. Evaluate APK/split-Dex extraction separately; never silently substitute APK evidence for a different runtime loader.
 2. Feed the exact DEX bytes to `RoiDexFileReader.read(byte[])`, preserving source identity and DEX identity.
 3. Join DexKit anchor candidates to parsed DEX method IDs using exact owner, name, prototype, and source identity. Reject mismatched or duplicate joins.
 4. Run `RoiDexCandidateEvidence.analyze(...)` and method-level register analysis only for bounded, relevant methods.
