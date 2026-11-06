@@ -271,9 +271,31 @@ gateway_checks = {
 missing_gateway = [label for label, ok in gateway_checks.items() if not ok]
 if missing_gateway:
     raise SystemExit("Missing API protocol behavior: " + ", ".join(missing_gateway))
+
+anthropic_adapter = (pathlib.Path(sys.argv[1]).parent / "AnthropicMessagesAdapter.java").read_text(encoding="utf-8")
+anthropic_required = {
+    "Anthropic Messages route is registered": '"/v1/messages".equals(request.path)' in source and "handleAnthropicMessages(out, request)" in source,
+    "Anthropic x-api-key authentication is supported": 'request.headers.get("x-api-key")' in source,
+    "Anthropic version header is required": 'request.headers.get("anthropic-version")' in source and '"anthropic-version header is required"' in source,
+    "Anthropic request adapter validates max_tokens": '"max_tokens is required and must be an integer' in anthropic_adapter,
+    "Anthropic system and message roles are normalized": 'body.opt("system")' in anthropic_adapter and '"user".equals(role)' in anthropic_adapter and '"assistant".equals(role)' in anthropic_adapter,
+    "Anthropic tool definitions map to shared tool bridge": 'OpenAiToolBridge.chatPlan(openAiTools, choice, true)' in anthropic_adapter,
+    "Anthropic tool_use and tool_result IDs are correlated": 'pendingToolIds.remove(id)' in anthropic_adapter and 'pendingToolIds.add(id)' in anthropic_adapter,
+    "Anthropic tool streaming is explicitly rejected": 'unsupported_streaming_tool_calls' in anthropic_adapter,
+    "Anthropic JSON response returns content blocks": 'anthropicContent(result, calls)' in source and '.put("type", "tool_use")' in source,
+    "Anthropic thinking maps to thinking_delta": '"thinking_delta"' in source,
+    "Anthropic text streaming maps to text_delta": '"text_delta"' in source,
+    "Anthropic stream lifecycle emits message_stop": '"message_start"' in source and '"message_delta"' in source and '"message_stop"' in source,
+    "Anthropic errors use the Anthropic error envelope": 'new JSONObject().put("type", "error")' in source and 'sendAnthropicError' in source,
+    "Anthropic exact usage is not fabricated": "Omit usage rather than fabricate token counts" in source,
+}
+missing_anthropic = [label for label, ok in anthropic_required.items() if not ok]
+if missing_anthropic:
+    raise SystemExit("Missing Anthropic Messages contract: " + ", ".join(missing_anthropic))
+
 ui_open = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
-if "非流式 Chat Completions 与 Responses 可将模型工具调用回传给客户端" not in ui_open:
-    raise SystemExit("Open UI must accurately describe Chat and Responses tool handoff")
+if "Anthropic 支持文本 JSON/SSE 与 thinking" not in ui_open:
+    raise SystemExit("Open UI must accurately disclose Anthropic Messages support")
 if "原生执行适配器尚未接通" not in ui_open:
     raise SystemExit("Open UI must disclose that native completion is not connected")
 hook = (pathlib.Path(sys.argv[1]).parent / "HookAccountLoginSecurity.java").read_text(encoding="utf-8")
@@ -285,7 +307,7 @@ if '!"Open".equals(BuildInfo.BUILD_EDITION)' not in hook or 'Open 版当前仅�
     raise SystemExit("Open host control receiver must reject unsupported HTTPS/protocol changes")
 if '((operation == null || operation.length() == 0)' not in hook or 'z2.PROTOCOL_ANTHROPIC.equals(protocol)' not in hook:
     raise SystemExit("Open host control receiver must guard the legacy protocol broadcast path")
-if 'protocolValue.setText(UiLanguage.text(act, "OpenAI（Chat Completions + Responses）"' not in ui_open or 'protocolValue.setClickable(false)' not in ui_open:
-    raise SystemExit("Open UI must not expose the unavailable Anthropic protocol picker")
+if 'protocolValue.setText(UiLanguage.text(act, "OpenAI + Anthropic Messages（固定）"' not in ui_open or 'protocolValue.setClickable(false)' not in ui_open:
+    raise SystemExit("Open UI must disclose the fixed dual-protocol Open API surface")
 print("LAN lifecycle, key, URL, selectable UI, API protocol, and truthful Open capability checks passed")
 PY
