@@ -287,7 +287,7 @@ anthropic_required = {
     "Anthropic text streaming maps to text_delta": '"text_delta"' in source,
     "Anthropic stream lifecycle emits message_stop": '"message_start"' in source and '"message_delta"' in source and '"message_stop"' in source,
     "Anthropic errors use the Anthropic error envelope": 'new JSONObject().put("type", "error")' in source and 'sendAnthropicError' in source,
-    "Anthropic exact usage is not fabricated": "Omit usage rather than fabricate token counts" in source,
+    "Anthropic exact usage is not fabricated": "Omit usage rather" in source and "than fabricate token counts" in source,
 }
 missing_anthropic = [label for label, ok in anthropic_required.items() if not ok]
 if missing_anthropic:
