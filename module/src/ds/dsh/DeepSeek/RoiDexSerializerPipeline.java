@@ -69,8 +69,9 @@ public final class RoiDexSerializerPipeline {
                 // Failed plausible candidates remain relevant to uniqueness and fail closed.
             }
         }
-        if(registrationCandidateDiscoveryIncomplete)
-            return rejected("serializer_element_registration_candidate_discovery_incomplete");
+        String discoveryFailure=registrationCandidateDiscoveryFailureReason(
+                registrationCandidateDiscoveryIncomplete);
+        if(discoveryFailure!=null)return rejected(discoveryFailure);
         String candidateFailure=registrationCandidateFailureReason(
                 registrationCandidates,registrationCandidateAnalysisFailed);
         if(candidateFailure!=null||selectedElements==null)
@@ -88,6 +89,10 @@ public final class RoiDexSerializerPipeline {
         }
         return new Result(registrationKey,mapping.complete?"":"serializer_parameter_mapping_incomplete",
                 selectedElements,mapping,mapping.complete);
+    }
+
+    static String registrationCandidateDiscoveryFailureReason(boolean incomplete) {
+        return incomplete?"serializer_element_registration_candidate_discovery_incomplete":null;
     }
 
     static String registrationCandidateFailureReason(int candidateCount,boolean analysisFailed) {
