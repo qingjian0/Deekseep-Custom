@@ -127,10 +127,12 @@ final class OpenNativeCompletionProbe {
         CALLBACK_DETAIL_EVENTS.set(0);
         CALLBACK_STATS.clear();
         API_TRACE_EVENTS.set(0);
+        REQUEST_CONSTRUCTOR_EVENTS.set(0);
+        OBSERVATION_REQUEST_FACTORY_METADATA.set(false);
         OBSERVATION_IDS.set(0L);
         SESSION_STARTED_AT_MS = System.currentTimeMillis();
         SESSION_LOG_FILE = createSessionLogFile(SESSION_STARTED_AT_MS);
-        observerLog("[OPEN_NATIVE_CALL_OBSERVER] session-start schema=6 epochMs="
+        observerLog("[OPEN_NATIVE_CALL_OBSERVER] session-start schema=7 epochMs="
                 + SESSION_STARTED_AT_MS);
     }
 
@@ -202,13 +204,13 @@ final class OpenNativeCompletionProbe {
         int eligibleClassNames = 0;
         int classLoadFailures = 0;
         try {
-            line(out, "report.schema", "6");
-            line(out, "diagnostic.coverage", "host-transport,y60-continuation,callback-implementations,local-api-gateway");
+            line(out, "report.schema", "7");
+            line(out, "diagnostic.coverage", "host-transport,y60-continuation,callback-implementations,request-construction,local-api-gateway");
             line(out, "diagnostic.sensitive_data", "message-content,credentials,cookies,auth-headers-not-collected");
             line(out, "diagnostic.callback_detail_capture", "all-events-for-selected-methods-persisted-to-app-private-file");
-            line(out, "diagnostic.callback_argument_shape_capture", "callback-0-first-argument-declared-field-names-and-types-only,max-16-fields,no-values");
+            line(out, "diagnostic.callback_argument_shape_capture", "callback-0-and-ly1-constructor-arguments-declared-field-names-and-types-only,max-16-fields,no-values");
             line(out, "diagnostic.callback_aggregate_coverage", "all-invocations-for-every-successfully-hooked-concrete-callback-method");
-            line(out, "diagnostic.callback_discovery_limits", "callback-objects-observed-at-y60-continuation-boundary-only");
+            line(out, "diagnostic.callback_discovery_limits", "callback-objects-observed-at-y60-continuation-boundary-only;ly1 constructors observed separately,max-8-constructors,max-16-events");
             line(out, "diagnostic.callback_hook_limits", "concrete-class-declared-methods-only,max-12-methods-per-class,one-or-two-parameters,no-superclass-traversal");
             Class<?> requestType = HostCompat.load(loader, "ew0");
             line(out, "edition", BuildInfo.BUILD_EDITION);
