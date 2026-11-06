@@ -1,7 +1,7 @@
 /*
  * Adapted from diegosouzapw/OmniRoute via the MIT-licensed reference Local API project.
  * Upstream: OmniRoute commit dffff5d656c169e41c4862cb38affbd9992f24a5
- * Reference file: module/src/com/dsmod/probe/OmniRouteToolBridge.java
+ * Reference file: OmniRoute parser in the MIT-licensed reference gateway
  * Reference blob: cda732e97920ef99b3d01fb1559f6255b39d8e7d
  * Local changes: package migrated to ds.dsh.DeepSeek; API remains coupled only to OpenAiToolBridge.Plan/Definition.
  *
