@@ -54,6 +54,12 @@ Status: In progress; not a release acceptance report.
 - The diagnostic extension remains Open/code289-only, explicit-toggle-only, bounded, and transparent to host behavior. It does not invoke transport candidates or capture argument/field values.
 - The log evidence still does not establish request field semantics, Challenge/PoW preparation, Flow terminal semantics, or successful user-visible generation.
 
+## CI failure analysis and corrective changes
+
+- The first Android compile attempt found a malformed Java character literal in the chunk-line parser; corrected it to the valid tab character literal.
+- The package identity regression check rejected two provenance comments that embedded the retired source package path. The full MIT notices remain intact; source headers now identify the reference gateway without retaining the retired package namespace. Exact upstream paths remain in the provenance documentation.
+- The failure run also confirmed the Kotlin runtime unit-test stage completed successfully. Android Java compilation and package identity checks are being rerun on the corrected branch head.
+
 ## Not yet completed
 
 - OpenAI Responses endpoint is implemented for text JSON/SSE and non-streaming function/custom tool handoff; `previous_response_id` uses bounded in-memory state (64 entries, 30-minute TTL, 256 KiB transcript cap, cleared on stop/restart); streamed tool calls remain unsupported.
