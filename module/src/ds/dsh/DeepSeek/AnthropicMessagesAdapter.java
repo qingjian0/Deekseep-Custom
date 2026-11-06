@@ -15,6 +15,7 @@ final class AnthropicMessagesAdapter {
     private static final int MAX_PROMPT_CHARS = 128 * 1024;
 
     static final class Request {
+        final String requestId;
         final String model;
         final String prompt;
         final int maxTokens;
@@ -22,8 +23,9 @@ final class AnthropicMessagesAdapter {
         final boolean reasoning;
         final OpenAiToolBridge.Plan toolPlan;
 
-        Request(String model, String prompt, int maxTokens, boolean stream,
+        Request(String requestId, String model, String prompt, int maxTokens, boolean stream,
                 boolean reasoning, OpenAiToolBridge.Plan toolPlan) {
+            this.requestId = requestId;
             this.model = model;
             this.prompt = prompt;
             this.maxTokens = maxTokens;
@@ -35,7 +37,7 @@ final class AnthropicMessagesAdapter {
 
     private AnthropicMessagesAdapter() {}
 
-    static Request parse(JSONObject body) throws z2.GatewayException {
+    static Request parse(JSONObject body) throws Exception {
         if (body == null) throw invalid("invalid_request", "Request body must be an object");
         if (body.has("model") && !(body.opt("model") instanceof String)) {
             throw invalid("invalid_model", "model must be a string");
@@ -222,12 +224,12 @@ final class AnthropicMessagesAdapter {
         if (prompt.length() == 0 || prompt.length() > MAX_PROMPT_CHARS) {
             throw invalid("invalid_prompt", "Prompt is empty or too large");
         }
-        String requestId = "anthropic-" + java.util.UUID.randomUUID().toString();
+        String requestId = "msg_" + java.util.UUID.randomUUID().toString().replace("-", "");
         String normalized = OpenAiToolBridge.addInstructions(prompt.toString(), plan, requestId);
         if (normalized.length() > MAX_PROMPT_CHARS) {
             throw invalid("invalid_prompt", "Prompt with tool instructions is too large");
         }
-        return new Request(model, normalized, maxTokens, stream, reasoning, plan);
+        return new Request(requestId, model, normalized, maxTokens, stream, reasoning, plan);
     }
 
     private static boolean containsTool(OpenAiToolBridge.Plan plan, String name) {
