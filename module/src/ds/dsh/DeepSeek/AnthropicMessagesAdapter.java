@@ -194,7 +194,7 @@ final class AnthropicMessagesAdapter {
                         throw invalid("invalid_tool_use", "Invalid or undeclared tool_use block");
                     }
                     pendingToolIds.add(id);
-                    append(prompt, "assistant", "tool call id=" + id + " name=" + name
+                    appendRaw(prompt, "assistant tool call id=" + id + " name=" + name
                             + " arguments=" + input.toString());
                 } else if ("tool_result".equals(type)) {
                     if (text.length() > 0) {
@@ -211,7 +211,7 @@ final class AnthropicMessagesAdapter {
                     String result = textContent(block.opt("content"), "tool_result");
                     if (result.length() == 0) result = block.optBoolean("is_error", false)
                             ? "Tool execution failed" : "(empty tool result)";
-                    append(prompt, "tool", "tool result for " + id + ": " + result);
+                    appendRaw(prompt, "tool result for " + id + ": " + result);
                 } else {
                     throw invalid("unsupported_content_block",
                             "Only text, tool_use, and tool_result content blocks are supported");
@@ -254,6 +254,12 @@ final class AnthropicMessagesAdapter {
             out.append(block.optString("text", ""));
         }
         return out.toString().trim();
+    }
+
+    private static void appendRaw(StringBuilder prompt, String value) {
+        if (value == null || value.trim().length() == 0) return;
+        if (prompt.length() > 0) prompt.append("\\n");
+        prompt.append(value.trim());
     }
 
     private static void append(StringBuilder prompt, String role, String value) {
