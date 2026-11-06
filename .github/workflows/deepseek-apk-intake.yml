@@ -121,7 +121,7 @@ jobs:
           while IFS= read -r -d '' dex; do
             name="$(basename "$dex")"
             java -cp "$RUNNER_TEMP/roi-cli" ds.dsh.DeepSeek.RoiDexApkCli \
-              "$dex" "$OUT/roi/$name.json"
+              "$dex" "$OUT/roi/$name.json" "$OUT/dex"
             count=$((count + 1))
           done < <(find "$OUT/dex" -maxdepth 1 -type f -name 'classes*.dex' -print0 | sort -z)
           test "$count" -gt 0
