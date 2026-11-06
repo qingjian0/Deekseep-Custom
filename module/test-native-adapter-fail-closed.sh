@@ -495,7 +495,7 @@ require(
 
 require(
     probe,
-    r'installCallbackObserver\(Object callback, String role\).*?installed < 12.*?getDeclaredMethods\(\).*?chain\.getThisObject\(\).*?System\.identityHashCode\(receiver\)',
+    r'installCallbackObserver\(Object callback, String role\).*?installed < MAX_CALLBACK_METHOD_HOOKS.*?getDeclaredMethods\(\).*?chain\.getThisObject\(\).*?System\.identityHashCode\(receiver\)',
     "continuation callback implementations are traced with bounded method hooks and identity correlation",
 )
 require(
@@ -518,7 +518,7 @@ require(
 )
 require(
     probe,
-    r'MAX_CALLBACK_TRACE_EVENTS = 96.*?CALLBACK_METHOD_INVOCATIONS.*?callback-events-truncated limit=',
+    r'MAX_CALLBACK_TRACE_EVENTS = 512.*?CALLBACK_METHOD_INVOCATIONS.*?CALLBACK_DETAIL_EVENTS.*?callback-events-truncated limit=',
     "callback event volume is bounded and reports truncation instead of flooding the report",
 )
 require(
@@ -533,7 +533,7 @@ require(
 )
 require(
     probe,
-    r'MAX_CALLBACK_CLASSES = 8.*?MAX_CALLBACK_METHODS_INSPECTED = 48.*?callback-class-limit limit=',
+    r'MAX_CALLBACK_CLASSES = 32.*?MAX_CALLBACK_METHODS_INSPECTED = 512.*?MAX_CALLBACK_METHOD_HOOKS = 256.*?callback-class-limit limit=',
     "callback class and method discovery has independent hard bounds",
 )
 require(
@@ -543,8 +543,13 @@ require(
 )
 require(
     probe,
-    r'OPEN_NATIVE_DIAGNOSTIC_SUMMARY.*?callbackMethodInvocations=.*?callbackClassesObserved=.*?apiTraceEvents=',
+    r'OPEN_NATIVE_DIAGNOSTIC_SUMMARY.*?callbackMethodInvocations=.*?callbackMethodSignaturesObserved=.*?callbackClassesObserved=.*?apiTraceEvents=.*?OPEN_NATIVE_CALLBACK_AGGREGATES.*?invocations=.*?failures=.*?avgUs=',
     "the copied report ends with aggregate callback and API trace counts",
+)
+require(
+    probe,
+    r'CALLBACK_STATS.*?ConcurrentHashMap.*?stats\.record\(System\.nanoTime\(\) - started, false\).*?stats\.record\(System\.nanoTime\(\) - started, true\).*?totalMs=.*?maxMs=.*?avgUs=',
+    "every hooked callback method retains full invocation, failure, and latency aggregates beyond detailed event samples",
 )
 require(
     ui,
