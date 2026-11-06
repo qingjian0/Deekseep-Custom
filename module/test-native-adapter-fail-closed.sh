@@ -13,18 +13,19 @@ REPORT="$ROOT/module/src/ds/dsh/DeepSeek/NativeProbeReport.java"
 REPORT_TEST="$ROOT/module/tests/nativeprobe/ds/dsh/DeepSeek/NativeProbeReportTest.java"
 DISCOVERY="$ROOT/module/src/ds/dsh/DeepSeek/RoiHostDiscovery.java"
 UI="$ROOT/module/src/ds/dsh/DeepSeek/DeekseepUi.java"
+GATEWAY="$ROOT/module/src/ds/dsh/DeepSeek/OpenLocalApiGateway.java"
 
 REPORT_OUT="$ROOT/module/build/native-probe-report-test"
 mkdir -p "$REPORT_OUT"
 javac -source 8 -target 8 -nowarn -d "$REPORT_OUT" "$REPORT" "$REPORT_TEST"
 java -cp "$REPORT_OUT" ds.dsh.DeepSeek.NativeProbeReportTest
 
-python - "$MAIN" "$STUB" "$FACADE" "$PROBE" "$Z18" "$HOST_V271" "$CHAT" "$REPORT" "$DISCOVERY" "$UI" <<'PY'
+python - "$MAIN" "$STUB" "$FACADE" "$PROBE" "$Z18" "$HOST_V271" "$CHAT" "$REPORT" "$DISCOVERY" "$UI" "$GATEWAY" <<'PY'
 import pathlib
 import re
 import sys
 
-main, stub, facade, probe, z18, host_v271, chat, report, discovery, ui = [
+main, stub, facade, probe, z18, host_v271, chat, report, discovery, ui, gateway = [
     pathlib.Path(path).read_text(encoding="utf-8") for path in sys.argv[1:]
 ]
 
@@ -386,7 +387,7 @@ require(
 )
 require(
     probe,
-    r'MAX_OBSERVATION_LOG_CHARS\s*=\s*12_000',
+    r'MAX_OBSERVATION_LOG_CHARS\s*=\s*48_000',
     "runtime observer trace buffer is explicitly bounded",
 )
 require(
@@ -509,6 +510,29 @@ require(
 )
 if "callback.toString()" in probe or "receiver.toString()" in probe:
     raise SystemExit("callback observer must not serialize callback instances")
+
+require(
+    probe,
+    r'static void apiTrace\(String event\).*?Main\.isOpenNativeCompletionProbeEnabled\(\).*?observerLog',
+    "Local API diagnostics share the native probe buffer and remain behind the explicit opt-in switch",
+)
+require(
+    gateway,
+    r'http-authenticated method=.*?request-accepted requestId=.*?backend-readiness requestId=.*?request-rejected requestId=',
+    "gateway traces request acceptance, model routing, backend readiness, and early rejection",
+)
+require(
+    gateway,
+    r'completion-start requestId=.*?completion-complete requestId=.*?textChars=.*?reasoningChars=.*?finishReason',
+    "non-stream completion records stage duration and output counts without recording content",
+)
+require(
+    gateway,
+    r'first-delta requestId=.*?stream-complete requestId=.*?events=.*?textChars=.*?reasoningChars=.*?stream-failed requestId=',
+    "stream diagnostics record first-token latency, event counts, completion, and failure",
+)
+if "apiTrace(\"prompt=" in gateway or "apiTrace(\"content=" in gateway:
+    raise SystemExit("Local API diagnostics must never record prompt or response content")
 
 print("Native probe bounded-retry regression checks passed")
 print("Native adapter fail-closed and read-only probe source checks passed")
