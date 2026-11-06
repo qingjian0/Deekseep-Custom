@@ -71,25 +71,27 @@ These are implemented building blocks, not evidence that unknown-host discovery 
 
 ### Current end-to-end integration boundary
 
-- Runtime-loader and installed APK-path DexKit discovery are present.
-- DexKit candidates are sent to the unknown-host chat-request resolver after bounded semantic-anchor discovery.
-- The current discovery path reads DexKit method descriptors, parameter types, opcode summaries, string/field references, and invoke/caller relations.
-- The inspected `RoiDexKitDiscovery` path does not call `DexKitBridge.exportDexFile`, does not pass exported DEX bytes to `RoiDexFileReader.read(byte[])`, and does not invoke `RoiDexCandidateEvidence.analyze(...)` as part of candidate finalization.
-- Serializer field anchors are associated with constructor references from the relevant serializer method, but the discovery path does not yet prove the element-index-to-register-to-constructor-argument flow.
+- Runtime-loader and installed APK-path DexKit discovery are present. Only runtime-loader candidates can enter the feature resolver.
+- For each scanned runtime loader, `RoiDexKitDiscovery` now calls DexKit 2.3.0 `exportDexFile(outPath)` and passes every exported file through `RoiDexKitExportReader` into `RoiDexFileReader.read(byte[])`.
+- The export reader uses a fresh private cache subdirectory, validates the expected DEX file count, checks the `classes_<byte-length>.dex` filename against the actual file length, enforces per-file and aggregate size bounds, parses files one at a time, and removes the temporary directory in a finally block. A same-length export collision is rejected by the file-count check.
+- Parsed defined methods are indexed by full method descriptor and exported DEX filename. Duplicate method descriptors across exported DEX files are marked ambiguous and excluded.
+- DexKit anchor candidates must match an exact parsed runtime DEX method descriptor before they can enter the unknown-host resolver. Invoke edges are filtered to methods defined in the exported runtime DEX set. Serializer method and request-constructor references must both join to unique parsed definitions.
+- APK-path scans remain diagnostic supplements and do not contribute to runtime feature authorization.
+- The discovery path does **not yet** run `RoiDexCandidateEvidence.analyze(...)` on the exact matched serializer/deserializer methods, nor does it trace serializer element indices through register definitions into the constructor invoke.
 - The existing runtime adapter still uses the reviewed fixed constructor layout and prompt argument index 2.
 
-Therefore, the full DEX parser and register-analysis code must not be described as absent; the missing part is the **runtime data hand-off and semantic evidence integration**. DexKit's high-level method summaries alone do not prove constructor argument mapping.
+This closes the missing **runtime DEX byte hand-off and exact method-identity join**. It does not close semantic argument mapping. DexKit call summaries plus exact method identity still do not prove which constructor parameter receives a decoded serializer field.
 
 ### Next implementation gate
 
-1. Establish a bounded DEX-byte source for the exact runtime ClassLoader scope. Use the DexKit 2.3.0 export API only with a fresh private directory, file-count verification, duplicate-length collision detection, per-file/aggregate size limits, and guaranteed cleanup. Evaluate APK/split-Dex extraction separately; never silently substitute APK evidence for a different runtime loader.
-2. Feed the exact DEX bytes to `RoiDexFileReader.read(byte[])`, preserving source identity and DEX identity.
-3. Join DexKit anchor candidates to parsed DEX method IDs using exact owner, name, prototype, and source identity. Reject mismatched or duplicate joins.
-4. Run `RoiDexCandidateEvidence.analyze(...)` and method-level register analysis only for bounded, relevant methods.
-5. Add a semantic trace from serializer field-name / element-index decoding through register definitions to the exact constructor invoke.
-6. Map invoke register words to constructor parameters, including receiver and wide values, then compare the result with the already-loaded reflected constructor.
-7. Add fixture tests for reordered and added constructor parameters, register moves, move-result-object, casts, field-index decoding, branch joins, wide parameters, exception-flow uncertainty, and ambiguous/unsupported flows.
-8. Keep the generic mapping in discovery-only mode until all evidence checks pass. Runtime activation must still require the feature-specific opt-in, exact ClassLoader match, unambiguous candidate, and a separately authorized installer.
+1. Retain the parsed DEX identity for each matched serializer/deserializer method and invoke target; reject duplicate or cross-DEX ambiguous identities.
+2. Run bounded `RoiDexMethodAnalysis` only on exact matched methods, rather than analyzing every method in a multidex image.
+3. Resolve the serializer descriptor's field-name to element-index mapping, including generated Kotlin serialization descriptors.
+4. Resolve deserializer decode calls and element indices to value registers; trace those registers through moves, casts, move-result operations, and control-flow joins.
+5. Prove the exact constructor invoke receiving the value, then map invoke register words to reflected parameters while accounting for receiver and wide arguments.
+6. Compare the derived constructor descriptor and mapping against the already-loaded runtime class in the same ClassLoader scope.
+7. Add fixture tests for reordered and added constructor parameters, register moves, move-result-object, casts, field-index decoding, branch joins, wide parameters, exception-flow uncertainty, duplicate DEX definitions, and ambiguous/unsupported flows.
+8. Keep generalized mapping in discovery-only mode until all evidence checks pass. Runtime activation must still require the feature-specific opt-in, exact ClassLoader match, unambiguous candidate, and a separately authorized installer.
 
 ### Acceptance boundary
 
