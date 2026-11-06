@@ -367,3 +367,8 @@ collecting it, subscribe to it, invoke methods on the result, or alter the origi
 The Gateway remains fail-closed with HTTP 503 until a separately reviewed Open native adapter
 implements and verifies Request construction, Challenge/PoW, Transport, event decoding,
 cancellation, session isolation, and error mapping.
+
+
+## Xiaomi MIUI / HyperOS background retention
+
+The foreground keeper runs in the module package `ds.dsh.DeepSeek`, while the hooked gateway runs in `com.deepseek.chat`. Battery optimization must therefore be checked and configured for both packages independently. MIUI / HyperOS users should allow autostart for both apps, set both battery policies to unrestricted, lock both in Recents, and keep the module's foreground-service notification category enabled. OEM menu names vary. The UI now shows a device-specific guide and marks a missing host heartbeat as a keepalive failure after 15 seconds instead of waiting forever. This is not a substitute for on-device validation.
