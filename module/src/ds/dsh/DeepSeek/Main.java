@@ -126,6 +126,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             "/data/data/com.deepseek.chat/files/deekseep_roi_unknown_host_hook_enabled";
     private static final String ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE =
             "/data/data/com.deepseek.chat/files/deekseep_roi_unknown_host_invocation_probe_enabled";
+    private static final String OPEN_NATIVE_COMPLETION_PROBE_ENABLE_FILE =
+            "/data/data/com.deepseek.chat/files/deekseep_open_native_completion_probe_enabled";
     private static final String ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE =
             "/data/data/com.deepseek.chat/files/deekseep_roi_unknown_host_feature_hook_enabled";
 
@@ -3037,6 +3039,19 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     static boolean setUnknownHostDiagnosticProbesEnabled(boolean enabled) {
         return setExplicitEnableMarker(ROI_UNKNOWN_HOST_INVOCATION_PROBE_ENABLE_FILE, enabled);
+    }
+
+    static boolean isOpenNativeCompletionProbeEnabled() {
+        return isExplicitEnableMarker(OPEN_NATIVE_COMPLETION_PROBE_ENABLE_FILE);
+    }
+
+    static boolean setOpenNativeCompletionProbeEnabled(boolean enabled) {
+        boolean saved = setExplicitEnableMarker(
+                OPEN_NATIVE_COMPLETION_PROBE_ENABLE_FILE, enabled);
+        if (saved && enabled) {
+            OpenNativeCompletionProbe.onExplicitEnable(hostClassLoader);
+        }
+        return saved;
     }
 
     static boolean isUnknownHostFeatureHooksAuthorized() {
