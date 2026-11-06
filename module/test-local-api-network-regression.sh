@@ -181,6 +181,8 @@ if 'protocolValue.setClickable(false);' not in overlay or 'OpenAI（固定）' n
     raise SystemExit("Open floating overlay must keep the protocol fixed to OpenAI")
 if '!"Open".equals(BuildInfo.BUILD_EDITION)' not in hook or 'Open 版当前仅支持 HTTP + OpenAI Chat Completions' not in hook:
     raise SystemExit("Open host control receiver must reject unsupported HTTPS/protocol changes")
+if '((operation == null || operation.length() == 0)' not in hook or 'z2.PROTOCOL_ANTHROPIC.equals(protocol)' not in hook:
+    raise SystemExit("Open host control receiver must guard the legacy protocol broadcast path")
 if 'protocolValue.setText(UiLanguage.text(act, "OpenAI（仅 Chat Completions）"' not in ui_open or 'protocolValue.setClickable(false)' not in ui_open:
     raise SystemExit("Open UI must not expose the unavailable Anthropic protocol picker")
 print("LAN lifecycle, key, URL, selectable UI, API protocol, and truthful Open capability checks passed")
