@@ -254,11 +254,11 @@ android {
         versionCode = 37
         versionName = "1.8.1"
         manifestPlaceholders["runtimeProofEnabled"] = shiV5V241.toString()
-        // Activation and the localhost API service are Closed-only components.  Open keeps
-        // neither endpoint enabled nor a startable API foreground service.
+        // The activation endpoint remains Closed-only. The local API foreground companion
+        // is also required by the Open in-process gateway, which does not use the Closed payload.
         manifestPlaceholders["closedActivationEnabled"] = protectedDistribution.toString()
         manifestPlaceholders["localApiComponentEnabled"] =
-            (protectedDistribution && localApiIncluded).toString()
+            (!protectedDistribution || localApiIncluded).toString()
         // Reverted 360-Jiagu-style camouflage (com.stub.StubApp): its shell mechanics require an
         // (effectively) empty classes.dex, which deep scanners like MT Manager cross-check and
         // flag as fake when the real dex is present. Yidun-style SDK markers (see
