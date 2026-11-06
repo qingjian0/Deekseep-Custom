@@ -99,6 +99,10 @@ if "power.isIgnoringBatteryOptimizations(TARGET)" not in main or "power.isIgnori
     raise SystemExit("Battery policy must be checked independently for host and module service packages")
 if "moduleDozeExempt" not in main or "hostDozeExempt" not in main:
     raise SystemExit("Keepalive background status must report host and module battery policy separately")
+if "EXTRA_NOTIFICATION_ENABLED" not in service or "areNotificationsEnabled()" not in service:
+    raise SystemExit("Foreground keeper must report module notification permission")
+if "localApiKeepAliveNotificationEnabled" not in security or "notificationWarning" not in main:
+    raise SystemExit("Host UI must surface missing module notification permission")
 if "DeepSeek 宿主后台活动" not in main or "DeepSeek host background activity" not in main:
     raise SystemExit("Background restriction status must identify the host package it actually measures")
 if "localApiXiaomiBackgroundGuide" not in main or "Autostart" not in main or "自启动管理" not in main:
