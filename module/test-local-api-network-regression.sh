@@ -214,7 +214,9 @@ gateway_checks = {
     "HTTP header names reject surrounding whitespace": 'substring(0,colon)\n                    .toLowerCase' in source,
     "chunk-size tokens are not whitespace-trimmed": 'sizeLine.substring(0, extension) : sizeLine;' in source,
     "HTTP request lines require exact single-space separators": 'lines[0].split(" ", -1)' in source and 'lines[0].trim().split' not in source,
-    "HTTP request targets reject embedded control whitespace": "first[1].indexOf('\\t') >= 0" in source and "first[1].indexOf('\\r') >= 0" in source,
+    "HTTP request targets reject embedded control whitespace": "!isRequestTarget(first[1])" in source and "c <= 0x20 || c >= 0x7f" in source,
+    "HTTP headers reject control characters": "!isHttpFieldValue(rawValue)" in source,
+    "HTTP trailers validate field names and values": "!isHttpToken(name) || !isHttpFieldValue(trailerValue)" in source,
     "model discovery is not blocked by engine readiness": (
         source.index('if ("GET".equals(request.method) && "/v1/models".equals(request.path)) {')
         < source.index("Model discovery describes the configured API surface")
