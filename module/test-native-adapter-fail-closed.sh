@@ -629,12 +629,22 @@ require(
 )
 require(
     gateway,
-    r'"none".equals\(functionCall\).*?Boolean\.FALSE\.equals\(parallel\)',
-    "empty legacy function selection and parallel_tool_calls false are harmless defaults",
+    r'!"none".equals\(functionCall\).*?return "function_call"',
+    "only non-empty legacy function selection is rejected",
 )
 require(
     gateway,
-    r'!"text".equals\(format\.optString\("type", ""\)\).*?stream_options\.include_usage.*?Boolean\.FALSE\.equals\(includeUsage\)',
+    r'boolean parallelTools = body\.optBoolean\("parallel_tool_calls", true\).*?chatPlan\(\s*rawTools, body\.opt\("tool_choice"\), parallelTools\)',
+    "parallel_tool_calls is type-checked and forwarded to the tool bridge",
+)
+require(
+    bridge,
+    r'if \(!plan\.parallel\).*?Return at most one tool call',
+    "parallel_tool_calls false is honored as a harmless single-call limit",
+)
+require(
+    gateway,
+    r'!"text".equals\(format\.optString\("type", ""\)\).*?Boolean\.FALSE\.equals\(includeUsage\)',
     "text response format and include_usage false do not reject ordinary chat streaming",
 )
 print("Native probe bounded-retry regression checks passed")
