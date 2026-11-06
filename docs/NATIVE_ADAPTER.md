@@ -411,4 +411,28 @@ The schema-4 logs exposed excessive inherited-method instrumentation. Hooking ca
 - retain pass-through execution and type-only argument/result logging;
 - persist all events for the selected methods and preserve aggregate counters.
 
-The diagnostic report schema is now 5 and explicitly reports this narrower coverage. This is a diagnostic coverage tradeoff, not an adapter implementation. The branch has not yet been merged or CI/build-validated. Keep the Gateway fail-closed until Request construction, Challenge/PoW, Transport lifecycle, response decoding, cancellation, session isolation, and error mapping are independently verified.
+The diagnostic report schema is now 6 and explicitly reports this narrower coverage plus value-free callback payload shape capture. This is a diagnostic coverage tradeoff, not an adapter implementation. The branch has not yet been merged or CI/build-validated. Keep the Gateway fail-closed until Request construction, Challenge/PoW, Transport lifecycle, response decoding, cancellation, session isolation, and error mapping are independently verified.
+
+
+## Schema 6 callback event-shape capture (2026-11-06)
+
+The follow-up diagnostic branch adds one narrowly scoped field-shape observation to help identify
+the values emitted through the verified `y60.b(fl4, yb3)` continuation boundary:
+
+- Only methods on concrete callback classes continue to be observed; no superclass traversal.
+- For role `callback-0` (the first continuation argument), the observer records the runtime type
+  and up to 16 directly declared field names and field types of the first method argument.
+- No field values are read. The observer does not call `toString()`, invoke getters, inspect nested
+  objects, collect a Flow, or retain callback arguments.
+- `callback-1` (the continuation object) does not receive argument-shape capture.
+- The capture remains behind the separate default-off diagnostic switch and preserves exactly one
+  `chain.proceed()` call with the original return value and exception behavior.
+
+This should expose structural shapes for event candidates such as `av1` and `vd6` seen at
+`cr9.a(Object, yb3)` and `ec0.a(Object, yb3)`. It does not assign semantic meaning to their fields,
+prove the complete Flow lifecycle, or authorize a production adapter. The next implementation step
+must correlate the newly observed shapes with the exact code289 APK's collector and event decoder,
+then independently validate completion/error/terminal events before building `HostEventDecoder`.
+
+Schema 6 is not yet device-validated. Do not enable it in production builds or claim Native Completion
+readiness based on this source change alone.
