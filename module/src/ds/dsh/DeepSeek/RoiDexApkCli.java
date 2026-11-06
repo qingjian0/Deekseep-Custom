@@ -283,6 +283,8 @@ public final class RoiDexApkCli {
                     int score = anchorPriority(selected.get(method.methodKey));
                     Integer directPriority = directCalleePriority.get(method.methodKey);
                     if (directPriority != null && directPriority > score) score = directPriority;
+                    Integer transitivePriority = transitiveCalleePriority.get(method.methodKey);
+                    if (transitivePriority != null && transitivePriority > score) score = transitivePriority;
                     // JSON dispatcher signatures are high-value bridge methods even when
                     // their callers sit in a different DEX.
                     if (method.methodKey.endsWith("(Ljava/lang/String;Lorg/json/JSONObject;)V"))
