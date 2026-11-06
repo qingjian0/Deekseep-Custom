@@ -27,6 +27,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.UUID;
 import java.util.List;
+import java.util.Collections;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -50,6 +53,9 @@ final class OpenLocalApiGateway {
     private static volatile String lanBindingStatus = "未启用";
     private static volatile String lanNetworkMonitorStatus = "未注册";
     private static volatile ExecutorService clients;
+    // Guarded by activeClients: registration and stop-time closure share one lifecycle lock.
+    private static final Set<Socket> activeClients = Collections.newSetFromMap(
+            new ConcurrentHashMap<Socket, Boolean>());
     private static volatile z2.Backend backend;
     private static volatile Context appContext;
     private static volatile String token;
@@ -106,6 +112,7 @@ final class OpenLocalApiGateway {
             RUNNING.set(false);
             unregisterLanNetworkCallback();
             closeServer();
+            closeActiveClients();
             ExecutorService pool = clients;
             clients = null;
             if (pool != null) pool.shutdownNow();
@@ -120,6 +127,7 @@ final class OpenLocalApiGateway {
         RUNNING.set(false);
         unregisterLanNetworkCallback();
         closeServer();
+        closeActiveClients();
         lanBindingStatus = lanEnabled ? "已停止" : "未启用";
         ExecutorService pool = clients;
         clients = null;
@@ -443,14 +451,43 @@ final class OpenLocalApiGateway {
         if (lanSocket != null) try { lanSocket.close(); } catch (Exception ignored) {}
     }
 
+    private static void closeActiveClients() {
+        synchronized (activeClients) {
+            for (Socket client : activeClients) {
+                try { client.close(); } catch (Exception ignored) {}
+            }
+            activeClients.clear();
+        }
+    }
+
+    private static boolean registerClient(Socket client) {
+        synchronized (activeClients) {
+            if (!RUNNING.get() || client == null || client.isClosed()) return false;
+            activeClients.add(client);
+            return true;
+        }
+    }
+
+    private static void closeTrackedClient(Socket client) {
+        if (client == null) return;
+        synchronized (activeClients) { activeClients.remove(client); }
+        try { client.close(); } catch (Exception ignored) {}
+    }
+
     private static void acceptLoop(ServerSocket socket) {
         while (RUNNING.get() && !socket.isClosed()) {
             try {
                 Socket client = socket.accept();
                 client.setSoTimeout(30_000);
+                // Serialize registration with stop(): a socket accepted during shutdown is
+                // closed here rather than escaping the stop-time active-client snapshot.
+                if (!registerClient(client)) {
+                    closeTrackedClient(client);
+                    continue;
+                }
                 ExecutorService pool = clients;
                 if (pool == null) {
-                    client.close();
+                    closeTrackedClient(client);
                 } else {
                     try {
                         pool.execute(() -> handle(client));
@@ -458,8 +495,10 @@ final class OpenLocalApiGateway {
                         try {
                             OutputStream rejected = client.getOutputStream();
                             sendError(rejected, 503, "server_busy", "Too many queued requests");
-                            client.close();
-                        } catch (Exception ignored) {}
+                        } catch (Exception ignored) {
+                        } finally {
+                            closeTrackedClient(client);
+                        }
                     }
                 }
             } catch (Exception error) {
@@ -763,6 +802,8 @@ final class OpenLocalApiGateway {
             OpenNativeCompletionProbe.apiTrace("http-handler-failed exception="
                     + error.getClass().getName()
                     + " durationMs=" + ((System.nanoTime() - requestStartedNanos) / 1000000L));
+        } finally {
+            closeTrackedClient(socket);
         }
     }
 
