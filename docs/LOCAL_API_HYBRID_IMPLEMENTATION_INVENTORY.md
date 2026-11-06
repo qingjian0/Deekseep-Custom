@@ -19,6 +19,7 @@ This is the correct integration seam. Protocol code should normalize to this con
 
 Implemented in the current branch (source assertions added; executable/build verification pending):
 - OpenAI Chat Completions non-stream tool handoff and client-side tool-result continuation
+- OpenAI Chat estimated usage in non-stream responses and optional SSE `stream_options.include_usage` chunks (marked `dsh_usage_estimated=true`)
 - OpenAI Responses text JSON/SSE and non-stream function/custom tool handoff
 - Anthropic Messages text JSON/SSE and non-stream tool_use/tool_result handoff
 - Bounded in-memory previous_response_id state (64 entries, 30-minute TTL, 256 KiB transcript cap; cleared on gateway stop/restart)
@@ -26,7 +27,7 @@ Implemented in the current branch (source assertions added; executable/build ver
 
 Not yet accepted as complete:
 - Anthropic signed thinking blocks, count_tokens, image blocks, and streamed tool_use
-- Exact usage accounting / include_usage semantics
+- Exact tokenizer usage accounting (Chat SSE `include_usage` now emits an explicitly marked estimate)
 - Full protocol-level session isolation and executable lifecycle tests
 - Anthropic SDK response validation (usage fields are marked estimated because backend tokenizer counters are absent)
 - Streamed tool-call output and tool-result continuation
