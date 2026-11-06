@@ -63,7 +63,7 @@ not select a separate model lane.
 - Default port is 8765; a custom port is persisted in private preferences.
 - Request bodies are limited to 1 MiB and prompt text to 128 KiB.
 - The gateway uses two active request workers and a bounded queue of eight requests.
-- Chunked request bodies are rejected; clients must send `Content-Length`.
+- Both `Content-Length` and HTTP/1.1 chunked request bodies are supported. Ambiguous framing that supplies both `Transfer-Encoding` and `Content-Length` is rejected; chunk sizes, decoded body size, CRLF framing, and trailers are bounded/validated.
 - Prompts, completions, API tokens, and tool arguments are not written to diagnostic logs.
 - API diagnostics record lifecycle, stage, duration, and output-size metadata rather than message
   content.
