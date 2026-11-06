@@ -98,6 +98,8 @@ if "power.isIgnoringBatteryOptimizations(TARGET)" not in main or "power.isIgnori
     raise SystemExit("Battery policy must be checked independently for host and module service packages")
 if "moduleDozeExempt" not in main or "hostDozeExempt" not in main:
     raise SystemExit("Keepalive background status must report host and module battery policy separately")
+if "DeepSeek 宿主后台活动" not in main or "DeepSeek host background activity" not in main:
+    raise SystemExit("Background restriction status must identify the host package it actually measures")
 if "localApiXiaomiBackgroundGuide" not in main or "Autostart" not in main or "自启动管理" not in main:
     raise SystemExit("Missing Xiaomi MIUI/HyperOS autostart and background policy guidance")
 if 'String error = HookAccountLoginSecurity.localApiKeepAliveError;' not in main:
