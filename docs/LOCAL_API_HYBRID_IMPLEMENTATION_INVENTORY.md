@@ -17,7 +17,7 @@ This is the correct integration seam. Protocol code should normalize to this con
 
 ## Current implementation status and remaining limitations
 
-Implemented in the current branch (source assertions added; executable/build verification pending):
+Implemented in the current branch (CI run 42209379991 passed ROI audit, source regression, host compatibility/feature regression, Android Open release build, Android Lint, and APK verification):
 - OpenAI Chat Completions non-stream tool handoff and client-side tool-result continuation
 - OpenAI Chat estimated usage in non-stream responses and optional SSE `stream_options.include_usage` chunks (marked `dsh_usage_estimated=true`)
 - OpenAI Responses text JSON/SSE and non-stream function/custom tool handoff
@@ -95,7 +95,7 @@ Known observations are leads, not proof: ly1 implements wu1; zn3.o(wu1, Long) an
 - Ported `OpenAiToolBridge.java` from upstream blob `6b5847d68c30a6525193f3187dac57fb92564d06`; MIT notice retained and `Plan` now implements `z2.ToolPlan`.
 - Added bounded chunked transfer decoding to `OpenLocalApiGateway.readRequest`.
 - Added source-regression assertions for framing limits, trailer rejection, tool-plan integration, and attribution.
-- These changes are implementation progress, not proof that the protocol endpoints are fully wired or that the Android build/device tests pass.
+- These changes have passed the listed CI checks. The checks do not prove real code289 native model generation or device-level end-to-end acceptance.
 
 ## Anthropic Messages implementation note
 
