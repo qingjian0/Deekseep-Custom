@@ -7,6 +7,10 @@ on:
       - '.github/workflows/deepseek-apk-intake.yml'
       - 'scripts/inspect-deepseek-apk.py'
       - 'module/src/ds/dsh/DeepSeek/RoiDexApkCli.java'
+      - 'module/src/ds/dsh/DeepSeek/RoiDexCandidateEvidence.java'
+      - 'module/src/ds/dsh/DeepSeek/RoiDexInstructionDecoder.java'
+      - 'module/test-roi-dex-instruction-decoder.sh'
+      - 'module/tests/roidexdecoder/ds/dsh/DeepSeek/RoiDexInstructionDecoderTest.java'
   workflow_dispatch:
     inputs:
       apk_url:
@@ -47,6 +51,11 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+
+      - name: Run DEX instruction decoder regression tests
+        run: |
+          set -euo pipefail
+          bash module/test-roi-dex-instruction-decoder.sh
 
       - name: Install Android Build Tools
         run: |
