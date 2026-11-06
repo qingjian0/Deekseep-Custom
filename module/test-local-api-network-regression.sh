@@ -206,8 +206,14 @@ gateway_checks = {
     "only one completion choice is accepted": 'if (body.has("n"))' in source and 'return "n";' in source,
     "named messages are rejected rather than silently flattened": 'message.has("name")' in source and '"Named messages, tool messages, and tool calls are not supported"' in source,
     "empty message content is rejected": 'text.trim().length() == 0' in source and '"Message content is empty"' in source,
-    "assistant tool call history is rejected instead of silently discarded": 'message.has("tool_calls")' in source and '"Named messages, tool messages, and tool calls are not supported"' in source,
-    "tool calling and response_format are explicitly rejected": '"unsupported_feature"' in source and 'body.has("tool_choice")' in source and 'body.has("response_format")' in source,
+    "assistant tool-call history is validated for client-side continuation": 'message.optJSONArray("tool_calls")' in source and 'Invalid assistant tool-call history' in source,
+    "tool results must match a preceding assistant call id": 'pendingToolCallIds.remove(callId)' in source and 'Tool result does not match a preceding assistant tool call' in source,
+    "Chat tool definitions are parsed through the shared bridge": 'OpenAiToolBridge.chatPlan(' in source,
+    "tool instructions are added to the backend prompt": 'OpenAiToolBridge.addInstructions(' in source,
+    "tool calls are returned as OpenAI function-call objects": '.put("tool_calls", wireCalls)' in source and '.put("finish_reason", parsedToolCalls.isEmpty()' in source,
+    "invalid model tool output is rejected rather than leaked": '"invalid_tool_response"' in source and 'OpenAiToolBridge.resemblesCallSyntax(result.text, toolPlan)' in source,
+    "tool streaming is explicitly rejected until SSE redaction exists": '"unsupported_streaming_tool_calls"' in source and 'stream && toolPlan.active()' in source,
+    "response_format remains explicitly rejected when unsupported": '"unsupported_feature"' in source and 'body.has("response_format")' in source,
     "usage streaming is explicitly rejected": 'body.has("stream_options")' in source and "usage streaming" in source,
     "stream must be a boolean": 'body.opt("stream") instanceof Boolean' in source and '"invalid_stream"' in source,
     "model must be a string when supplied": 'body.opt("model") instanceof String' in source and '"invalid_model"' in source,
@@ -231,8 +237,8 @@ missing_gateway = [label for label, ok in gateway_checks.items() if not ok]
 if missing_gateway:
     raise SystemExit("Missing API protocol behavior: " + ", ".join(missing_gateway))
 ui_open = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
-if "Responses API、Anthropic Messages、工具调用和多模态尚未实现" not in ui_open:
-    raise SystemExit("Open UI must not advertise unimplemented API protocols")
+if "非流式 Chat Completions 已接入客户端工具调用解析与回传" not in ui_open:
+    raise SystemExit("Open UI must accurately describe non-streaming tool-call handoff")
 if "原生执行适配器尚未接通" not in ui_open:
     raise SystemExit("Open UI must disclose that native completion is not connected")
 hook = (pathlib.Path(sys.argv[1]).parent / "HookAccountLoginSecurity.java").read_text(encoding="utf-8")
