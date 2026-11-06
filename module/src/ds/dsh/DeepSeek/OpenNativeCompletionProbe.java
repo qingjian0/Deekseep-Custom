@@ -45,6 +45,7 @@ final class OpenNativeCompletionProbe {
             new java.util.concurrent.atomic.AtomicInteger();
     private static final java.util.concurrent.atomic.AtomicInteger API_TRACE_EVENTS =
             new java.util.concurrent.atomic.AtomicInteger();
+    private static volatile long SESSION_STARTED_AT_MS;
     private static final AtomicBoolean CALLBACK_TRACE_TRUNCATED = new AtomicBoolean();
     private static final ThreadLocal<ObservationFrame> OBSERVATION_FRAME =
             new ThreadLocal<ObservationFrame>();
@@ -63,12 +64,31 @@ final class OpenNativeCompletionProbe {
 
     /** Called only after the user explicitly enables the native-adapter diagnostic switch. */
     static void onExplicitEnable(ClassLoader loader) {
-        if (loader == null || !Main.isOpenNativeCompletionProbeEnabled()) return;
+        if (!Main.isOpenNativeCompletionProbeEnabled()) return;
+        resetRuntimeTrace();
+        if (loader == null) {
+            observerLog("[OPEN_NATIVE_CALL_OBSERVER] session-start loader=unavailable");
+            return;
+        }
         if (!OBSERVATION_JW3.get() || !OBSERVATION_ZN3.get()) {
             REPORTED.set(false);
             ATTEMPTS.set(0);
         }
         scheduleHostInspection(loader);
+    }
+
+    /** Start a clean capture session while preserving already-installed transparent hooks. */
+    private static void resetRuntimeTrace() {
+        synchronized (OBSERVATION_LOG_LOCK) {
+            OBSERVATION_LOG.setLength(0);
+        }
+        CALLBACK_METHOD_INVOCATIONS.set(0);
+        API_TRACE_EVENTS.set(0);
+        CALLBACK_TRACE_TRUNCATED.set(false);
+        OBSERVATION_IDS.set(0L);
+        SESSION_STARTED_AT_MS = System.currentTimeMillis();
+        observerLog("[OPEN_NATIVE_CALL_OBSERVER] session-start schema=3 epochMs="
+                + SESSION_STARTED_AT_MS);
     }
 
     /**
@@ -951,6 +971,7 @@ final class OpenNativeCompletionProbe {
     static String status() {
         String base = report;
         String summary = "\n[OPEN_NATIVE_DIAGNOSTIC_SUMMARY]\n"
+                + "sessionStartedAtMs=" + SESSION_STARTED_AT_MS + "\n"
                 + "callbackMethodInvocations=" + CALLBACK_METHOD_INVOCATIONS.get() + "\n"
                 + "callbackClassesObserved=" + OBSERVED_CALLBACK_CLASSES.size() + "\n"
                 + "apiTraceEvents=" + API_TRACE_EVENTS.get() + "\n";
