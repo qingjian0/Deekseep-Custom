@@ -1,19 +1,27 @@
 package ds.dsh.DeepSeek;
 public final class RoiDexInstructionDecoderTest {
  public static void main(String[] args)throws Exception{
-  test35c();test35cFiveRegisters();test3rc();testWide();testStatic();testFailures();testMalformedDescriptors();
+  test35c();test35cFiveRegisters();test35cCountNibbleIndependentOfG();test3rc();testWide();testStatic();testFailures();testMalformedDescriptors();
   System.out.println("RoiDexInstructionDecoderTest: PASS");
  }
  static void test35c()throws Exception{
-  short[] c={(short)0x3370,(short)0x0123,(short)0x0321};
+  short[] c={(short)0x3070,(short)0x0123,(short)0x0321};
   RoiDexInstructionDecoder.Decoded d=RoiDexInstructionDecoder.decode(c,0,8);
   eq(3,d.width);eq(0x70,d.opcode);eq(0x123,d.referenceIndex);eq(3,d.registers.length);
   eq(1,d.registers[0]);eq(2,d.registers[1]);eq(3,d.registers[2]);
  }
  static void test35cFiveRegisters()throws Exception{
-  short[] c={(short)0x5570,(short)0x002a,(short)0x4321};
+  short[] c={(short)0x5070,(short)0x002a,(short)0x4321};
   RoiDexInstructionDecoder.Decoded d=RoiDexInstructionDecoder.decode(c,0,8);
   eq(5,d.registers.length);for(int i=0;i<5;i++)eq(i+1,d.registers[i]);
+ }
+ static void test35cCountNibbleIndependentOfG()throws Exception{
+  // A (argument count) is the high nibble; G is only the fifth register.
+  short[] c={(short)0x5072,(short)0x002a,(short)0x4321};
+  RoiDexInstructionDecoder.Decoded d=RoiDexInstructionDecoder.decode(c,0,8);
+  eq(5,d.registers.length);
+  eq(1,d.registers[0]);eq(2,d.registers[1]);eq(3,d.registers[2]);
+  eq(4,d.registers[3]);eq(0,d.registers[4]);
  }
  static void test3rc()throws Exception{
   short[] c={(short)0x0376,(short)0x0123,(short)0x0004};
