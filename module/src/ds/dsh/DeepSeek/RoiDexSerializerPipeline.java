@@ -57,7 +57,7 @@ public final class RoiDexSerializerPipeline {
                 RoiDexValueProvenance.Result provenance=analyzeValues(dex,candidate.codeItem);
                 RoiDexSerializerElementIndex.Result elements=RoiDexSerializerElementIndex.analyze(
                         candidate.codeItem,dex::resolveMethodId,provenance);
-                if(elements.registrationOrderProven) {
+                if(elements.registrationOrderProven&&elements.complete) {
                     selectedElements=elements;
                     registrationKey=candidate.declaringClassDescriptor+"->"+candidate.name
                             +candidate.prototypeDescriptor;
