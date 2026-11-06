@@ -140,6 +140,29 @@ public final class RoiDexFileReaderTest {
   if(!evidence.graph.descriptors.contains(
       "apk:test-fixture|Lx;->run(Lx;)V"))
    throw new AssertionError("candidate graph lost source scope or resolved method identity");
+
+  RoiDexCandidateEvidence.Result selected=RoiDexCandidateEvidence.analyzeSelected(
+      d,"runtime:test-fixture",java.util.Collections.singleton("Lx;->run(Lx;)V"));
+  eq(1,selected.methods.size());
+  eq(1,selected.analyzedMethods);
+  if(!selected.graph.descriptors.contains(
+      "runtime:test-fixture|Lx;->run(Lx;)V"))
+   throw new AssertionError("selected analysis lost exact method identity");
+
+  RoiDexCandidateEvidence.Result none=RoiDexCandidateEvidence.analyzeSelected(
+      d,"runtime:test-fixture",java.util.Collections.<String>emptySet());
+  eq(0,none.methods.size());
+  eq(0,none.analyzedMethods);
+  eq(0,none.graph.uniqueNodes);
+
+  try {
+   RoiDexCandidateEvidence.analyzeSelected(d,"runtime:test-fixture",
+       java.util.Collections.singleton("Lx;->missing()V"));
+   throw new AssertionError("missing selected method must fail closed");
+  } catch(RoiDexCandidateEvidence.EvidenceException expected) {
+   if(!expected.getMessage().contains("selected_method_definition_missing"))
+    throw new AssertionError("unexpected selected-method failure: "+expected.getMessage());
+  }
  }
  static void testBadMagic()throws Exception{byte[] b=fixture(112);b[0]='x';bad(b);}
  static void testTruncated()throws Exception{bad(new byte[111]);}
