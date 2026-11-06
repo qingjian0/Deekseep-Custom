@@ -892,6 +892,32 @@ final class OpenLocalApiGateway {
             sendError(out, 400, "invalid_input", "input with tool instructions is too large");
             return;
         }
+        boolean reasoningRequested = "deepseek-reasoner".equals(model);
+        if (body.has("reasoning")) {
+            JSONObject reasoningOptions = body.optJSONObject("reasoning");
+            if (reasoningOptions == null) {
+                sendError(out, 400, "invalid_reasoning", "reasoning must be an object");
+                return;
+            }
+            java.util.Iterator<String> reasoningKeys = reasoningOptions.keys();
+            while (reasoningKeys.hasNext()) {
+                if (!"effort".equals(reasoningKeys.next())) {
+                    sendError(out, 400, "unsupported_reasoning_option",
+                            "Only reasoning.effort is currently supported");
+                    return;
+                }
+            }
+            String effort = reasoningOptions.optString("effort", "medium")
+                    .toLowerCase(java.util.Locale.US);
+            if (!"none".equals(effort) && !"minimal".equals(effort)
+                    && !"low".equals(effort) && !"medium".equals(effort)
+                    && !"high".equals(effort) && !"xhigh".equals(effort)) {
+                sendError(out, 400, "invalid_reasoning_effort",
+                        "reasoning.effort must be none, minimal, low, medium, high, or xhigh");
+                return;
+            }
+            reasoningRequested = reasoningRequested || !"none".equals(effort);
+        }
         int maxTokens = 4096;
         if (body.has("max_output_tokens")) {
             Object raw = body.opt("max_output_tokens");
@@ -910,7 +936,7 @@ final class OpenLocalApiGateway {
         }
         z2.CompletionRequest completion = new z2.CompletionRequest(
                 requestId, model, "default", basePrompt, prompt,
-                "deepseek-reasoner".equals(model), searchRequested, maxTokens,
+                reasoningRequested, searchRequested, maxTokens,
                 toolPlan, null, true).withOutputTextFormat(format);
         z2.Backend current = backend;
         if (current == null || !current.isReady()) {
