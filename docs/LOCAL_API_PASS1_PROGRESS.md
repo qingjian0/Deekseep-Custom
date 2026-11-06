@@ -25,7 +25,7 @@ Status: In progress; not a release acceptance report.
 
 ## Not yet completed
 
-- OpenAI tool bridge and parser are ported but not yet wired into /v1/chat/completions or /v1/responses.
+- OpenAI Chat Completions now parses request-scoped tool definitions, injects the reference tool protocol, validates returned calls, and maps them to OpenAI `tool_calls` responses for client-side execution.
 - Responses API endpoint is not yet implemented in the Open gateway.
 - Anthropic Messages and count_tokens endpoints are not yet implemented in the Open gateway.
 - HTTP chunked decoder has source assertions but has not yet been executed in an Android/JVM test harness.
@@ -51,6 +51,6 @@ Status: In progress; not a release acceptance report.
 
 1. Adapt the reference Responses request/response path to the existing z2.CompletionRequest / CompletionResult contract.
 2. Adapt the Anthropic Messages request/response path and content-block SSE lifecycle.
-3. Wire OpenAI tool plans into Chat and Responses normalization; keep execution client-side unless an explicitly authorized local executor is configured.
-4. Add focused protocol fixtures and runtime tests for HTTP framing, tool schemas, tool-call continuation, SSE terminal events, and session scoping.
+3. Extend the tool-plan contract to Responses after its request/response adapter is in place; keep tool execution client-side unless an explicitly authorized local executor is configured.
+4. Add focused runtime tests for HTTP framing, tool schemas, tool-call continuation, SSE terminal events, and session scoping.
 5. Continue code289 APK/device evidence work independently; do not enable the native backend until the exact request and event contracts are proven.
