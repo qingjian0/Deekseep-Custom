@@ -557,9 +557,14 @@ require(
     "all diagnostic events are synchronously persisted to an app-private session log without an event-count cap",
 )
 require(
+    probe,
+    r'readCompleteSessionLog\\(\\).*?FileInputStream\\(file\\).*?while \\(\\(count = input\\.read\\(buffer\\)\\) != -1\\).*?OPEN_NATIVE_PERSISTED_SESSION_LOG',
+    "the copy-report action includes the complete persisted session log rather than only the in-memory preview",
+)
+require(
     ui,
-    r'一次采集官方客户端 Transport、异步回调与 Local API 网关阶段.*?两条轨迹共用同一缓冲区，最后只复制一次报告',
-    "the UI explains the one-pass capture and one-report copy workflow",
+    r'完整采集官方客户端 Transport、全部已发现的异步回调方法与 Local API 网关阶段.*?不设回调类、方法、Hook 或事件数量上限.*?复制完整报告',
+    "the UI explains uncapped callback coverage, persistent full-event logging, and one-report export",
 )
 require(
     probe,
