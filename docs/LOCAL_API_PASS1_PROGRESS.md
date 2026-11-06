@@ -38,11 +38,11 @@ Status: In progress; not a release acceptance report.
 
 ## Not yet completed
 
-- OpenAI Responses endpoint is implemented for text JSON/SSE and non-streaming function/custom tool handoff; disk-backed `previous_response_id` persistence and streamed tool calls remain unsupported.
+- OpenAI Responses endpoint is implemented for text JSON/SSE and non-streaming function/custom tool handoff; `previous_response_id` uses bounded in-memory state (64 entries, 30-minute TTL, 256 KiB transcript cap, cleared on stop/restart); streamed tool calls remain unsupported.
 - Anthropic Messages and count_tokens endpoints are not yet implemented in the Open gateway.
 - HTTP chunked decoder has source assertions but has not yet been executed in an Android/JVM test harness.
 - The Android build and regression script have not been executed in this environment. CI was not triggered in this batch to avoid competing with the existing API CI work; the latest commit currently has no reported commit status checks.
-- code289 native request construction, challenge/PoW, Flow collection, semantic event decoding, cancellation, and genuine device generation remain unverified.
+- code289 native request construction, challenge/PoW, Flow collection, semantic event decoding, cancellation, and genuine device generation remain unverified. HookAccountLoginSecurity.executeLocalApiCompletion now explicitly rejects Open builds before attempting the protected-only z18 payload lookup.
 
 ## Current acceptance status
 
@@ -56,13 +56,13 @@ Status: In progress; not a release acceptance report.
 | OpenAI Chat non-stream tool handoff | Implemented; execution/build verification pending |
 | OpenAI Responses text + non-stream tool handoff | Implemented; execution/build verification pending |
 | Anthropic Messages | Not yet accepted |
-| code289 native generation | Not yet accepted |
+| code289 native generation | Not yet accepted; protected z18 path is guarded; native adapter evidence still incomplete |
 | Android build / CI / real device | Not yet verified |
 
 ## Next parallel batch
 
-1. Add executable TTL/eviction and session-isolation tests for bounded Responses continuation state.
-2. Adapt the Anthropic Messages request/response path and content-block SSE lifecycle if/when the Open build is intended to expose Anthropic.
-3. Keep Chat and Responses tool execution client-side unless an explicitly authorized local executor is configured.
-4. Add executable protocol tests for HTTP framing, tool schemas, tool-call continuation, Responses event ordering, and session scoping.
-5. Continue code289 APK/device evidence work independently; do not enable the native backend until the exact request and event contracts are proven.
+1. Close code289 request construction and Challenge/PoW using exact APK/device evidence; do not infer constructors or field semantics from obfuscated names.
+2. Verify the zn3/jw3 transport call and y60 Flow collection contract, then decode callback events and cancellation.
+3. Add a fake-backend JVM harness for Chat/Responses, HTTP framing, tool continuation, SSE, and session isolation.
+4. Implement Anthropic Messages only after the OpenAI adapter and fake-backend suite are stable.
+5. Keep the native backend fail-closed until a genuine code289 device completion and cancellation test pass.
