@@ -42,7 +42,7 @@ Status: In progress; not a release acceptance report.
 - Registered POST /v1/messages; supports x-api-key (and bearer fallback), requires anthropic-version, and emits Anthropic-shaped JSON errors.
 - Supports system text, user/assistant text blocks, declared function tools, tool_use / tool_result history with call-ID correlation, non-streaming tool handoff, and text SSE lifecycle.
 - Thinking mode is deliberately rejected until signed thinking-block support exists; reasoning data is not emitted as an unsigned Anthropic thinking block.
-- Tool-call streaming, image blocks, /v1/messages/count_tokens, and exact token usage remain unsupported. usage is omitted rather than fabricated because the current z2.Backend result has no tokenizer counters.
+- Tool-call streaming, image blocks, /v1/messages/count_tokens, and exact token usage remain unsupported. usage fields are present as explicitly marked rough estimates (dsh_usage_estimated=true) because the current z2.Backend result has no tokenizer counters; exact usage remains unavailable.
 - Open UI and connection details now disclose both protocol families and show the separate Anthropic root Base URL (without /v1).
 
 ## Native adapter investigation update
@@ -63,7 +63,7 @@ Status: In progress; not a release acceptance report.
 ## Not yet completed
 
 - OpenAI Responses endpoint is implemented for text JSON/SSE and non-streaming function/custom tool handoff; `previous_response_id` uses bounded in-memory state (64 entries, 30-minute TTL, 256 KiB transcript cap, cleared on stop/restart); streamed tool calls remain unsupported.
-- Anthropic Messages text JSON/SSE and non-streaming tool handoff are implemented; thinking signatures, count_tokens, images, streamed tool_use, and usage counters remain unsupported.
+- Anthropic Messages text JSON/SSE and non-streaming tool handoff are implemented; thinking signatures, count_tokens, images, and streamed tool_use remain unsupported; usage is a clearly marked estimate, not an exact tokenizer count.
 - HTTP chunked decoder has source assertions but has not yet been executed in an Android/JVM test harness.
 - The Android build and regression script have not been executed in this environment. CI was not triggered in this batch to avoid competing with the existing API CI work; the latest commit currently has no reported commit status checks.
 - code289 native request construction, challenge/PoW, Flow collection, semantic event decoding, cancellation, and genuine device generation remain unverified. HookAccountLoginSecurity.executeLocalApiCompletion now explicitly rejects Open builds before attempting the protected-only z18 payload lookup.
