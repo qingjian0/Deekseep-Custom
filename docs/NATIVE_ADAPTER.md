@@ -377,3 +377,8 @@ The foreground keeper runs in the module package `ds.dsh.DeepSeek`, while the ho
 ### Boot-time host delay
 
 A missing host acknowledgement is not equivalent to a user disabling Local API. The keeper must retain the persisted opt-in and continue retrying after boot when MIUI / HyperOS delays host startup or broadcast delivery. It may stop only after an explicit host-disabled acknowledgement or a user stop request; a 90-second acknowledgement timeout is diagnostic, not a shutdown condition.
+
+
+## Open Gateway protocol audit (2026-11-06)
+
+The Open direct-Java gateway currently exposes only `GET /v1/models` and `POST /v1/chat/completions`. Model discovery returns the configured IDs even while the native engine is unavailable; chat completions remain HTTP 503 until a verified Open adapter exists. Text and text-part messages are accepted; image parts, tools, Responses API, Anthropic Messages API, and usage accounting are not implemented in this Open gateway. Reasoning text is preserved as `reasoning_content` for non-stream responses and SSE deltas. The API accepts `max_tokens` and `max_completion_tokens` from 1 through 8192. Custom Bearer keys accept 8–256 visible ASCII characters and survive restart using the same validator. This capability statement applies to the Open direct-Java path, not the separate Closed payload gateway.
