@@ -3823,7 +3823,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     .append(moduleDozeExempt
                             ? UiLanguage.text("不受限制", "Unrestricted")
                             : UiLanguage.text("仍受限制", "Restricted"))
-                    .append(UiLanguage.text("\n模块后台活动：", "\nModule background activity: "))
+                    .append(UiLanguage.text("\nDeepSeek 宿主后台活动：", "\nDeepSeek host background activity: "))
                     .append(backgroundRestricted
                             ? UiLanguage.text("系统禁止后台活动", "Blocked by the system")
                             : UiLanguage.text("系统允许后台活动", "Allowed by the system"))
@@ -3884,12 +3884,12 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                         context.getSystemService(Context.ACTIVITY_SERVICE);
                 restricted = manager == null || manager.isBackgroundRestricted();
                 if (manager == null && error.length() == 0) error = UiLanguage.text(context,
-                        "无法读取模块后台活动状态", "Could not read module background activity status");
+                        "无法读取 DeepSeek 宿主后台活动状态", "Could not read DeepSeek host background activity status");
             } catch (Throwable t) {
                 restricted = true;
                 if (error.length() == 0) {
                     error = UiLanguage.text(context,
-                            "模块后台活动检测失败：", "Module background activity check failed: ")
+                            "DeepSeek 宿主后台活动检测失败：", "DeepSeek host background activity check failed: ")
                             + safeThrowableMessage(t);
                 }
             }
