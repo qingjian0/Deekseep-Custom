@@ -172,16 +172,14 @@ public final class z21 extends Service {
             long now = SystemClock.elapsedRealtime();
             if (startedElapsed > 0L && now - startedElapsed >= ACK_TIMEOUT_MS
                     && (lastAckElapsed <= 0L || now - lastAckElapsed >= ACK_TIMEOUT_MS)) {
+                // Do not clear the user's keepalive preference just because the host process has
+                // not acknowledged yet. On boot, MIUI/HyperOS may delay host process startup or
+                // delivery; disabling here made the keeper permanently stop after 90 seconds.
+                // Keep the explicitly requested foreground service alive and retry the heartbeat.
                 lastError = LocalApiFloatingOverlay.isRequested(z21.this)
-                        ? "DeepSeek 长时间未响应；小窗仍在等待连接"
-                        : "DeepSeek 长时间未确认保活，服务已自动停止";
+                        ? "DeepSeek 长时间未响应；小窗仍在等待连接，继续重试"
+                        : "DeepSeek 尚未确认保活；前台服务继续重试心跳";
                 Log.w(TAG, lastError);
-                if (!LocalApiFloatingOverlay.isRequested(z21.this)) {
-                    requestedPrefs(z21.this).edit()
-                            .putBoolean(KEY_REQUESTED, false).apply();
-                    stopSelf();
-                    return;
-                }
             }
             try {
                 Intent ping = new Intent(ACTION_HEARTBEAT);
