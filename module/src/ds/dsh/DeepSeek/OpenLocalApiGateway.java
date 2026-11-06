@@ -771,7 +771,6 @@ final class OpenLocalApiGateway {
                     + " reasoningChars=" + reasoningChars.get()
                     + " durationMs=" + ((System.nanoTime() - streamStartedNanos) / 1000000L));
             if (!disconnected.get()) {
-                boolean gatewayFailure = failure instanceof z2.GatewayException;
                 z2.GatewayException rejected = gatewayFailure
                         ? (z2.GatewayException) failure : null;
                 JSONObject error = new JSONObject().put("error",
