@@ -6,6 +6,7 @@ public final class RoiDexValueProvenanceTest {
         dynamicIndexInvokeTrace();checkCastPreservesSource();checkCastAfterMove();consecutiveCheckCasts();
         primitiveSourceCannotBeCast();primitiveTargetCannotBeCast();invalidCheckCastTypeRejected();exceptionFlowIncompleteBlocksTrace();
         branchMergeRejected();unsupportedDefinitionRejected();
+        receiverEntryIdentityAndMoveAlias();receiverDistinctEntryValuesDiffer();receiverCheckCastAlias();
         System.out.println("RoiDexValueProvenanceTest: PASS");
     }
 
@@ -188,6 +189,67 @@ public final class RoiDexValueProvenanceTest {
         RoiDexValueProvenance.Trace trace=trace(code,"()Ljava/lang/Object;","(Lx;)V",
                 i->{throw new RoiDexValueProvenance.AnalysisException("type_index_out_of_range");},6,1);
         yes(!trace.unique);eq("type_index_out_of_range",trace.rejectionReason);
+    }
+
+
+    static void receiverEntryIdentityAndMoveAlias()throws Exception {
+        RoiDexCodeReader.CodeItem code=code(new short[]{
+                (short)0x2107,          // move-object v1, v2 (method receiver alias)
+                (short)0x016e,0,(short)0x0001, // invoke-virtual {v1}, consume()V
+                (short)0x000e
+        },3);
+        RoiDexInvokeResultLinker.Result links=RoiDexInvokeResultLinker.analyze(code,index->
+                new RoiDexFileReader.ResolvedMethodId(index,"Lx;","consume","()V"));
+        RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(code);
+        RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
+        RoiDexMethodEntryLayout.Result layout=RoiDexMethodEntryLayout.analyze(
+                3,1,0,"()V");
+        RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching,layout);
+        RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(
+                code,null,flow,reaching,useDef,links);
+        RoiDexValueProvenance.ReceiverTrace trace=provenance.traceReceiverUse(1,0);
+        yes(trace.unique);eq("receiver",trace.identity);
+        eq(1,trace.definitionIds.length);
+    }
+
+    static void receiverDistinctEntryValuesDiffer()throws Exception {
+        RoiDexCodeReader.CodeItem code=code(new short[]{
+                (short)0x016e,0,(short)0x0001, // invoke-virtual {v1}, consume()V
+                (short)0x026e,0,(short)0x0002, // invoke-virtual {v2}, consume()V
+                (short)0x000e
+        },3);
+        RoiDexInvokeResultLinker.Result links=RoiDexInvokeResultLinker.analyze(code,index->
+                new RoiDexFileReader.ResolvedMethodId(index,"Lx;","consume","()V"));
+        RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(code);
+        RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
+        RoiDexMethodEntryLayout.Result layout=RoiDexMethodEntryLayout.analyze(
+                3,2,0,"(Ljava/lang/Object;)V");
+        RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching,layout);
+        RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(
+                code,null,flow,reaching,useDef,links);
+        RoiDexValueProvenance.ReceiverTrace receiver=provenance.traceReceiverUse(0,0);
+        RoiDexValueProvenance.ReceiverTrace parameter=provenance.traceReceiverUse(3,0);
+        yes(receiver.unique);yes(parameter.unique);
+        yes(!receiver.identity.equals(parameter.identity));
+    }
+
+    static void receiverCheckCastAlias()throws Exception {
+        RoiDexCodeReader.CodeItem code=code(new short[]{
+                (short)0x001f,0,        // check-cast v0, type@0
+                (short)0x016e,0,(short)0x0000, // invoke-virtual {v0}, consume()V
+                (short)0x000e
+        },2);
+        RoiDexInvokeResultLinker.Result links=RoiDexInvokeResultLinker.analyze(code,index->
+                new RoiDexFileReader.ResolvedMethodId(index,"Lx;","consume","()V"));
+        RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(code);
+        RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
+        RoiDexMethodEntryLayout.Result layout=RoiDexMethodEntryLayout.analyze(
+                2,1,0,"()V");
+        RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching,layout);
+        RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(
+                code,null,index->"Lx;",flow,reaching,useDef,links);
+        RoiDexValueProvenance.ReceiverTrace trace=provenance.traceReceiverUse(1,0);
+        yes(trace.unique);eq("receiver",trace.identity);
     }
 
     static RoiDexValueProvenance.Trace trace(RoiDexCodeReader.CodeItem code,String producer,
