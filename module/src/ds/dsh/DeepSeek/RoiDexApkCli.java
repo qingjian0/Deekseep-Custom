@@ -184,7 +184,9 @@ public final class RoiDexApkCli {
         field(out, "field_reference_methods_scanned", Integer.toString(fieldReferenceMethodsScanned), true);
         field(out, "candidate_selection_budget", Integer.toString(MAX_SELECTED_METHODS), true);
         field(out, "anchor_candidate_count", Integer.toString(selected.size()), true);
-        field(out, "expanded_callee_count", Integer.toString(expandedCalleeCount), true);\n        field(out, "direct_callee_count", Integer.toString(directCalleeMethods.size()), true);\n        field(out, "transitive_callee_count", Integer.toString(transitiveCalleeMethods.size()), true);
+        field(out, "expanded_callee_count", Integer.toString(expandedCalleeCount), true);
+        field(out, "direct_callee_count", Integer.toString(directCalleeMethods.size()), true);
+        field(out, "transitive_callee_count", Integer.toString(transitiveCalleeMethods.size()), true);
         field(out, "analysis_method_budget", Integer.toString(MAX_ANALYSIS_METHODS), true);
         field(out, "candidate_count", Integer.toString(evidence.methods.size()), true);
         field(out, "analyzed_methods", Integer.toString(evidence.analyzedMethods), true);
@@ -204,7 +206,10 @@ public final class RoiDexApkCli {
             out.append("\"method\":").append(quote(method.methodKey));
             Set<String> methodAnchors = selected.get(method.methodKey);
             out.append(",\"candidate_origin\":")
-                    .append(quote(methodAnchors != null ? "anchor"\n                            : directCalleeMethods.contains(method.methodKey) ? "direct_callee"\n                            : transitiveCalleeMethods.contains(method.methodKey) ? "transitive_callee"\n                            : "expanded_callee"));
+                    .append(quote(methodAnchors != null ? "anchor"
+                            : directCalleeMethods.contains(method.methodKey) ? "direct_callee"
+                            : transitiveCalleeMethods.contains(method.methodKey) ? "transitive_callee"
+                            : "expanded_callee"));
             out.append(",\"anchors\":").append(stringArray(methodAnchors));
             out.append(",\"anchor_priority\":").append(anchorPriority(methodAnchors));
             out.append(",\"analysis_status\":")
