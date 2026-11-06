@@ -8,12 +8,13 @@ Status: In progress; not a release acceptance report.
 
 - Recorded ADR-LOCAL-API-001: protocol-layer reuse plus project-owned code289 native adapter.
 - Added parallel implementation inventory and source provenance ledger.
-- Ported the upstream OpenAI tool bridge into the project package.
+- Ported the upstream OpenAI tool bridge and its OmniRoute parser dependency into the project package.
   - Upstream blob: 6b5847d68c30a6525193f3187dac57fb92564d06
   - Preserved the complete MIT copyright and permission notice.
   - Migrated package to ds.dsh.DeepSeek.
   - Mapped reference gateway exceptions to z2.GatewayException.
   - Connected Plan to the existing z2.ToolPlan interface.
+  - Ported OmniRoute's strict tool-envelope and loose-JSON parser; retained diegosouzapw's MIT notice and upstream commit provenance.
 - Added bounded HTTP/1.1 chunked request-body decoding to OpenLocalApiGateway.
   - Rejects Content-Length plus Transfer-Encoding ambiguity.
   - Accepts only the chunked transfer coding.
@@ -24,7 +25,7 @@ Status: In progress; not a release acceptance report.
 
 ## Not yet completed
 
-- Tool bridge is ported but not yet wired into /v1/chat/completions or /v1/responses.
+- OpenAI tool bridge and parser are ported but not yet wired into /v1/chat/completions or /v1/responses.
 - Responses API endpoint is not yet implemented in the Open gateway.
 - Anthropic Messages and count_tokens endpoints are not yet implemented in the Open gateway.
 - HTTP chunked decoder has source assertions but has not yet been executed in an Android/JVM test harness.
