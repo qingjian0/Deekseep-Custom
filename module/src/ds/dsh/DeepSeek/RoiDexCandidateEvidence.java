@@ -5,6 +5,8 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
 
 /**
  * Joins parsed DEX method definitions, invoke references and per-method register
@@ -62,24 +64,42 @@ public final class RoiDexCandidateEvidence {
 
     public static Result analyze(RoiDexFileReader.DexFile dex, String sourceScope)
             throws EvidenceException {
+        return analyzeInternal(dex, sourceScope, null);
+    }
+
+    /**
+     * Analyze only exact, caller-selected method descriptors. This is the bounded path
+     * for runtime discovery after DexKit has identified a small set of serializer candidates.
+     * A missing or duplicate selected definition is rejected instead of silently widening
+     * the analysis to neighboring methods.
+     */
+    public static Result analyzeSelected(RoiDexFileReader.DexFile dex, String sourceScope,
+            Set<String> selectedMethodDescriptors) throws EvidenceException {
+        if (selectedMethodDescriptors == null)
+            throw new EvidenceException("selected_method_set_required");
+        if (selectedMethodDescriptors.size() > 128)
+            throw new EvidenceException("selected_method_budget_exceeded");
+        return analyzeInternal(dex, sourceScope, new HashSet<String>(selectedMethodDescriptors));
+    }
+
+    private static Result analyzeInternal(RoiDexFileReader.DexFile dex, String sourceScope,
+            Set<String> selected) throws EvidenceException {
         if (dex == null) throw new EvidenceException("null_dex_file");
         String scope = clean(sourceScope);
         if (scope.length() == 0) throw new EvidenceException("source_scope_required");
 
-        Map<Integer, String> methodKeys = new LinkedHashMap<Integer, String>();
-        for (int i = 0; i < dex.methods.length; i++) {
-            methodKeys.put(i, methodKey(dex, i));
-        }
-
         List<RoiCandidateGraph.Observation> observations =
                 new ArrayList<RoiCandidateGraph.Observation>();
         List<MethodEvidence> methodEvidence = new ArrayList<MethodEvidence>();
+        Set<String> found = new HashSet<String>();
         int analyzed = 0;
         int failures = 0;
 
         for (RoiDexFileReader.ResolvedMethod method : dex.definedMethods) {
-            String key = methodKeys.get(method.methodIndex);
-            if (key == null) throw new EvidenceException("defined_method_id_missing:" + method.methodIndex);
+            String key = methodKey(dex, method.methodIndex);
+            if (selected != null && !selected.contains(key)) continue;
+            if (selected != null && !found.add(key))
+                throw new EvidenceException("selected_method_definition_ambiguous:" + key);
             List<String> invokes = method.codeItem == null
                     ? Collections.<String>emptyList()
                     : collectInvokes(dex, method.codeItem, method.methodIndex);
@@ -99,6 +119,15 @@ public final class RoiDexCandidateEvidence {
             }
             methodEvidence.add(new MethodEvidence(method.methodIndex, key, invokes,
                     analysis, failure));
+        }
+
+        if (selected != null) {
+            for (String descriptor : selected) {
+                if (descriptor == null || descriptor.trim().length() == 0)
+                    throw new EvidenceException("selected_method_descriptor_invalid");
+                if (!found.contains(descriptor))
+                    throw new EvidenceException("selected_method_definition_missing:" + descriptor);
+            }
         }
 
         RoiCandidateGraph.Result graph = RoiCandidateGraph.build(observations);
