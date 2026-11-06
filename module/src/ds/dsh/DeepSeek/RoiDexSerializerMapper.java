@@ -83,6 +83,8 @@ public final class RoiDexSerializerMapper {
             throw new AnalysisException("null_or_incomplete_analysis_input");
         if(!elementIndices.registrationOrderProven)
             throw new AnalysisException("serializer_element_order_not_proven");
+        if(!elementIndices.complete)
+            throw new AnalysisException("serializer_element_registration_incomplete");
         if(!provenance.completeForExceptionFlow)
             throw new AnalysisException("serializer_value_provenance_exception_flow_incomplete");
         final RoiDexInstructionScanner.ControlFlowGraph graph;
