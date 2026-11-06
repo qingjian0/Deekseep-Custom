@@ -15,17 +15,22 @@ The Open gateway already delegates completion through z2.Backend:
 
 This is the correct integration seam. Protocol code should normalize to this contract; native host classes stay behind the backend implementation.
 
-## Existing limitations to close
+## Current implementation status and remaining limitations
 
-The current gateway implementation and regression checks show a narrow Chat Completions surface. The following are not yet accepted as complete:
-- Responses API endpoint and response lifecycle
+Implemented in the current branch (source assertions added; executable/build verification pending):
+- OpenAI Chat Completions non-stream tool handoff and client-side tool-result continuation
+- OpenAI Responses text JSON/SSE and non-stream function/custom tool handoff
+- Bounded in-memory previous_response_id state (64 entries, 30-minute TTL, 256 KiB transcript cap; cleared on gateway stop/restart)
+- Bounded HTTP chunked transfer decoding
+
+Not yet accepted as complete:
 - Anthropic Messages endpoint and content-block lifecycle
-- Tool/function-call parsing and tool-result continuation
-- Complete request-body framing including bounded chunked transfer encoding
 - Exact usage accounting / include_usage semantics
-- Cross-request previous_response_id and client session isolation
-- Protocol-complete SSE terminal/error/cancellation behavior
-- Real code289 native request construction and event decoding
+- Full protocol-level session isolation and executable lifecycle tests
+- Streamed tool-call output and tool-result continuation
+- Real code289 native request construction, challenge/PoW, Flow collection, event decoding, cancellation, and genuine device generation
+
+Open edition deliberately does not call the protected z18 payload engine; it returns native_adapter_unavailable until the code289 adapter is proven.
 
 Unsupported fields must fail with explicit protocol errors; never silently discard them.
 
