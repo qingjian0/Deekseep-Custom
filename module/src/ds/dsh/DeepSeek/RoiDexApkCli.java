@@ -291,20 +291,21 @@ public final class RoiDexApkCli {
         field(out, "expanded_callee_count", Integer.toString(expandedCalleeCount), true);
         field(out, "direct_callee_count", Integer.toString(directCalleeMethods.size()), true);
         field(out, "transitive_callee_count", Integer.toString(transitiveCalleeMethods.size()), true);
-        field(out, "analysis_method_budget", Integer.toString(MAX_ANALYSIS_METHODS), true);\n        field(out, "cross_dex_candidate_count", Integer.toString(crossDexMethodSources.size()), true);
+        field(out, "analysis_method_budget", Integer.toString(MAX_ANALYSIS_METHODS), true);
+        field(out, "cross_dex_candidate_count", Integer.toString(crossDexMethodSources.size()), true);
         field(out, "candidate_count", Integer.toString(allEvidenceMethods.size()), true);
         field(out, "analyzed_methods", Integer.toString(evidence.analyzedMethods + crossDexAnalyzed), true);
         field(out, "analysis_failures", Integer.toString(evidence.analysisFailures + crossDexFailures), true);
         int invokeFailures = 0;
-        for (RoiDexCandidateEvidence.MethodEvidence method : evidence.methods) {
+        for (RoiDexCandidateEvidence.MethodEvidence method : allEvidenceMethods) {
             if (method.invokeAnalysisFailure.length() > 0) invokeFailures++;
         }
         field(out, "invoke_analysis_failures", Integer.toString(invokeFailures), true);
         field(out, "hook_authorization_granted", "false", true);
         field(out, "hook_activation", quote("not_performed"), true);
         out.append("  \"candidates\": [");
-        for (int i = 0; i < evidence.methods.size(); i++) {
-            RoiDexCandidateEvidence.MethodEvidence method = evidence.methods.get(i);
+        for (int i = 0; i < allEvidenceMethods.size(); i++) {
+            RoiDexCandidateEvidence.MethodEvidence method = allEvidenceMethods.get(i);
             if (i > 0) out.append(",");
             out.append("\n    {");
             out.append("\"method\":").append(quote(method.methodKey));
@@ -340,14 +341,14 @@ public final class RoiDexApkCli {
             }
             out.append("}");
         }
-        if (!evidence.methods.isEmpty()) out.append("\n  ");
+        if (!allEvidenceMethods.isEmpty()) out.append("\n  ");
         out.append("]\n}\n");
         Files.createDirectories(reportPath.toAbsolutePath().getParent());
         Files.write(reportPath, out.toString().getBytes("UTF-8"));
         System.out.println("DEX ROI candidate scan: " + scope
-                + " candidates=" + evidence.methods.size()
-                + " analyzed=" + evidence.analyzedMethods
-                + " failures=" + evidence.analysisFailures
+                + " candidates=" + allEvidenceMethods.size()
+                + " analyzed=" + (evidence.analyzedMethods + crossDexAnalyzed)
+                + " failures=" + (evidence.analysisFailures + crossDexFailures)
                 + " hookAuthorization=false");
     }
 
