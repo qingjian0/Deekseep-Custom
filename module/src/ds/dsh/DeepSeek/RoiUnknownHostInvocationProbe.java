@@ -21,6 +21,20 @@ final class RoiUnknownHostInvocationProbe {
         Object proceed() throws Throwable;
     }
 
+    interface EventListener {
+        void onEvent(String descriptor, long elapsedNanos, String exceptionType);
+    }
+
+    private final EventListener eventListener;
+
+    RoiUnknownHostInvocationProbe() {
+        this(null);
+    }
+
+    RoiUnknownHostInvocationProbe(EventListener eventListener) {
+        this.eventListener = eventListener;
+    }
+
     static final class Snapshot {
         final String descriptor;
         final long invocationCount;
@@ -85,22 +99,37 @@ final class RoiUnknownHostInvocationProbe {
     }
 
     private void recordSafely(String probeKey, long elapsedNanos, String exceptionType, long nowNanos) {
-        try { record(probeKey, elapsedNanos, exceptionType, nowNanos); }
-        catch (Throwable ignored) { /* Diagnostics must never replace the host result or failure. */ }
+        boolean recorded;
+        try {
+            recorded = record(probeKey, elapsedNanos, exceptionType, nowNanos);
+        } catch (Throwable ignored) {
+            return; // Diagnostics must never replace the host result or failure.
+        }
+        if (recorded && eventListener != null) {
+            try {
+                Aggregate aggregate;
+                synchronized (this) { aggregate = aggregates.get(clean(probeKey)); }
+                if (aggregate != null) {
+                    eventListener.onEvent(aggregate.descriptor, elapsedNanos, exceptionType);
+                }
+            } catch (Throwable ignored) {
+                // Logging/observation failures must never replace the host result or failure.
+            }
+        }
     }
 
-    private synchronized void record(String probeKey, long elapsedNanos,
-                                     String exceptionType, long nowNanos) {
+    private synchronized boolean record(String probeKey, long elapsedNanos,
+                                        String exceptionType, long nowNanos) {
         String value = clean(probeKey);
         Aggregate aggregate = aggregates.get(value);
-        if (aggregate == null) return;
+        if (aggregate == null) return false;
         if (!rateWindowInitialized || nowNanos - rateWindowStartNanos >= 1_000_000_000L
                 || nowNanos < rateWindowStartNanos) {
             rateWindowStartNanos = nowNanos;
             rateWindowInitialized = true;
             rateWindowEvents = 0;
         }
-        if (rateWindowEvents >= MAX_EVENTS_PER_SECOND) return;
+        if (rateWindowEvents >= MAX_EVENTS_PER_SECOND) return false;
         rateWindowEvents++;
         long safeElapsed = Math.max(0L, elapsedNanos);
         aggregate.count++;
@@ -111,6 +140,7 @@ final class RoiUnknownHostInvocationProbe {
             Long previous = aggregate.exceptions.get(exceptionType);
             aggregate.exceptions.put(exceptionType, previous == null ? 1L : previous + 1L);
         }
+        return true;
     }
 
     synchronized boolean unregister(String key) {
