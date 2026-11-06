@@ -386,6 +386,21 @@ require(
 )
 require(
     probe,
+    r'MAX_OBSERVATION_LOG_CHARS\\s*=\\s*12_000',
+    "runtime observer trace buffer is explicitly bounded",
+)
+require(
+    probe,
+    r'private static void observerLog\\(String message\\).*?Main\\.extLog\\(message\\)',
+    "runtime observer trace is retained for the diagnostic copy and mirrored to the log",
+)
+require(
+    probe,
+    r'static String status\\(\\).*?OPEN_NATIVE_CALL_OBSERVER_BUFFER',
+    "diagnostic copy includes the bounded runtime observer trace",
+)
+require(
+    probe,
     r'final Deque<String> callStack.*?Object rootRequest.*?boolean hasRootRequest',
     "runtime observer keeps only a thread-local call stack and opaque root request reference",
 )
