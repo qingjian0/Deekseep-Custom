@@ -244,7 +244,7 @@ final class RoiDexKitDiscovery {
                 candidateCount += querySemanticAnchors(
                         bridge, "loader." + (i + 1), sourceScope, out, budget,
                         runtimeEvidence, runtimeCoverage, adapterIdentity, parsedDexMethods,
-                        ambiguousDexMethods, selectedDexMethods, rawDexCount);
+                        ambiguousDexMethods, selectedDexMethods);
                 appendSelectedDexEvidence(bridge, rawDexCount, sourceScope,
                         selectedDexMethods, parsedDexMethods, out);
             } catch (Throwable error) {
@@ -285,7 +285,7 @@ final class RoiDexKitDiscovery {
                             runtimeEvidence, runtimeCoverage, adapterIdentity,
                             Collections.<String, String>emptyMap(),
                             Collections.<String>emptySet(),
-                            Collections.<String>emptySet(), 0);
+                            Collections.<String>emptySet());
                 } catch (Throwable error) {
                     rethrowFatal(error);
                     append(out, "apk." + (i + 1) + ".error="
@@ -329,8 +329,7 @@ final class RoiDexKitDiscovery {
             List<RoiRuntimeInvocationRecorder.EvidenceSnapshot> runtimeEvidence,
             List<RoiRuntimeInvocationRecorder.CoverageSnapshot> runtimeCoverage,
             String adapterIdentity, Map<String, String> parsedDexMethods,
-            Set<String> ambiguousDexMethods, Set<String> selectedDexMethods,
-            int runtimeDexCount) {
+            Set<String> ambiguousDexMethods, Set<String> selectedDexMethods) {
         int total = 0;
         List<RoiCandidateGraph.Observation> graphObservations =
                 new ArrayList<RoiCandidateGraph.Observation>();
@@ -400,7 +399,7 @@ final class RoiDexKitDiscovery {
                                 && !ambiguousDexMethods.contains(descriptor);
                         append(out, candidatePrefix + ".dexJoin.exactMethod=" + exactDexMethodJoin);
                         if (exactDexMethodJoin) {
-                            if (selectedDexMethods.size() < 128) selectedDexMethods.add(descriptor);
+                            if (selectedDexMethods.size() < 32) selectedDexMethods.add(descriptor);
                             append(out, candidatePrefix + ".dexJoin.dexIdentity="
                                     + safe(parsedDexMethods.get(descriptor)));
                             List<String> dexBackedInvokes = new ArrayList<String>();
@@ -529,7 +528,7 @@ final class RoiDexKitDiscovery {
             append(out, "loader.dexEvidence.selectedMethods=0");
             return;
         }
-        if (selectedDescriptors.size() > 128) {
+        if (selectedDescriptors.size() > 32) {
             append(out, "loader.dexEvidence.status=rejected");
             append(out, "loader.dexEvidence.reason=selected_method_budget_exceeded");
             return;
@@ -574,7 +573,9 @@ final class RoiDexKitDiscovery {
                             append(out, "loader.dexEvidence.selectedMethods=" + evidence.methods.size());
                             append(out, "loader.dexEvidence.analyzedMethods=" + evidence.analyzedMethods);
                             append(out, "loader.dexEvidence.analysisFailures=" + evidence.analysisFailures);
+                            int emittedMethods = 0;
                             for (RoiDexCandidateEvidence.MethodEvidence method : evidence.methods) {
+                                if (emittedMethods++ >= 12) break;
                                 append(out, "loader.dexEvidence.method=" + safe(method.methodKey)
                                         + ",analysis=" + (method.analysis != null)
                                         + ",failure=" + safe(method.analysisFailure));
@@ -590,6 +591,9 @@ final class RoiDexKitDiscovery {
                                             + method.analysis.completeForExceptionFlow);
                                 }
                             }
+                            if (evidence.methods.size() > 12)
+                                append(out, "loader.dexEvidence.methodDetailsOmitted="
+                                        + (evidence.methods.size() - 12));
                         }
                     });
             append(out, "loader.dexEvidence.status=analyzed");
@@ -774,10 +778,8 @@ final class RoiDexKitDiscovery {
             append(out, prefix + ".serializerMethod.dexIdentity="
                     + safe(parsedDexMethods.get(reference.methodDescriptor)) + ",constructorDexIdentity="
                     + safe(parsedDexMethods.get(reference.constructorDescriptor)));
-            if (selectedDexMethods.size() < 128) {
-                selectedDexMethods.add(reference.methodDescriptor);
-                selectedDexMethods.add(reference.constructorDescriptor);
-            }
+            if (selectedDexMethods.size() < 32) selectedDexMethods.add(reference.methodDescriptor);
+            if (selectedDexMethods.size() < 32) selectedDexMethods.add(reference.constructorDescriptor);
             Main.ROI_UNKNOWN_HOST_CHAT_REQUEST_RESOLVER.observeDexCandidate(
                     sourceScope, anchor, reference.methodDescriptor,
                     Collections.singletonList(reference.constructorDescriptor));
