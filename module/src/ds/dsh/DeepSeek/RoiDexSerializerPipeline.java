@@ -109,6 +109,10 @@ public final class RoiDexSerializerPipeline {
             if(index<0||index>=dex.strings.length)
                 throw new RoiDexValueProvenance.AnalysisException("string_index_out_of_range");
             return dex.strings[index];
+        },index->{
+            if(index<0||index>=dex.typeDescriptors.length)
+                throw new RoiDexValueProvenance.AnalysisException("type_index_out_of_range");
+            return dex.typeDescriptors[index];
         },flow,reaching,useDef,links);
     }
 

@@ -17,6 +17,9 @@ public final class RoiDexValueProvenance {
     public interface StringResolver {
         String resolve(int stringIndex) throws AnalysisException;
     }
+    public interface TypeResolver {
+        String resolve(int typeIndex) throws AnalysisException;
+    }
 
     public static final class IntTrace {
         public final boolean unique,hasConstant;
@@ -44,11 +47,11 @@ public final class RoiDexValueProvenance {
     public static final class Trace {
         public final boolean unique;
         public final RoiDexInvokeResultLinker.Link source;
-        public final String rejectionReason;
+        public final String effectiveTypeDescriptor,rejectionReason;
         public final int[] definitionIds,instructionOffsets;
-        Trace(boolean ok,RoiDexInvokeResultLinker.Link link,String reason,
+        Trace(boolean ok,RoiDexInvokeResultLinker.Link link,String effectiveType,String reason,
                 List<Integer> definitions,List<Integer> offsets) {
-            unique=ok;source=link;rejectionReason=reason;
+            unique=ok;source=link;effectiveTypeDescriptor=effectiveType;rejectionReason=reason;
             definitionIds=toArray(definitions);instructionOffsets=toArray(offsets);
         }
     }
@@ -64,6 +67,7 @@ public final class RoiDexValueProvenance {
         private final Map<Integer,RoiDexReachingDefinitions.Definition> definitions;
         private final RoiDexCodeReader.CodeItem code;
         private final StringResolver stringResolver;
+        private final TypeResolver typeResolver;
         /** The current exception CFG is conservative, never claimed complete. */
         public final boolean completeForExceptionFlow;
 
@@ -71,9 +75,9 @@ public final class RoiDexValueProvenance {
                 Map<Integer,RoiDexRegisterFlowAnalyzer.InstructionFlow> instructionMap,
                 Map<Integer,RoiDexInvokeResultLinker.Link> linkMap,
                 Map<Integer,RoiDexReachingDefinitions.Definition> definitionMap,
-                RoiDexCodeReader.CodeItem codeItem,StringResolver strings) {
+                RoiDexCodeReader.CodeItem codeItem,StringResolver strings,TypeResolver types) {
             uses=useMap;instructions=instructionMap;linksByResultOffset=linkMap;
-            definitions=definitionMap;code=codeItem;stringResolver=strings;
+            definitions=definitionMap;code=codeItem;stringResolver=strings;typeResolver=types;
             completeForExceptionFlow=codeItem!=null&&codeItem.triesSize==0;
         }
 
@@ -220,7 +224,38 @@ public final class RoiDexValueProvenance {
                 if(expected!=words||link==null||link.resultOpcode!=opcode
                         ||link.resultWordCount!=words||link.destinationRegister!=defs[0].register)
                     return rejected("invoke_result_link_missing_or_width_mismatch");
-                return new Trace(true,link,null,definitionIds(defs),singleOffset(offset));
+                return new Trace(true,link,returnDescriptor(link.prototypeDescriptor),null,
+                        definitionIds(defs),singleOffset(offset));
+            }
+            if(opcode==0x1f) {
+                if(words!=1||code==null||typeResolver==null)
+                    return rejected("check_cast_type_resolution_unavailable");
+                RoiDexRegisterFlowAnalyzer.InstructionFlow cast=instructions.get(offset);
+                if(cast==null||cast.opcode!=0x1f||cast.uses.length!=1||cast.definitions.length!=1
+                        ||cast.uses[0]!=defs[0].register||cast.definitions[0]!=defs[0].register)
+                    return rejected("check_cast_semantics_unavailable");
+                final String castType;
+                try {
+                    RoiDexInstructionDecoder.Decoded decoded=code.decodeInstructionAt(offset);
+                    if(decoded.referenceKind!=RoiDexInstructionDecoder.Decoded.ReferenceKind.TYPE)
+                        return rejected("check_cast_reference_kind_invalid");
+                    castType=typeResolver.resolve(decoded.referenceIndex);
+                } catch(RoiDexInstructionDecoder.DecodeException error) {
+                    return rejected("check_cast_decode_failed");
+                } catch(AnalysisException error) {
+                    return rejected(error.getMessage());
+                }
+                if(castType==null)return rejected("check_cast_type_unresolved");
+                RoiDexUseDefChains.UseSite sourceUse=uses.get(useKey(offset,0));
+                if(sourceUse==null||sourceUse.register!=cast.uses[0])
+                    return rejected("check_cast_source_use_missing");
+                for(RoiDexReachingDefinitions.Definition def:defs)active.add(def.id);
+                Trace child=trace(new RoiDexUseDefChains.UseSite[]{sourceUse},1,active);
+                for(RoiDexReachingDefinitions.Definition def:defs)active.remove(def.id);
+                if(!child.unique)return child;
+                List<Integer> pathDefinitions=definitionIds(defs);append(pathDefinitions,child.definitionIds);
+                List<Integer> pathOffsets=singleOffset(offset);append(pathOffsets,child.instructionOffsets);
+                return new Trace(true,child.source,castType,null,pathDefinitions,pathOffsets);
             }
             if(opcode<0x01||opcode>0x09)return rejected("unsupported_value_definition_opcode");
             int moveWords=(opcode>=0x04&&opcode<=0x06)?2:1;
@@ -248,11 +283,12 @@ public final class RoiDexValueProvenance {
             append(pathDefinitions,child.definitionIds);
             List<Integer> pathOffsets=new ArrayList<Integer>();pathOffsets.add(offset);
             append(pathOffsets,child.instructionOffsets);
-            return new Trace(true,child.source,null,pathDefinitions,pathOffsets);
+            return new Trace(true,child.source,child.effectiveTypeDescriptor,null,
+                    pathDefinitions,pathOffsets);
         }
 
         private static Trace rejected(String reason) {
-            return new Trace(false,null,reason,new ArrayList<Integer>(),new ArrayList<Integer>());
+            return new Trace(false,null,null,reason,new ArrayList<Integer>(),new ArrayList<Integer>());
         }
         private static StringTrace rejectedString(String reason) {
             return new StringTrace(false,null,reason,new ArrayList<Integer>(),new ArrayList<Integer>());
@@ -262,13 +298,20 @@ public final class RoiDexValueProvenance {
     public static Result analyze(RoiDexRegisterFlowAnalyzer.Result flow,
             RoiDexReachingDefinitions.Result reaching,RoiDexUseDefChains.Result useDef,
             RoiDexInvokeResultLinker.Result invokeLinks)throws AnalysisException {
-        return analyze(null,null,flow,reaching,useDef,invokeLinks);
+        return analyze(null,null,null,flow,reaching,useDef,invokeLinks);
     }
 
     public static Result analyze(RoiDexCodeReader.CodeItem code,StringResolver strings,
             RoiDexRegisterFlowAnalyzer.Result flow,RoiDexReachingDefinitions.Result reaching,
             RoiDexUseDefChains.Result useDef,RoiDexInvokeResultLinker.Result invokeLinks)
             throws AnalysisException {
+        return analyze(code,strings,null,flow,reaching,useDef,invokeLinks);
+    }
+
+    public static Result analyze(RoiDexCodeReader.CodeItem code,StringResolver strings,
+            TypeResolver types,RoiDexRegisterFlowAnalyzer.Result flow,
+            RoiDexReachingDefinitions.Result reaching,RoiDexUseDefChains.Result useDef,
+            RoiDexInvokeResultLinker.Result invokeLinks)throws AnalysisException {
         if(flow==null||reaching==null||useDef==null||invokeLinks==null)
             throw new AnalysisException("null_analysis_input");
         if(flow.blocks.length!=reaching.blocks.length)
@@ -294,11 +337,15 @@ public final class RoiDexValueProvenance {
         for(RoiDexReachingDefinitions.Definition definition:reaching.definitions)
             if(definitions.put(definition.id,definition)!=null)
                 throw new AnalysisException("duplicate_definition_id");
-        return new Result(uses,instructions,links,definitions,code,strings);
+        return new Result(uses,instructions,links,definitions,code,strings,types);
     }
 
     private static long useKey(int offset,int operand) {
         return (((long)offset)<<32)|(operand&0xffffffffL);
+    }
+    private static String returnDescriptor(String prototype) {
+        int close=prototype==null?-1:prototype.indexOf(')');
+        return close<0?"":prototype.substring(close+1);
     }
     private static List<Integer> definitionIds(RoiDexReachingDefinitions.Definition[] defs) {
         List<Integer> out=new ArrayList<Integer>();

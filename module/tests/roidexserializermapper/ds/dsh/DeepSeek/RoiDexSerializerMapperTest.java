@@ -2,7 +2,7 @@ package ds.dsh.DeepSeek;
 
 public final class RoiDexSerializerMapperTest {
     public static void main(String[] args)throws Exception {
-        requestConstructorShape();directElementIndexMapping();dynamicSwitchElementIndexMapping();
+        requestConstructorShape();directElementIndexMapping();checkCastSerializableElementMapping();dynamicSwitchElementIndexMapping();
         System.out.println("RoiDexSerializerMapperTest: PASS");
     }
 
@@ -33,6 +33,34 @@ public final class RoiDexSerializerMapperTest {
         yes(result.complete);eq(1,result.constructors.length);eq(1,result.constructors[0].parameters.length);
         eq("chat_session_id",result.constructors[0].parameters[0].fieldName);
         eq(0,result.constructors[0].parameters[0].elementIndex);
+    }
+
+    static void checkCastSerializableElementMapping()throws Exception {
+        RoiDexCodeReader.CodeItem code=code(new short[]{
+                (short)0x0112,          // const/4 v1, #0
+                (short)0x0171,0,1,      // invoke-static {v1}, decodeSerializableElement(I)Object
+                (short)0x000c,          // move-result-object v0
+                (short)0x001f,0,        // check-cast v0, type@0
+                (short)0x0270,1,(short)0x0003, // <init> {v3,v0}
+                (short)0x000e
+        },4);
+        RoiDexInvokeResultLinker.Result links=RoiDexInvokeResultLinker.analyze(code,index->{
+            if(index==0)return new RoiDexFileReader.ResolvedMethodId(0,"LDecoder;",
+                    "decodeSerializableElement","(I)Ljava/lang/Object;");
+            return new RoiDexFileReader.ResolvedMethodId(1,"Lx;","<init>","(Lx;)V");
+        });
+        RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(code);
+        RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
+        RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching);
+        RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(code,null,
+                index->"Lx;",flow,reaching,useDef,links);
+        RoiDexSerializerMapper.Result result=RoiDexSerializerMapper.analyze(code,"Lx;",
+                index->index==0
+                        ?new RoiDexFileReader.ResolvedMethodId(0,"LDecoder;",
+                            "decodeSerializableElement","(I)Ljava/lang/Object;")
+                        :new RoiDexFileReader.ResolvedMethodId(1,"Lx;","<init>","(Lx;)V"),
+                elements(),provenance);
+        yes(result.complete);eq("chat_session_id",result.constructors[0].parameters[0].fieldName);
     }
 
     static void dynamicSwitchElementIndexMapping()throws Exception {

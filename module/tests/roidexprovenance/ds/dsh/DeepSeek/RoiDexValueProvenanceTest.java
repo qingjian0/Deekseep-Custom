@@ -3,7 +3,7 @@ package ds.dsh.DeepSeek;
 public final class RoiDexValueProvenanceTest {
     public static void main(String[] args)throws Exception {
         singleMoveChain();wideMoveChain();stringConstantThroughMove();integerConstantTrace();
-        dynamicIndexInvokeTrace();branchMergeRejected();unsupportedDefinitionRejected();
+        dynamicIndexInvokeTrace();checkCastPreservesSource();branchMergeRejected();unsupportedDefinitionRejected();
         System.out.println("RoiDexValueProvenanceTest: PASS");
     }
 
@@ -98,6 +98,28 @@ public final class RoiDexValueProvenanceTest {
                 code,null,flow,reaching,useDef,links);
         RoiDexValueProvenance.IntTrace trace=provenance.traceIntUse(5,0);
         yes(trace.unique);yes(!trace.hasConstant);eq(0,trace.sourceInvoke.invokeOffset);
+    }
+
+    static void checkCastPreservesSource()throws Exception {
+        RoiDexCodeReader.CodeItem code=code(new short[]{
+                (short)0x0071,0,0,      // decodeSerializableElement()Ljava/lang/Object;
+                (short)0x000c,          // move-result-object v0
+                (short)0x001f,0,        // check-cast v0, type@0
+                (short)0x0270,1,(short)0x0002, // invoke-direct {v2,v0}, <init>(Lx;)V
+                (short)0x000e
+        },3);
+        RoiDexInvokeResultLinker.Result links=RoiDexInvokeResultLinker.analyze(code,index->
+                new RoiDexFileReader.ResolvedMethodId(index,"Lx;",
+                        index==0?"decodeSerializableElement":"<init>",
+                        index==0?"()Ljava/lang/Object;":"(Lx;)V"));
+        RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(code);
+        RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
+        RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching);
+        RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(
+                code,null,index->"Lx;",flow,reaching,useDef,links);
+        RoiDexValueProvenance.Trace trace=provenance.traceUse(6,1,1);
+        yes(trace.unique);eq(0,trace.source.invokeOffset);
+        eq("Lx;",trace.effectiveTypeDescriptor);
     }
 
     static void branchMergeRejected()throws Exception {

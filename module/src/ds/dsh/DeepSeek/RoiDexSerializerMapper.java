@@ -151,8 +151,8 @@ public final class RoiDexSerializerMapper {
                     rejected.add(new Rejected(instruction.offset,parameter,"source_is_not_decode_element"));
                     constructorComplete=false;continue;
                 }
-                String returnType=returnDescriptor(decodeLink.prototypeDescriptor);
-                if(!parameterType.equals(returnType)) {
+                String effectiveType=value.effectiveTypeDescriptor;
+                if(!parameterType.equals(effectiveType)) {
                     rejected.add(new Rejected(instruction.offset,parameter,"decode_return_type_mismatch"));
                     constructorComplete=false;continue;
                 }
