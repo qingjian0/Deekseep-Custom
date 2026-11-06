@@ -939,10 +939,8 @@ final class OpenLocalApiGateway {
             sendAnthropicEvent(out, "message_stop", new JSONObject().put("type", "message_stop"));
         } catch (Exception failure) {
             if (!disconnected.get()) {
-                String type = failure instanceof z2.GatewayException
-                        ? "api_error" : "api_error";
                 sendAnthropicEvent(out, "error", new JSONObject().put("type", "error")
-                        .put("error", new JSONObject().put("type", type)
+                        .put("error", new JSONObject().put("type", "api_error")
                                 .put("message", "Model execution failed")));
             }
         }
