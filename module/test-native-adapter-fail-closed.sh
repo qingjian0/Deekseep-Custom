@@ -513,6 +513,26 @@ if "callback.toString()" in probe or "receiver.toString()" in probe:
 
 require(
     probe,
+    r'line\(out, "report\.schema", "3"\).*?diagnostic\.coverage.*?diagnostic\.sensitive_data',
+    "schema 3 identifies the combined native, callback, and gateway capture contract",
+)
+require(
+    probe,
+    r'MAX_CALLBACK_TRACE_EVENTS = 96.*?CALLBACK_METHOD_INVOCATIONS.*?callback-events-truncated limit=',
+    "callback event volume is bounded and reports truncation instead of flooding the report",
+)
+require(
+    probe,
+    r'OPEN_NATIVE_DIAGNOSTIC_SUMMARY.*?callbackMethodInvocations=.*?callbackClassesObserved=.*?apiTraceEvents=',
+    "the copied report ends with aggregate callback and API trace counts",
+)
+require(
+    ui,
+    r'一次采集官方客户端请求对象、Transport、异步回调，以及 Local API 请求.*?复制这一份完整诊断报告',
+    "the UI explains the one-pass capture and one-report copy workflow",
+)
+require(
+    probe,
     r'static void apiTrace\(String event\).*?Main\.isOpenNativeCompletionProbeEnabled\(\).*?observerLog',
     "Local API diagnostics share the native probe buffer and remain behind the explicit opt-in switch",
 )
