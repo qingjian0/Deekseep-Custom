@@ -3,7 +3,7 @@ package ds.dsh.DeepSeek;
 public final class RoiDexSerializerElementIndexTest {
     public static void main(String[] args)throws Exception {
         registrationOrderNotStringPoolOrder();conditionalPreambleAccepted();
-        branchingRegistrationRejected();unreachableRegistrationRejected();incompleteRegistrationRejected();
+        branchingRegistrationRejected();unreachableRegistrationRejected();incompleteRegistrationRejected();sparseRegistrationIndicesRejected();
         System.out.println("RoiDexSerializerElementIndexTest: PASS");
     }
 
@@ -52,7 +52,7 @@ public final class RoiDexSerializerElementIndexTest {
 
     static void branchingRegistrationRejected()throws Exception {
         RoiDexCodeReader.CodeItem code=code(new short[]{
-                (short)0x001a,0,
+                (short)0x011a,0,
                 (short)0x036e,0,(short)0x0312,
                 (short)0x0038,7,
                 (short)0x036e,0,(short)0x0312,
@@ -116,6 +116,16 @@ public final class RoiDexSerializerElementIndexTest {
         yes(!result.complete);
         eq(0,result.elements.length);
         eq(1,result.rejected.length);
+    }
+
+    static void sparseRegistrationIndicesRejected() {
+        java.util.List<RoiDexSerializerElementIndex.Element> values=
+                java.util.Collections.singletonList(new RoiDexSerializerElementIndex.Element(
+                        1,4,2,"message","LDescriptor;"));
+        RoiDexSerializerElementIndex.Result result=new RoiDexSerializerElementIndex.Result(
+                values,java.util.Collections.<RoiDexSerializerElementIndex.Rejected>emptyList(),true);
+        yes(result.registrationOrderProven);
+        yes(!result.complete);
     }
 
     static RoiDexFileReader.ResolvedMethodId method() {
