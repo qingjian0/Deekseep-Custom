@@ -3408,7 +3408,7 @@ public final class DeekseepUi {
             }
         });
         if ("Open".equals(BuildInfo.BUILD_EDITION)) {
-            protocolValue.setText(UiLanguage.text(act, "OpenAI（Chat Completions + Responses）", "OpenAI (Chat Completions only)"));
+            protocolValue.setText(UiLanguage.text(act, "OpenAI（Chat Completions + Responses）", "OpenAI (Chat Completions + Responses)"));
             protocolValue.setClickable(false);
             protocolValue.setAlpha(0.72f);
         } else {
