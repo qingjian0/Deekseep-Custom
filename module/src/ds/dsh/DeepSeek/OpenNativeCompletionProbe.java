@@ -813,7 +813,7 @@ final class OpenNativeCompletionProbe {
         }
         observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-class-observed class="
                 + type.getName() + " role=" + role + " hookedMethods=" + installed
-                + " hookedMethods=" + installed + " attemptedMethods=" + attempted
+                + " attemptedMethods=" + attempted
                 + " maxMethods=" + MAX_CALLBACK_METHODS_PER_CLASS
                 + " scope=concrete-class-declared-only");
         if (installed == 0) OBSERVED_CALLBACK_CLASSES.remove(key);
