@@ -906,7 +906,7 @@ final class OpenLocalApiGateway {
                         .put("model", normalized.model).put("content", new JSONArray())
                         .put("stop_reason", JSONObject.NULL).put("stop_sequence", JSONObject.NULL)
                         .put("usage", new JSONObject()
-                                .put("input_tokens", estimateAnthropicTokens(completion.prompt))
+                                .put("input_tokens", estimateTokens(completion.prompt))
                                 .put("output_tokens", 0).put("dsh_usage_estimated", true))));
         sendAnthropicEvent(out, "ping", new JSONObject().put("type", "ping"));
         z2.DeltaSink sink = new z2.DeltaSink() {
