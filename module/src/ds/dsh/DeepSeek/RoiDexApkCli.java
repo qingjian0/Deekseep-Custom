@@ -21,7 +21,7 @@ import java.util.Set;
 public final class RoiDexApkCli {
     private static final int MAX_METHODS_SCANNED = 150000;
     private static final int MAX_SELECTED_METHODS = 64;
-    private static final int MAX_ANALYSIS_METHODS = 128;
+    private static final int MAX_ANALYSIS_METHODS = 192;
     private static final long MAX_CODE_UNITS = 20000000L;
     private static final String[] ANCHORS = {
             "chat/completions", "application/json", "Authorization", "messages",
@@ -131,6 +131,8 @@ public final class RoiDexApkCli {
 
         String scope = dexPath.getFileName().toString();
         Set<String> expandedMethods = new LinkedHashSet<String>(selected.keySet());
+        Set<String> directCalleeMethods = new LinkedHashSet<String>();
+        Set<String> transitiveCalleeMethods = new LinkedHashSet<String>();
         RoiDexCandidateEvidence.Result seedEvidence =
                 RoiDexCandidateEvidence.analyzeSelected(dex, scope, expandedMethods);
         Set<String> definedMethods = new LinkedHashSet<String>();
@@ -138,16 +140,31 @@ public final class RoiDexApkCli {
             definedMethods.add(method.declaringClassDescriptor + "->" + method.name
                     + method.prototypeDescriptor);
         }
-        // Add one bounded hop of in-DEX callees so request builders expose their
-        // serializer/dispatcher helpers without pulling in external library methods.
+        // Hop 1: include in-DEX helpers called directly by string/field anchor methods.
         for (RoiDexCandidateEvidence.MethodEvidence method : seedEvidence.methods) {
             for (String callee : method.invokes) {
                 if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;
-                if (definedMethods.contains(callee)) expandedMethods.add(callee);
+                if (definedMethods.contains(callee) && expandedMethods.add(callee)) {
+                    directCalleeMethods.add(callee);
+                }
             }
             if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;
         }
-        int expandedDirectCallees = expandedMethods.size() - selected.size();
+        // Hop 2: follow calls made by those helpers. This is important for dispatchers
+        // such as fu0.s(...), which delegates the built JSON to the next request layer.
+        RoiDexCandidateEvidence.Result firstHopEvidence =
+                RoiDexCandidateEvidence.analyzeSelected(dex, scope, expandedMethods);
+        for (RoiDexCandidateEvidence.MethodEvidence method : firstHopEvidence.methods) {
+            if (!directCalleeMethods.contains(method.methodKey)) continue;
+            for (String callee : method.invokes) {
+                if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;
+                if (definedMethods.contains(callee) && expandedMethods.add(callee)) {
+                    transitiveCalleeMethods.add(callee);
+                }
+            }
+            if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;
+        }
+        int expandedCalleeCount = directCalleeMethods.size() + transitiveCalleeMethods.size();
         RoiDexCandidateEvidence.Result evidence =
                 RoiDexCandidateEvidence.analyzeSelected(dex, scope, expandedMethods);
         StringBuilder out = new StringBuilder(8192);
@@ -167,7 +184,7 @@ public final class RoiDexApkCli {
         field(out, "field_reference_methods_scanned", Integer.toString(fieldReferenceMethodsScanned), true);
         field(out, "candidate_selection_budget", Integer.toString(MAX_SELECTED_METHODS), true);
         field(out, "anchor_candidate_count", Integer.toString(selected.size()), true);
-        field(out, "expanded_direct_callee_count", Integer.toString(expandedDirectCallees), true);
+        field(out, "expanded_callee_count", Integer.toString(expandedCalleeCount), true);\n        field(out, "direct_callee_count", Integer.toString(directCalleeMethods.size()), true);\n        field(out, "transitive_callee_count", Integer.toString(transitiveCalleeMethods.size()), true);
         field(out, "analysis_method_budget", Integer.toString(MAX_ANALYSIS_METHODS), true);
         field(out, "candidate_count", Integer.toString(evidence.methods.size()), true);
         field(out, "analyzed_methods", Integer.toString(evidence.analyzedMethods), true);
@@ -187,7 +204,7 @@ public final class RoiDexApkCli {
             out.append("\"method\":").append(quote(method.methodKey));
             Set<String> methodAnchors = selected.get(method.methodKey);
             out.append(",\"candidate_origin\":")
-                    .append(quote(methodAnchors == null ? "direct_callee" : "anchor"));
+                    .append(quote(methodAnchors != null ? "anchor"\n                            : directCalleeMethods.contains(method.methodKey) ? "direct_callee"\n                            : transitiveCalleeMethods.contains(method.methodKey) ? "transitive_callee"\n                            : "expanded_callee"));
             out.append(",\"anchors\":").append(stringArray(methodAnchors));
             out.append(",\"anchor_priority\":").append(anchorPriority(methodAnchors));
             out.append(",\"analysis_status\":")
