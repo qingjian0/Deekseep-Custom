@@ -213,6 +213,13 @@ gateway_checks = {
     "tool calls are returned as OpenAI function-call objects": '.put("tool_calls", wireCalls)' in source and '.put("finish_reason", parsedToolCalls.isEmpty()' in source,
     "invalid model tool output is rejected rather than leaked": '"invalid_tool_response"' in source and 'OpenAiToolBridge.resemblesCallSyntax(result.text, toolPlan)' in source,
     "tool streaming is explicitly rejected until SSE redaction exists": '"unsupported_streaming_tool_calls"' in source and 'stream && toolPlan.active()' in source,
+    "Responses POST route is registered": '"/v1/responses".equals(request.path)' in source and 'handleResponses(out, request)' in source,
+    "Responses input accepts strings and item arrays": 'responsesInputToPrompt(rawInput)' in source and '"input must be a string or an array"' in source,
+    "Responses previous_response_id is explicitly not persisted": '"unsupported_previous_response_id"' in source,
+    "Responses function-call outputs are validated against prior call IDs": 'callIds.remove(callId)' in source and 'Unmatched function_call_output' in source,
+    "Responses function calls are serialized as output items": '"function_call".equals(type)' in source and '"function_call"' in source and '"output_text"' in source,
+    "Responses streaming emits terminal completed event": '"response.completed"' in source and 'sendResponsesEvent(out' in source,
+    "Responses tool streaming is explicitly rejected": '"Responses tool calls are currently supported only with stream=false"' in source,
     "response_format remains explicitly rejected when unsupported": '"unsupported_feature"' in source and 'body.has("response_format")' in source,
     "usage streaming is explicitly rejected": 'body.has("stream_options")' in source and "usage streaming" in source,
     "stream must be a boolean": 'body.opt("stream") instanceof Boolean' in source and '"invalid_stream"' in source,
@@ -237,8 +244,8 @@ missing_gateway = [label for label, ok in gateway_checks.items() if not ok]
 if missing_gateway:
     raise SystemExit("Missing API protocol behavior: " + ", ".join(missing_gateway))
 ui_open = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
-if "非流式 Chat Completions 已接入客户端工具调用解析与回传" not in ui_open:
-    raise SystemExit("Open UI must accurately describe non-streaming tool-call handoff")
+if "非流式 Chat Completions 与 Responses 可将模型工具调用回传给客户端" not in ui_open:
+    raise SystemExit("Open UI must accurately describe Chat and Responses tool handoff")
 if "原生执行适配器尚未接通" not in ui_open:
     raise SystemExit("Open UI must disclose that native completion is not connected")
 hook = (pathlib.Path(sys.argv[1]).parent / "HookAccountLoginSecurity.java").read_text(encoding="utf-8")
