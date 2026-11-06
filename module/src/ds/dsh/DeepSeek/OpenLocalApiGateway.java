@@ -498,11 +498,17 @@ final class OpenLocalApiGateway {
                 sendError(out, 400, "invalid_json", "Request body must be valid JSON");
                 return;
             }
+            String unsupportedOption = unsupportedChatOption(body);
+            if (unsupportedOption.length() > 0) {
+                sendError(out, 400, "unsupported_parameter",
+                        "This Open gateway does not support the requested parameter: "
+                                + unsupportedOption);
+                return;
+            }
             if (body.has("tools") || body.has("tool_choice")
                     || body.has("functions") || body.has("function_call")
                     || body.has("parallel_tool_calls") || body.has("response_format")
-                    || (body.optJSONObject("stream_options") != null
-                            && body.optJSONObject("stream_options").optBoolean("include_usage", false))) {
+                    || body.has("stream_options")) {
                 sendError(out, 400, "unsupported_feature",
                         "This Open gateway does not yet support tools, response_format, or usage streaming");
                 return;
@@ -665,6 +671,10 @@ final class OpenLocalApiGateway {
         for (int i = 0; i < messages.length(); i++) {
             JSONObject message = messages.optJSONObject(i);
             if (message == null) throw new IllegalArgumentException("Invalid message");
+            if (message.has("tool_calls") || message.has("function_call")
+                    || message.has("tool_call_id")) {
+                throw new IllegalArgumentException("Tool messages and tool calls are not supported");
+            }
             String role = message.optString("role", "");
             if (!"system".equals(role) && !"developer".equals(role)
                     && !"user".equals(role) && !"assistant".equals(role)) {
@@ -677,6 +687,38 @@ final class OpenLocalApiGateway {
             if (prompt.length() > MAX_PROMPT_CHARS) return prompt.toString();
         }
         return prompt.toString();
+    }
+
+    /** Returns the first unsupported non-default Chat Completions option, or empty. */
+    private static String unsupportedChatOption(JSONObject body) {
+        String[] unsupported = new String[] {
+                "temperature", "top_p", "stop", "presence_penalty",
+                "frequency_penalty", "logit_bias", "seed", "user",
+                "logprobs", "top_logprobs", "modalities", "audio",
+                "prediction", "service_tier", "store", "metadata"
+        };
+        for (String key : unsupported) {
+            if (!body.has(key)) continue;
+            Object value = body.opt(key);
+            if (("temperature".equals(key) && value instanceof Number
+                    && ((Number) value).doubleValue() == 1.0)
+                    || ("top_p".equals(key) && value instanceof Number
+                    && ((Number) value).doubleValue() == 1.0)
+                    || (("presence_penalty".equals(key) || "frequency_penalty".equals(key))
+                    && value instanceof Number && ((Number) value).doubleValue() == 0.0)
+                    || ("stop".equals(key) && value == JSONObject.NULL)
+                    || ("logprobs".equals(key) && Boolean.FALSE.equals(value))
+                    || ("top_logprobs".equals(key) && value instanceof Number
+                    && ((Number) value).intValue() == 0)) {
+                continue;
+            }
+            return key;
+        }
+        if (body.has("n")) {
+            Object n = body.opt("n");
+            if (!(n instanceof Number) || ((Number) n).doubleValue() != 1.0) return "n";
+        }
+        return "";
     }
 
     private static String messageText(Object content) throws Exception {
