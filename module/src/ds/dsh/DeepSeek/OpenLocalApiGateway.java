@@ -853,8 +853,8 @@ final class OpenLocalApiGateway {
                         .put("input_tokens", estimateAnthropicTokens(completion.prompt))
                         .put("output_tokens", estimateAnthropicTokens(result.text))
                         .put("dsh_usage_estimated", true));
-        // The current z2.Backend contract does not expose tokenizer usage. Omit usage rather
-        // than fabricate token counts; exact usage is a separate backend-contract extension.
+        // z2.Backend does not expose tokenizer counters. Return rough estimates and mark them
+        // explicitly so clients do not mistake them for exact DeepSeek tokenizer usage.
         sendJson(out, 200, message);
         OpenNativeCompletionProbe.apiTrace("anthropic-completion-complete requestId="
                 + requestId + " durationMs=" + ((System.nanoTime() - started) / 1000000L)
