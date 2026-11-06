@@ -570,7 +570,7 @@ require(
 )
 require(
     probe,
-    r'CALLBACK_STATS.*?ConcurrentHashMap.*?stats\.record\(System\.nanoTime\(\) - started, false\).*?stats\.record\(System\.nanoTime\(\) - started, true\).*?totalMs=.*?maxMs=.*?avgUs=',
+    r'CALLBACK_STATS.*?ConcurrentHashMap.*?stats\.record\(durationNanos, false\).*?stats\.record\(durationNanos, true\).*?totalMs=.*?maxMs=.*?avgUs=',
     "every hooked callback method retains full invocation, failure, and latency aggregates beyond detailed event samples",
 )
 require(
