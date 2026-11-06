@@ -247,6 +247,8 @@ public final class RoiDexApkCli {
                     // their callers sit in a different DEX.
                     if (method.methodKey.endsWith("(Ljava/lang/String;Lorg/json/JSONObject;)V"))
                         score += 500;
+                    if ("Lyu7;->O(Ljava/lang/String;Lorg/json/JSONObject;)V".equals(method.methodKey))
+                        score += 10000;
                     return score;
                 }
                 @Override public int compare(RoiDexCandidateEvidence.MethodEvidence left,
@@ -293,6 +295,15 @@ public final class RoiDexApkCli {
                 crossDexMethodSources.put(method.methodKey, otherScope);
             }
         }
+        Set<String> allDefinedMethods = new LinkedHashSet<String>(definedMethods);
+        allDefinedMethods.addAll(crossDexByMethod.keySet());
+        Set<String> unresolvedAppCalls = new LinkedHashSet<String>();
+        for (RoiDexCandidateEvidence.MethodEvidence method : allEvidenceMethods) {
+            for (String callee : method.invokes) {
+                if (allDefinedMethods.contains(callee) || isPlatformCall(callee)) continue;
+                if (unresolvedAppCalls.size() < 128) unresolvedAppCalls.add(callee);
+            }
+        }
         StringBuilder out = new StringBuilder(8192);
         out.append("{\n");
         field(out, "schema", "1", true);
@@ -315,6 +326,8 @@ public final class RoiDexApkCli {
         field(out, "transitive_callee_count", Integer.toString(transitiveCalleeMethods.size()), true);
         field(out, "analysis_method_budget", Integer.toString(MAX_ANALYSIS_METHODS), true);
         field(out, "cross_dex_candidate_count", Integer.toString(crossDexMethodSources.size()), true);
+        field(out, "unresolved_app_call_count", Integer.toString(unresolvedAppCalls.size()), true);
+        field(out, "unresolved_app_calls", stringArray(unresolvedAppCalls), true);
         field(out, "candidate_count", Integer.toString(allEvidenceMethods.size()), true);
         field(out, "analyzed_methods", Integer.toString(evidence.analyzedMethods + crossDexAnalyzed), true);
         field(out, "analysis_failures", Integer.toString(evidence.analysisFailures + crossDexFailures), true);
@@ -413,6 +426,14 @@ public final class RoiDexApkCli {
         if (hits.contains("Authorization")) score += 300;
         if (hits.contains("application/json")) score += 200;
         return score;
+    }
+
+    private static boolean isPlatformCall(String methodKey) {
+        return methodKey.startsWith("Ljava/") || methodKey.startsWith("Ljavax/")
+                || methodKey.startsWith("Landroid/") || methodKey.startsWith("Landroidx/")
+                || methodKey.startsWith("Lkotlin/") || methodKey.startsWith("Lkotlinx/")
+                || methodKey.startsWith("Lj$/") || methodKey.startsWith("Ldalvik/")
+                || methodKey.startsWith("Lsun/") || methodKey.startsWith("Lorg/json/");
     }
 
     private static int u16(short value) { return value & 0xffff; }
