@@ -38,12 +38,15 @@ public final class RoiDexSerializerElementIndex {
         public final Element[] elements;
         public final Rejected[] rejected;
         public final boolean registrationOrderProven;
+        /** True only when every discovered registration produced one resolved element. */
+        public final boolean complete;
         public final boolean candidateEvidenceOnly=true;
         public final boolean hookAuthorizationGranted=false;
         Result(List<Element> elements,List<Rejected> rejected,boolean proven) {
             this.elements=elements.toArray(new Element[0]);
             this.rejected=rejected.toArray(new Rejected[0]);
             registrationOrderProven=proven;
+            complete=proven&&this.elements.length>0&&this.rejected.length==0;
         }
     }
 
