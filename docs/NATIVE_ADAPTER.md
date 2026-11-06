@@ -436,3 +436,64 @@ then independently validate completion/error/terminal events before building `Ho
 
 Schema 6 is not yet device-validated. Do not enable it in production builds or claim Native Completion
 readiness based on this source change alone.
+
+
+## 9. Uploaded runtime trace evidence (schema 4; 2026-11-06 review)
+
+Source artifact: `open-native-1793943559724.log` (532,434 bytes; blob `b9b2acff5df7a1981af9cc0ccbab0f9cfb3a8a59`). This is an uploaded schema-4 trace, not the later schema-7 report. The trace contains one observed top-level transport invocation and is useful as historical runtime evidence, but it does not replace a fresh schema-7 capture.
+
+### 9.1 Confirmed call boundary
+
+The trace records the following same-thread nested invocation:
+
+```text
+zn3.o(wu1, java.lang.Long) -> y60
+  jw3.g(wu1, java.lang.Long) -> y60
+```
+
+Both entries report the same opaque `ly1` request object identity. The outer call is recorded as `transport-dispatch`; the inner call as `transport-low-level`. Both return a `y60` object whose runtime interface list contains `el4`. This confirms that the two candidate methods are actually entered on the observed request path and that the same request instance is passed through both layers for this capture.
+
+The observed `ly1` structural shape includes declared members `a` through `l` (plus a companion); the log records only names and declared types. It does not establish the semantic meaning, requiredness, or safe construction values of any field.
+
+### 9.2 Continuation and callback observations
+
+The returned `y60` exposes the observed method:
+
+```text
+y60.b(fl4, yb3) -> java.lang.Object
+```
+
+The trace records three continuation entries, with callback-pair runtime classes:
+- `cr9` / `k41`
+- `ec0` / `mm4`
+- `s5` / `g0`
+
+The first callback role was observed entering:
+- `ec0.a(java.lang.Object, yb3) -> java.lang.Object`
+- `cr9.a(java.lang.Object, yb3) -> java.lang.Object`
+
+Both returned a runtime object of class `zgb`. A further continuation return was observed as `cd3`. These are runtime type observations only; no payload values were read or logged.
+
+The file contains 2 transport enter/exit pairs, 3 continuation entries, 2 callback-0 enter/exit pairs, and a high volume of callback-1 instrumentation (831 enter / 821 exit records). The callback-1 volume includes broad framework/utility activity and must not be treated as 821 model-stream events. The existing callback instrumentation is evidence gathering, not a production event decoder.
+
+### 9.3 What this proves and what it does not
+
+| Question | Evidence status |
+|---|---|
+| Actual code289 transport-dispatch method | Confirmed for this trace: `zn3.o` |
+| Nested lower-level transport method | Confirmed for this trace: `jw3.g` |
+| Same Request instance through both calls | Confirmed for this trace |
+| Returned wrapper and continuation method | Confirmed: `y60`, `el4`, `y60.b` |
+| Callback object classes | Observed: `cr9`, `ec0`, `s5` and paired classes |
+| Which callback argument represents text/reasoning/error/finish | Not established |
+| Request field semantics and construction requirements | Not established |
+| PoW/challenge object and lifecycle | Not established |
+| Authentication/headers and retry behavior | Not established |
+| Session binding, cancellation and timeout semantics | Not established |
+| Final response DTO / exact stream event mapping | Not established |
+
+### 9.4 Implementation consequence
+
+The evidence is now sufficient to stop treating `zn3.o` and `jw3.g` as speculative method-shape candidates. It is not sufficient to implement a correct Request factory, PoW bridge, or Flow decoder. Do not synthesize `ly1` fields, invoke `y60.b` with fabricated callback arguments, or map `zgb` / `cd3` to user-visible content based on class names alone.
+
+Next evidence should be a fresh schema-7 capture from the currently built diagnostic APK, including one ordinary successful DeepSeek conversation. The capture should preserve the existing value-free policy and focus on callback-0 events, continuation lifecycle, and the actual result/error/finish object shapes. Once those are identified, reduce instrumentation of callback-1 utility methods before adding any execution Hook.
