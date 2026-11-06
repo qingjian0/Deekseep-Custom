@@ -197,8 +197,15 @@ public final class z21 extends Service {
                 ping.putExtra(EXTRA_API_KEEPALIVE_REQUESTED, isRequested(z21.this));
                 NotificationManager notificationManager = (NotificationManager)
                         getSystemService(Context.NOTIFICATION_SERVICE);
-                ping.putExtra(EXTRA_NOTIFICATION_ENABLED, notificationManager != null
-                        && notificationManager.areNotificationsEnabled());
+                boolean notificationEnabled = notificationManager != null
+                        && notificationManager.areNotificationsEnabled();
+                if (notificationEnabled && Build.VERSION.SDK_INT >= 26) {
+                    android.app.NotificationChannel channel =
+                            notificationManager.getNotificationChannel(CHANNEL_ID);
+                    notificationEnabled = channel != null
+                            && channel.getImportance() != NotificationManager.IMPORTANCE_NONE;
+                }
+                ping.putExtra(EXTRA_NOTIFICATION_ENABLED, notificationEnabled);
                 long installedHostCode = installedHostCode(z21.this);
                 if (installedHostCode == 249L) {
                     Bundle bridge = new Bundle();
