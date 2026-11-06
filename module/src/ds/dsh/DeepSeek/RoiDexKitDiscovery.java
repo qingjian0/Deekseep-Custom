@@ -43,6 +43,10 @@ final class RoiDexKitDiscovery {
     private static final Object LOADER_LOCK = new Object();
     private static final WeakHashMap<ClassLoader, Boolean> REGISTERED_LOADERS =
             new WeakHashMap<ClassLoader, Boolean>();
+    private static final Object DEX_INDEX_LOCK = new Object();
+    private static final WeakHashMap<ClassLoader, ParsedDexIndex> PARSED_DEX_INDEX =
+            new WeakHashMap<ClassLoader, ParsedDexIndex>();
+    private static final int MAX_PARSED_METHODS_PER_LOADER = 300000;
     private static final String[] SEMANTIC_ANCHORS = {
             "chat/completions", "application/json", "Authorization", "messages",
             "chat_session_id", "parent_message_id", "thinking_enabled",
@@ -197,53 +201,31 @@ final class RoiDexKitDiscovery {
                 totalDex += count;
                 String sourceScope = RoiCandidateIdentity.forClassLoader(loaders.get(i));
                 append(out, "loader." + (i + 1) + ".sourceScope=" + sourceScope);
-                final Map<String, String> parsedDexMethods = new java.util.LinkedHashMap<String, String>();
-                final Set<String> ambiguousDexMethods = new HashSet<String>();
+                ParsedDexIndex dexIndex;
                 try {
-                    final DexKitBridge exportBridge = bridge;
-                    RoiDexKitExportReader.Result exported = RoiDexKitExportReader.exportAndRead(
-                            new File("/data/data/com.deepseek.chat/cache/.deekseep_roi_dexkit"),
-                            rawDexCount,
-                            new RoiDexKitExportReader.Exporter() {
-                                @Override public void exportTo(String outputDirectory) {
-                                    exportBridge.exportDexFile(outputDirectory);
-                                }
-                            },
-                            new RoiDexKitExportReader.DexConsumer() {
-                                @Override public void accept(File exportedFile,
-                                        RoiDexFileReader.DexFile dex) {
-                                    for (RoiDexFileReader.ResolvedMethod method : dex.definedMethods) {
-                                        String methodDescriptor = method.declaringClassDescriptor
-                                                + "->" + method.name + method.prototypeDescriptor;
-                                        if (ambiguousDexMethods.contains(methodDescriptor)) continue;
-                                        String previousDex = parsedDexMethods.get(methodDescriptor);
-                                        if (previousDex == null) {
-                                            parsedDexMethods.put(methodDescriptor, exportedFile.getName());
-                                        } else {
-                                            parsedDexMethods.remove(methodDescriptor);
-                                            ambiguousDexMethods.add(methodDescriptor);
-                                        }
-                                    }
-                                }
-                            });
-                    append(out, "loader." + (i + 1) + ".dexExport.status=parsed");
-                    append(out, "loader." + (i + 1) + ".dexExport.files=" + exported.dexFiles);
-                    append(out, "loader." + (i + 1) + ".dexExport.bytes=" + exported.bytesRead);
+                    dexIndex = loadParsedDexIndex(loaders.get(i), bridge, rawDexCount);
+                    append(out, "loader." + (i + 1) + ".dexExport.status="
+                            + (dexIndex.cacheHit ? "cached" : "parsed"));
+                    append(out, "loader." + (i + 1) + ".dexExport.files=" + dexIndex.result.dexFiles);
+                    append(out, "loader." + (i + 1) + ".dexExport.bytes=" + dexIndex.result.bytesRead);
                     append(out, "loader." + (i + 1) + ".dexExport.definedClasses="
-                            + exported.definedClasses);
+                            + dexIndex.result.definedClasses);
                     append(out, "loader." + (i + 1) + ".dexExport.definedMethods="
-                            + exported.definedMethods);
+                            + dexIndex.result.definedMethods);
                     append(out, "loader." + (i + 1) + ".dexExport.codeMethods="
-                            + exported.codeMethods);
+                            + dexIndex.result.codeMethods);
                     append(out, "loader." + (i + 1) + ".dexExport.uniqueMethodEntries="
-                            + parsedDexMethods.size());
+                            + dexIndex.methodDexFiles.size());
                     append(out, "loader." + (i + 1) + ".dexExport.ambiguousMethodEntries="
-                            + ambiguousDexMethods.size());
+                            + dexIndex.ambiguousMethods.size());
                 } catch (RoiDexKitExportReader.ExportException exportError) {
+                    dexIndex = ParsedDexIndex.empty(rawDexCount);
                     append(out, "loader." + (i + 1) + ".dexExport.status=rejected");
                     append(out, "loader." + (i + 1) + ".dexExport.reason="
                             + safe(exportError.getMessage()));
                 }
+                final Map<String, String> parsedDexMethods = dexIndex.methodDexFiles;
+                final Set<String> ambiguousDexMethods = dexIndex.ambiguousMethods;
                 RoiClassLoaderProfile loaderProfile =
                         RoiClassLoaderProfile.inspect(loaders.get(i));
                 append(out, "loader." + (i + 1) + ".profile.kinds="
@@ -525,6 +507,80 @@ final class RoiDexKitDiscovery {
         }
         appendCandidateGraph(prefix, graphObservations, out);
         return total;
+    }
+
+    private static final class ParsedDexIndex {
+        final int dexCount;
+        final Map<String, String> methodDexFiles;
+        final Set<String> ambiguousMethods;
+        final RoiDexKitExportReader.Result result;
+        final boolean cacheHit;
+
+        ParsedDexIndex(int count, Map<String, String> methods, Set<String> ambiguous,
+                RoiDexKitExportReader.Result stats, boolean reused) {
+            dexCount = count;
+            methodDexFiles = Collections.unmodifiableMap(
+                    new java.util.LinkedHashMap<String, String>(methods));
+            ambiguousMethods = Collections.unmodifiableSet(new HashSet<String>(ambiguous));
+            result = stats;
+            cacheHit = reused;
+        }
+
+        ParsedDexIndex asCacheHit() {
+            return new ParsedDexIndex(dexCount, methodDexFiles, ambiguousMethods, result, true);
+        }
+
+        static ParsedDexIndex empty(int count) {
+            return new ParsedDexIndex(count, Collections.<String, String>emptyMap(),
+                    Collections.<String>emptySet(), new RoiDexKitExportReader.Result(0, 0, 0, 0, 0L),
+                    false);
+        }
+    }
+
+    private static ParsedDexIndex loadParsedDexIndex(final ClassLoader loader,
+            final DexKitBridge bridge, final int dexCount)
+            throws RoiDexKitExportReader.ExportException {
+        synchronized (DEX_INDEX_LOCK) {
+            ParsedDexIndex cached = PARSED_DEX_INDEX.get(loader);
+            if (cached != null && cached.dexCount == dexCount) return cached.asCacheHit();
+
+            final Map<String, String> methods = new java.util.LinkedHashMap<String, String>();
+            final Set<String> ambiguous = new HashSet<String>();
+            RoiDexKitExportReader.Result result = RoiDexKitExportReader.exportAndRead(
+                    new File("/data/data/com.deepseek.chat/cache/.deekseep_roi_dexkit"),
+                    dexCount,
+                    new RoiDexKitExportReader.Exporter() {
+                        @Override public void exportTo(String outputDirectory) {
+                            bridge.exportDexFile(outputDirectory);
+                        }
+                    },
+                    new RoiDexKitExportReader.DexConsumer() {
+                        @Override public void accept(File exportedFile,
+                                RoiDexFileReader.DexFile dex) throws Exception {
+                            for (RoiDexFileReader.ResolvedMethod method : dex.definedMethods) {
+                                String descriptor = method.declaringClassDescriptor
+                                        + "->" + method.name + method.prototypeDescriptor;
+                                if (ambiguous.contains(descriptor)) continue;
+                                String previousDex = methods.get(descriptor);
+                                if (previousDex == null) {
+                                    if (methods.size() + ambiguous.size()
+                                            >= MAX_PARSED_METHODS_PER_LOADER) {
+                                        throw new RoiDexKitExportReader.ExportException(
+                                                "parsed_method_count_out_of_bounds");
+                                    }
+                                    methods.put(descriptor, exportedFile.getName());
+                                } else {
+                                    methods.remove(descriptor);
+                                    ambiguous.add(descriptor);
+                                }
+                            }
+                        }
+                    });
+            ParsedDexIndex parsed = new ParsedDexIndex(
+                    dexCount, methods, ambiguous, result, false);
+            PARSED_DEX_INDEX.put(loader, parsed);
+            return parsed;
+        }
     }
 
     private static final class SerializerConstructorRef {
