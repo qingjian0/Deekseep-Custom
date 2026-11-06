@@ -843,6 +843,26 @@ final class OpenLocalApiGateway {
                     "parallel_tool_calls must be a boolean");
             return;
         }
+        boolean searchRequested = false;
+        if (rawTools != null) {
+            for (int i = 0; i < rawTools.length(); i++) {
+                JSONObject rawTool = rawTools.optJSONObject(i);
+                if (rawTool == null) {
+                    sendError(out, 400, "invalid_tool", "Every tools entry must be an object");
+                    return;
+                }
+                String type = rawTool.optString("type", "function").toLowerCase(java.util.Locale.US);
+                if (type.startsWith("web_search_") || "web_search".equals(type)) {
+                    searchRequested = true;
+                } else if (!"function".equals(type) && !"custom".equals(type)
+                        && !"namespace".equals(type) && !"shell".equals(type)
+                        && !"local_shell".equals(type) && !"apply_patch".equals(type)) {
+                    sendError(out, 400, "unsupported_tool_type",
+                            "Unsupported Responses tool type: " + type);
+                    return;
+                }
+            }
+        }
         OpenAiToolBridge.Plan toolPlan;
         try {
             toolPlan = OpenAiToolBridge.responsesPlan(
@@ -890,7 +910,7 @@ final class OpenLocalApiGateway {
         }
         z2.CompletionRequest completion = new z2.CompletionRequest(
                 requestId, model, "default", basePrompt, prompt,
-                "deepseek-reasoner".equals(model), false, maxTokens,
+                "deepseek-reasoner".equals(model), searchRequested, maxTokens,
                 toolPlan, null, true).withOutputTextFormat(format);
         z2.Backend current = backend;
         if (current == null || !current.isReady()) {
