@@ -4,7 +4,7 @@
 
 - Repository: `qingjian0/Deekseep-Custom`
 - Audited branch: `work/local-api-hybrid-api`
-- Audited source revision: `c355e27a13d88766abe51e58861cde1564ff94a1`
+- Audited source revision: `e87b592b3de6009ff096af644cc6da90c59ab698`
 - Host target: official DeepSeek Android mainland 2.7.2, `versionCode=289`
 - Build edition: Open
 - Stable branches `main` and `dev` are not modified by this work.
@@ -24,7 +24,7 @@ However, the Open native completion backend remains deliberately fail-closed. Th
 
 ## Verification status at audited revision
 
-GitHub Actions run [42203935002](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42203935002) completed successfully for this exact revision:
+The preceding baseline run [42203935002](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42203935002) completed successfully at `c355e27`. The current Chat usage changes are under validation in [run 42206172146](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42206172146), which was pending when this audit was refreshed. Do not treat the earlier green run as validation of the newer usage changes:
 
 - ROI fast audit (0.5): passed.
 - Source-only regression checks: passed.
@@ -78,6 +78,7 @@ Implemented:
 
 - `POST /v1/chat/completions`, text-only messages.
 - JSON and text/reasoning SSE deltas.
+- Non-stream estimated usage and optional SSE `stream_options.include_usage` usage chunks; estimates are explicitly marked `dsh_usage_estimated=true` because exact tokenizer counters are unavailable.
 - Non-stream function-tool request validation and tool-call handoff.
 - Assistant tool-call history and matching client tool-result validation.
 - `max_tokens` / `max_completion_tokens` validation and one-choice-only behavior.
