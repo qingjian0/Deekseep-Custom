@@ -431,13 +431,9 @@ final class OpenLocalApiGateway {
                 return;
             }
             if ("GET".equals(request.method) && "/v1/models".equals(request.path)) {
-                z2.Backend modelBackend = backend;
-                if (modelBackend == null || !modelBackend.isReady()) {
-                    sendError(out, 503, "model_not_ready",
-                            modelBackend == null ? "Model backend unavailable"
-                                    : modelBackend.readinessDetail());
-                    return;
-                }
+                // Model discovery describes the configured API surface, not live engine
+                // readiness. Keep it usable for client setup/diagnostics while completions
+                // independently return 503 until the native adapter is genuinely ready.
                 JSONObject model = new JSONObject().put("id", "deepseek-chat")
                         .put("object", "model").put("owned_by", "local");
                 JSONObject reasoner = new JSONObject().put("id", "deepseek-reasoner")
@@ -482,8 +478,25 @@ final class OpenLocalApiGateway {
                 return;
             }
             boolean stream = body.optBoolean("stream", false);
-            int maxTokens = body.optInt("max_tokens", 4096);
-            maxTokens = Math.max(128, Math.min(8192, maxTokens));
+            String maxTokenField = body.has("max_completion_tokens")
+                    ? "max_completion_tokens" : "max_tokens";
+            int maxTokens = 4096;
+            if (body.has(maxTokenField)) {
+                Object rawMaxTokens = body.opt(maxTokenField);
+                if (!(rawMaxTokens instanceof Number)) {
+                    sendError(out, 400, "invalid_max_tokens",
+                            maxTokenField + " must be an integer from 1 to 8192");
+                    return;
+                }
+                double numericMaxTokens = ((Number) rawMaxTokens).doubleValue();
+                if (numericMaxTokens < 1 || numericMaxTokens > 8192
+                        || numericMaxTokens != Math.rint(numericMaxTokens)) {
+                    sendError(out, 400, "invalid_max_tokens",
+                            maxTokenField + " must be an integer from 1 to 8192");
+                    return;
+                }
+                maxTokens = (int) numericMaxTokens;
+            }
             String requestId = "api-" + UUID.randomUUID();
             z2.CompletionRequest completion = new z2.CompletionRequest(
                     requestId, model, "default", prompt, prompt,
@@ -507,6 +520,9 @@ final class OpenLocalApiGateway {
                 }
                 JSONObject message = new JSONObject().put("role", "assistant")
                         .put("content", result.text);
+                if ("deepseek-reasoner".equals(model) && result.reasoning.length() > 0) {
+                    message.put("reasoning_content", result.reasoning);
+                }
                 JSONObject choice = new JSONObject().put("index", 0).put("message", message)
                         .put("finish_reason", result.finishReason);
                 sendJson(out, 200, new JSONObject().put("id", requestId)
@@ -523,9 +539,9 @@ final class OpenLocalApiGateway {
         writeHeaders(out, 200, "text/event-stream; charset=utf-8");
         final AtomicBoolean disconnected = new AtomicBoolean(false);
         z2.DeltaSink sink = new z2.DeltaSink() {
-            private void send(String content) throws Exception {
-                if (disconnected.get()) return;
-                JSONObject delta = new JSONObject().put("content", content);
+            private void send(String field, String content) throws Exception {
+                if (disconnected.get() || content == null || content.length() == 0) return;
+                JSONObject delta = new JSONObject().put(field, content);
                 JSONObject choice = new JSONObject().put("index", 0).put("delta", delta)
                         .put("finish_reason", JSONObject.NULL);
                 JSONObject event = new JSONObject().put("id", requestId)
@@ -536,10 +552,13 @@ final class OpenLocalApiGateway {
                 synchronized (out) { out.write(bytes); out.flush(); }
             }
             @Override public boolean onText(String delta) throws Exception {
-                try { send(delta); return true; }
+                try { send("content", delta); return true; }
                 catch (Exception failure) { disconnected.set(true); return false; }
             }
-            @Override public boolean onReasoning(String delta) { return !disconnected.get(); }
+            @Override public boolean onReasoning(String delta) {
+                try { send("reasoning_content", delta); return !disconnected.get(); }
+                catch (Exception failure) { disconnected.set(true); return false; }
+            }
             @Override public boolean isCancelled() { return disconnected.get(); }
         };
         try {
