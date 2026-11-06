@@ -4,7 +4,7 @@ public final class RoiDexSerializerMapperTest {
     public static void main(String[] args)throws Exception {
         requestConstructorShape();directElementIndexMapping();checkCastSerializableElementMapping();
         dynamicSwitchElementIndexMapping();duplicateSwitchTargetRejected();
-        switchTargetWithAlternatePredecessorRejected();incompleteElementCoverageRejected();
+        switchTargetWithAlternatePredecessorRejected();incompleteElementCoverageRejected();duplicateElementIdentityRejected();
         System.out.println("RoiDexSerializerMapperTest: PASS");
     }
 
@@ -141,6 +141,27 @@ public final class RoiDexSerializerMapperTest {
                 index->method(index),twoElements(),provenance);
         yes(!result.complete);
         yes(hasRejection(result,"constructor_parameter_element_count_mismatch"));
+    }
+
+    static void duplicateElementIdentityRejected()throws Exception {
+        RoiDexCodeReader.CodeItem code=code(new short[]{
+                (short)0x0012,
+                (short)0x036e,1,(short)0x0032,
+                (short)0x010c,
+                (short)0x0270,2,(short)0x0014,
+                (short)0x000e
+        },5);
+        RoiDexValueProvenance.Result provenance=provenance(code,index->method(index));
+        java.util.List<RoiDexSerializerElementIndex.Element> values=
+                new java.util.ArrayList<RoiDexSerializerElementIndex.Element>();
+        values.add(new RoiDexSerializerElementIndex.Element(0,0,1,"duplicate","LDescriptor;"));
+        values.add(new RoiDexSerializerElementIndex.Element(1,4,2,"duplicate","LDescriptor;"));
+        RoiDexSerializerElementIndex.Result duplicateNames=new RoiDexSerializerElementIndex.Result(
+                values,java.util.Collections.<RoiDexSerializerElementIndex.Rejected>emptyList(),true);
+        RoiDexSerializerMapper.Result result=RoiDexSerializerMapper.analyze(code,"Lx;",
+                index->method(index),duplicateNames,provenance);
+        yes(!result.complete);
+        yes(hasRejection(result,"serializer_element_identity_ambiguous"));
     }
 
     static RoiDexValueProvenance.Result provenance(RoiDexCodeReader.CodeItem code,
