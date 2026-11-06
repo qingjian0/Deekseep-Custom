@@ -25,13 +25,14 @@ grep -Fq -- '-keep class ds.dsh.DeepSeek.** { *; }' "$ROOT/compose-launcher/app/
 grep -Fq 'android:name="ds.dsh.DeepSeek.z21"' "$COMPOSE_MANIFEST"
 grep -Fq 'android:enabled="${localApiComponentEnabled}"' "$COMPOSE_MANIFEST"
 
-python - "$GATEWAY" "$LOCAL_API_UI" "$BUILD_GRADLE" "$ROOT/module-kotlin-runtime/src/main/java/ds/dsh/DeepSeek/LocalApiResponseStateStore.java" <<'PY'
+python - "$GATEWAY" "$LOCAL_API_UI" "$BUILD_GRADLE" "$ROOT/module-kotlin-runtime/src/main/java/ds/dsh/DeepSeek/LocalApiResponseStateStore.java" "$ROOT/module-kotlin-runtime/src/main/java/ds/dsh/DeepSeek/LocalApiHttpRequestParser.java" <<'PY'
 import pathlib
 import sys
 
 source = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
 build_gradle = pathlib.Path(sys.argv[3]).read_text(encoding="utf-8")
 state_store = pathlib.Path(sys.argv[4]).read_text(encoding="utf-8")
+parser = pathlib.Path(sys.argv[5]).read_text(encoding="utf-8")
 if '(!protectedDistribution || localApiIncluded).toString()' not in build_gradle:
     raise SystemExit("Open builds must enable the declared Local API companion components")
 required = {
@@ -208,16 +209,16 @@ if missing_ui:
     raise SystemExit("Missing local API UI contract: " + ", ".join(missing_ui))
 overlay = (pathlib.Path(sys.argv[1]).parent / "LocalApiFloatingOverlay.java").read_text(encoding="utf-8")
 gateway_checks = {
-    "HTTP method and header names use RFC token validation": "!isHttpToken(first[0])" in source and "!isHttpToken(name)" in source,
-    "chunked transfer encoding is restricted to HTTP/1.1": "Transfer encoding requires HTTP/1.1" in source,
-    "Content-Length accepts decimal digits only": "!isDecimalDigits(contentLength)" in source,
-    "chunk sizes accept hexadecimal digits only": "!isHexDigits(sizeText)" in source,
-    "HTTP header names reject surrounding whitespace": 'substring(0,colon)\n                    .toLowerCase' in source,
-    "chunk-size tokens are not whitespace-trimmed": 'sizeLine.substring(0, extension) : sizeLine;' in source,
-    "HTTP request lines require exact single-space separators": 'lines[0].split(" ", -1)' in source and 'lines[0].trim().split' not in source,
-    "HTTP request targets reject embedded control whitespace": "!isRequestTarget(first[1])" in source and "c <= 0x20 || c >= 0x7f" in source,
-    "HTTP headers reject control characters": "!isHttpFieldValue(rawValue)" in source,
-    "HTTP trailers validate field names and values": "!isHttpToken(name) || !isHttpFieldValue(trailerValue)" in source,
+    "HTTP method and header names use RFC token validation": "!isHttpToken(first[0])" in parser and "!isHttpToken(name)" in parser,
+    "chunked transfer encoding is restricted to HTTP/1.1": "Transfer encoding requires HTTP/1.1" in parser,
+    "Content-Length accepts decimal digits only": "!isDecimalDigits(contentLength)" in parser,
+    "chunk sizes accept hexadecimal digits only": "!isHexDigits(sizeText)" in parser,
+    "HTTP header names reject surrounding whitespace": 'substring(0,colon)\n                    .toLowerCase' in parser,
+    "chunk-size tokens are not whitespace-trimmed": 'sizeLine.substring(0, extension) : sizeLine;' in parser,
+    "HTTP request lines require exact single-space separators": 'lines[0].split(" ", -1)' in parser and 'lines[0].trim().split' not in parser,
+    "HTTP request targets reject embedded control whitespace": "!isRequestTarget(first[1])" in parser and "c <= 0x20 || c >= 0x7f" in parser,
+    "HTTP headers reject control characters": "!isHttpFieldValue(rawValue)" in parser,
+    "HTTP trailers validate field names and values": "!isHttpToken(name) || !isHttpFieldValue(trailerValue)" in parser,
     "model discovery is not blocked by engine readiness": (
         source.index('if ("GET".equals(request.method) && "/v1/models".equals(request.path)) {')
         < source.index("Model discovery describes the configured API surface")
@@ -274,10 +275,10 @@ gateway_checks = {
     "HTTP error type matches authentication and server status": 'status >= 500 ? "server_error"' in source and 'status == 401 ? "authentication_error"' in source and 'status == 403 ? "permission_error"' in source,
     "gateway preserves structured upstream HTTP errors": "sendError(out, rejected.status, rejected.code, rejected.type" in source,
     "null upstream result returns 502": '"empty_upstream_response"' in source,
-    "HTTP query strings do not break endpoint routing": "int queryStart = path.indexOf('?');" in source,
-    "HTTP request line validates version and token count": 'first.length != 3' in source and '"HTTP/1.1".equals(first[2])' in source,
-    "chunk parser uses a valid tab character literal": "value != '\\t'" in source,
-    "duplicate HTTP headers are rejected": "headers.containsKey(name)" in source,
+    "HTTP query strings do not break endpoint routing": "int queryStart = path.indexOf('?');" in parser,
+    "HTTP request line validates version and token count": 'first.length != 3' in parser and '"HTTP/1.1".equals(first[2])' in parser,
+    "chunk parser uses a valid tab character literal": "value != '\\t'" in parser,
+    "duplicate HTTP headers are rejected": "headers.containsKey(name)" in parser,
     "malformed HTTP requests receive an explicit 400/413 response": 'sendError(out, status, status == 413 ? "request_too_large"' in source,
     "Content-Type media type is compared exactly": 'contentType.split(";", 2)[0].trim()' in source and '"application/json".equalsIgnoreCase(mediaType)' in source,
     "non-JSON request bodies receive 415": 'sendError(out, 415, "unsupported_media_type"' in source,
