@@ -198,9 +198,10 @@ Run `41649071834` 是较早阶段的绿色基线。最新完整绿色 CI 为 [Ru
 
 ### 8.5 探针调度与 2.7.2 国际版识别修正（2026-11-03）
 
-- Open 版只在 Local API 显式启用后调度宿主结构探针。
-- 新增 `OpenNativeCompletionProbe.scheduleHostInspection()`，通过原子标志保证只调度一次，并在 daemon worker 上执行，避免 DEX 全量扫描占用 Activity/startup 调用线程。
-- 探针仍只输出结构签名与扫描计数，不实例化宿主类、不调用候选宿主方法、不读取对象字段值。尚无真机耗时数据，不宣称已测得启动提速。
+- Open 原生适配诊断默认关闭；Local API 开关不再自动授权诊断扫描或运行时观察 Hook。
+- Local API 页面新增独立的“启用原生适配诊断探针”开关；只有显式开启后，才调度 `OpenNativeCompletionProbe.scheduleHostInspection()` 并允许 code289 的只读调用边界观察。
+- 诊断开关关闭后，已安装的观察包装器在每次调用入口立即透传，原方法仍 exactly-once，且不再记录观察事件。
+- DEX inventory 仍只输出结构签名与扫描计数，不实例化宿主类、不调用候选宿主方法、不读取对象字段值。尚无真机耗时数据，不宣称已测得启动提速。
 - 修复 2.7.2 Google Play / 国际版 code290 渠道识别：保留私有 `googlePlay` 作为旧 2.3.x 符号映射选择器；`isGooglePlay()` 保留为旧混淆映射渠道选择器；新增 `isInternationalChannel()` 返回 `googlePlay || isIntl27()`。渠道诊断及仅限国内版的隐藏提示词功能使用实际渠道判断，旧映射分支继续使用原选择器，避免 code290 被误导入旧 Google Play 混淆表。
 - `module/test-native-adapter-fail-closed.sh` 与 `module/test-hostmap-regression.sh` 已增加对应源码回归保护。
 
