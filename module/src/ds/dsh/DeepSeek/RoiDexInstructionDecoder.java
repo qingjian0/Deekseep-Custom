@@ -34,9 +34,9 @@ public final class RoiDexInstructionDecoder {
                 regs=checked(new int[]{(first>>>8)&15,(first>>>12)&15},registerCount); ref=u(code[offset+1]); break;
             case 0x6e: case 0x6f: case 0x70: case 0x71: case 0x72:
                 width=3; require(code,offset,width);
-                int count=(first>>>8)&15, packed=u(code[offset+2]);
+                int count=(first>>>12)&15, packed=u(code[offset+2]);
                 if(count>5)throw new DecodeException("invoke_35c_argument_count");
-                int[] all={packed&15,(packed>>>4)&15,(packed>>>8)&15,(packed>>>12)&15,(first>>>12)&15};
+                int[] all={packed&15,(packed>>>4)&15,(packed>>>8)&15,(packed>>>12)&15,(first>>>8)&15};
                 regs=new int[count]; System.arraycopy(all,0,regs,0,count); regs=checked(regs,registerCount);
                 ref=u(code[offset+1]); break;
             case 0x74: case 0x75: case 0x76: case 0x77: case 0x78:
