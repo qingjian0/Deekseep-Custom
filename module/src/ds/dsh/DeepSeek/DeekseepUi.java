@@ -3403,21 +3403,27 @@ public final class DeekseepUi {
                 }, "Deekseep-Whitelist").start();
             }
         });
-        protocolValue.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                showProtocolPicker(act, new Runnable() {
-                    @Override public void run() {
-                        protocolValue.setText(localApiProtocolDisplayName() + "  \u203A");
-                        protocolDescription.setText(UiLanguage.dynamic(act, localApiProtocolDescription()));
-                        agentHelp.setText(UiLanguage.dynamic(act, localApiAgentHelp()));
-                        connectionInfo.setText(UiLanguage.dynamic(act, Main.localApiConnectionInfo()));
-                        runtime.setText(UiLanguage.dynamic(act, Main.localApiRuntimeStatus()));
-                        feedback.setText(UiLanguage.dynamic(act,
-                                "已切换为 " + localApiProtocolDisplayName() + " 格式"));
-                    }
-                });
-            }
-        });
+        if ("Open".equals(BuildInfo.BUILD_EDITION)) {
+            protocolValue.setText("OpenAI（仅 Chat Completions）");
+            protocolValue.setClickable(false);
+            protocolValue.setAlpha(0.72f);
+        } else {
+            protocolValue.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    showProtocolPicker(act, new Runnable() {
+                        @Override public void run() {
+                            protocolValue.setText(localApiProtocolDisplayName() + "  \u203A");
+                            protocolDescription.setText(UiLanguage.dynamic(act, localApiProtocolDescription()));
+                            agentHelp.setText(UiLanguage.dynamic(act, localApiAgentHelp()));
+                            connectionInfo.setText(UiLanguage.dynamic(act, Main.localApiConnectionInfo()));
+                            runtime.setText(UiLanguage.dynamic(act, Main.localApiRuntimeStatus()));
+                            feedback.setText(UiLanguage.dynamic(act,
+                                    "已切换为 " + localApiProtocolDisplayName() + " 格式"));
+                        }
+                    });
+                }
+            });
+        }
         copyUrl.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 String baseUrl = z2.PROTOCOL_ANTHROPIC.equals(Main.localApiProtocol())
