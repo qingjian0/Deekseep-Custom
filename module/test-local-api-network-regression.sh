@@ -95,6 +95,8 @@ if "stopSelf()" in timeout_block or "putBoolean(KEY_REQUESTED, false)" in timeou
     raise SystemExit("Missing host heartbeat must not disable the user-requested keeper after boot")
 if "前台服务继续重试心跳" not in timeout_block:
     raise SystemExit("Missing host heartbeat must retain and retry the foreground keeper")
+if main.index("String error = HookAccountLoginSecurity.localApiKeepAliveError;") > main.index("if (age >= 0L && age <= 15_000L)"):
+    raise SystemExit("Foreground keepalive errors must take precedence over a recent stale heartbeat")
 if "15 秒内未收到 DeepSeek 心跳确认" not in main or "sinceLaunch > 15_000L" not in main:
     raise SystemExit("Keepalive status must fail visibly when launch has no host heartbeat acknowledgement")
 if "最近心跳已过期" not in main or "age > 15_000L" not in main:
