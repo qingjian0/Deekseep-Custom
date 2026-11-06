@@ -44,8 +44,8 @@ def main() -> int:
                 raise ValueError(f"ZIP CRC failure: {bad_member}")
             names = archive.namelist()
             dex_names = sorted(
-                (name for name in names if re.fullmatch(r"classes(?:[2-9][0-9]*)?\\.dex|classes\\.dex", name)),
-                key=lambda name: 1 if name == "classes.dex" else int(re.search(r"(\\d+)", name).group(1)),
+                (name for name in names if re.fullmatch(r"classes(?:[0-9]+)?\.dex", name)),
+                key=lambda name: 1 if name == "classes.dex" else int(re.search(r"(\d+)", name).group(1)),
             )
             if not dex_names or "AndroidManifest.xml" not in names:
                 raise ValueError("APK must contain AndroidManifest.xml and at least one root classes*.dex")
@@ -55,7 +55,7 @@ def main() -> int:
             dex_records = []
             for name in dex_names:
                 payload = archive.read(name)
-                if len(payload) < 112 or payload[:4] != b"dex\\n":
+                if len(payload) < 112 or payload[:4] != b"dex\n":
                     raise ValueError(f"invalid DEX header: {name}")
                 target = dex_dir / name
                 target.write_bytes(payload)
@@ -107,7 +107,7 @@ def main() -> int:
         ],
     }
     (args.out / "intake-report.json").write_text(
-        json.dumps(report, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8"
+        json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
     print(json.dumps(report, indent=2, ensure_ascii=False))
     return 0
