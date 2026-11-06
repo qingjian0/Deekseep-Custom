@@ -79,6 +79,14 @@ if 'localApiFloatingWindowError = "";' not in security:
     raise SystemExit("Missing independent floating-window error storage")
 if 'localApiFloatingWindowError = "小窗保活启动失败：" + safeThrowableMessage(error);' not in main:
     raise SystemExit("Floating-window launch failure is not stored independently")
+service = (pathlib.Path(sys.argv[1]).parent / "z21.java").read_text(encoding="utf-8")
+timeout_start = service.index("if (startedElapsed > 0L && now - startedElapsed >= ACK_TIMEOUT_MS")
+timeout_end = service.index("try {\n                Intent ping", timeout_start)
+timeout_block = service[timeout_start:timeout_end]
+if "stopSelf()" in timeout_block or "putBoolean(KEY_REQUESTED, false)" in timeout_block:
+    raise SystemExit("Missing host heartbeat must not disable the user-requested keeper after boot")
+if "前台服务继续重试心跳" not in timeout_block:
+    raise SystemExit("Missing host heartbeat must retain and retry the foreground keeper")
 if "15 秒内未收到 DeepSeek 心跳确认" not in main or "sinceLaunch > 15_000L" not in main:
     raise SystemExit("Keepalive status must fail visibly when launch has no host heartbeat acknowledgement")
 if "最近心跳已过期" not in main or "age > 15_000L" not in main:
