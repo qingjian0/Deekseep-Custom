@@ -36,6 +36,15 @@ Status: In progress; not a release acceptance report.
 - Added text-only Responses SSE lifecycle (`response.created`, `response.in_progress`, output/content events, `response.completed`); tool-bearing streaming is rejected explicitly.
 - Added bounded in-memory `previous_response_id` continuation state: up to 64 responses, 30-minute TTL, 256 KiB transcript cap, and automatic loss on service restart. Function/custom tool call IDs remain pending until matching tool outputs arrive.
 
+## Native adapter investigation update
+
+- Analyzed four non-empty code289 schema-4 runtime logs plus one API-validation-only log.
+- Confirmed the observed host path enters zn3.o and then jw3.g with the same ly1 request instance; both return y60, whose b(fl4, yb3) continuation is entered asynchronously.
+- Recorded the observed ly1 field shape and callback class/payload-type families without exposing field values or message content.
+- Added a schema-7 diagnostic extension: inventory ly1 constructors and the observed request-factory stack methods (mw1.y/e, jr2.y/m, mr2.h); capture at most 16 constructor argument class/field-shape events.
+- The diagnostic extension remains Open/code289-only, explicit-toggle-only, bounded, and transparent to host behavior. It does not invoke transport candidates or capture argument/field values.
+- The log evidence still does not establish request field semantics, Challenge/PoW preparation, Flow terminal semantics, or successful user-visible generation.
+
 ## Not yet completed
 
 - OpenAI Responses endpoint is implemented for text JSON/SSE and non-streaming function/custom tool handoff; `previous_response_id` uses bounded in-memory state (64 entries, 30-minute TTL, 256 KiB transcript cap, cleared on stop/restart); streamed tool calls remain unsupported.
@@ -61,7 +70,7 @@ Status: In progress; not a release acceptance report.
 
 ## Next parallel batch
 
-1. Close code289 request construction and Challenge/PoW using exact APK/device evidence; do not infer constructors or field semantics from obfuscated names.
+1. Build and install the schema-7 diagnostic build, then capture a fresh ordinary generation to identify the actual ly1 constructor/factory and argument-shape mapping; do not infer field semantics from obfuscated names.
 2. Verify the zn3/jw3 transport call and y60 Flow collection contract, then decode callback events and cancellation.
 3. Add a fake-backend JVM harness for Chat/Responses, HTTP framing, tool continuation, SSE, and session isolation.
 4. Implement Anthropic Messages only after the OpenAI adapter and fake-backend suite are stable.
