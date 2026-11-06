@@ -146,6 +146,7 @@ gateway_checks = {
     "max_completion_tokens alias is supported": 'body.has("max_completion_tokens")' in source,
     "max_tokens values are validated instead of silently clamped": 'numericMaxTokens != Math.rint(numericMaxTokens)' in source and '"invalid_max_tokens"' in source,
     "reasoning is returned in non-stream completions": 'message.put("reasoning_content", result.reasoning)' in source,
+    "SSE text sink propagates client disconnect cancellation": 'send("content", delta); return !disconnected.get();' in source,
     "reasoning deltas are emitted in SSE": 'send("reasoning_content", delta)' in source,
     "text deltas are emitted in SSE": 'send("content", delta)' in source,
     "plain text and text-part message content are supported": "private static String messageText(Object content)" in source and '"input_text".equals(type)' in source,
