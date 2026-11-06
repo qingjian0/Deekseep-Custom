@@ -583,3 +583,14 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 仍保留 48,000 字符运行轨迹缓冲区和有限详细事件样本，避免高频回调导致无界内存增长。聚合统计仅覆盖成功安装观察器的方法；未发现、未安装或超过硬上限的方法不会被伪称为已覆盖。
 - 仍不读取回调参数值、字段值、Prompt、响应正文、Cookie、Authorization 或凭据；观察器仍只透传原方法一次。
 - 本轮变更提交：`9554046a`、`86a7cd76`、`73cf7529`、`3dde2c96`。待对应 CI 和 Android 构建验证；未发布 APK，未宣称真机验证。
+
+
+### 2026-11-06：Open 完整诊断取消回调采集数量上限（schema 4）
+
+- 按用户确认，取消回调诊断的固定类数、方法检查数、Hook 安装数和详细事件数上限；遍历每个回调实现类及其完整父类层级，检查并尝试 Hook 全部符合安全过滤条件的实例方法。
+- 每次回调进入、正常返回和抛出异常均写入完整事件日志；逐方法 invocation、failure、total/max/average latency 聚合统计继续保留，计数器改为 64 位。
+- 新增应用私有目录持久化日志：`files/dsh_open_native_diagnostics/open-native-<sessionEpochMs>.log`。每条事件直接追加并 flush 到文件；内存中的 48,000 字符缓冲区仅作为 UI 预览，不再是完整采集数据源。报告会显示持久化日志路径。
+- 诊断报告 schema 升级到 4。若应用私有文件不可用，报告会显示 `callbackPersistentLog=unavailable`，不能将该轮称为完整持久化采集。
+- 安全边界：仍然只观察真实发现的回调对象；排除 static、abstract、bridge、equals/hashCode/toString；不读取参数值、字段值、Prompt、响应正文或凭据；原始方法仍只透传执行一次。
+- 取舍说明：无数量上限意味着诊断文件会持续增长，且同步落盘会增加回调路径开销。仅在用户主动开启诊断时运行；采集结束后应关闭开关。未设置自动删除或文件大小上限，避免静默丢失用户要求的完整事件。
+- 本轮代码提交：`6bc61c67`、`9eb47b01`、`e7cccd73`。待 CI / Android 构建验证，未发布 APK，未声称已完成真机验证。
