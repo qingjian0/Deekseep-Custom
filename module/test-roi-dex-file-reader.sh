@@ -29,7 +29,7 @@ javac -source 8 -target 8 -nowarn -d "$OUT" \
  "$ROOT/module/tests/roidexinvokeresult/ds/dsh/DeepSeek/RoiDexInvokeResultLinkerTest.java" \
  "$ROOT/module/tests/roidexprovenance/ds/dsh/DeepSeek/RoiDexValueProvenanceTest.java" \
  "$ROOT/module/tests/roidexserializer/ds/dsh/DeepSeek/RoiDexSerializerElementIndexTest.java" \
- "$ROOT/module/tests/roidexserializermapper/ds/dsh/DeepSeek/RoiDexSerializerMapperTest.java"
+ "$ROOT/module/tests/roidexserializermapper/ds/dsh/DeepSeek/RoiDexSerializerMapperTest.java" \
  "$ROOT/module/tests/roidexserializerpipeline/ds/dsh/DeepSeek/RoiDexSerializerPipelineTest.java"
 java -cp "$OUT" ds.dsh.DeepSeek.RoiDexInstructionDecoderTest
 java -cp "$OUT" ds.dsh.DeepSeek.RoiDexInvokeResultLinkerTest
