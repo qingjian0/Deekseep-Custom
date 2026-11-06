@@ -133,7 +133,7 @@ public final class RoiDexValueProvenanceTest {
                 (short)0x0270,1,(short)0x0012,
                 (short)0x000e
         },3);
-        RoiDexValueProvenance.Trace trace=trace(code,"()Ljava/lang/Object;","(Lx;)V",i->"Lx;",8,1);
+        RoiDexValueProvenance.Trace trace=trace(code,"()Ljava/lang/Object;","(Lx;)V",i->"Lx;",7,1);
         yes(trace.unique);eq("Lx;",trace.effectiveTypeDescriptor);
         eq(3,trace.instructionOffsets.length);
     }
