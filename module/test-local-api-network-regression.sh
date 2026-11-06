@@ -103,7 +103,7 @@ if "power.isIgnoringBatteryOptimizations(TARGET)" not in main or "power.isIgnori
     raise SystemExit("Battery policy must be checked independently for host and module service packages")
 if "moduleDozeExempt" not in main or "hostDozeExempt" not in main:
     raise SystemExit("Keepalive background status must report host and module battery policy separately")
-if "EXTRA_NOTIFICATION_ENABLED" not in service or "areNotificationsEnabled()" not in service:
+if "EXTRA_NOTIFICATION_ENABLED" not in service or "areNotificationsEnabled()" not in service or "getNotificationChannel(CHANNEL_ID)" not in service or "NotificationManager.IMPORTANCE_NONE" not in service:
     raise SystemExit("Foreground keeper must report module notification permission")
 if "localApiKeepAliveNotificationEnabled" not in security or "notificationWarning" not in main:
     raise SystemExit("Host UI must surface missing module notification permission")
