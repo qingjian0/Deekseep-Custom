@@ -79,6 +79,10 @@ if 'localApiFloatingWindowError = "";' not in security:
     raise SystemExit("Missing independent floating-window error storage")
 if 'localApiFloatingWindowError = "小窗保活启动失败：" + safeThrowableMessage(error);' not in main:
     raise SystemExit("Floating-window launch failure is not stored independently")
+if "15 秒内未收到 DeepSeek 心跳确认" not in main or "sinceLaunch > 15_000L" not in main:
+    raise SystemExit("Keepalive status must fail visibly when launch has no host heartbeat acknowledgement")
+if "最近心跳已过期" not in main or "age > 15_000L" not in main:
+    raise SystemExit("Keepalive status must detect stale host heartbeat")
 if "power.isIgnoringBatteryOptimizations(TARGET)" not in main or "power.isIgnoringBatteryOptimizations(SELF)" not in main:
     raise SystemExit("Battery policy must be checked independently for host and module service packages")
 if "moduleDozeExempt" not in main or "hostDozeExempt" not in main:
