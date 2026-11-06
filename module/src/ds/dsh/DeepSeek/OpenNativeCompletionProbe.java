@@ -7,6 +7,8 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileInputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -1047,6 +1049,28 @@ final class OpenNativeCompletionProbe {
         } catch (Throwable ignored) {}
     }
 
+    private static String readCompleteSessionLog() {
+        File file = SESSION_LOG_FILE;
+        if (file == null || !file.isFile()) return null;
+        FileInputStream input = null;
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try {
+            input = new FileInputStream(file);
+            byte[] buffer = new byte[16 * 1024];
+            int count;
+            while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+            return new String(output.toByteArray(), StandardCharsets.UTF_8);
+        } catch (VirtualMachineError fatal) {
+            throw fatal;
+        } catch (ThreadDeath fatal) {
+            throw fatal;
+        } catch (Throwable ignored) {
+            return null;
+        } finally {
+            if (input != null) try { input.close(); } catch (Throwable ignored) {}
+        }
+    }
+
     static String status() {
         String base = report;
         String summary = "\n[OPEN_NATIVE_DIAGNOSTIC_SUMMARY]\n"
@@ -1073,6 +1097,11 @@ final class OpenNativeCompletionProbe {
                     .append(" maxMs=").append(stats.maxNanos.get() / 1_000_000L)
                     .append(" avgUs=").append(count == 0 ? 0 : total / count / 1_000L)
                     .append('\n');
+        }
+        String completeLog = readCompleteSessionLog();
+        if (completeLog != null) {
+            return base + "\n[OPEN_NATIVE_PERSISTED_SESSION_LOG]\n"
+                    + completeLog + summary + callbackSummary;
         }
         synchronized (OBSERVATION_LOG_LOCK) {
             if (OBSERVATION_LOG.length() == 0) return base + summary + callbackSummary;
