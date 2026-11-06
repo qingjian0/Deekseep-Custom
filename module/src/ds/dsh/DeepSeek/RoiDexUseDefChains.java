@@ -1,5 +1,6 @@
 package ds.dsh.DeepSeek;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
@@ -31,6 +32,8 @@ public final class RoiDexUseDefChains {
         public final RoiDexReachingDefinitions.Definition[] reachingDefinitions;
         /** True means no modeled definition reaches this use; it may be a method-entry value. */
         public final boolean mayBeEntryOrUnknownValue;
+        /** True when conservative exception-flow reachability prevents entry-value attribution. */
+        public final boolean mayBeExceptionFlowUnknown;
         public final boolean reachableFromEntry;
         public final EntryValueKind entryValueKind;
         public final int entryParameterIndex;
@@ -38,7 +41,7 @@ public final class RoiDexUseDefChains {
 
         UseSite(int block, int offset, int opcode, int operand, int register,
                 RoiDexReachingDefinitions.Definition[] definitions,
-                boolean mayBeUnknown, boolean reachable,
+                boolean mayBeUnknown, boolean exceptionFlowUnknown, boolean reachable,
                 RoiDexMethodEntryLayout.EntryValue entryValue, boolean hasEntryLayout) {
             blockIndex = block;
             instructionOffset = offset;
@@ -47,9 +50,14 @@ public final class RoiDexUseDefChains {
             this.register = register;
             reachingDefinitions = definitions;
             mayBeEntryOrUnknownValue = mayBeUnknown;
+            mayBeExceptionFlowUnknown = mayBeUnknown && exceptionFlowUnknown;
             reachableFromEntry = reachable;
             if (!mayBeUnknown) {
                 entryValueKind = EntryValueKind.NONE;
+            } else if (mayBeExceptionFlowUnknown) {
+                // A handler may observe registers before or after any instruction in the
+                // protected block. Do not mislabel that value as a method-entry parameter.
+                entryValueKind = EntryValueKind.UNDEFINED_OR_UNKNOWN;
             } else if (entryValue != null) {
                 entryValueKind = entryValue.kind == RoiDexMethodEntryLayout.Kind.RECEIVER
                         ? EntryValueKind.RECEIVER : EntryValueKind.PARAMETER;
@@ -57,8 +65,10 @@ public final class RoiDexUseDefChains {
                 entryValueKind = hasEntryLayout ? EntryValueKind.UNDEFINED_OR_UNKNOWN
                         : EntryValueKind.UNMAPPED_ENTRY;
             }
-            entryParameterIndex = entryValue == null ? -1 : entryValue.parameterIndex;
-            entryDescriptor = entryValue == null ? null : entryValue.descriptor;
+            entryParameterIndex = entryValue == null || mayBeExceptionFlowUnknown
+                    ? -1 : entryValue.parameterIndex;
+            entryDescriptor = entryValue == null || mayBeExceptionFlowUnknown
+                    ? null : entryValue.descriptor;
         }
     }
 
@@ -92,6 +102,7 @@ public final class RoiDexUseDefChains {
             throw new AnalysisException("block_count_mismatch");
 
         boolean[][] definitelyIn = computeDefinitelyDefinedIn(flow, reaching);
+        boolean[] exceptionFlowReachable = exceptionFlowReachableBlocks(flow);
         if (entryLayout != null) validateEntryLayout(flow, entryLayout);
 
         Map<Long, RoiDexReachingDefinitions.Definition> definitionAt =
@@ -145,8 +156,8 @@ public final class RoiDexUseDefChains {
                     RoiDexMethodEntryLayout.EntryValue entryValue = entryLayout == null
                             ? null : entryLayout.atRegister(register);
                     sites.add(new UseSite(b, instruction.offset, instruction.opcode,
-                            operand, register, candidates, mayBeUnknown, reachable,
-                            entryValue, entryLayout != null));
+                            operand, register, candidates, mayBeUnknown,
+                            exceptionFlowReachable[b], reachable, entryValue, entryLayout != null));
                 }
 
                 for (int register : instruction.definitions) {
@@ -188,6 +199,49 @@ public final class RoiDexUseDefChains {
      * path from method entry defines it before the use. Entry parameters remain
      * unknown until a separate prototype/ins_size mapping is supplied.
      */
+    /**
+     * Marks blocks reachable from any exception handler. Because exception edges are
+     * block-level over-approximations, entry-register provenance must remain unknown
+     * along these paths until the register is definitely redefined.
+     */
+    private static boolean[] exceptionFlowReachableBlocks(
+            RoiDexRegisterFlowAnalyzer.Result flow) throws AnalysisException {
+        int blocks = flow.blocks.length;
+        @SuppressWarnings("unchecked")
+        List<Integer>[] successors = new List[blocks];
+        for (int i = 0; i < blocks; i++) successors[i] = new ArrayList<Integer>();
+        for (RoiDexInstructionScanner.Edge edge : flow.edges) {
+            if (edge.fromBlock < 0 || edge.fromBlock >= blocks
+                    || edge.toBlock < 0 || edge.toBlock >= blocks)
+                throw new AnalysisException("cfg_edge_out_of_bounds");
+            if (!successors[edge.fromBlock].contains(edge.toBlock))
+                successors[edge.fromBlock].add(edge.toBlock);
+        }
+        boolean[] reachable = new boolean[blocks];
+        ArrayDeque<Integer> queue = new ArrayDeque<Integer>();
+        for (RoiDexExceptionControlFlow.ExceptionEdge edge : flow.exceptionEdges) {
+            if (edge.fromBlock < 0 || edge.fromBlock >= blocks
+                    || edge.toBlock < 0 || edge.toBlock >= blocks)
+                throw new AnalysisException("exception_cfg_edge_out_of_bounds");
+            if (!successors[edge.fromBlock].contains(edge.toBlock))
+                successors[edge.fromBlock].add(edge.toBlock);
+            if (!reachable[edge.toBlock]) {
+                reachable[edge.toBlock] = true;
+                queue.addLast(edge.toBlock);
+            }
+        }
+        while (!queue.isEmpty()) {
+            int current = queue.removeFirst();
+            for (int next : successors[current]) {
+                if (!reachable[next]) {
+                    reachable[next] = true;
+                    queue.addLast(next);
+                }
+            }
+        }
+        return reachable;
+    }
+
     private static boolean[][] computeDefinitelyDefinedIn(
             RoiDexRegisterFlowAnalyzer.Result flow,
             RoiDexReachingDefinitions.Result reaching) throws AnalysisException {
