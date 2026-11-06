@@ -549,3 +549,13 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - HTTP 解析错误现在返回明确 400/413；非 JSON Content-Type 返回 415。支持 OpenAI text/input_text 文本片段数组；图片等非文本片段明确拒绝，不静默丢弃。
 - Open UI 的协议说明修正为真实能力边界：当前没有 Responses、Anthropic、Agent tools、多模态和 usage 支持，且原生 Completion Adapter 未接通；不再把 Closed 能力描述套用到 Open。
 - 以上为源码修改，等待 CI 与设备端请求验证；不表示真实 DeepSeek Completion 已可用。
+
+
+### 2026-11-06：Open 2.7.2 原生 Transport 实机调用证据与 continuation 诊断
+
+- 实机报告确认请求对象 `ly1 implements wu1`，实际调用顺序为 `zn3.o(wu1, Long) -> y60` 再进入 `jw3.g(wu1, Long) -> y60`；两层收到同一个请求对象，调用发生在 `main#2` 线程。
+- 两层均正常返回 `y60 implements el4`。当前证据只证明同步调用进入并返回异步包装对象，不证明请求已成功发出、响应已收到或模型内容已消费。
+- 已确认返回包装对象声明 `y60.b(fl4, yb3) -> Object`。新增显式诊断开关授权下的 pass-through continuation observer：在 Transport 返回后识别该精确两参数方法形状，记录回调参数类型、字段名称/类型、线程和调用栈，并原样执行一次 `chain.proceed()`；不读取字段值、不主动调用回调、不解析 prompt、凭据或响应内容。
+- 新增回归断言，约束 continuation observer 只记录类型/结构信息并保持原始执行路径。提交：`6ae02c49`（诊断实现）、`0ee0387b`（回归保护）。
+- 下一次实机采集重点为 `continuation-installed`、`continuation-enter`、`continuation-exit` / `continuation-throw`。若没有 enter，说明调用者没有走该方法或所选签名不匹配；若有 enter/exit，继续依据 callback 参数类型追踪事件消费边界。
+- 这仍是 opt-in 诊断探针，不是 Open Completion Adapter。未修改未知版本功能 Hook 授权，不调用 Closed 专用 `z18`，也不宣称 API 已可用。
