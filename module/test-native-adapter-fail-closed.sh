@@ -401,6 +401,16 @@ require(
 )
 require(
     probe,
+    r'installRuntimeObservation\(ClassLoader loader\).*?observerLog\("\\[OPEN_NATIVE_CALL_OBSERVER\\] setup failed',
+    "runtime observer setup and call events route through the bounded diagnostic buffer",
+)
+require(
+    probe,
+    r'private static void observerLog\(String message\).*?Main\.extLog\(message\)',
+    "only the observerLog mirror writes observer messages directly to the external log",
+)
+require(
+    probe,
     r'final Deque<String> callStack.*?Object rootRequest.*?boolean hasRootRequest',
     "runtime observer keeps only a thread-local call stack and opaque root request reference",
 )
