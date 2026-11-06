@@ -83,6 +83,7 @@ public final class z21 extends Service {
     private static volatile long lastAckElapsed;
     private static volatile boolean lastGatewayRunning;
     private static volatile String lastError = "";
+    private static volatile boolean hostAckTimeoutReported;
     private static volatile String lastConnectionInfo = "等待 DeepSeek 状态";
     private static volatile String lastRuntimeStatus = "尚未收到实时数据";
     private static volatile String lastApiKey = "";
@@ -176,10 +177,13 @@ public final class z21 extends Service {
                 // not acknowledged yet. On boot, MIUI/HyperOS may delay host process startup or
                 // delivery; disabling here made the keeper permanently stop after 90 seconds.
                 // Keep the explicitly requested foreground service alive and retry the heartbeat.
-                lastError = LocalApiFloatingOverlay.isRequested(z21.this)
-                        ? "DeepSeek 长时间未响应；小窗仍在等待连接，继续重试"
-                        : "DeepSeek 尚未确认保活；前台服务继续重试心跳";
-                Log.w(TAG, lastError);
+                if (!hostAckTimeoutReported) {
+                    hostAckTimeoutReported = true;
+                    lastError = LocalApiFloatingOverlay.isRequested(z21.this)
+                            ? "DeepSeek 长时间未响应；小窗仍在等待连接，继续重试"
+                            : "DeepSeek 尚未确认保活；前台服务继续重试心跳";
+                    Log.w(TAG, lastError);
+                }
             }
             try {
                 Intent ping = new Intent(ACTION_HEARTBEAT);
@@ -203,6 +207,8 @@ public final class z21 extends Service {
                 sendOrderedBroadcast(ping, null, new BroadcastReceiver() {
                     @Override public void onReceive(Context context, Intent intent) {
                         if (getResultCode() != Activity.RESULT_OK) return;
+                        hostAckTimeoutReported = false;
+                        lastError = "";
                         String state = getResultData();
                         lastAckElapsed = SystemClock.elapsedRealtime();
                         android.os.Bundle details = getResultExtras(false);
