@@ -160,7 +160,7 @@ final class OpenNativeCompletionProbe {
         try {
             line(out, "report.schema", "3");
             line(out, "diagnostic.coverage", "host-transport,y60-continuation,callback-implementations,local-api-gateway");
-            line(out, "diagnostic.sensitive_data", "prompt,response,credentials,cookies,authorization-not-collected");
+            line(out, "diagnostic.sensitive_data", "message-content,credentials,cookies,auth-headers-not-collected");
             line(out, "diagnostic.callback_event_limit", String.valueOf(MAX_CALLBACK_TRACE_EVENTS));
             Class<?> requestType = HostCompat.load(loader, "ew0");
             line(out, "edition", BuildInfo.BUILD_EDITION);
