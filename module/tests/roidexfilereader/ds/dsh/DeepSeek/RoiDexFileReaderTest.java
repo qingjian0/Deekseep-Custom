@@ -79,6 +79,13 @@ public final class RoiDexFileReaderTest {
   eq(0,m.methodIndex);eq("Lx;",m.declaringClassDescriptor);eq("run",m.name);
   eq("()V",m.prototypeDescriptor);
   if(!m.isStatic||!m.isDirect||m.codeItem!=null)throw new AssertionError("method flags/kind/code mismatch");
+  try {
+   RoiDexMethodAnalysis.analyze(m);
+   throw new AssertionError("method without code_item must not enter static flow analysis");
+  } catch(RoiDexMethodAnalysis.AnalysisException expected) {
+   if(!expected.getMessage().contains("method_code_item_missing"))
+    throw new AssertionError("unexpected missing-code failure: "+expected.getMessage());
+  }
  }
 
  static void testResolvedMethodEntryLayoutIntegration()throws Exception{
@@ -107,15 +114,21 @@ public final class RoiDexFileReaderTest {
   eq("(Lx;)V",method.prototypeDescriptor);
   RoiDexMethodEntryLayout.Result layout=method.methodEntryLayout();
   eq(1,layout.firstIncomingRegister);eq(1,layout.parameters[0].firstRegister);
-  RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(method.codeItem);
-  RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
-  RoiDexUseDefChains.Result chains=RoiDexUseDefChains.analyze(flow,reaching,layout);
+  RoiDexMethodAnalysis.Result analysis=RoiDexMethodAnalysis.analyze(method);
+  eq(0,analysis.methodIndex);eq("Lx;",analysis.declaringClassDescriptor);
+  eq("run",analysis.methodName);eq("(Lx;)V",analysis.prototypeDescriptor);
+  if(!analysis.isStatic||!analysis.isDirect||analysis.codeOffset==0)
+   throw new AssertionError("resolved method identity was not preserved");
+  if(!analysis.candidateEvidenceOnly||analysis.hookAuthorizationGranted)
+   throw new AssertionError("static analysis must never grant Hook authorization");
+  if(!analysis.exceptionEdgesIncluded||analysis.completeForExceptionFlow)
+   throw new AssertionError("exception-flow completeness must remain explicitly conservative");
   boolean mapped=false;
-  for(RoiDexUseDefChains.UseSite use:chains.uses)
+  for(RoiDexUseDefChains.UseSite use:analysis.useDefChains.uses)
    if(use.instructionOffset==0&&use.register==1)
     mapped=use.entryValueKind==RoiDexUseDefChains.EntryValueKind.PARAMETER
       &&use.entryParameterIndex==0&&"Lx;".equals(use.entryDescriptor);
-  if(!mapped)throw new AssertionError("resolved DEX method prototype did not map the code_item parameter use");
+  if(!mapped)throw new AssertionError("resolved method pipeline did not map the code_item parameter use");
  }
  static void testBadMagic()throws Exception{byte[] b=fixture(112);b[0]='x';bad(b);}
  static void testTruncated()throws Exception{bad(new byte[111]);}
