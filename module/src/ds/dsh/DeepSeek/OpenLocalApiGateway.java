@@ -498,6 +498,13 @@ final class OpenLocalApiGateway {
                 sendError(out, 400, "invalid_json", "Request body must be valid JSON");
                 return;
             }
+            if (body.has("tools") || body.has("tool_choice")
+                    || body.has("functions") || body.has("function_call")
+                    || body.has("parallel_tool_calls") || body.has("response_format")) {
+                sendError(out, 400, "unsupported_feature",
+                        "This Open gateway does not yet support tool calling or response_format");
+                return;
+            }
             String model = body.optString("model", "deepseek-chat").trim();
             if (!"deepseek-chat".equals(model) && !"deepseek-reasoner".equals(model)) {
                 String reportedModel = model.replace('\r', ' ').replace('\n', ' ');
