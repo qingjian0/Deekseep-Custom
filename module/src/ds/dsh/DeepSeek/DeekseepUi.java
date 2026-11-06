@@ -3525,10 +3525,15 @@ public final class DeekseepUi {
 
     private static String localApiProtocolDescription() {
         if ("Open".equals(BuildInfo.BUILD_EDITION)) {
-            return "Open 版当前仅提供基础 OpenAI Chat Completions HTTP 接入层："
+            return UiLanguage.text(
+                    "Open 版当前仅提供基础 OpenAI Chat Completions HTTP 接入层："
                     + "GET /v1/models、POST /v1/chat/completions；Base URL 以 /v1 结尾。"
                     + "注意：DeepSeek 原生 Completion Adapter 尚未接通，聊天请求当前返回 503。"
-                    + "Responses API、Anthropic Messages、工具调用和多模态尚未实现。";
+                    + "Responses API、Anthropic Messages、工具调用和多模态尚未实现。",
+                    "The Open build currently exposes only the basic OpenAI Chat Completions HTTP layer: "
+                    + "GET /v1/models and POST /v1/chat/completions with a /v1 base URL. "
+                    + "The native DeepSeek completion adapter is not connected, so chat requests return 503. "
+                    + "Responses, Anthropic Messages, tools, and multimodal input are not implemented.");
         }
         if (z2.PROTOCOL_ANTHROPIC.equals(Main.localApiProtocol())) {
             return "Anthropic 格式已选中。base URL 使用页面显示的本机或局域网根地址（不附加 /v1），"
@@ -3542,11 +3547,17 @@ public final class DeekseepUi {
 
     private static String localApiAgentHelp() {
         if ("Open".equals(BuildInfo.BUILD_EDITION)) {
-            return "Open 版当前可用模型名称：deepseek-chat、deepseek-reasoner。"
+            return UiLanguage.text(
+                    "Open 版当前可用模型名称：deepseek-chat、deepseek-reasoner。"
                     + "GET /v1/models 可用于检查网关和读取模型列表。"
                     + "POST /v1/chat/completions 的原生执行适配器尚未接通，当前会返回 503。"
                     + "Responses、Anthropic、Agent 工具调用、图片输入和 usage 统计尚未实现；"
-                    + "请勿把当前 Open 版配置为可工作的 Codex / Claude Code 后端。";
+                    + "请勿把当前 Open 版配置为可工作的 Codex / Claude Code 后端。",
+                    "Configured Open model IDs: deepseek-chat and deepseek-reasoner. "
+                    + "GET /v1/models checks the gateway and lists configured models. "
+                    + "The native execution adapter for POST /v1/chat/completions is not connected and returns 503. "
+                    + "Responses, Anthropic, Agent tools, image input, and usage accounting are unavailable. "
+                    + "Do not configure this Open build as a working Codex or Claude Code backend.");
         }
         String modelHelp = isClosedV236OrV241Feature() && !Main.isLocalApiLegacyModelRouteEnabled()
                 ? "模型名使用 deepseek-flash。"
