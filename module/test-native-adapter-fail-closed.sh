@@ -507,6 +507,13 @@ require(
 )
 require(
     probe,
+    r'callback-enter role=.*?"callback-0"\.equals\(role\).*?args != null && !args\.isEmpty\(\).*?arg0Shape=.*?observedObjectShape\(args\.get\(0\)\)',
+    "only the Flow collector callback captures shallow first-argument field names and types",
+)
+if re.search(r'\\bfield\\.get\\(', probe) or "args.get(0).toString()" in probe:
+    raise SystemExit("callback event diagnostics must never read or serialize argument field values")
+require(
+    probe,
     r'OBSERVED_CALLBACK_CLASSES\.putIfAbsent.*?OBSERVED_CALLBACK_CLASSES\.remove',
     "callback instrumentation is deduplicated and retries when no method can be hooked",
 )
@@ -516,7 +523,7 @@ if "callback.toString()" in probe or "receiver.toString()" in probe:
 require(
     probe,
     r'line\(out, "report\.schema", "5"\).*?diagnostic\.coverage.*?diagnostic\.sensitive_data.*?diagnostic\.callback_hook_limits.*?max-12-methods-per-class.*?no-superclass-traversal',
-    "schema 5 declares bounded concrete-callback hook coverage and persistent selected-method capture",
+    "schema 6 declares bounded concrete-callback and value-free event-shape capture",
 )
 require(
     probe,
@@ -530,7 +537,7 @@ require(
 )
 require(
     probe,
-    r'onExplicitEnable\(ClassLoader loader\).*?resetRuntimeTrace\(\).*?private static void resetRuntimeTrace\(\).*?OBSERVATION_LOG\.setLength\(0\).*?CALLBACK_METHOD_INVOCATIONS\.set\(0\).*?API_TRACE_EVENTS\.set\(0\).*?session-start schema=5',
+    r'onExplicitEnable\(ClassLoader loader\).*?resetRuntimeTrace\(\).*?private static void resetRuntimeTrace\(\).*?OBSERVATION_LOG\.setLength\(0\).*?CALLBACK_METHOD_INVOCATIONS\.set\(0\).*?API_TRACE_EVENTS\.set\(0\).*?session-start schema=6',
     "each explicit enable starts a clean report session without uninstalling transparent hooks",
 )
 require(
