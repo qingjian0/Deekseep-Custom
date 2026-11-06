@@ -14,7 +14,7 @@ class loader, native transport and PoW objects to become ready before accepting 
 
 | Method | Route | Status |
 |---|---|---|
-| GET | `/v1/models` | HTTP route implemented; returns 503 until the Open native adapter is connected |
+| GET | `/v1/models` | Returns the configured model IDs; does not imply native execution readiness |
 | POST | `/v1/chat/completions` | HTTP/JSON/SSE route implemented; returns 503 until the Open native adapter is connected |
 | POST | `/v1/responses` | Not implemented |
 | POST | `/v1/agent/run` | Not implemented |
@@ -29,18 +29,18 @@ unavailable rather than falsely advertising model readiness.
 - Disabled by default; the existing Local API enable switch is the opt-in.
 - Defaults to `127.0.0.1`. An explicit UI opt-in creates a second listener bound only to the currently detected `192.168.x.x` interface address; the original listener remains bound to `127.0.0.1`. The LAN listener also validates that the remote IPv4 source is in `192.168.0.0/16`. It never binds to `0.0.0.0`. Other private ranges, public IPv4, and IPv6 are rejected.
 - Uses a per-install cryptographically random Bearer token stored in the host app's private files directory. The token is rendered as `sk-` followed by 32 random bytes encoded with URL-safe Base64 (43 characters); the prefix is a format convention, not an assertion that the token belongs to DeepSeek's hosted API.
-- Legacy persisted tokens without the `sk-` prefix are replaced with a newly generated token on gateway startup. Custom tokens must use the same `sk-` + URL-safe token format.
+- Custom Bearer tokens accept 8–256 visible ASCII characters (no whitespace/control characters); the same validator is used when loading the persisted token, so custom keys survive process restart. Newly generated tokens retain the `sk-` prefix.
 - Supports token rotation from the existing Local API controls; rotation immediately replaces the in-memory and persisted credential.
 - Default port is 8765; the existing port setting persists a custom port in private preferences.
 - Accepts request bodies up to 1 MiB and prompt text up to 128 KiB.
 - Uses two active request workers and a bounded queue of eight requests.
 - Rejects chunked request bodies; clients must send Content-Length.
-- SSE writes deltas directly and suppresses reasoning deltas from the public content stream.
+- SSE writes text deltas as `content` and reasoning deltas as `reasoning_content`; non-stream reasoner responses also expose `reasoning_content`.
 - Does not persist prompts, completions, API tokens in logs, or tool arguments.
 
 ## Known limitations before release
 
-- No Responses API, Anthropic protocol, tools/function calling, image input, or audio input.
+- No Responses API, Anthropic protocol, tools/function calling, image/audio input, or usage accounting. Plain string and OpenAI `text` / `input_text` message parts are accepted; unsupported tool, response-format, image, and usage-streaming options are rejected explicitly rather than silently ignored.
 - LAN access is limited to `192.168.0.0/16`; it uses plain HTTP, so enable it only on a trusted Wi-Fi/LAN. No TLS, external tunnel, or remote port forwarding.
 - While LAN access is enabled, the gateway observes Android's default-network callbacks and re-reads the active network's link properties. It binds a replacement socket to the new exact `192.168.x.x` address before closing the previous listener; loss of an eligible address closes the LAN listener while preserving loopback. Callback registration or rebind failures are logged and do not stop the loopback API. Connection diagnostics expose the current LAN binding state and the exception class on bind failure.
 - The connection information reports the loopback Base URL as `http://127.0.0.1:<port>/v1`; the raw listener root remains an internal compatibility value.
@@ -50,7 +50,7 @@ unavailable rather than falsely advertising model readiness.
   connected.
 - Client disconnect is observed when the next stream write fails; a quiet upstream operation may
   continue until its request deadline.
-- The API response currently omits token usage and several optional OpenAI fields.
+- The API response currently omits token usage and several optional OpenAI fields. `max_tokens` and `max_completion_tokens` are validated as integers from 1 through 8192; invalid types/ranges return HTTP 400. Malformed HTTP requests return 400/413 and non-JSON request content types return 415.
 - Android build/CI and real-device verification are required before treating this as released.
 
 ## Verification levels
