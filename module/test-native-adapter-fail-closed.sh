@@ -574,6 +574,26 @@ require(
 if "apiTrace(\"prompt=" in gateway or "apiTrace(\"content=" in gateway:
     raise SystemExit("Local API diagnostics must never record prompt or response content")
 
+require(
+    gateway,
+    r'unsupportedFeature\(body\).*?stage=feature-validation.*?parameter=',
+    "gateway identifies the exact unsupported feature without logging request values",
+)
+require(
+    gateway,
+    r'JSONArray\) \|\| \(\(JSONArray\) tools\)\.length\(\) > 0.*?"none".equals\(toolChoice\)',
+    "empty tools arrays and tool_choice none are harmless defaults",
+)
+require(
+    gateway,
+    r'"none".equals\(functionCall\).*?Boolean\.FALSE\.equals\(parallel\)',
+    "empty legacy function selection and parallel_tool_calls false are harmless defaults",
+)
+require(
+    gateway,
+    r'!"text".equals\(format\.optString\("type", ""\)\).*?stream_options\.include_usage.*?Boolean\.FALSE\.equals\(includeUsage\)',
+    "text response format and include_usage false do not reject ordinary chat streaming",
+)
 print("Native probe bounded-retry regression checks passed")
 print("Native adapter fail-closed and read-only probe source checks passed")
 PY
