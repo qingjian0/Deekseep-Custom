@@ -597,3 +597,13 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 
 
 - 完整报告导出补充：复制诊断报告时会从应用私有 session log 读取全部文件内容并附入剪贴板文本；UI 说明已改为完整无数量上限采集，并明确磁盘增长和同步落盘开销。若日志文件创建/写入失败，状态会显示 `callbackPersistentLog=unavailable`，不得把内存预览误称为完整日志。
+
+### 2026-11-06：Open code289 五份持久化运行日志分析与回调观察范围修正
+
+- 从 `open-native-1793943324391.log` 至 `open-native-1793943712606.log` 五份仓库日志完成复核；其中四份包含真实 Transport / continuation / callback 运行事件，第一份包含 6 次 Local API 请求拒绝记录。
+- 动态确认 `zn3.o(wu1, Long) -> y60` 与 `jw3.g(wu1, Long) -> y60` 在真实请求中嵌套执行；同一请求对象跨越两层。`y60.b(fl4, yb3) -> Object` continuation 确实进入，观察到 `cr9`、`ec0`、`s5`、`qa`、`k41`、`x0` 等回调实现。
+- 观察到回调返回类型 `zgb`、continuation 返回类型 `cd3`，并观察到 `x0.y(Object)` 抛出 `us4`。日志没有 Throwable message / 完整堆栈，因此异常语义尚未确认。
+- 第一份 API 日志中的 6 次 400 均为 `unsupported_feature` / `feature-validation`：5 次因 `tools`，1 次因 `stream_options.include_usage`。这属于 Gateway 请求功能校验拒绝，不是 Native Transport 失败。
+- 真实日志暴露回调观察器沿父类链 Hook 会捕获大量无关调用（例如 `zb3.t()`），并造成高频同步落盘。已在独立分支 `fix/native-probe-concrete-callback-hooks` 将观察范围收窄为回调具体类自身声明的 1～2 参数非 void 方法，每类最多尝试 12 个方法，不遍历父类；持久化日志仍完整记录被选中方法的事件。
+- 诊断报告 schema 升级为 5，并同步更新 UI 文案和回归源码断言。此分支尚未合并到 `dev`，尚未触发 CI / Android 构建；当前修改只完成源码与静态契约核对。
+- 证据边界：上述日志证明运行时调用和回调观察器已工作，但不证明完整网络响应已解析、事件语义已确定或 Open Native Completion Adapter 已接通。Gateway 继续 fail-closed；未知版本默认只读，诊断开关默认关闭，功能 Hook 不自动授权。
