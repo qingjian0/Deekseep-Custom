@@ -848,7 +848,11 @@ final class OpenLocalApiGateway {
         JSONObject message = new JSONObject().put("id", requestId)
                 .put("type", "message").put("role", "assistant")
                 .put("model", normalized.model).put("content", content)
-                .put("stop_reason", stopReason).put("stop_sequence", JSONObject.NULL);
+                .put("stop_reason", stopReason).put("stop_sequence", JSONObject.NULL)
+                .put("usage", new JSONObject()
+                        .put("input_tokens", estimateAnthropicTokens(completion.prompt))
+                        .put("output_tokens", estimateAnthropicTokens(result.text))
+                        .put("dsh_usage_estimated", true));
         // The current z2.Backend contract does not expose tokenizer usage. Omit usage rather
         // than fabricate token counts; exact usage is a separate backend-contract extension.
         sendJson(out, 200, message);
@@ -890,7 +894,10 @@ final class OpenLocalApiGateway {
                 .put("message", new JSONObject().put("id", requestId)
                         .put("type", "message").put("role", "assistant")
                         .put("model", normalized.model).put("content", new JSONArray())
-                        .put("stop_reason", JSONObject.NULL).put("stop_sequence", JSONObject.NULL)));
+                        .put("stop_reason", JSONObject.NULL).put("stop_sequence", JSONObject.NULL)
+                        .put("usage", new JSONObject()
+                                .put("input_tokens", estimateAnthropicTokens(completion.prompt))
+                                .put("output_tokens", 0).put("dsh_usage_estimated", true))));
         sendAnthropicEvent(out, "ping", new JSONObject().put("type", "ping"));
         z2.DeltaSink sink = new z2.DeltaSink() {
             private boolean emitText(String delta) throws Exception {
@@ -935,7 +942,11 @@ final class OpenLocalApiGateway {
             sendAnthropicEvent(out, "message_delta",
                     new JSONObject().put("type", "message_delta")
                             .put("delta", new JSONObject().put("stop_reason", stopReason)
-                                    .put("stop_sequence", JSONObject.NULL)));
+                                    .put("stop_sequence", JSONObject.NULL))
+                            .put("usage", new JSONObject().put("output_tokens",
+                                    estimateAnthropicTokens(streamedText.length() > 0
+                                            ? streamedText.toString() : result.text))
+                                    .put("dsh_usage_estimated", true)));
             sendAnthropicEvent(out, "message_stop", new JSONObject().put("type", "message_stop"));
         } catch (Exception failure) {
             if (!disconnected.get()) {
@@ -945,6 +956,31 @@ final class OpenLocalApiGateway {
             }
         }
         if (!disconnected.get()) out.flush();
+    }
+
+    /**
+     * Rough protocol-compatible usage estimate only. DeepSeek's tokenizer is not exposed by
+     * z2.Backend; callers can distinguish these values through dsh_usage_estimated.
+     */
+    private static int estimateAnthropicTokens(String value) {
+        if (value == null || value.length() == 0) return 0;
+        int tokens = 0;
+        int asciiRun = 0;
+        for (int offset = 0; offset < value.length();) {
+            int codePoint = value.codePointAt(offset);
+            offset += Character.charCount(codePoint);
+            if (codePoint <= 0x7f && Character.isLetterOrDigit(codePoint)) {
+                asciiRun++;
+                continue;
+            }
+            if (asciiRun > 0) {
+                tokens += (asciiRun + 3) / 4;
+                asciiRun = 0;
+            }
+            if (!Character.isWhitespace(codePoint)) tokens++;
+        }
+        if (asciiRun > 0) tokens += (asciiRun + 3) / 4;
+        return tokens;
     }
 
     private static void sendAnthropicEvent(OutputStream out, String event,
