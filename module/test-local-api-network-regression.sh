@@ -138,6 +138,12 @@ gateway_checks = {
     "text deltas are emitted in SSE": 'send("content", delta)' in source,
     "plain text and text-part message content are supported": "private static String messageText(Object content)" in source and '"input_text".equals(type)' in source,
     "unsupported multimodal parts are rejected instead of silently discarded": '"Only text content parts are supported"' in source,
+    "port restart restores previous port after failure": "新端口启动失败，已恢复原端口" in source and "previousPort" in source,
+    "gateway preserves structured upstream HTTP errors": "sendError(out, rejected.status, rejected.code, rejected.type" in source,
+    "null upstream result returns 502": '"empty_upstream_response"' in source,
+    "HTTP query strings do not break endpoint routing": "int queryStart = path.indexOf('?');" in source,
+    "HTTP request line validates version and token count": 'first.length != 3' in source and '"HTTP/1.1".equals(first[2])' in source,
+    "duplicate HTTP headers are rejected": "headers.containsKey(name)" in source,
     "malformed HTTP requests receive an explicit 400/413 response": 'sendError(out, status, status == 413 ? "request_too_large"' in source,
     "non-JSON request bodies receive 415": 'sendError(out, 415, "unsupported_media_type"' in source,
 }
