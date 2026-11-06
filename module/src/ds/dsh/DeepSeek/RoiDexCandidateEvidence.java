@@ -171,7 +171,7 @@ public final class RoiDexCandidateEvidence {
             } catch (RoiDexInstructionDecoder.DecodeException error) {
                 int first = code.instructions[instruction.offset] & 0xffff;
                 int opcode = first & 0xff;
-                int argumentWords = (first >>> 8) & 0x0f;
+                int argumentWords = (first >>> 12) & 0x0f;
                 return new InvokeCollection(Collections.<String>emptyList(),
                         "invoke_decode_invalid:method=" + callerMethodIndex
                                 + ":offset=" + instruction.offset
