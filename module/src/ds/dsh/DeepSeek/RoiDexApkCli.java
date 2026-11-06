@@ -174,6 +174,10 @@ public final class RoiDexApkCli {
                         ? directCalleePriority.get(left) : 0;
                 int rightPriority = directCalleePriority.containsKey(right)
                         ? directCalleePriority.get(right) : 0;
+                if ("Lyu7;->O(Ljava/lang/String;Lorg/json/JSONObject;)V".equals(left))
+                    leftPriority += 10000;
+                if ("Lyu7;->O(Ljava/lang/String;Lorg/json/JSONObject;)V".equals(right))
+                    rightPriority += 10000;
                 if (leftPriority != rightPriority) return rightPriority - leftPriority;
                 return left.compareTo(right);
             }
