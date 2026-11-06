@@ -283,7 +283,7 @@ anthropic_required = {
     "Anthropic tool_use and tool_result IDs are correlated": 'pendingToolIds.remove(id)' in anthropic_adapter and 'pendingToolIds.add(id)' in anthropic_adapter,
     "Anthropic tool streaming is explicitly rejected": 'unsupported_streaming_tool_calls' in anthropic_adapter,
     "Anthropic JSON response returns content blocks": 'anthropicContent(result, calls)' in source and '.put("type", "tool_use")' in source,
-    "Anthropic thinking maps to thinking_delta": '"thinking_delta"' in source,
+    "Anthropic does not emit unsigned thinking blocks": '"type", "thinking"' not in source and "signature support, which is not implemented" in anthropic_adapter,
     "Anthropic text streaming maps to text_delta": '"text_delta"' in source,
     "Anthropic stream lifecycle emits message_stop": '"message_start"' in source and '"message_delta"' in source and '"message_stop"' in source,
     "Anthropic errors use the Anthropic error envelope": 'new JSONObject().put("type", "error")' in source and 'sendAnthropicError' in source,
@@ -301,7 +301,7 @@ if "原生执行适配器尚未接通" not in ui_open:
 hook = (pathlib.Path(sys.argv[1]).parent / "HookAccountLoginSecurity.java").read_text(encoding="utf-8")
 if 'if ("Open".equals(BuildInfo.BUILD_EDITION)) {' not in overlay or 'httpsSwitch = null;' not in overlay:
     raise SystemExit("Open floating overlay must hide unavailable HTTPS controls")
-if 'protocolValue.setClickable(false);' not in overlay or 'OpenAI（固定）' not in overlay:
+if 'protocolValue.setClickable(false);' not in overlay or 'OpenAI + Anthropic（固定）' not in overlay:
     raise SystemExit("Open floating overlay must keep the protocol fixed to OpenAI")
 if '!"Open".equals(BuildInfo.BUILD_EDITION)' not in hook or 'Open 版当前支持 HTTP + OpenAI / Anthropic Messages；HTTPS 暂不可用' not in hook:
     raise SystemExit("Open host control receiver must reject unsupported HTTPS/protocol changes")
