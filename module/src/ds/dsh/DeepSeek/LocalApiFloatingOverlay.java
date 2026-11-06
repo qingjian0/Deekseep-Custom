@@ -391,10 +391,19 @@ final class LocalApiFloatingOverlay {
         if (panel == null) return;
         updating = true;
         try {
-            boolean running = z21.gatewayRunning();
-            stateTitle.setText(running ? "监听正常" : z21.apiEnabled() ? "正在连接" : "服务已关闭");
-            stateTitle.setTextColor(running ? SUCCESS : z21.apiEnabled() ? WARNING : DANGER);
             long age = z21.heartbeatAgeMs();
+            boolean heartbeatFresh = age >= 0L && age <= 15_000L;
+            boolean running = z21.gatewayRunning() && heartbeatFresh;
+            String title = !z21.apiEnabled() ? "服务已关闭"
+                    : age < 0L ? "等待 DeepSeek 心跳"
+                    : !heartbeatFresh ? "保活异常"
+                    : running ? "监听正常" : "网关未启动";
+            stateTitle.setText(UiLanguage.text(app, title, title.equals("服务已关闭")
+                    ? "Service stopped" : title.equals("等待 DeepSeek 心跳")
+                    ? "Waiting for DeepSeek heartbeat" : title.equals("保活异常")
+                    ? "Keepalive failed" : title.equals("监听正常")
+                    ? "Listening" : "Gateway stopped"));
+            stateTitle.setTextColor(running ? SUCCESS : z21.apiEnabled() ? WARNING : DANGER);
             if (age < 0) {
                 stateDetail.setText("等待 DeepSeek 心跳");
             } else if (z21.hasV241PortDetails()) {
