@@ -1736,6 +1736,24 @@ final class OpenLocalApiGateway {
         return value != null && value.matches("[!#$%&'*+.^_`|~0-9A-Za-z-]+");
     }
 
+    private static boolean isHttpFieldValue(String value) {
+        if (value == null) return false;
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if ((c < 0x20 && c != '\t') || c == 0x7f) return false;
+        }
+        return true;
+    }
+
+    private static boolean isRequestTarget(String value) {
+        if (value == null || value.length() == 0) return false;
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c <= 0x20 || c >= 0x7f) return false;
+        }
+        return value.startsWith("/");
+    }
+
     private static boolean isDecimalDigits(String value) {
         if (value == null || value.length() == 0) return false;
         for (int i = 0; i < value.length(); i++) {
@@ -1770,9 +1788,7 @@ final class OpenLocalApiGateway {
         if (matched != 4) throw new IllegalArgumentException("Invalid HTTP headers");
         String[] lines = new String(header.toByteArray(), StandardCharsets.ISO_8859_1).split("\r\n");
         String[] first = lines[0].split(" ", -1);
-        if (first.length != 3 || !isHttpToken(first[0]) || first[1].length() == 0
-                || first[1].indexOf('\t') >= 0 || first[1].indexOf('\r') >= 0
-                || first[1].indexOf('\n') >= 0
+        if (first.length != 3 || !isHttpToken(first[0]) || !isRequestTarget(first[1])
                 || (!"HTTP/1.0".equals(first[2]) && !"HTTP/1.1".equals(first[2]))) {
             throw new IllegalArgumentException("Invalid request line");
         }
@@ -1783,11 +1799,11 @@ final class OpenLocalApiGateway {
             if(colon<=0) throw new IllegalArgumentException("Invalid HTTP header");
             String name = lines[i].substring(0,colon)
                     .toLowerCase(java.util.Locale.ROOT);
-            String value = lines[i].substring(colon+1).trim();
-            if (!isHttpToken(name) || headers.containsKey(name)) {
+            String rawValue = lines[i].substring(colon+1);
+            if (!isHttpToken(name) || !isHttpFieldValue(rawValue) || headers.containsKey(name)) {
                 throw new IllegalArgumentException("Duplicate or empty HTTP header");
             }
-            headers.put(name, value);
+            headers.put(name, rawValue.trim());
         }
         String transferEncoding = headers.get("transfer-encoding");
         String contentLength = headers.get("content-length");
@@ -1866,6 +1882,10 @@ final class OpenLocalApiGateway {
                     if (colon <= 0) throw new IllegalArgumentException("Invalid request trailer");
                     String name = trailer.substring(0, colon)
                             .toLowerCase(java.util.Locale.ROOT);
+                    String trailerValue = trailer.substring(colon + 1);
+                    if (!isHttpToken(name) || !isHttpFieldValue(trailerValue)) {
+                        throw new IllegalArgumentException("Invalid request trailer");
+                    }
                     if ("content-length".equals(name) || "transfer-encoding".equals(name)
                             || "host".equals(name) || "authorization".equals(name)) {
                         throw new IllegalArgumentException("Forbidden request trailer");
