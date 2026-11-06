@@ -3850,19 +3850,33 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         boolean moduleDozeExempt = false;
         boolean restricted = false;
         String error = "";
+        PowerManager power = null;
         try {
-            PowerManager power = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-            if (power == null) {
-                error = UiLanguage.text(context,
-                        "无法读取电池优化状态", "Could not read battery optimization status");
-            } else {
-                hostDozeExempt = power.isIgnoringBatteryOptimizations(TARGET);
-                moduleDozeExempt = power.isIgnoringBatteryOptimizations(SELF);
-            }
+            power = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
         } catch (Throwable t) {
             error = UiLanguage.text(context,
-                    "电池优化检测失败：", "Battery optimization check failed: ")
+                    "无法读取电池优化服务：", "Could not access battery policy service: ")
                     + safeThrowableMessage(t);
+        }
+        if (power == null) {
+            if (error.length() == 0) error = UiLanguage.text(context,
+                    "无法读取电池优化状态", "Could not read battery optimization status");
+        } else {
+            try {
+                hostDozeExempt = power.isIgnoringBatteryOptimizations(TARGET);
+            } catch (Throwable t) {
+                error = UiLanguage.text(context,
+                        "DeepSeek 宿主电池策略检测失败：", "DeepSeek host battery policy check failed: ")
+                        + safeThrowableMessage(t);
+            }
+            try {
+                moduleDozeExempt = power.isIgnoringBatteryOptimizations(SELF);
+            } catch (Throwable t) {
+                String moduleError = UiLanguage.text(context,
+                        "模块电池策略检测失败：", "Module battery policy check failed: ")
+                        + safeThrowableMessage(t);
+                error = error.length() == 0 ? moduleError : error + "; " + moduleError;
+            }
         }
         if (Build.VERSION.SDK_INT >= 28) {
             try {
@@ -7433,8 +7447,24 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         String error = HookAccountLoginSecurity.localApiKeepAliveError;
         if (error != null && error.length() > 0) return UiLanguage.text(
                 "前台保活：异常 ", "Foreground keepalive: Failed ") + error;
-        return UiLanguage.text("前台保活：正在等待 DeepSeek 心跳",
-                "Foreground keepalive: waiting for a DeepSeek heartbeat");
+        long now = SystemClock.elapsedRealtime();
+        long sinceLaunch = localApiKeepAliveLaunchAt > 0L && now >= localApiKeepAliveLaunchAt
+                ? now - localApiKeepAliveLaunchAt : -1L;
+        if (localApiKeepAliveLaunchState && sinceLaunch > 15_000L) {
+            return UiLanguage.text(
+                    "前台保活：异常；启动请求已发出，但 15 秒内未收到 DeepSeek 心跳确认。"
+                    + "请检查模块前台服务、自启动、通知权限及 MIUI/HyperOS 后台限制。",
+                    "Foreground keepalive: failed; launch was requested but no DeepSeek heartbeat "
+                    + "arrived within 15 seconds. Check the module foreground service, autostart, "
+                    + "notification permission, and MIUI/HyperOS background restrictions.");
+        }
+        if (age > 15_000L) {
+            return UiLanguage.text(
+                    "前台保活：异常；最近心跳已过期（" + (age / 1000L) + " 秒前）。",
+                    "Foreground keepalive: failed; last heartbeat expired " + (age / 1000L) + "s ago.");
+        }
+        return UiLanguage.text("前台保活：正在等待 DeepSeek 心跳确认",
+                "Foreground keepalive: waiting for DeepSeek heartbeat confirmation");
     }
 
     /**
