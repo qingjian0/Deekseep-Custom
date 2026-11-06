@@ -4,7 +4,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 GATEWAY="$ROOT/module/src/ds/dsh/DeepSeek/OpenLocalApiGateway.java"
 LOCAL_API_UI="$ROOT/module/src/ds/dsh/DeepSeek/DeekseepUi.java"
-for manifest in "$ROOT/module-universal/AndroidManifest.xml" "$ROOT/module-legacy/AndroidManifest.xml"; do
+COMPOSE_MANIFEST="$ROOT/compose-launcher/app/src/main/AndroidManifest.xml"
+BUILD_GRADLE="$ROOT/compose-launcher/app/build.gradle.kts"
+for manifest in "$ROOT/module-universal/AndroidManifest.xml" "$ROOT/module-legacy/AndroidManifest.xml" "$COMPOSE_MANIFEST"; do
     grep -Fq 'android.permission.ACCESS_NETWORK_STATE' "$manifest"
     grep -Fq 'android.permission.FOREGROUND_SERVICE' "$manifest"
     grep -Fq 'android.permission.FOREGROUND_SERVICE_SPECIAL_USE' "$manifest"
@@ -15,11 +17,20 @@ for manifest in "$ROOT/module-universal/AndroidManifest.xml" "$ROOT/module-legac
     grep -Fq 'android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"' "$manifest"
 done
 
-python - "$GATEWAY" "$LOCAL_API_UI" <<'PY'
+# The launcher APK is the installed ds.dsh.DeepSeek package in Open builds. Its manifest
+# must declare the same trampoline/service as the standalone module manifests.
+grep -Fq 'android:name="ds.dsh.DeepSeek.z20"' "$COMPOSE_MANIFEST"
+grep -Fq 'android:name="ds.dsh.DeepSeek.z21"' "$COMPOSE_MANIFEST"
+grep -Fq 'android:enabled="${localApiComponentEnabled}"' "$COMPOSE_MANIFEST"
+
+python - "$GATEWAY" "$LOCAL_API_UI" "$BUILD_GRADLE" <<'PY'
 import pathlib
 import sys
 
 source = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
+build_gradle = pathlib.Path(sys.argv[3]).read_text(encoding="utf-8")
+if '(!protectedDistribution || localApiIncluded).toString()' not in build_gradle:
+    raise SystemExit("Open builds must enable the declared Local API companion components")
 required = {
     "active Android network lookup": "manager.getActiveNetwork()",
     "active network link properties": "manager.getLinkProperties(active)",
