@@ -32,7 +32,7 @@ Status: In progress; not a release acceptance report.
 
 
 - Added `POST /v1/responses` for text input and message/function-call/function-call-output input items.
-- Added Responses JSON output items for assistant text, function calls, and custom tool calls.
+- Added Responses JSON output items for assistant text, function calls, and custom tool calls; `web_search_*` tool declarations map to the native search switch, while unsupported hosted tool types are rejected.
 - Added text-only Responses SSE lifecycle (`response.created`, `response.in_progress`, output/content events, `response.completed`); tool-bearing streaming is rejected explicitly.
 - Added strict rejection for unsupported `previous_response_id` persistence rather than silently dropping continuation context.
 
