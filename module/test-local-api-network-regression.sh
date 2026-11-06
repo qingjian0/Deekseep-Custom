@@ -121,6 +121,19 @@ if missing_omni:
     raise SystemExit("Missing OmniRoute parser contract: " + ", ".join(missing_omni))
 main = (pathlib.Path(sys.argv[1]).parent / "Main.java").read_text(encoding="utf-8")
 security = (pathlib.Path(sys.argv[1]).parent / "HookAccountLoginSecurity.java").read_text(encoding="utf-8")
+probe = (pathlib.Path(sys.argv[1]).parent / "OpenNativeCompletionProbe.java").read_text(encoding="utf-8")
+probe_required = {
+    "code289 request constructor observer is installed": "installRequestConstructorObserver(requestType)",
+    "request constructor event capture is bounded": "event <= 16",
+    "request constructor capture records runtime argument types only": "observedArgumentTypes(args)",
+    "request constructor capture records field shape but not values": "observedObjectShape(instance)",
+    "request factory stack methods are inventoried": 'String[][] callSites = {',
+    "request factory inventory includes observed call stack": '{"mw1", "y"}, {"mw1", "e"}',
+    "request factory inventory includes transport parent": '{"mr2", "h"}',
+}
+missing_probe = [label for label, token in probe_required.items() if token not in probe]
+if missing_probe:
+    raise SystemExit("Missing code289 request-construction diagnostics: " + ", ".join(missing_probe))
 if 'throw new z2.GatewayException(503, "native_adapter_unavailable"' not in security:
     raise SystemExit("Open native adapter must fail closed before looking up protected z18 payload")
 if 'z14.payloadClass(Main.hostApplicationContext, "ds.dsh.DeepSeek.z18")' not in security:
