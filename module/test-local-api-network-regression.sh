@@ -107,6 +107,10 @@ if "EXTRA_NOTIFICATION_ENABLED" not in service or "areNotificationsEnabled()" no
     raise SystemExit("Foreground keeper must report module notification permission")
 if "localApiKeepAliveNotificationEnabled" not in security or "notificationWarning" not in main:
     raise SystemExit("Host UI must surface missing module notification permission")
+if 'Main.log("local-api incoming known_tool_calls=" + request.knownToolCalls);' in security:
+    raise SystemExit("Local API log must not dump known tool call payloads")
+if 'sb.append(" [").append(tc).append("]");' in security:
+    raise SystemExit("Local API log must not dump tool call objects or arguments")
 if "DeepSeek 宿主后台活动" not in main or "DeepSeek host background activity" not in main:
     raise SystemExit("Background restriction status must identify the host package it actually measures")
 if "localApiXiaomiBackgroundGuide" not in main or "Autostart" not in main or "自启动管理" not in main:
