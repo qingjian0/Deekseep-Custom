@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/deepseek-apk-intake.yml'
       - 'scripts/inspect-deepseek-apk.py'
+      - 'module/src/ds/dsh/DeepSeek/RoiDexApkCli.java'
   workflow_dispatch:
     inputs:
       apk_url:
@@ -79,10 +80,50 @@ jobs:
             --expected-package "com.deepseek.chat" \
             --expected-version "$EXPECTED_VERSION"
 
-      - name: Upload intake report only
+      - name: Compile standalone ROI DEX scanner
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE"
+          OUT="$RUNNER_TEMP/roi-cli"
+          mkdir -p "$OUT"
+          javac -source 8 -target 8 -nowarn -d "$OUT" \
+            "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexDataReader.java" \
+            "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexInstructionDecoder.java" \
+            "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexCodeReader.java" \
+            "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexFileReader.java" \
+            "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexKitExportReader.java" \
+            "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexInstructionScanner.java" \
+            "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexExceptionControlFlow.java" \
+            "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexRegisterFlowAnalyzer.java" \
+            "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexReachingDefinitions.java" \
+            "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexMethodEntryLayout.java" \
+            "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexUseDefChains.java" \
+            "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexMethodAnalysis.java" \
+            "$ROOT/module/src/ds/dsh/DeepSeek/RoiCandidateGraph.java" \
+            "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexCandidateEvidence.java" \
+            "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexApkCli.java"
+
+      - name: Run bounded read-only ROI scan on each DEX
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/deepseek-apk/output"
+          mkdir -p "$OUT/roi"
+          count=0
+          while IFS= read -r -d '' dex; do
+            name="$(basename "$dex")"
+            java -cp "$RUNNER_TEMP/roi-cli" ds.dsh.DeepSeek.RoiDexApkCli \
+              "$dex" "$OUT/roi/$name.json"
+            count=$((count + 1))
+          done < <(find "$OUT/dex" -maxdepth 1 -type f -name 'classes*.dex' -print0 | sort -z)
+          test "$count" -gt 0
+          echo "ROI scanned $count DEX file(s); Hook authorization remains disabled."
+
+      - name: Upload intake and ROI reports only
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: deepseek-2.7.5-apk-intake-report
+          name: deepseek-2.7.5-apk-roi-report
           if-no-files-found: error
           retention-days: 7
-          path: ${{ runner.temp }}/deepseek-apk/output/intake-report.json
+          path: |
+            ${{ runner.temp }}/deepseek-apk/output/intake-report.json
+            ${{ runner.temp }}/deepseek-apk/output/roi/*.json
