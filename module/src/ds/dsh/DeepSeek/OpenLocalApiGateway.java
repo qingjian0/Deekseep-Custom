@@ -61,12 +61,6 @@ final class OpenLocalApiGateway {
     private static volatile boolean lanEnabled;
     private static volatile ConnectivityManager networkManager;
     private static volatile ConnectivityManager.NetworkCallback networkCallback;
-    private static final int MAX_RESPONSE_STATES = 64;
-    private static final long RESPONSE_STATE_TTL_MS = 30L * 60L * 1000L;
-    private static final int MAX_RESPONSE_STATE_CHARS = 256 * 1024;
-    private static final java.util.LinkedHashMap<String, ResponseState> RESPONSE_STATES =
-            new java.util.LinkedHashMap<String, ResponseState>(16, 0.75f, true);
-
     private OpenLocalApiGateway() {}
 
     static synchronized void start(Context context, z2.Backend modelBackend) {
@@ -133,7 +127,7 @@ final class OpenLocalApiGateway {
         clients = null;
         if (pool != null) pool.shutdownNow();
         backend = null;
-        RESPONSE_STATES.clear();
+        LocalApiResponseStateStore.clear();
         boundPort = 0;
         lastStartError = "";
     }
@@ -1048,8 +1042,8 @@ final class OpenLocalApiGateway {
                     "previous_response_id is too long");
             return;
         }
-        ResponseState previousState = previousId.length() == 0
-                ? null : loadResponseState(previousId);
+        LocalApiResponseStateStore.State previousState = previousId.length() == 0
+                ? null : LocalApiResponseStateStore.get(previousId);
         if (previousId.length() > 0 && previousState == null) {
             sendError(out, 400, "previous_response_not_found",
                     "previous_response_id is unknown, expired, or was cleared by a service restart");
@@ -1298,7 +1292,7 @@ final class OpenLocalApiGateway {
                 savedPendingCalls.add(call.callId);
             }
         }
-        rememberResponseState(requestId, savedTranscript.toString(), savedPendingCalls);
+        LocalApiResponseStateStore.put(requestId, savedTranscript.toString(), savedPendingCalls);
         JSONObject response = new JSONObject().put("id", requestId)
                 .put("object", "response").put("created_at", System.currentTimeMillis() / 1000L)
                 .put("status", "completed").put("error", JSONObject.NULL)
@@ -1427,7 +1421,7 @@ final class OpenLocalApiGateway {
             sendResponsesEvent(out, "response.completed", ++sequence[0],
                     new JSONObject().put("response", responsesEnvelope(requestId, model,
                             "completed", new JSONArray().put(finalItem), finalText)));
-            rememberResponseState(requestId,
+            LocalApiResponseStateStore.put(requestId,
                     request.basePrompt + (finalText.length() == 0 ? "" : "\nassistant: " + finalText),
                     pendingToolCallIds);
         } catch (Exception failure) {
@@ -2042,45 +2036,6 @@ final class OpenLocalApiGateway {
                 + "Cache-Control: no-cache, no-store\r\n"
                 + "Connection: close\r\n\r\n").getBytes(StandardCharsets.US_ASCII));
         out.flush();
-    }
-
-    private static synchronized ResponseState loadResponseState(String id) {
-        long now = System.currentTimeMillis();
-        java.util.Iterator<java.util.Map.Entry<String, ResponseState>> iterator =
-                RESPONSE_STATES.entrySet().iterator();
-        while (iterator.hasNext()) {
-            ResponseState state = iterator.next().getValue();
-            if (now - state.updatedAtMs > RESPONSE_STATE_TTL_MS) iterator.remove();
-        }
-        return RESPONSE_STATES.get(id);
-    }
-
-    private static synchronized void rememberResponseState(String id, String transcript,
-            java.util.Set<String> pendingToolCallIds) {
-        if (id == null || transcript == null || transcript.length() > MAX_RESPONSE_STATE_CHARS) {
-            return;
-        }
-        RESPONSE_STATES.put(id, new ResponseState(transcript, pendingToolCallIds));
-        while (RESPONSE_STATES.size() > MAX_RESPONSE_STATES) {
-            java.util.Iterator<String> iterator = RESPONSE_STATES.keySet().iterator();
-            if (!iterator.hasNext()) break;
-            iterator.next();
-            iterator.remove();
-        }
-    }
-
-    private static final class ResponseState {
-        final String transcript;
-        final java.util.HashSet<String> pendingToolCallIds;
-        final long updatedAtMs;
-
-        ResponseState(String transcript, java.util.Set<String> pendingToolCallIds) {
-            this.transcript = transcript;
-            this.pendingToolCallIds = pendingToolCallIds == null
-                    ? new java.util.HashSet<String>()
-                    : new java.util.HashSet<String>(pendingToolCallIds);
-            this.updatedAtMs = System.currentTimeMillis();
-        }
     }
 
     private static final class HttpRequest {
