@@ -8,6 +8,7 @@ public final class RoiDexRegisterFlowAnalyzerTest {
         testSequentialDefUse();
         testUseBeforeDefinition();
         testWideRegisters();
+        testInvoke35cCountNibbleIndependentOfFifthRegister();
         testWideConversionsAndTwoAddress();
         testLiteralArithmeticUsesOnlySourceRegister();
         testBranchBlocksRemainIndependent();
@@ -65,6 +66,18 @@ public final class RoiDexRegisterFlowAnalyzerTest {
                 "move source is live-in before v0 is overwritten");
         check(Arrays.equals(block.definitions, new int[]{1, 0}),
                 "move and const definitions retained");
+    }
+
+    private static void testInvoke35cCountNibbleIndependentOfFifthRegister()
+            throws Exception {
+        // invoke-static 35c: A=5 argument words, G=0 fifth register.
+        short[] code = {(short) 0x5071, (short) 0x0000, (short) 0x4321,
+                (short) 0x000e};
+        RoiDexRegisterFlowAnalyzer.Result result =
+                RoiDexRegisterFlowAnalyzer.analyze(code, 8);
+        int[] uses = result.blocks[0].instructions[0].uses;
+        check(Arrays.equals(uses, new int[]{1, 2, 3, 4, 0}),
+                "invoke-35c reads A as word count and G as fifth register");
     }
 
     private static void testWideRegisters() throws Exception {
