@@ -281,15 +281,15 @@ jobs:
             compose-launcher/app/build/intermediates/lint_intermediate_text_report/release/lintReportRelease/*
  >/dev/null
           AAPT="$ANDROID_SDK_ROOT/build-tools/37.0.0/aapt"
-          "$AAPT" dump badging "$APK" > "$RUNNER_TEMP/open-apk-badging.txt"
-          grep -Fq "activity: name='ds.dsh.DeepSeek.z20'" "$RUNNER_TEMP/open-apk-badging.txt" || {
-            echo "Open APK is missing the z20 foreground-keepalive trampoline activity."
-            cat "$RUNNER_TEMP/open-apk-badging.txt"
+          "$AAPT" dump xmltree "$APK" AndroidManifest.xml > "$RUNNER_TEMP/open-apk-manifest.txt"
+          grep -Fq 'ds.dsh.DeepSeek.z20' "$RUNNER_TEMP/open-apk-manifest.txt" || {
+            echo "Open APK manifest is missing the z20 foreground-keepalive trampoline activity."
+            cat "$RUNNER_TEMP/open-apk-manifest.txt"
             exit 1
           }
-          grep -Fq "service: name='ds.dsh.DeepSeek.z21'" "$RUNNER_TEMP/open-apk-badging.txt" || {
-            echo "Open APK is missing the z21 foreground keepalive service."
-            cat "$RUNNER_TEMP/open-apk-badging.txt"
+          grep -Fq 'ds.dsh.DeepSeek.z21' "$RUNNER_TEMP/open-apk-manifest.txt" || {
+            echo "Open APK manifest is missing the z21 foreground keepalive service."
+            cat "$RUNNER_TEMP/open-apk-manifest.txt"
             exit 1
           }
           for DEX in $(unzip -Z1 "$APK" | grep -E '^classes([0-9]+)?[.]dex          "$ANDROID_SDK_ROOT/build-tools/37.0.0/zipalign" -c -p 4 "$APK"
