@@ -808,7 +808,7 @@ final class OpenNativeCompletionProbe {
 
     /**
      * Report object structure only: declared field names and types, never field values.
-     * Request payloads, prompts, credentials, cookies, and message content are never read.
+     * Request payload values, credentials, cookies, and message text are never read.
      */
     private static String observedObjectShape(Object value) {
         if (value == null) return "null";
