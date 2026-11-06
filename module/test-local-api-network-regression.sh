@@ -279,6 +279,7 @@ anthropic_required = {
     "Anthropic x-api-key authentication is supported": 'request.headers.get("x-api-key")' in source,
     "Anthropic version header is required": 'request.headers.get("anthropic-version")' in source and '"anthropic-version header is required"' in source,
     "Anthropic request adapter validates max_tokens": '"max_tokens is required and must be an integer' in anthropic_adapter,
+    "Anthropic reasoner model enables backend reasoning mode": 'boolean reasoning = "deepseek-reasoner".equals(model);' in anthropic_adapter and "normalized.reasoning" in source,
     "Anthropic system and message roles are normalized": 'body.opt("system")' in anthropic_adapter and '"user".equals(role)' in anthropic_adapter and '"assistant".equals(role)' in anthropic_adapter,
     "Anthropic tool definitions map to shared tool bridge": 'OpenAiToolBridge.chatPlan(openAiTools, choice, parallelTools)' in anthropic_adapter,
     "Anthropic tool_use and tool_result IDs are correlated": 'pendingToolIds.remove(id)' in anthropic_adapter and 'pendingToolIds.add(id)' in anthropic_adapter,
