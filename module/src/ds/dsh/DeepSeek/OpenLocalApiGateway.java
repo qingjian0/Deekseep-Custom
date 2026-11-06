@@ -613,14 +613,37 @@ final class OpenLocalApiGateway {
                 throw new IllegalArgumentException("Unsupported message role");
             }
             Object content = message.opt("content");
-            if (!(content instanceof String)) {
-                throw new IllegalArgumentException("Only text message content is supported");
-            }
+            String text = messageText(content);
             if (prompt.length() > 0) prompt.append("\n");
-            prompt.append(role).append(": ").append((String) content);
+            prompt.append(role).append(": ").append(text);
             if (prompt.length() > MAX_PROMPT_CHARS) return prompt.toString();
         }
         return prompt.toString();
+    }
+
+    private static String messageText(Object content) throws Exception {
+        if (content instanceof String) return (String) content;
+        if (!(content instanceof JSONArray)) {
+            throw new IllegalArgumentException("Message content must be text or text parts");
+        }
+        JSONArray parts = (JSONArray) content;
+        StringBuilder text = new StringBuilder();
+        for (int i = 0; i < parts.length(); i++) {
+            JSONObject part = parts.optJSONObject(i);
+            if (part == null) throw new IllegalArgumentException("Invalid message content part");
+            String type = part.optString("type", "");
+            if (!"text".equals(type) && !"input_text".equals(type)) {
+                throw new IllegalArgumentException("Only text content parts are supported");
+            }
+            Object value = part.has("text") ? part.opt("text") : part.opt("input_text");
+            if (!(value instanceof String)) {
+                throw new IllegalArgumentException("Text content part is missing text");
+            }
+            if (text.length() > 0) text.append("\n");
+            text.append((String) value);
+            if (text.length() > MAX_PROMPT_CHARS) return text.toString();
+        }
+        return text.toString();
     }
 
     private static HttpRequest readRequest(InputStream in) throws Exception {
