@@ -3526,16 +3526,16 @@ public final class DeekseepUi {
     private static String localApiProtocolDescription() {
         if ("Open".equals(BuildInfo.BUILD_EDITION)) {
             return UiLanguage.text(
-                    "Open 版当前仅提供基础 OpenAI Chat Completions HTTP 接入层："
-                    + "GET /v1/models、POST /v1/chat/completions；Base URL 以 /v1 结尾。"
+                    "Open 版当前提供 OpenAI Chat Completions 与 Responses HTTP 接入层："
+                    + "GET /v1/models、POST /v1/chat/completions、POST /v1/responses；Base URL 以 /v1 结尾。"
                     + "注意：DeepSeek 原生 Completion Adapter 尚未接通，聊天请求当前返回 503。"
                     + "非流式 Chat Completions 已接入客户端工具调用解析与回传；工具执行由客户端负责。"
-                    + "工具调用暂不支持 stream=true；Responses API、Anthropic Messages 和多模态尚未实现。",
-                    "The Open build currently exposes the basic OpenAI Chat Completions HTTP layer: "
-                    + "GET /v1/models and POST /v1/chat/completions with a /v1 base URL. "
+                    + "工具调用暂不支持 stream=true；Responses 支持文本 JSON/SSE 与函数工具 JSON 回传；previous_response_id 不持久化，工具流式输出暂不支持。Anthropic Messages 和多模态尚未实现。",
+                    "The Open build exposes OpenAI Chat Completions and Responses HTTP endpoints: "
+                    + "GET /v1/models, POST /v1/chat/completions, and POST /v1/responses with a /v1 base URL. "
                     + "The native DeepSeek completion adapter is not connected, so chat requests return 503. "
                     + "Non-streaming tool-call parsing and client handoff are wired; the client executes tools. "
-                    + "Tool calls with stream=true are not supported. Responses, Anthropic Messages, and multimodal input remain unavailable.");
+                    + "Tool calls with stream=true are not supported. Responses supports text JSON/SSE and JSON function-call handoff; previous_response_id is not persisted and streamed tool calls are unavailable. Anthropic Messages and multimodal input remain unavailable.");
         }
         if (z2.PROTOCOL_ANTHROPIC.equals(Main.localApiProtocol())) {
             return "Anthropic 格式已选中。base URL 使用页面显示的本机或局域网根地址（不附加 /v1），"
@@ -3553,12 +3553,12 @@ public final class DeekseepUi {
                     "Open 版当前可用模型名称：deepseek-chat、deepseek-reasoner。"
                     + "GET /v1/models 可用于检查网关和读取模型列表。"
                     + "POST /v1/chat/completions 的原生执行适配器尚未接通，当前会返回 503。"
-                    + "非流式 Chat Completions 可将模型工具调用回传给客户端，客户端负责执行并提交 tool 结果；"
-                    + "当前不支持工具流式输出、Responses、Anthropic、图片输入和 usage 统计。"
+                    + "非流式 Chat Completions 与 Responses 可将模型工具调用回传给客户端，客户端负责执行并提交 tool 结果；"
+                    + "Responses 暂不持久化 previous_response_id，工具流式输出暂不支持；Anthropic、图片输入和 usage 统计尚未实现。"
                     + "请勿把当前 Open 版配置为可工作的 Codex / Claude Code 后端，原生适配器仍未接通。",
                     "Configured Open model IDs: deepseek-chat and deepseek-reasoner. "
-                    + "Non-streaming Chat Completions can return parsed tool calls for client-side execution and tool-result continuation. "
-                    + "Streaming tool calls, Responses, Anthropic, image input, and usage accounting are unavailable. "
+                    + "Non-streaming Chat Completions and Responses can return parsed tool calls for client-side execution and tool-result continuation. "
+                    + "Responses does not persist previous_response_id and does not stream tool calls. Anthropic, image input, and usage accounting are unavailable. "
                     + "The native execution adapter is still disconnected; do not configure this Open build as a working Codex or Claude Code backend.");
         }
         String modelHelp = isClosedV236OrV241Feature() && !Main.isLocalApiLegacyModelRouteEnabled()
