@@ -1,0 +1,83 @@
+name: DeepSeek APK read-only intake
+
+on:
+  workflow_dispatch:
+    inputs:
+      apk_url:
+        description: Public direct-download URL for a single APK
+        required: true
+        default: https://raw.githubusercontent.com/qingjian0/apps/main/DeepSeek_2.7.5.apk
+        type: string
+      expected_version:
+        description: Expected versionName
+        required: true
+        default: "2.7.5"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deepseek-apk-intake-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  intake:
+    name: Validate APK and extract DEX (read-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    steps:
+      - name: Check out dev source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: dev
+          persist-credentials: false
+
+      - name: Set up Java 21
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install Android Build Tools
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_SDK_ROOT/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -n 1)"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install "platform-tools" "build-tools;37.0.0"
+
+      - name: Download selected APK
+        env:
+          APK_URL: ${{ inputs.apk_url }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/deepseek-apk"
+          curl --fail --location --retry 3 --retry-delay 2 \
+            --proto '=https' --tlsv1.2 \
+            "$APK_URL" -o "$RUNNER_TEMP/deepseek-apk/DeepSeek.apk"
+          test -s "$RUNNER_TEMP/deepseek-apk/DeepSeek.apk"
+
+      - name: Validate package and extract DEX
+        env:
+          EXPECTED_VERSION: ${{ inputs.expected_version }}
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/inspect-deepseek-apk.py
+          python3 scripts/inspect-deepseek-apk.py \
+            --apk "$RUNNER_TEMP/deepseek-apk/DeepSeek.apk" \
+            --out "$RUNNER_TEMP/deepseek-apk/output" \
+            --aapt "$ANDROID_SDK_ROOT/build-tools/37.0.0/aapt" \
+            --expected-package "com.deepseek.chat" \
+            --expected-version "$EXPECTED_VERSION"
+
+      - name: Upload intake report only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: deepseek-2.7.5-apk-intake-report
+          if-no-files-found: error
+          retention-days: 7
+          path: ${{ runner.temp }}/deepseek-apk/output/intake-report.json
