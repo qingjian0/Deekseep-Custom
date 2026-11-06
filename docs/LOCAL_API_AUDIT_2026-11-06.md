@@ -4,7 +4,7 @@
 
 - Repository: `qingjian0/Deekseep-Custom`
 - Audited branch: `work/local-api-hybrid-api`
-- Audited source revision: `e87b592b3de6009ff096af644cc6da90c59ab698`
+- Audited source revision: `ffa30eec0e38dd5d1f4e60898aad97eb9ad42ba8`
 - Host target: official DeepSeek Android mainland 2.7.2, `versionCode=289`
 - Build edition: Open
 - Stable branches `main` and `dev` are not modified by this work.
@@ -24,7 +24,7 @@ However, the Open native completion backend remains deliberately fail-closed. Th
 
 ## Verification status at audited revision
 
-The preceding baseline run [42203935002](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42203935002) completed successfully at `c355e27`. The current Chat usage changes are under validation in [run 42206172146](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42206172146), which was pending when this audit was refreshed. Do not treat the earlier green run as validation of the newer usage changes:
+The audited revision `ffa30eec0e38dd5d1f4e60898aad97eb9ad42ba8` completed [CI run 42209379991](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42209379991) successfully:
 
 - ROI fast audit (0.5): passed.
 - Source-only regression checks: passed.
@@ -33,7 +33,7 @@ The preceding baseline run [42203935002](https://github.com/qingjian0/Deekseep-C
 - APK structure, alignment, and signature verification: passed.
 - Verified APK and lint-report artifact uploads: passed.
 
-These checks establish source/build integrity for the audited revision. They do not establish native model generation, device installation, or end-to-end protocol acceptance on a real code289 device.
+This validates the source/build checks included in that workflow. It does not establish native model generation, device installation, or end-to-end protocol acceptance on a real code289 device. The Chat usage regression assertions passed, but usage remains estimated and is explicitly marked `dsh_usage_estimated=true`.
 
 ## P0 — Native completion remains unavailable
 
