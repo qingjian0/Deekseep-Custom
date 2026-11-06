@@ -24,6 +24,7 @@ grep -Fq 'resolver.observeDexCandidate(sourceScope, anchor, descriptor' "$DISCOV
 grep -Fq 'RoiDexKitExportReader.exportAndRead' "$DISCOVERY"
 grep -Fq 'exportBridge.exportDexFile(outputDirectory)' "$DISCOVERY"
 grep -Fq 'parsedDexMethods.contains(descriptor)' "$DISCOVERY"
+grep -Fq 'parsedDexMethods.contains(invokedDescriptor)' "$DISCOVERY"
 grep -Fq 'parsedDexMethods.contains(reference.constructorDescriptor)' "$DISCOVERY"
 grep -Fq 'inspectSerializerOwnerForRequestConstructors' "$DISCOVERY"
 grep -Fq 'export_file_count_mismatch' "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexKitExportReader.java"
