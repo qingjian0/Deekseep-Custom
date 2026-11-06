@@ -347,8 +347,9 @@ collecting it, subscribe to it, invoke methods on the result, or alter the origi
   how it is collected.
 - The observer is enabled only for code289. It must not be generalized to code287 or code290
   without their own APK-derived exact descriptors and evidence.
-- No real-device observer log has yet been attached to this repository snapshot. Source presence
-  and CI success are not runtime evidence.
+- This statement described the earlier repository snapshot and is superseded by the five real-device
+  captures documented in the later “Schema 4 real-device capture evidence” section. Source presence
+  and CI success alone are still not runtime evidence.
 
 ### Next bounded work
 
