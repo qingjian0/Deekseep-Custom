@@ -108,6 +108,11 @@ public final class RoiDexApkCli {
         field(out, "candidate_count", Integer.toString(evidence.methods.size()), true);
         field(out, "analyzed_methods", Integer.toString(evidence.analyzedMethods), true);
         field(out, "analysis_failures", Integer.toString(evidence.analysisFailures), true);
+        int invokeFailures = 0;
+        for (RoiDexCandidateEvidence.MethodEvidence method : evidence.methods) {
+            if (method.invokeAnalysisFailure.length() > 0) invokeFailures++;
+        }
+        field(out, "invoke_analysis_failures", Integer.toString(invokeFailures), true);
         field(out, "hook_authorization_granted", "false", true);
         field(out, "hook_activation", quote("not_performed"), true);
         out.append("  \"candidates\": [");
@@ -120,6 +125,10 @@ public final class RoiDexApkCli {
             out.append(",\"analysis_status\":")
                     .append(quote(method.analysis == null ? "failed_or_missing_code" : "analyzed"));
             out.append(",\"analysis_failure\":").append(quote(method.analysisFailure));
+            out.append(",\"invoke_analysis_failure\":")
+                    .append(quote(method.invokeAnalysisFailure));
+            out.append(",\"invokes_complete\":")
+                    .append(method.invokeAnalysisFailure.length() == 0);
             out.append(",\"invokes\":").append(stringArray(method.invokes));
             if (method.analysis != null) {
                 out.append(",\"exception_edges_included\":")
