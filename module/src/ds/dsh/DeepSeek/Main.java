@@ -3795,37 +3795,45 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     }
 
     static final class LocalApiBackgroundState {
-        final boolean dozeExempt;
+        final boolean hostDozeExempt;
+        final boolean moduleDozeExempt;
         final boolean backgroundRestricted;
         final String error;
 
-        LocalApiBackgroundState(boolean dozeExempt, boolean backgroundRestricted, String error) {
-            this.dozeExempt = dozeExempt;
+        LocalApiBackgroundState(boolean hostDozeExempt, boolean moduleDozeExempt,
+                                boolean backgroundRestricted, String error) {
+            this.hostDozeExempt = hostDozeExempt;
+            this.moduleDozeExempt = moduleDozeExempt;
             this.backgroundRestricted = backgroundRestricted;
             this.error = error == null ? "" : error;
         }
 
         boolean allowed() {
-            return dozeExempt && !backgroundRestricted && error.length() == 0;
+            return hostDozeExempt && moduleDozeExempt
+                    && !backgroundRestricted && error.length() == 0;
         }
 
         String describe() {
             StringBuilder out = new StringBuilder();
-            out.append(UiLanguage.text("电池优化：", "Battery optimization: "))
-                    .append(dozeExempt
-                            ? UiLanguage.text("已设为不优化/不限制", "Unrestricted")
-                            : UiLanguage.text("仍受电池优化限制", "Still restricted"))
-                    .append(UiLanguage.text("\n后台活动：", "\nBackground activity: "))
+            out.append(UiLanguage.text("DeepSeek 宿主电池优化：", "DeepSeek host battery policy: "))
+                    .append(hostDozeExempt
+                            ? UiLanguage.text("不受限制", "Unrestricted")
+                            : UiLanguage.text("仍受限制", "Restricted"))
+                    .append(UiLanguage.text("\n模块保活服务电池优化：", "\nModule keeper battery policy: "))
+                    .append(moduleDozeExempt
+                            ? UiLanguage.text("不受限制", "Unrestricted")
+                            : UiLanguage.text("仍受限制", "Restricted"))
+                    .append(UiLanguage.text("\n模块后台活动：", "\nModule background activity: "))
                     .append(backgroundRestricted
                             ? UiLanguage.text("系统禁止后台活动", "Blocked by the system")
                             : UiLanguage.text("系统允许后台活动", "Allowed by the system"))
-                    .append(UiLanguage.text("\n系统白名单：", "\nSystem allowlist: "))
+                    .append(UiLanguage.text("\n综合白名单状态：", "\nCombined allowlist status: "))
                     .append(allowed()
-                            ? UiLanguage.text("已启用（推荐）", "Enabled (recommended)")
-                            : UiLanguage.text("未启用（不影响启动）",
-                                    "Not enabled (startup is still allowed)"))
-                    .append(UiLanguage.text("\n保活方式：前台服务 + CPU WakeLock + 心跳",
-                            "\nKeepalive: foreground service + CPU wake lock + heartbeat"));
+                            ? UiLanguage.text("宿主与模块均已放行", "Host and module are unrestricted")
+                            : UiLanguage.text("至少一项仍受限制（不阻止手动启动）",
+                                    "At least one restriction remains (manual start is still allowed)"))
+                    .append(UiLanguage.text("\n保活方式：模块前台服务 + CPU WakeLock + 宿主心跳",
+                            "\nKeepalive: module foreground service + CPU wake lock + host heartbeat"));
             if (error.length() > 0) out.append(UiLanguage.text(
                     "\n检测错误：", "\nDetection error: ")).append(UiLanguage.dynamic(error));
             return out.toString();
@@ -3834,18 +3842,23 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     static LocalApiBackgroundState localApiBackgroundState(Context context) {
         if (context == null) {
-            return new LocalApiBackgroundState(false, true,
+            return new LocalApiBackgroundState(false, false, true,
                     UiLanguage.text("DeepSeek 上下文尚未就绪",
                             "DeepSeek context is not ready"));
         }
-        boolean dozeExempt = false;
+        boolean hostDozeExempt = false;
+        boolean moduleDozeExempt = false;
         boolean restricted = false;
         String error = "";
         try {
             PowerManager power = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-            if (power == null) error = UiLanguage.text(context,
-                    "无法读取电池优化状态", "Could not read battery optimization status");
-            else dozeExempt = power.isIgnoringBatteryOptimizations(TARGET);
+            if (power == null) {
+                error = UiLanguage.text(context,
+                        "无法读取电池优化状态", "Could not read battery optimization status");
+            } else {
+                hostDozeExempt = power.isIgnoringBatteryOptimizations(TARGET);
+                moduleDozeExempt = power.isIgnoringBatteryOptimizations(SELF);
+            }
         } catch (Throwable t) {
             error = UiLanguage.text(context,
                     "电池优化检测失败：", "Battery optimization check failed: ")
@@ -3857,17 +3870,44 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                         context.getSystemService(Context.ACTIVITY_SERVICE);
                 restricted = manager == null || manager.isBackgroundRestricted();
                 if (manager == null && error.length() == 0) error = UiLanguage.text(context,
-                        "无法读取后台活动状态", "Could not read background activity status");
+                        "无法读取模块后台活动状态", "Could not read module background activity status");
             } catch (Throwable t) {
                 restricted = true;
                 if (error.length() == 0) {
                     error = UiLanguage.text(context,
-                            "后台活动检测失败：", "Background activity check failed: ")
+                            "模块后台活动检测失败：", "Module background activity check failed: ")
                             + safeThrowableMessage(t);
                 }
             }
         }
-        return new LocalApiBackgroundState(dozeExempt, restricted, error);
+        return new LocalApiBackgroundState(hostDozeExempt, moduleDozeExempt, restricted, error);
+    }
+
+    static String localApiXiaomiBackgroundGuide(Context context) {
+        String manufacturer = Build.MANUFACTURER == null ? "" : Build.MANUFACTURER;
+        String brand = Build.BRAND == null ? "" : Build.BRAND;
+        String fingerprint = Build.DISPLAY == null ? "" : Build.DISPLAY;
+        boolean xiaomi = manufacturer.toLowerCase(java.util.Locale.ROOT).contains("xiaomi")
+                || brand.toLowerCase(java.util.Locale.ROOT).contains("redmi")
+                || brand.toLowerCase(java.util.Locale.ROOT).contains("poco")
+                || fingerprint.toLowerCase(java.util.Locale.ROOT).contains("miui")
+                || fingerprint.toLowerCase(java.util.Locale.ROOT).contains("hyperos");
+        if (!xiaomi) return "";
+        return UiLanguage.text(context,
+                "小米 MIUI / HyperOS 专项设置（宿主与模块都要设置）\n"
+                + "1. 设置 → 应用设置 → 应用管理 → DeepSeek → 省电策略/后台配置 → 无限制。\n"
+                + "2. 对 KOI / Deekseep 模块应用也设置为无限制；模块自身承载前台保活服务。\n"
+                + "3. 手机管家 → 应用管理/自启动管理 → 分别允许 DeepSeek 与模块自启动。\n"
+                + "4. 最近任务中分别锁定 DeepSeek 与模块；不要对它们使用一键清理。\n"
+                + "5. 允许模块通知，并确认“DeepSeek 本地 API”通知类别未被关闭。\n"
+                + "6. 若系统提供“后台弹出界面/后台运行”权限，也允许模块使用。菜单名称因 MIUI/HyperOS 版本而异。",
+                "Xiaomi MIUI / HyperOS setup (apply to both host and module)\n"
+                + "1. Settings → Apps → Manage apps → DeepSeek → Battery saver/background policy → No restrictions.\n"
+                + "2. Set KOI / Deekseep module to No restrictions too; the module package owns the foreground keeper.\n"
+                + "3. Security app → App management/Autostart → allow both DeepSeek and the module to autostart.\n"
+                + "4. Lock both apps in Recents; do not clear them with one-tap cleanup.\n"
+                + "5. Allow module notifications and keep the “DeepSeek Local API” notification category enabled.\n"
+                + "6. If offered, allow background pop-up/background running for the module. Menu names vary by MIUI/HyperOS release.");
     }
 
     static String localApiBackgroundStatus(Context context) {
