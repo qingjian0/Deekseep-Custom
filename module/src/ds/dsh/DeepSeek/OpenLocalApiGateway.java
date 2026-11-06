@@ -1732,6 +1732,28 @@ final class OpenLocalApiGateway {
         return text.toString();
     }
 
+    private static boolean isHttpToken(String value) {
+        return value != null && value.matches("[!#$%&'*+.^_`|~0-9A-Za-z-]+");
+    }
+
+    private static boolean isDecimalDigits(String value) {
+        if (value == null || value.length() == 0) return false;
+        for (int i = 0; i < value.length(); i++) {
+            if (value.charAt(i) < '0' || value.charAt(i) > '9') return false;
+        }
+        return true;
+    }
+
+    private static boolean isHexDigits(String value) {
+        if (value == null || value.length() == 0) return false;
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')
+                    || (c >= 'A' && c <= 'F'))) return false;
+        }
+        return true;
+    }
+
     private static HttpRequest readRequest(InputStream in) throws Exception {
         ByteArrayOutputStream header = new ByteArrayOutputStream();
         int matched = 0;
@@ -1748,7 +1770,7 @@ final class OpenLocalApiGateway {
         if (matched != 4) throw new IllegalArgumentException("Invalid HTTP headers");
         String[] lines = new String(header.toByteArray(), StandardCharsets.ISO_8859_1).split("\r\n");
         String[] first = lines[0].trim().split("\\s+");
-        if (first.length != 3 || first[0].length() == 0 || first[1].length() == 0
+        if (first.length != 3 || !isHttpToken(first[0]) || first[1].length() == 0
                 || (!"HTTP/1.0".equals(first[2]) && !"HTTP/1.1".equals(first[2]))) {
             throw new IllegalArgumentException("Invalid request line");
         }
@@ -1760,7 +1782,7 @@ final class OpenLocalApiGateway {
             String name = lines[i].substring(0,colon).trim()
                     .toLowerCase(java.util.Locale.ROOT);
             String value = lines[i].substring(colon+1).trim();
-            if (name.length() == 0 || headers.containsKey(name)) {
+            if (!isHttpToken(name) || headers.containsKey(name)) {
                 throw new IllegalArgumentException("Duplicate or empty HTTP header");
             }
             headers.put(name, value);
@@ -1772,12 +1794,18 @@ final class OpenLocalApiGateway {
         }
         byte[] body;
         if (transferEncoding != null) {
+            if (!"HTTP/1.1".equals(first[2])) {
+                throw new IllegalArgumentException("Transfer encoding requires HTTP/1.1");
+            }
             if (!"chunked".equalsIgnoreCase(transferEncoding.trim())) {
                 throw new IllegalArgumentException("Unsupported transfer encoding");
             }
             body = readChunkedBody(in);
         } else {
             int length;
+            if (contentLength != null && !isDecimalDigits(contentLength)) {
+                throw new IllegalArgumentException("Invalid content length");
+            }
             try {
                 length = Integer.parseInt(contentLength == null ? "0" : contentLength);
             } catch (NumberFormatException invalidLength) {
@@ -1812,7 +1840,7 @@ final class OpenLocalApiGateway {
             String sizeLine = readCrlfLine(in, 1024);
             int extension = sizeLine.indexOf(';');
             String sizeText = (extension >= 0 ? sizeLine.substring(0, extension) : sizeLine).trim();
-            if (sizeText.length() == 0 || sizeText.length() > 16) {
+            if (sizeText.length() > 16 || !isHexDigits(sizeText)) {
                 throw new IllegalArgumentException("Invalid chunk size");
             }
             long chunkSize;
