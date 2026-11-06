@@ -131,10 +131,15 @@ if 'if (context == null) {\n            HookAccountLoginSecurity.localApiKeepAli
     raise SystemExit("Foreground keepalive null-context failure is not stored independently")
 if 'if (context == null) {\n            HookAccountLoginSecurity.localApiFloatingWindowError = "DeepSeek 上下文尚未就绪";' not in floating_method:
     raise SystemExit("Floating-window null-context failure is not stored independently")
-ui = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
-ui_required = {
+main_required = {
     "OpenAI base URL copy remains valid while the gateway is stopped": "z13.preferredPort(hostApplicationContext)",
     "stopped gateway URL retains the configured loopback port": 'value = "http://127.0.0.1:" + preferred;',
+}
+missing_main = [label for label, token in main_required.items() if token not in main]
+if missing_main:
+    raise SystemExit("Missing local API Main contract: " + ", ".join(missing_main))
+ui = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
+ui_required = {
     "connection details allow long-press text selection": "connectionInfo.setTextIsSelectable(true);",
     "OpenAI URL copy includes /v1": "Main.localApiCopyEndpoint()",
     "Anthropic URL copy retains root endpoint": "Main.localApiRootEndpoint()",
