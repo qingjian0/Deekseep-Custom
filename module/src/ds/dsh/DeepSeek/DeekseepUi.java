@@ -3172,7 +3172,7 @@ public final class DeekseepUi {
         TextView nativeProbeTitle = sectionTitle(act, "Open 原生适配诊断（DeepSeek 2.7.x）", textColor);
         card.addView(nativeProbeTitle);
         TextView nativeProbeHelp = infoBox(act,
-                "一次采集官方客户端请求对象、Transport、异步回调，以及 Local API 请求、首个 SSE、结束/异常和阶段耗时。只记录类型、结构、状态与长度，不读取聊天正文、账号凭据、Prompt 或响应内容。开启后发起一次测试请求，完成后复制这一份完整诊断报告。",
+                "一次采集官方客户端 Transport、异步回调与 Local API 网关阶段。若要同时覆盖两条独立路径：先在 DeepSeek 主界面发送一条普通消息，再由 API 客户端发送一条 /v1/chat/completions 请求；两条轨迹共用同一缓冲区，最后只复制一次报告。当前 Open 原生后端尚未接通，API 请求会如实记录 readiness 状态。只记录类型、状态、长度和耗时，不记录消息正文或凭据。",
                 textColor, dark);
         card.addView(nativeProbeHelp, insetParams(act, 0, 8));
         card.addView(configurableSwitchRow(act, "启用原生适配诊断探针",
