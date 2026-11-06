@@ -2,7 +2,9 @@ package ds.dsh.DeepSeek;
 
 public final class RoiDexSerializerMapperTest {
     public static void main(String[] args)throws Exception {
-        requestConstructorShape();directElementIndexMapping();checkCastSerializableElementMapping();dynamicSwitchElementIndexMapping();
+        requestConstructorShape();directElementIndexMapping();checkCastSerializableElementMapping();
+        dynamicSwitchElementIndexMapping();duplicateSwitchTargetRejected();
+        switchTargetWithAlternatePredecessorRejected();incompleteElementCoverageRejected();
         System.out.println("RoiDexSerializerMapperTest: PASS");
     }
 
@@ -87,6 +89,75 @@ public final class RoiDexSerializerMapperTest {
         eq(0,result.constructors[0].parameters[0].elementIndex);
     }
 
+    static void duplicateSwitchTargetRejected()throws Exception {
+        RoiDexCodeReader.CodeItem code=code(new short[]{
+                (short)0x0071,0,0,
+                (short)0x000a,
+                (short)0x002b,4,0,
+                (short)0x000e,
+                (short)0x0100,2,0,0,12,0,12,0,
+                (short)0x036e,1,(short)0x0032,
+                (short)0x010c,
+                (short)0x0270,2,(short)0x0014,
+                (short)0x000e
+        },5);
+        RoiDexValueProvenance.Result provenance=provenance(code,index->method(index));
+        RoiDexSerializerMapper.Result result=RoiDexSerializerMapper.analyze(code,"Lx;",
+                index->method(index),elements(),provenance);
+        yes(!result.complete);
+        yes(hasRejection(result,"dynamic_element_index_switch_mapping_ambiguous"));
+    }
+
+    static void switchTargetWithAlternatePredecessorRejected()throws Exception {
+        RoiDexCodeReader.CodeItem code=code(new short[]{
+                (short)0x0071,0,0,
+                (short)0x000a,
+                (short)0x002b,6,0,
+                (short)0x0000,
+                (short)0x0029,8,
+                (short)0x0100,1,0,0,12,0,
+                (short)0x036e,1,(short)0x0032,
+                (short)0x010c,
+                (short)0x0270,2,(short)0x0014,
+                (short)0x000e
+        },5);
+        RoiDexValueProvenance.Result provenance=provenance(code,index->method(index));
+        RoiDexSerializerMapper.Result result=RoiDexSerializerMapper.analyze(code,"Lx;",
+                index->method(index),elements(),provenance);
+        yes(!result.complete);
+        yes(hasRejection(result,"dynamic_element_index_switch_mapping_ambiguous"));
+    }
+
+    static void incompleteElementCoverageRejected()throws Exception {
+        RoiDexCodeReader.CodeItem code=code(new short[]{
+                (short)0x0012,
+                (short)0x036e,1,(short)0x0032,
+                (short)0x010c,
+                (short)0x0270,2,(short)0x0014,
+                (short)0x000e
+        },5);
+        RoiDexValueProvenance.Result provenance=provenance(code,index->method(index));
+        RoiDexSerializerMapper.Result result=RoiDexSerializerMapper.analyze(code,"Lx;",
+                index->method(index),twoElements(),provenance);
+        yes(!result.complete);
+        yes(hasRejection(result,"constructor_parameter_element_count_mismatch"));
+    }
+
+    static RoiDexValueProvenance.Result provenance(RoiDexCodeReader.CodeItem code,
+            RoiDexSerializerMapper.MethodResolver resolver)throws Exception {
+        RoiDexInvokeResultLinker.Result links=RoiDexInvokeResultLinker.analyze(code,resolver);
+        RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(code);
+        RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
+        RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching);
+        return RoiDexValueProvenance.analyze(code,null,flow,reaching,useDef,links);
+    }
+
+    static boolean hasRejection(RoiDexSerializerMapper.Result result,String reason) {
+        for(RoiDexSerializerMapper.Rejected rejected:result.rejected)
+            if(reason.equals(rejected.reason))return true;
+        return false;
+    }
+
     static RoiDexFileReader.ResolvedMethodId method(int index) {
         if(index==0)return new RoiDexFileReader.ResolvedMethodId(0,"LDecoder;",
                 "decodeElementIndex","()I");
@@ -98,6 +169,14 @@ public final class RoiDexSerializerMapperTest {
         return new RoiDexSerializerElementIndex.Result(
                 java.util.Collections.singletonList(new RoiDexSerializerElementIndex.Element(
                         0,0,1,"chat_session_id","Lkotlinx/serialization/internal/PluginGeneratedSerialDescriptor;")),
+                java.util.Collections.<RoiDexSerializerElementIndex.Rejected>emptyList(),true);
+    }
+    static RoiDexSerializerElementIndex.Result twoElements() {
+        java.util.List<RoiDexSerializerElementIndex.Element> values=
+                new java.util.ArrayList<RoiDexSerializerElementIndex.Element>();
+        values.add(new RoiDexSerializerElementIndex.Element(0,0,1,"chat_session_id","LDescriptor;"));
+        values.add(new RoiDexSerializerElementIndex.Element(1,4,2,"message","LDescriptor;"));
+        return new RoiDexSerializerElementIndex.Result(values,
                 java.util.Collections.<RoiDexSerializerElementIndex.Rejected>emptyList(),true);
     }
     static RoiDexCodeReader.CodeItem code(short[] instructions,int registers)throws Exception {
