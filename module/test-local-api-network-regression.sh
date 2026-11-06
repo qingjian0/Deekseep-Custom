@@ -25,12 +25,13 @@ grep -Fq -- '-keep class ds.dsh.DeepSeek.** { *; }' "$ROOT/compose-launcher/app/
 grep -Fq 'android:name="ds.dsh.DeepSeek.z21"' "$COMPOSE_MANIFEST"
 grep -Fq 'android:enabled="${localApiComponentEnabled}"' "$COMPOSE_MANIFEST"
 
-python - "$GATEWAY" "$LOCAL_API_UI" "$BUILD_GRADLE" <<'PY'
+python - "$GATEWAY" "$LOCAL_API_UI" "$BUILD_GRADLE" "$ROOT/module-kotlin-runtime/src/main/java/ds/dsh/DeepSeek/LocalApiResponseStateStore.java" <<'PY'
 import pathlib
 import sys
 
 source = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
 build_gradle = pathlib.Path(sys.argv[3]).read_text(encoding="utf-8")
+state_store = pathlib.Path(sys.argv[4]).read_text(encoding="utf-8")
 if '(!protectedDistribution || localApiIncluded).toString()' not in build_gradle:
     raise SystemExit("Open builds must enable the declared Local API companion components")
 required = {
@@ -251,9 +252,9 @@ gateway_checks = {
     "unsupported hosted Responses tools are rejected": '"Unsupported Responses tool type: "' in source,
     "Responses input accepts strings and item arrays": 'responsesInputToPrompt(rawInput, pendingToolCallIds)' in source and '"input must be a string or an array"' in source,
     "Responses previous_response_id resolves bounded in-memory state": 'loadResponseState(previousId)' in source and '"previous_response_not_found"' in source,
-    "Responses state has bounded count, TTL, and transcript size": 'MAX_RESPONSE_STATES = 64' in source and 'RESPONSE_STATE_TTL_MS' in source and 'MAX_RESPONSE_STATE_CHARS' in source,
-    "Responses continuation state is cleared when the gateway stops": 'RESPONSE_STATES.clear();' in source,
-    "Responses output state records outstanding tool calls": 'rememberResponseState(requestId, savedTranscript.toString(), savedPendingCalls)' in source,
+    "Responses state delegates to the bounded in-memory store": 'LocalApiResponseStateStore.get(previousId)' in source,
+    "Responses continuation state is cleared when the gateway stops": 'LocalApiResponseStateStore.clear();' in source,
+    "Responses output state records outstanding tool calls": 'LocalApiResponseStateStore.put(requestId' in source,
     "Responses function-call outputs are validated against prior call IDs": '!callIds.remove(callId)' in source and 'Unmatched tool-call output' in source,
     "Responses function calls are serialized as output items": '"function_call".equals(type)' in source and '"function_call"' in source and '"output_text"' in source,
     "Responses streaming emits terminal completed event": '"response.completed"' in source and 'sendResponsesEvent(out' in source,
@@ -284,6 +285,15 @@ gateway_checks = {
 missing_gateway = [label for label, ok in gateway_checks.items() if not ok]
 if missing_gateway:
     raise SystemExit("Missing API protocol behavior: " + ", ".join(missing_gateway))
+state_store_required = {
+    "Responses state store enforces a 64-entry LRU bound": "MAX_ENTRIES = 64" in state_store and "new LinkedHashMap<String, State>(16, 0.75f, true)" in state_store,
+    "Responses state store enforces a 30-minute TTL": "TTL_MS = 30L * 60L * 1000L" in state_store,
+    "Responses state store enforces the transcript cap": "MAX_TRANSCRIPT_CHARS = 256 * 1024" in state_store,
+    "Responses pending tool IDs are defensively copied": "Collections.unmodifiableSet(new HashSet<String>(pendingToolCallIds))" in state_store,
+}
+missing_state_store = [label for label, ok in state_store_required.items() if not ok]
+if missing_state_store:
+    raise SystemExit("Missing Responses state-store contract: " + ", ".join(missing_state_store))
 
 anthropic_adapter = (pathlib.Path(sys.argv[1]).parent / "AnthropicMessagesAdapter.java").read_text(encoding="utf-8")
 anthropic_required = {
