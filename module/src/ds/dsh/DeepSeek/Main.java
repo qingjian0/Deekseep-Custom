@@ -134,7 +134,17 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     private static final RoiClassLoadObserver ROI_CLASS_LOAD_OBSERVER =
             new RoiClassLoadObserver();
     private static final RoiUnknownHostInvocationProbe ROI_UNKNOWN_HOST_INVOCATION_PROBE =
-            new RoiUnknownHostInvocationProbe();
+            new RoiUnknownHostInvocationProbe(new RoiUnknownHostInvocationProbe.EventListener() {
+                @Override public void onEvent(String descriptor, long elapsedNanos,
+                        String exceptionType) {
+                    // Record only method identity, elapsed time, and exception type.
+                    // Never collect request arguments, return values, prompts, or exception messages.
+                    log("[ROI_PROBE_EVENT] descriptor=" + descriptor
+                            + ", elapsedMs=" + (elapsedNanos / 1000000L)
+                            + ", exceptionType="
+                            + (exceptionType == null ? "none" : exceptionType));
+                }
+            });
     private static final RoiUnknownHostInvocationProbeInstaller
             ROI_UNKNOWN_HOST_INVOCATION_PROBE_INSTALLER =
                     new RoiUnknownHostInvocationProbeInstaller(
