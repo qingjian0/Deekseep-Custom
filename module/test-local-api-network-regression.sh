@@ -35,7 +35,7 @@ if '(!protectedDistribution || localApiIncluded).toString()' not in build_gradle
     raise SystemExit("Open builds must enable the declared Local API companion components")
 required = {
     "active Android network lookup": "manager.getActiveNetwork()",
-    "active network link properties": "manager.getLinkProperties(active)",
+    "active network address lookup": "lanAddress(manager, active)",
     "all-network callback registration": "manager.registerNetworkCallback(",
     "API-compatible network capability import": "import android.net.NetworkCapabilities;",
     "LAN network selection excludes VPN interfaces": "hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)",
