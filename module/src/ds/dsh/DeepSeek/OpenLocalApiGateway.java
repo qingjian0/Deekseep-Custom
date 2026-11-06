@@ -543,12 +543,13 @@ final class OpenLocalApiGateway {
                                 + unsupportedOption);
                 return;
             }
-            if (body.has("tools") || body.has("tool_choice")
-                    || body.has("functions") || body.has("function_call")
-                    || body.has("parallel_tool_calls") || body.has("response_format")
-                    || body.has("stream_options")) {
+            String unsupportedFeature = unsupportedFeature(body);
+            if (unsupportedFeature.length() > 0) {
+                OpenNativeCompletionProbe.apiTrace("request-rejected stage=feature-validation"
+                        + " parameter=" + unsupportedFeature + " status=400 code=unsupported_feature");
                 sendError(out, 400, "unsupported_feature",
-                        "This Open gateway does not yet support tools, response_format, or usage streaming");
+                        "This Open gateway does not support the requested feature: "
+                                + unsupportedFeature);
                 return;
             }
             if (body.has("model") && !(body.opt("model") instanceof String)) {
@@ -847,6 +848,60 @@ final class OpenLocalApiGateway {
         if (body.has("n")) {
             Object n = body.opt("n");
             if (!(n instanceof Number) || ((Number) n).doubleValue() != 1.0) return "n";
+        }
+        return "";
+    }
+
+    /** Returns the first actually requested unsupported feature, ignoring harmless defaults. */
+    private static String unsupportedFeature(JSONObject body) {
+        Object tools = body.opt("tools");
+        if (tools != null && tools != JSONObject.NULL) {
+            if (!(tools instanceof JSONArray) || ((JSONArray) tools).length() > 0) {
+                return "tools";
+            }
+        }
+        Object toolChoice = body.opt("tool_choice");
+        if (toolChoice != null && toolChoice != JSONObject.NULL
+                && !(toolChoice instanceof String && "none".equals(toolChoice))) {
+            return "tool_choice";
+        }
+        Object functions = body.opt("functions");
+        if (functions != null && functions != JSONObject.NULL) {
+            if (!(functions instanceof JSONArray) || ((JSONArray) functions).length() > 0) {
+                return "functions";
+            }
+        }
+        Object functionCall = body.opt("function_call");
+        if (functionCall != null && functionCall != JSONObject.NULL
+                && !(functionCall instanceof String && "none".equals(functionCall))) {
+            return "function_call";
+        }
+        Object parallel = body.opt("parallel_tool_calls");
+        if (parallel != null && parallel != JSONObject.NULL
+                && !Boolean.FALSE.equals(parallel)) {
+            return "parallel_tool_calls";
+        }
+        Object responseFormat = body.opt("response_format");
+        if (responseFormat != null && responseFormat != JSONObject.NULL) {
+            JSONObject format = body.optJSONObject("response_format");
+            if (format == null || !"text".equals(format.optString("type", ""))) {
+                return "response_format";
+            }
+        }
+        Object streamOptions = body.opt("stream_options");
+        if (streamOptions != null && streamOptions != JSONObject.NULL) {
+            JSONObject options = body.optJSONObject("stream_options");
+            if (options == null) return "stream_options";
+            Object includeUsage = options.opt("include_usage");
+            if (includeUsage != null && includeUsage != JSONObject.NULL
+                    && !Boolean.FALSE.equals(includeUsage)) {
+                return "stream_options.include_usage";
+            }
+            java.util.Iterator<String> keys = options.keys();
+            while (keys.hasNext()) {
+                String key = keys.next();
+                if (!"include_usage".equals(key)) return "stream_options." + key;
+            }
         }
         return "";
     }
