@@ -34,11 +34,11 @@ Status: In progress; not a release acceptance report.
 - Added `POST /v1/responses` for text input and message/function-call/function-call-output input items.
 - Added Responses JSON output items for assistant text, function calls, and custom tool calls; `web_search_*` declarations map to the native search switch, reasoning effort is validated/mapped, and unsupported hosted tool types are rejected.
 - Added text-only Responses SSE lifecycle (`response.created`, `response.in_progress`, output/content events, `response.completed`); tool-bearing streaming is rejected explicitly.
-- Added strict rejection for unsupported `previous_response_id` persistence rather than silently dropping continuation context.
+- Added bounded in-memory `previous_response_id` continuation state: up to 64 responses, 30-minute TTL, 256 KiB transcript cap, and automatic loss on service restart. Function/custom tool call IDs remain pending until matching tool outputs arrive.
 
 ## Not yet completed
 
-- OpenAI Responses endpoint is implemented for text JSON/SSE and non-streaming function/custom tool handoff; `previous_response_id` persistence and streamed tool calls remain unsupported.
+- OpenAI Responses endpoint is implemented for text JSON/SSE and non-streaming function/custom tool handoff; disk-backed `previous_response_id` persistence and streamed tool calls remain unsupported.
 - Anthropic Messages and count_tokens endpoints are not yet implemented in the Open gateway.
 - HTTP chunked decoder has source assertions but has not yet been executed in an Android/JVM test harness.
 - No Android build or CI run is claimed. The latest commit has no reported workflow runs or status checks.
@@ -61,7 +61,7 @@ Status: In progress; not a release acceptance report.
 
 ## Next parallel batch
 
-1. Add bounded previous_response_id state and streamed Responses tool-call redaction only after the native adapter can be exercised.
+1. Add executable TTL/eviction and session-isolation tests for bounded Responses continuation state.
 2. Adapt the Anthropic Messages request/response path and content-block SSE lifecycle if/when the Open build is intended to expose Anthropic.
 3. Keep Chat and Responses tool execution client-side unless an explicitly authorized local executor is configured.
 4. Add executable protocol tests for HTTP framing, tool schemas, tool-call continuation, Responses event ordering, and session scoping.
