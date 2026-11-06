@@ -178,6 +178,10 @@ final class AnthropicMessagesAdapter {
                         text.append(value);
                     }
                 } else if ("tool_use".equals(type)) {
+                    if (text.length() > 0) {
+                        append(prompt, role, text.toString());
+                        text.setLength(0);
+                    }
                     if (!"assistant".equals(role) || !plan.active()) {
                         throw invalid("invalid_tool_use", "tool_use is allowed only in assistant messages with tools declared");
                     }
@@ -193,6 +197,10 @@ final class AnthropicMessagesAdapter {
                     append(prompt, "assistant", "tool call id=" + id + " name=" + name
                             + " arguments=" + input.toString());
                 } else if ("tool_result".equals(type)) {
+                    if (text.length() > 0) {
+                        append(prompt, role, text.toString());
+                        text.setLength(0);
+                    }
                     if (!"user".equals(role)) {
                         throw invalid("invalid_tool_result", "tool_result is allowed only in user messages");
                     }
