@@ -1771,8 +1771,8 @@ final class OpenLocalApiGateway {
         String[] lines = new String(header.toByteArray(), StandardCharsets.ISO_8859_1).split("\r\n");
         String[] first = lines[0].split(" ", -1);
         if (first.length != 3 || !isHttpToken(first[0]) || first[1].length() == 0
-                || first[1].indexOf('\\t') >= 0 || first[1].indexOf('\\r') >= 0
-                || first[1].indexOf('\\n') >= 0
+                || first[1].indexOf('\t') >= 0 || first[1].indexOf('\r') >= 0
+                || first[1].indexOf('\n') >= 0
                 || (!"HTTP/1.0".equals(first[2]) && !"HTTP/1.1".equals(first[2]))) {
             throw new IllegalArgumentException("Invalid request line");
         }
