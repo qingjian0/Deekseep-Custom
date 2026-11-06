@@ -30,9 +30,16 @@ Status: In progress; not a release acceptance report.
 - Explicitly rejects streaming tool calls until SSE redaction can guarantee that private tool syntax is never leaked.
 - Updated Open-build UI capability disclosures to distinguish implemented non-stream tool handoff from the still-unavailable native adapter.
 
+## Newly completed in this batch
+
+- Added `POST /v1/responses` for text input and message/function-call/function-call-output input items.
+- Added Responses JSON output items for assistant text, function calls, and custom tool calls.
+- Added text-only Responses SSE lifecycle (`response.created`, `response.in_progress`, output/content events, `response.completed`); tool-bearing streaming is rejected explicitly.
+- Added strict rejection for unsupported `previous_response_id` persistence rather than silently dropping continuation context.
+
 ## Not yet completed
 
-- Responses API endpoint is not yet implemented in the Open gateway.
+- OpenAI Responses endpoint is implemented for text JSON/SSE and non-streaming function/custom tool handoff; `previous_response_id` persistence and streamed tool calls remain unsupported.
 - Anthropic Messages and count_tokens endpoints are not yet implemented in the Open gateway.
 - HTTP chunked decoder has source assertions but has not yet been executed in an Android/JVM test harness.
 - No Android build or CI run is claimed. The latest commit has no reported workflow runs or status checks.
@@ -48,15 +55,15 @@ Status: In progress; not a release acceptance report.
 | Chunked HTTP request framing | Implemented; execution test pending |
 | OpenAI tool parser | Ported and wired to non-stream Chat; execution/build verification pending |
 | OpenAI Chat non-stream tool handoff | Implemented; execution/build verification pending |
-| OpenAI Responses | Not yet accepted |
+| OpenAI Responses text + non-stream tool handoff | Implemented; execution/build verification pending |
 | Anthropic Messages | Not yet accepted |
 | code289 native generation | Not yet accepted |
 | Android build / CI / real device | Not yet verified |
 
 ## Next parallel batch
 
-1. Adapt the reference Responses request/response path to the existing z2.CompletionRequest / CompletionResult contract.
-2. Adapt the Anthropic Messages request/response path and content-block SSE lifecycle.
-3. Extend the tool-plan contract to Responses after its request/response adapter is in place; keep tool execution client-side unless an explicitly authorized local executor is configured.
-4. Add focused runtime tests for HTTP framing, tool schemas, tool-call continuation, SSE terminal events, and session scoping.
+1. Add bounded previous_response_id state and streamed Responses tool-call redaction only after the native adapter can be exercised.
+2. Adapt the Anthropic Messages request/response path and content-block SSE lifecycle if/when the Open build is intended to expose Anthropic.
+3. Keep Chat and Responses tool execution client-side unless an explicitly authorized local executor is configured.
+4. Add executable protocol tests for HTTP framing, tool schemas, tool-call continuation, Responses event ordering, and session scoping.
 5. Continue code289 APK/device evidence work independently; do not enable the native backend until the exact request and event contracts are proven.
