@@ -3981,7 +3981,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         LocalApiBackgroundState state = localApiBackgroundState(context);
         // The entry reminder deliberately checks only the OS battery/background policy. It does
         // not re-run any first-launch grant or block the Local API service from starting.
-        return !state.dozeExempt || state.backgroundRestricted;
+        return !state.hostDozeExempt || !state.moduleDozeExempt
+                || state.backgroundRestricted || state.error.length() > 0;
     }
 
     static void dismissLocalApiBatteryReminder() {
