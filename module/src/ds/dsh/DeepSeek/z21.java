@@ -52,6 +52,7 @@ public final class z21 extends Service {
     static final String EXTRA_OVERLAY_PERMISSION = "overlay_permission";
     static final String EXTRA_OVERLAY_ONLY = "overlay_only";
     static final String EXTRA_API_KEEPALIVE_REQUESTED = "api_keepalive_requested";
+    static final String EXTRA_NOTIFICATION_ENABLED = "notification_enabled";
     static final String EXTRA_FREEZER_BRIDGE_V236 = "freezer_bridge_v236";
     static final String EXTRA_FREEZER_BRIDGE_V241 = "freezer_bridge_v241";
     static final String OP_SET_ENABLED = "set_enabled";
@@ -194,6 +195,10 @@ public final class z21 extends Service {
                         LocalApiFloatingOverlay.isRequested(z21.this));
                 ping.putExtra(EXTRA_OVERLAY_PERMISSION, LocalApiFloatingOverlay.hasPermission(z21.this));
                 ping.putExtra(EXTRA_API_KEEPALIVE_REQUESTED, isRequested(z21.this));
+                NotificationManager notificationManager = (NotificationManager)
+                        getSystemService(Context.NOTIFICATION_SERVICE);
+                ping.putExtra(EXTRA_NOTIFICATION_ENABLED, notificationManager != null
+                        && notificationManager.areNotificationsEnabled());
                 long installedHostCode = installedHostCode(z21.this);
                 if (installedHostCode == 249L) {
                     Bundle bridge = new Bundle();
