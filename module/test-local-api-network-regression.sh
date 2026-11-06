@@ -39,7 +39,7 @@ required = {
     "all-network callback registration": "manager.registerNetworkCallback(",
     "API-compatible network capability import": "import android.net.NetworkCapabilities;",
     "LAN network selection excludes VPN interfaces": "hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)",
-    "LAN network monitor includes local-only non-VPN networks": "clearCapabilities()",
+    "LAN network monitor includes local-only non-VPN networks": "removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)",
     "all-network callback request": "addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)",
     "secondary network fallback": "manager.getAllNetworks()",
     "per-network link properties lookup": "manager.getLinkProperties(network)",
