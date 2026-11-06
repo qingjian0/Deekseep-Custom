@@ -3,7 +3,8 @@ package ds.dsh.DeepSeek;
 public final class RoiDexSerializerMapperTest {
     public static void main(String[] args)throws Exception {
         requestConstructorShape();directElementIndexMapping();checkCastSerializableElementMapping();
-        dynamicSwitchElementIndexMapping();duplicateSwitchTargetRejected();
+        dynamicSwitchElementIndexMapping();multipleDecodeCallsForOneSwitchCaseRejected();
+        duplicateSwitchTargetRejected();
         switchTargetWithAlternatePredecessorRejected();incompleteElementCoverageRejected();duplicateElementIdentityRejected();
         System.out.println("RoiDexSerializerMapperTest: PASS");
     }
@@ -87,6 +88,27 @@ public final class RoiDexSerializerMapperTest {
                 index->method(index),elements(),provenance);
         yes(result.complete);eq(1,result.constructors[0].parameters.length);
         eq(0,result.constructors[0].parameters[0].elementIndex);
+    }
+
+    static void multipleDecodeCallsForOneSwitchCaseRejected()throws Exception {
+        RoiDexCodeReader.CodeItem code=code(new short[]{
+                (short)0x0071,0,0,
+                (short)0x000a,
+                (short)0x002b,4,0,
+                (short)0x000e,
+                (short)0x0100,1,0,0,10,0,
+                (short)0x036e,1,(short)0x0032,
+                (short)0x010c,
+                (short)0x036e,1,(short)0x0032,
+                (short)0x040c,
+                (short)0x0270,2,(short)0x0015,
+                (short)0x000e
+        },6);
+        RoiDexValueProvenance.Result provenance=provenance(code,index->method(index));
+        RoiDexSerializerMapper.Result result=RoiDexSerializerMapper.analyze(code,"Lx;",
+                index->method(index),elements(),provenance);
+        yes(!result.complete);
+        yes(hasRejection(result,"dynamic_element_index_switch_mapping_ambiguous"));
     }
 
     static void duplicateSwitchTargetRejected()throws Exception {
