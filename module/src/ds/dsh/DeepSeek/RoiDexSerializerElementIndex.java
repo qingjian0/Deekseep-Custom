@@ -46,8 +46,18 @@ public final class RoiDexSerializerElementIndex {
             this.elements=elements.toArray(new Element[0]);
             this.rejected=rejected.toArray(new Rejected[0]);
             registrationOrderProven=proven;
-            complete=proven&&this.elements.length>0&&this.rejected.length==0;
+            complete=proven&&hasCompleteRegistrationSequence(this.elements,this.rejected);
         }
+    }
+
+    private static boolean hasCompleteRegistrationSequence(Element[] elements,Rejected[] rejected) {
+        if(elements==null||elements.length==0||rejected==null||rejected.length!=0)return false;
+        for(int i=0;i<elements.length;i++) {
+            Element element=elements[i];
+            if(element==null||element.index!=i||element.name==null||element.name.length()==0)
+                return false;
+        }
+        return true;
     }
 
     public static final class AnalysisException extends Exception {
