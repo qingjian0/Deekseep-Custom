@@ -2529,7 +2529,7 @@ public final class DeekseepUi {
         card.addView(makeDivider(act, divColor));
 
         TextView roiGateHeading = new TextView(act);
-        roiGateHeading.setText("未知版本兼容性与 Hook 授权");
+        roiGateHeading.setText(UiLanguage.text(act, "未知版本兼容性与 Hook 授权", "Unknown-version compatibility and Hook authorization"));
         roiGateHeading.setTextColor(textColor);
         roiGateHeading.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
         roiGateHeading.setTypeface(Typeface.DEFAULT_BOLD);
@@ -2551,14 +2551,18 @@ public final class DeekseepUi {
                         if (reverting) return;
                         if (Main.setUnknownVersionHookAttemptsEnabled(checked)) {
                             roiGateStatus.setText(Main.unknownHostHookGateStatus());
-                            Toast.makeText(act, checked ? "已允许未知版本兼容性尝试" : "已关闭未知版本尝试",
+                            Toast.makeText(act, UiLanguage.text(act,
+                                    checked ? "已允许未知版本兼容性尝试" : "已关闭未知版本尝试",
+                                    checked ? "Unknown-version compatibility attempts enabled"
+                                            : "Unknown-version attempts disabled"),
                                     Toast.LENGTH_SHORT).show();
                             return;
                         }
                         reverting = true;
                         button.setChecked(!checked);
                         reverting = false;
-                        Toast.makeText(act, "未知版本开关保存失败", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(act, UiLanguage.text(act, "未知版本开关保存失败",
+                                "Failed to save unknown-version switch"), Toast.LENGTH_SHORT).show();
                     }
                 }, null, null));
         card.addView(makeDivider(act, divColor));
@@ -2572,14 +2576,17 @@ public final class DeekseepUi {
                         if (reverting) return;
                         if (Main.setUnknownHostDiagnosticProbesEnabled(checked)) {
                             roiGateStatus.setText(Main.unknownHostHookGateStatus());
-                            Toast.makeText(act, checked ? "诊断探针已授权" : "诊断探针已关闭",
+                            Toast.makeText(act, UiLanguage.text(act,
+                                    checked ? "诊断探针已授权" : "诊断探针已关闭",
+                                    checked ? "Diagnostic probes authorized" : "Diagnostic probes disabled"),
                                     Toast.LENGTH_SHORT).show();
                             return;
                         }
                         reverting = true;
                         button.setChecked(!checked);
                         reverting = false;
-                        Toast.makeText(act, "诊断探针开关保存失败", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(act, UiLanguage.text(act, "诊断探针开关保存失败",
+                                "Failed to save diagnostic-probe switch"), Toast.LENGTH_SHORT).show();
                     }
                 }, null, null));
         card.addView(makeDivider(act, divColor));
@@ -2593,14 +2600,18 @@ public final class DeekseepUi {
                         if (reverting) return;
                         if (Main.setUnknownHostFeatureHooksAuthorized(checked)) {
                             roiGateStatus.setText(Main.unknownHostHookGateStatus());
-                            Toast.makeText(act, checked ? "功能 Hook 授权已保存" : "功能 Hook 授权已撤销",
+                            Toast.makeText(act, UiLanguage.text(act,
+                                    checked ? "功能 Hook 授权已保存" : "功能 Hook 授权已撤销",
+                                    checked ? "Feature Hook authorization saved"
+                                            : "Feature Hook authorization revoked"),
                                     Toast.LENGTH_SHORT).show();
                             return;
                         }
                         reverting = true;
                         button.setChecked(!checked);
                         reverting = false;
-                        Toast.makeText(act, "功能 Hook 授权保存失败", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(act, UiLanguage.text(act, "功能 Hook 授权保存失败",
+                                "Failed to save Feature Hook authorization"), Toast.LENGTH_SHORT).show();
                     }
                 }, null, null));
         card.addView(makeDivider(act, divColor));
