@@ -261,7 +261,7 @@ gateway_checks = {
     "response_format remains explicitly rejected when unsupported": '"unsupported_feature"' in source and 'body.opt("response_format")' in source,
     "Chat usage is returned with an explicit estimate marker": '"prompt_tokens", promptTokens' in source and '"completion_tokens", completionTokens' in source and '"dsh_usage_estimated", true' in source,
     "stream_options.include_usage accepts boolean true and rejects non-boolean values": 'includeUsage instanceof Boolean' in source and 'optBoolean("include_usage", false)' in source,
-    "stream usage chunk is emitted before the terminal DONE marker": 'if (includeUsage)' in source and 'new JSONArray()).put("usage", usage)' in source and 'out.write("data: [DONE]' in source,
+    "stream usage chunk is emitted before the terminal DONE marker": 'if (includeUsage)' in source and 'put("choices", new JSONArray())' in source and 'put("usage", usage)' in source and 'out.write("data: [DONE]' in source,
     "stream must be a boolean": 'body.opt("stream") instanceof Boolean' in source and '"invalid_stream"' in source,
     "model must be a string when supplied": 'body.opt("model") instanceof String' in source and '"invalid_model"' in source,
     "legacy deepseek-flash model ID is advertised as a compatibility alias": 'new JSONObject().put("id", "deepseek-flash")' in source and "Compatibility alias retained" in source,
