@@ -495,8 +495,8 @@ require(
 
 require(
     probe,
-    r'installCallbackObserver\(Object callback, String role\).*?installed < MAX_CALLBACK_METHOD_HOOKS.*?getDeclaredMethods\(\).*?chain\.getThisObject\(\).*?System\.identityHashCode\(receiver\)',
-    "continuation callback implementations are traced with bounded method hooks and identity correlation",
+    r'installCallbackObserver\(Object callback, String role\).*?while \(current != null && current != Object\.class\).*?getDeclaredMethods\(\).*?chain\.getThisObject\(\).*?System\.identityHashCode\(receiver\)',
+    "continuation callback implementations are traced across the complete class hierarchy without probe-imposed class or method caps",
 )
 require(
     probe,
@@ -513,13 +513,13 @@ if "callback.toString()" in probe or "receiver.toString()" in probe:
 
 require(
     probe,
-    r'line\(out, "report\.schema", "3"\).*?diagnostic\.coverage.*?diagnostic\.sensitive_data',
-    "schema 3 identifies the combined native, callback, and gateway capture contract",
+    r'line\(out, "report\.schema", "4"\).*?diagnostic\.coverage.*?diagnostic\.sensitive_data.*?diagnostic\.callback_discovery_limits.*?none-imposed-by-probe',
+    "schema 4 identifies uncapped persistent native, callback, and gateway capture",
 )
 require(
     probe,
-    r'MAX_CALLBACK_TRACE_EVENTS = 512.*?CALLBACK_METHOD_INVOCATIONS.*?CALLBACK_DETAIL_EVENTS.*?callback-events-truncated limit=',
-    "callback event volume is bounded and reports truncation instead of flooding the report",
+    r'CALLBACK_METHOD_INVOCATIONS.*?CALLBACK_DETAIL_EVENTS.*?observerLog\("\[OPEN_NATIVE_CALL_OBSERVER\] callback-enter.*?callback-exit.*?callback-throw',
+    "every callback event is persisted; only the in-memory preview remains bounded",
 )
 require(
     probe,
@@ -528,13 +528,13 @@ require(
 )
 require(
     probe,
-    r'onExplicitEnable\(ClassLoader loader\).*?resetRuntimeTrace\(\).*?private static void resetRuntimeTrace\(\).*?OBSERVATION_LOG\.setLength\(0\).*?CALLBACK_METHOD_INVOCATIONS\.set\(0\).*?API_TRACE_EVENTS\.set\(0\).*?session-start schema=3',
+    r'onExplicitEnable\(ClassLoader loader\).*?resetRuntimeTrace\(\).*?private static void resetRuntimeTrace\(\).*?OBSERVATION_LOG\.setLength\(0\).*?CALLBACK_METHOD_INVOCATIONS\.set\(0\).*?API_TRACE_EVENTS\.set\(0\).*?session-start schema=4',
     "each explicit enable starts a clean report session without uninstalling transparent hooks",
 )
 require(
     probe,
-    r'MAX_CALLBACK_CLASSES = 32.*?MAX_CALLBACK_METHODS_INSPECTED = 512.*?MAX_CALLBACK_METHOD_HOOKS = 256.*?callback-class-limit limit=',
-    "callback class and method discovery has independent hard bounds",
+    r'while \(current != null && current != Object\.class\).*?for \(Method method : methods\).*?Main\.MODULE\.hook\(target\)',
+    "callback discovery and hook installation do not impose fixed class, method, or hook-count limits",
 )
 require(
     gateway,
@@ -550,6 +550,11 @@ require(
     probe,
     r'CALLBACK_STATS.*?ConcurrentHashMap.*?stats\.record\(System\.nanoTime\(\) - started, false\).*?stats\.record\(System\.nanoTime\(\) - started, true\).*?totalMs=.*?maxMs=.*?avgUs=',
     "every hooked callback method retains full invocation, failure, and latency aggregates beyond detailed event samples",
+)
+require(
+    probe,
+    r'createSessionLogFile\(long startedAtMs\).*?getFilesDir\(\).*?dsh_open_native_diagnostics.*?appendSessionLog\(String message\).*?new FileOutputStream\(SESSION_LOG_FILE, true\).*?SESSION_LOG_OUTPUT\.flush\(\).*?callbackPersistentLog=',
+    "all diagnostic events are synchronously persisted to an app-private session log without an event-count cap",
 )
 require(
     ui,
