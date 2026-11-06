@@ -24,7 +24,7 @@ import java.util.Set;
 public final class RoiDexApkCli {
     private static final int MAX_METHODS_SCANNED = 150000;
     private static final int MAX_SELECTED_METHODS = 64;
-    private static final int MAX_ANALYSIS_METHODS = 256;
+    private static final int MAX_ANALYSIS_METHODS = 320;
     private static final int MAX_FIRST_HOP_METHODS = 128;
     private static final int MAX_CROSS_DEX_METHODS = 64;
     private static final long MAX_CODE_UNITS = 20000000L;
@@ -208,6 +208,10 @@ public final class RoiDexApkCli {
                         ? transitiveCalleePriority.get(left) : 0;
                 int rightPriority = transitiveCalleePriority.containsKey(right)
                         ? transitiveCalleePriority.get(right) : 0;
+                if ("Lrkc;->p(Ljava/lang/String;Lorg/json/JSONObject;)V".equals(left))
+                    leftPriority += 10000;
+                if ("Lrkc;->p(Ljava/lang/String;Lorg/json/JSONObject;)V".equals(right))
+                    rightPriority += 10000;
                 if (leftPriority != rightPriority) return rightPriority - leftPriority;
                 return left.compareTo(right);
             }
