@@ -11,7 +11,7 @@ public final class RoiDexInstructionDecoderTest {
   eq(1,d.registers[0]);eq(2,d.registers[1]);eq(3,d.registers[2]);
  }
  static void test35cFiveRegisters()throws Exception{
-  short[] c={(short)0x5070,(short)0x002a,(short)0x4321};
+  short[] c={(short)0x5570,(short)0x002a,(short)0x4321};
   RoiDexInstructionDecoder.Decoded d=RoiDexInstructionDecoder.decode(c,0,8);
   eq(5,d.registers.length);for(int i=0;i<5;i++)eq(i+1,d.registers[i]);
  }
