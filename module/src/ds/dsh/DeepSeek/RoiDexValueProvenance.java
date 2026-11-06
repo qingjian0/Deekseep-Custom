@@ -245,7 +245,8 @@ public final class RoiDexValueProvenance {
                 } catch(AnalysisException error) {
                     return rejected(error.getMessage());
                 }
-                if(castType==null)return rejected("check_cast_type_unresolved");
+                if(!isReferenceTypeDescriptor(castType))
+                    return rejected("check_cast_target_type_not_reference");
                 RoiDexUseDefChains.UseSite sourceUse=uses.get(useKey(offset,0));
                 if(sourceUse==null||sourceUse.register!=cast.uses[0])
                     return rejected("check_cast_source_use_missing");
@@ -253,6 +254,8 @@ public final class RoiDexValueProvenance {
                 Trace child=trace(new RoiDexUseDefChains.UseSite[]{sourceUse},1,active);
                 for(RoiDexReachingDefinitions.Definition def:defs)active.remove(def.id);
                 if(!child.unique)return child;
+                if(!isReferenceTypeDescriptor(child.effectiveTypeDescriptor))
+                    return rejected("check_cast_source_type_not_reference");
                 List<Integer> pathDefinitions=definitionIds(defs);append(pathDefinitions,child.definitionIds);
                 List<Integer> pathOffsets=singleOffset(offset);append(pathOffsets,child.instructionOffsets);
                 return new Trace(true,child.source,castType,null,pathDefinitions,pathOffsets);
@@ -285,6 +288,17 @@ public final class RoiDexValueProvenance {
             append(pathOffsets,child.instructionOffsets);
             return new Trace(true,child.source,child.effectiveTypeDescriptor,null,
                     pathDefinitions,pathOffsets);
+        }
+
+        private static boolean isReferenceTypeDescriptor(String descriptor) {
+            if(descriptor==null||descriptor.length()==0
+                    ||(descriptor.charAt(0)!='L'&&descriptor.charAt(0)!='['))return false;
+            try {
+                return descriptor.equals(RoiDexInstructionDecoder.parameterDescriptorAt(
+                        "("+descriptor+")V",0));
+            } catch(RoiDexInstructionDecoder.DecodeException error) {
+                return false;
+            }
         }
 
         private static Trace rejected(String reason) {

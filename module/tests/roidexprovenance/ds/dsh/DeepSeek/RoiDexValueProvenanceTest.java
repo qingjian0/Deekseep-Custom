@@ -3,7 +3,9 @@ package ds.dsh.DeepSeek;
 public final class RoiDexValueProvenanceTest {
     public static void main(String[] args)throws Exception {
         singleMoveChain();wideMoveChain();stringConstantThroughMove();integerConstantTrace();
-        dynamicIndexInvokeTrace();checkCastPreservesSource();branchMergeRejected();unsupportedDefinitionRejected();
+        dynamicIndexInvokeTrace();checkCastPreservesSource();checkCastAfterMove();consecutiveCheckCasts();
+        primitiveSourceCannotBeCast();primitiveTargetCannotBeCast();invalidCheckCastTypeRejected();
+        branchMergeRejected();unsupportedDefinitionRejected();
         System.out.println("RoiDexValueProvenanceTest: PASS");
     }
 
@@ -120,6 +122,87 @@ public final class RoiDexValueProvenanceTest {
         RoiDexValueProvenance.Trace trace=provenance.traceUse(6,1,1);
         yes(trace.unique);eq(0,trace.source.invokeOffset);
         eq("Lx;",trace.effectiveTypeDescriptor);
+    }
+
+    static void checkCastAfterMove()throws Exception {
+        RoiDexCodeReader.CodeItem code=code(new short[]{
+                (short)0x0071,0,0,      // decodeSerializableElement()Ljava/lang/Object;
+                (short)0x000c,          // move-result-object v0
+                (short)0x001f,0,        // check-cast v0, type@0
+                (short)0x0107,          // move-object v1, v0
+                (short)0x0270,1,(short)0x0012,
+                (short)0x000e
+        },3);
+        RoiDexValueProvenance.Trace trace=trace(code,"()Ljava/lang/Object;","(Lx;)V",i->"Lx;",8,1);
+        yes(trace.unique);eq("Lx;",trace.effectiveTypeDescriptor);
+        eq(3,trace.instructionOffsets.length);
+    }
+
+    static void consecutiveCheckCasts()throws Exception {
+        RoiDexCodeReader.CodeItem code=code(new short[]{
+                (short)0x0071,0,0,      // decodeSerializableElement()Ljava/lang/Object;
+                (short)0x000c,          // move-result-object v0
+                (short)0x001f,0,        // check-cast v0, type@0
+                (short)0x001f,1,        // check-cast v0, type@1
+                (short)0x0270,1,(short)0x0002,
+                (short)0x000e
+        },3);
+        RoiDexValueProvenance.Trace trace=trace(code,"()Ljava/lang/Object;","(Lx;)V",
+                i->i==0?"Lx;":"Lx;",8,1);
+        yes(trace.unique);eq("Lx;",trace.effectiveTypeDescriptor);
+        eq(3,trace.instructionOffsets.length);
+    }
+
+    static void primitiveSourceCannotBeCast()throws Exception {
+        RoiDexCodeReader.CodeItem code=code(new short[]{
+                (short)0x0071,0,0,      // malformed producer: ()I
+                (short)0x000a,          // move-result v0
+                (short)0x001f,0,        // invalid check-cast on primitive
+                (short)0x0270,1,(short)0x0002,
+                (short)0x000e
+        },3);
+        RoiDexValueProvenance.Trace trace=trace(code,"()I","(Lx;)V",i->"Lx;",6,1);
+        yes(!trace.unique);eq("check_cast_source_type_not_reference",trace.rejectionReason);
+    }
+
+    static void primitiveTargetCannotBeCast()throws Exception {
+        RoiDexCodeReader.CodeItem code=code(new short[]{
+                (short)0x0071,0,0,
+                (short)0x000c,
+                (short)0x001f,0,
+                (short)0x0270,1,(short)0x0002,
+                (short)0x000e
+        },3);
+        RoiDexValueProvenance.Trace trace=trace(code,"()Ljava/lang/Object;","(I)V",i->"I",6,1);
+        yes(!trace.unique);eq("check_cast_target_type_not_reference",trace.rejectionReason);
+    }
+
+    static void invalidCheckCastTypeRejected()throws Exception {
+        RoiDexCodeReader.CodeItem code=code(new short[]{
+                (short)0x0071,0,0,
+                (short)0x000c,
+                (short)0x001f,0,
+                (short)0x0270,1,(short)0x0002,
+                (short)0x000e
+        },3);
+        RoiDexValueProvenance.Trace trace=trace(code,"()Ljava/lang/Object;","(Lx;)V",
+                i->{throw new RoiDexValueProvenance.AnalysisException("type_index_out_of_range");},6,1);
+        yes(!trace.unique);eq("type_index_out_of_range",trace.rejectionReason);
+    }
+
+    static RoiDexValueProvenance.Trace trace(RoiDexCodeReader.CodeItem code,String producer,
+            String constructor,RoiDexValueProvenance.TypeResolver types,int invokeOffset,int operand)
+            throws Exception {
+        RoiDexInvokeResultLinker.Result links=RoiDexInvokeResultLinker.analyze(code,index->
+                new RoiDexFileReader.ResolvedMethodId(index,"Lx;",
+                        index==0?"decodeSerializableElement":"<init>",
+                        index==0?producer:constructor));
+        RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(code);
+        RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
+        RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching);
+        RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(
+                code,null,types,flow,reaching,useDef,links);
+        return provenance.traceUse(invokeOffset,operand,1);
     }
 
     static void branchMergeRejected()throws Exception {
