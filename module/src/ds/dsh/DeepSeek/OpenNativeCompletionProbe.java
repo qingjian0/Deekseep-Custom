@@ -38,9 +38,14 @@ final class OpenNativeCompletionProbe {
     private static final Object OBSERVATION_LOG_LOCK = new Object();
     private static final StringBuilder OBSERVATION_LOG = new StringBuilder(4096);
     private static final int MAX_OBSERVATION_LOG_CHARS = 48_000;
-    private static final int MAX_CALLBACK_TRACE_EVENTS = 96;
-    private static final int MAX_CALLBACK_CLASSES = 8;
-    private static final int MAX_CALLBACK_METHODS_INSPECTED = 48;
+    // Detailed per-invocation samples are intentionally bounded; aggregate counters below
+    // cover every invocation of every successfully observed callback method.
+    private static final int MAX_CALLBACK_TRACE_EVENTS = 512;
+    private static final int MAX_CALLBACK_CLASSES = 32;
+    private static final int MAX_CALLBACK_METHODS_INSPECTED = 512;
+    private static final int MAX_CALLBACK_METHOD_HOOKS = 256;
+    private static final java.util.concurrent.ConcurrentHashMap<String, CallbackStats>
+            CALLBACK_STATS = new java.util.concurrent.ConcurrentHashMap<String, CallbackStats>();
     private static final java.util.concurrent.atomic.AtomicInteger CALLBACK_METHOD_INVOCATIONS =
             new java.util.concurrent.atomic.AtomicInteger();
     private static final java.util.concurrent.atomic.AtomicInteger API_TRACE_EVENTS =
@@ -49,6 +54,28 @@ final class OpenNativeCompletionProbe {
     private static final AtomicBoolean CALLBACK_TRACE_TRUNCATED = new AtomicBoolean();
     private static final ThreadLocal<ObservationFrame> OBSERVATION_FRAME =
             new ThreadLocal<ObservationFrame>();
+
+    private static final class CallbackStats {
+        final java.util.concurrent.atomic.AtomicLong invocations =
+                new java.util.concurrent.atomic.AtomicLong();
+        final java.util.concurrent.atomic.AtomicLong totalNanos =
+                new java.util.concurrent.atomic.AtomicLong();
+        final java.util.concurrent.atomic.AtomicLong maxNanos =
+                new java.util.concurrent.atomic.AtomicLong();
+        final java.util.concurrent.atomic.AtomicLong failures =
+                new java.util.concurrent.atomic.AtomicLong();
+
+        void record(long durationNanos, boolean failed) {
+            invocations.incrementAndGet();
+            totalNanos.addAndGet(Math.max(0L, durationNanos));
+            long previous;
+            do {
+                previous = maxNanos.get();
+                if (durationNanos <= previous) break;
+            } while (!maxNanos.compareAndSet(previous, durationNanos));
+            if (failed) failures.incrementAndGet();
+        }
+    }
 
     private static final class ObservationFrame {
         final long id;
@@ -83,6 +110,7 @@ final class OpenNativeCompletionProbe {
             OBSERVATION_LOG.setLength(0);
         }
         CALLBACK_METHOD_INVOCATIONS.set(0);
+        CALLBACK_STATS.clear();
         API_TRACE_EVENTS.set(0);
         CALLBACK_TRACE_TRUNCATED.set(false);
         OBSERVATION_IDS.set(0L);
@@ -162,7 +190,11 @@ final class OpenNativeCompletionProbe {
             line(out, "report.schema", "3");
             line(out, "diagnostic.coverage", "host-transport,y60-continuation,callback-implementations,local-api-gateway");
             line(out, "diagnostic.sensitive_data", "message-content,credentials,cookies,auth-headers-not-collected");
-            line(out, "diagnostic.callback_event_limit", String.valueOf(MAX_CALLBACK_TRACE_EVENTS));
+            line(out, "diagnostic.callback_detail_sample_limit", String.valueOf(MAX_CALLBACK_TRACE_EVENTS));
+            line(out, "diagnostic.callback_aggregate_coverage", "all-invocations-for-every-successfully-hooked-callback-method");
+            line(out, "diagnostic.callback_class_limit", String.valueOf(MAX_CALLBACK_CLASSES));
+            line(out, "diagnostic.callback_method_inspection_limit_per_class", String.valueOf(MAX_CALLBACK_METHODS_INSPECTED));
+            line(out, "diagnostic.callback_method_hook_limit_per_class", String.valueOf(MAX_CALLBACK_METHOD_HOOKS));
             Class<?> requestType = HostCompat.load(loader, "ew0");
             line(out, "edition", BuildInfo.BUILD_EDITION);
             line(out, "host", HostCompat.diagnosticSummary());
@@ -685,8 +717,8 @@ final class OpenNativeCompletionProbe {
         int installed = 0;
         int inspected = 0;
         Class<?> current = type;
-        while (current != null && current != Object.class && inspected < 3
-                && installed < 12) {
+        while (current != null && current != Object.class && inspected < 8
+                && installed < MAX_CALLBACK_METHOD_HOOKS) {
             Method[] methods;
             try {
                 methods = current.getDeclaredMethods();
@@ -697,7 +729,7 @@ final class OpenNativeCompletionProbe {
             }
             int examined = 0;
             for (Method method : methods) {
-                if (installed >= 12 || examined++ >= MAX_CALLBACK_METHODS_INSPECTED) break;
+                if (installed >= MAX_CALLBACK_METHOD_HOOKS || examined++ >= MAX_CALLBACK_METHODS_INSPECTED) break;
                 int modifiers = method.getModifiers();
                 String name = method.getName();
                 if (Modifier.isStatic(modifiers) || Modifier.isAbstract(modifiers)
@@ -713,13 +745,20 @@ final class OpenNativeCompletionProbe {
                             if (!Main.isOpenNativeCompletionProbeEnabled()) {
                                 return chain.proceed();
                             }
+                            String callbackMethod = observedMethodDescriptor(target);
+                            CallbackStats stats = CALLBACK_STATS.get(callbackMethod);
+                            if (stats == null) {
+                                CallbackStats created = new CallbackStats();
+                                CallbackStats previous = CALLBACK_STATS.putIfAbsent(callbackMethod, created);
+                                stats = previous == null ? created : previous;
+                            }
                             Object receiver = chain.getThisObject();
                             int identity = receiver == null ? 0
                                     : System.identityHashCode(receiver);
                             List<?> args = chain.getArgs();
                             long started = System.nanoTime();
-                            int eventNumber = CALLBACK_METHOD_INVOCATIONS.incrementAndGet();
-                            boolean recordEvent = eventNumber <= MAX_CALLBACK_TRACE_EVENTS;
+                            CALLBACK_METHOD_INVOCATIONS.incrementAndGet();
+                            boolean recordEvent = CALLBACK_STATS.values().stream().mapToLong(s -> s.invocations.get()).sum() <= MAX_CALLBACK_TRACE_EVENTS;
                             if (recordEvent) {
                                 observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-enter role="
                                         + role + " method=" + observedMethodDescriptor(target)
@@ -735,6 +774,7 @@ final class OpenNativeCompletionProbe {
                             }
                             try {
                                 Object value = chain.proceed();
+                                stats.record(System.nanoTime() - started, false);
                                 if (recordEvent) {
                                     observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-exit role="
                                             + role + " method=" + observedMethodDescriptor(target)
@@ -745,6 +785,7 @@ final class OpenNativeCompletionProbe {
                                 }
                                 return value;
                             } catch (Throwable error) {
+                                stats.record(System.nanoTime() - started, true);
                                 if (recordEvent) {
                                     observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-throw role="
                                             + role + " method=" + observedMethodDescriptor(target)
@@ -974,12 +1015,29 @@ final class OpenNativeCompletionProbe {
         String summary = "\n[OPEN_NATIVE_DIAGNOSTIC_SUMMARY]\n"
                 + "sessionStartedAtMs=" + SESSION_STARTED_AT_MS + "\n"
                 + "callbackMethodInvocations=" + CALLBACK_METHOD_INVOCATIONS.get() + "\n"
+                + "callbackMethodSignaturesObserved=" + CALLBACK_STATS.size() + "\n"
                 + "callbackClassesObserved=" + OBSERVED_CALLBACK_CLASSES.size() + "\n"
                 + "apiTraceEvents=" + API_TRACE_EVENTS.get() + "\n";
+        StringBuilder callbackSummary = new StringBuilder("\\n[OPEN_NATIVE_CALLBACK_AGGREGATES]\\n");
+        java.util.ArrayList<String> signatures = new java.util.ArrayList<String>(CALLBACK_STATS.keySet());
+        java.util.Collections.sort(signatures);
+        for (String signature : signatures) {
+            CallbackStats stats = CALLBACK_STATS.get(signature);
+            if (stats == null) continue;
+            long count = stats.invocations.get();
+            long total = stats.totalNanos.get();
+            callbackSummary.append("method=").append(signature)
+                    .append(" invocations=").append(count)
+                    .append(" failures=").append(stats.failures.get())
+                    .append(" totalMs=").append(total / 1_000_000L)
+                    .append(" maxMs=").append(stats.maxNanos.get() / 1_000_000L)
+                    .append(" avgUs=").append(count == 0 ? 0 : total / count / 1_000L)
+                    .append('\\n');
+        }
         synchronized (OBSERVATION_LOG_LOCK) {
-            if (OBSERVATION_LOG.length() == 0) return base + summary;
-            return base + "\n[OPEN_NATIVE_CALL_OBSERVER_BUFFER]\n"
-                    + OBSERVATION_LOG + summary;
+            if (OBSERVATION_LOG.length() == 0) return base + summary + callbackSummary;
+            return base + "\\n[OPEN_NATIVE_CALL_OBSERVER_BUFFER]\\n"
+                    + OBSERVATION_LOG + summary + callbackSummary;
         }
     }
 
