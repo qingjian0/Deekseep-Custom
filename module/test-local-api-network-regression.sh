@@ -38,8 +38,8 @@ required = {
     "active network link properties": "manager.getLinkProperties(active)",
     "all-network callback registration": "manager.registerNetworkCallback(",
     "API-compatible network capability import": "import android.net.NetworkCapabilities;",
-    "LAN network selection excludes VPN interfaces": "hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)" in source,
-    "LAN network monitor includes local-only non-VPN networks": "clearCapabilities()" in source and "addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)" in source,
+    "LAN network selection excludes VPN interfaces": "hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)",
+    "LAN network monitor includes local-only non-VPN networks": "clearCapabilities()",
     "all-network callback request": "addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)",
     "secondary network fallback": "manager.getAllNetworks()",
     "per-network link properties lookup": "manager.getLinkProperties(network)",
@@ -52,7 +52,7 @@ required = {
     "LAN bind refresh": "refreshLanBinding()",
     "network-loss listener close": "current.close()",
     "generated API keys retain the sk prefix": '"sk-" + android.util.Base64.encodeToString(random',
-    "custom API keys accept visible ASCII without an sk prefix": 'isValidApiKey(value)' in source and 'c < 0x21 || c > 0x7e' in source,
+    "custom API keys accept visible ASCII without an sk prefix": "private static boolean isValidApiKey(String value)",
     "persisted custom API keys use the same validation": 'if (isValidApiKey(existing)) return existing;' in source,
     "custom API keys enforce the documented 8-256 length": 'value.length() < 8 || value.length() > 256' in source,
     "base URL includes v1": 'return root.length() == 0 ? "" : root + "/v1";',
@@ -71,6 +71,10 @@ required = {
 missing = [label for label, token in required.items() if token not in source]
 if missing:
     raise SystemExit("Missing LAN network lifecycle contract: " + ", ".join(missing))
+if "addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)" not in source:
+    raise SystemExit("LAN network monitor must observe non-VPN local-only networks")
+if "c < 0x21 || c > 0x7e" not in source:
+    raise SystemExit("Custom API key validator must accept visible ASCII")
 if "InetAddress.getByName(\"0.0.0.0\")" in source:
     raise SystemExit("Wildcard listener binding is forbidden")
 # Keep the constructor assertion source-oriented and insensitive to harmless
