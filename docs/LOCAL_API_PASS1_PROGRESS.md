@@ -23,9 +23,15 @@ Status: In progress; not a release acceptance report.
   - Bounds and validates trailers; rejects framing/authentication-sensitive trailer fields.
 - Extended source-regression assertions for chunked framing and tool bridge/license contracts.
 
+## Newly completed in this batch
+
+- Wired OpenAI Chat Completions non-stream tool handoff: request tool definitions and choice are validated, tool instructions are included in the prompt, model output is parsed against the request-scoped schema, and valid calls are returned as `message.tool_calls` with `finish_reason=tool_calls`.
+- Added client-side tool continuation history parsing: assistant tool-call records are validated and tool results must match a preceding call ID. The gateway does not execute client tools.
+- Explicitly rejects streaming tool calls until SSE redaction can guarantee that private tool syntax is never leaked.
+- Updated Open-build UI capability disclosures to distinguish implemented non-stream tool handoff from the still-unavailable native adapter.
+
 ## Not yet completed
 
-- OpenAI Chat Completions now parses request-scoped tool definitions, injects the reference tool protocol, validates returned calls, and maps them to OpenAI `tool_calls` responses for client-side execution.
 - Responses API endpoint is not yet implemented in the Open gateway.
 - Anthropic Messages and count_tokens endpoints are not yet implemented in the Open gateway.
 - HTTP chunked decoder has source assertions but has not yet been executed in an Android/JVM test harness.
@@ -40,8 +46,8 @@ Status: In progress; not a release acceptance report.
 | MIT provenance | Recorded; first bridge port retains notice |
 | Shared Backend contract | Existing contract retained |
 | Chunked HTTP request framing | Implemented; execution test pending |
-| OpenAI tool parser | Ported; gateway integration pending |
-| OpenAI Chat full tools round-trip | Not yet accepted |
+| OpenAI tool parser | Ported and wired to non-stream Chat; execution/build verification pending |
+| OpenAI Chat non-stream tool handoff | Implemented; execution/build verification pending |
 | OpenAI Responses | Not yet accepted |
 | Anthropic Messages | Not yet accepted |
 | code289 native generation | Not yet accepted |
