@@ -72,6 +72,10 @@ final class OpenLocalApiGateway {
             android.content.SharedPreferences prefs = app.getSharedPreferences(
                     "dsh_local_api", Context.MODE_PRIVATE);
             configuredPort = prefs.getInt("port", DEFAULT_PORT);
+            if (configuredPort < 1024 || configuredPort > 65535) {
+                configuredPort = DEFAULT_PORT;
+                prefs.edit().putInt("port", DEFAULT_PORT).commit();
+            }
             lanEnabled = prefs.getBoolean("lan_enabled", false);
             ServerSocket socket = new ServerSocket(configuredPort, 16,
                     InetAddress.getByName("127.0.0.1"));
@@ -95,7 +99,13 @@ final class OpenLocalApiGateway {
                     : " and " + boundLanAddress + ":" + boundPort));
         } catch (Exception error) {
             RUNNING.set(false);
+            unregisterLanNetworkCallback();
             closeServer();
+            ExecutorService pool = clients;
+            clients = null;
+            if (pool != null) pool.shutdownNow();
+            backend = null;
+            boundPort = 0;
             Main.log("Open Local API start failed: " + error.getClass().getSimpleName());
         }
     }
@@ -127,18 +137,35 @@ final class OpenLocalApiGateway {
         Context app = context == null ? appContext : context.getApplicationContext();
         if (app == null) return "DeepSeek 上下文尚未就绪";
         z2.Backend current = backend;
+        int previousPort = preferredPort(app);
+        boolean wasRunning = RUNNING.get();
+        android.content.SharedPreferences prefs = app.getSharedPreferences(
+                "dsh_local_api", Context.MODE_PRIVATE);
         try {
-            app.getSharedPreferences("dsh_local_api", Context.MODE_PRIVATE)
-                    .edit().putInt("port", requestedPort).apply();
+            if (!prefs.edit().putInt("port", requestedPort).commit()) {
+                return "端口配置写入失败，原配置未改变";
+            }
             configuredPort = requestedPort;
-            if (RUNNING.get() && current != null) {
+            if (wasRunning && current != null) {
                 stop();
                 start(app, current);
-                if (!RUNNING.get()) return "端口已保存，但服务启动失败；请检查端口占用";
+                if (!RUNNING.get()) {
+                    prefs.edit().putInt("port", previousPort).commit();
+                    configuredPort = previousPort;
+                    start(app, current);
+                    return RUNNING.get()
+                            ? "新端口启动失败，已恢复原端口 " + previousPort
+                            : "新端口启动失败；原端口恢复也失败，请重启 DeepSeek 后检查端口占用";
+                }
             }
             return null;
         } catch (Exception error) {
-            return "端口设置失败";
+            try {
+                prefs.edit().putInt("port", previousPort).commit();
+                configuredPort = previousPort;
+                if (wasRunning && current != null && !RUNNING.get()) start(app, current);
+            } catch (Throwable ignored) {}
+            return "端口设置失败，已尝试恢复原配置";
         }
     }
     static String endpoint() {
@@ -531,8 +558,16 @@ final class OpenLocalApiGateway {
                 z2.CompletionResult result;
                 try {
                     result = current.complete(completion, null);
+                } catch (z2.GatewayException rejected) {
+                    sendError(out, rejected.status, rejected.code, rejected.type,
+                            rejected.getMessage());
+                    return;
                 } catch (Exception upstreamFailure) {
                     sendError(out, 502, "upstream_error", "Native model execution failed");
+                    return;
+                }
+                if (result == null) {
+                    sendError(out, 502, "empty_upstream_response", "Native model returned no result");
                     return;
                 }
                 JSONObject message = new JSONObject().put("role", "assistant")
@@ -592,9 +627,15 @@ final class OpenLocalApiGateway {
             }
         } catch (Exception failure) {
             if (!disconnected.get()) {
+                boolean gatewayFailure = failure instanceof z2.GatewayException;
+                z2.GatewayException rejected = gatewayFailure
+                        ? (z2.GatewayException) failure : null;
                 JSONObject error = new JSONObject().put("error",
-                        new JSONObject().put("message", "Model execution failed")
-                                .put("type", "server_error").put("code", "upstream_error"));
+                        new JSONObject()
+                                .put("message", gatewayFailure && rejected.getMessage() != null
+                                        ? rejected.getMessage() : "Model execution failed")
+                                .put("type", gatewayFailure ? rejected.type : "server_error")
+                                .put("code", gatewayFailure ? rejected.code : "upstream_error"));
                 out.write(("data: " + error.toString() + "\n\n").getBytes(StandardCharsets.UTF_8));
                 out.flush();
             }
@@ -661,13 +702,23 @@ final class OpenLocalApiGateway {
         }
         if (matched != 4) throw new IllegalArgumentException("Invalid HTTP headers");
         String[] lines = new String(header.toByteArray(), StandardCharsets.ISO_8859_1).split("\r\n");
-        String[] first = lines[0].split(" ");
-        if (first.length < 2) throw new IllegalArgumentException("Invalid request line");
+        String[] first = lines[0].trim().split("\\s+");
+        if (first.length != 3 || first[0].length() == 0 || first[1].length() == 0
+                || (!"HTTP/1.0".equals(first[2]) && !"HTTP/1.1".equals(first[2]))) {
+            throw new IllegalArgumentException("Invalid request line");
+        }
         java.util.Map<String,String> headers = new java.util.HashMap<>();
         for (int i=1;i<lines.length;i++) {
+            if (lines[i].length() == 0) continue;
             int colon=lines[i].indexOf(':');
-            if(colon>0) headers.put(lines[i].substring(0,colon).trim().toLowerCase(),
-                    lines[i].substring(colon+1).trim());
+            if(colon<=0) throw new IllegalArgumentException("Invalid HTTP header");
+            String name = lines[i].substring(0,colon).trim()
+                    .toLowerCase(java.util.Locale.ROOT);
+            String value = lines[i].substring(colon+1).trim();
+            if (name.length() == 0 || headers.containsKey(name)) {
+                throw new IllegalArgumentException("Duplicate or empty HTTP header");
+            }
+            headers.put(name, value);
         }
         if (headers.containsKey("transfer-encoding")) throw new IllegalArgumentException("Chunked requests unsupported");
         int length = Integer.parseInt(headers.getOrDefault("content-length", "0"));
@@ -679,7 +730,11 @@ final class OpenLocalApiGateway {
             if(count<0) throw new IllegalArgumentException("Truncated request body");
             offset+=count;
         }
-        return new HttpRequest(first[0], first[1], headers, body);
+        String path = first[1];
+        int queryStart = path.indexOf('?');
+        if (queryStart >= 0) path = path.substring(0, queryStart);
+        if (!path.startsWith("/")) throw new IllegalArgumentException("Invalid request target");
+        return new HttpRequest(first[0], path, headers, body);
     }
 
     private static String bearer(String value) {
@@ -744,9 +799,17 @@ final class OpenLocalApiGateway {
         writeHeaders(out, status, "application/json; charset=utf-8");
         out.write(body.toString().getBytes(StandardCharsets.UTF_8)); out.flush();
     }
-    private static void sendError(OutputStream out, int status, String code, String message) throws Exception {
+    private static void sendError(OutputStream out, int status, String code, String message)
+            throws Exception {
+        sendError(out, status, code, "invalid_request_error", message);
+    }
+
+    private static void sendError(OutputStream out, int status, String code, String type,
+                                  String message) throws Exception {
         sendJson(out, status, new JSONObject().put("error", new JSONObject()
-                .put("message", message).put("type", "invalid_request_error").put("code", code)));
+                .put("message", message == null ? "Request failed" : message)
+                .put("type", type == null ? "server_error" : type)
+                .put("code", code == null ? "request_failed" : code)));
     }
     private static void writeHeaders(OutputStream out, int status, String type) throws Exception {
         String reason = status == 200 ? "OK" : status == 400 ? "Bad Request"
