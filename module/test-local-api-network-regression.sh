@@ -121,6 +121,10 @@ if missing_omni:
     raise SystemExit("Missing OmniRoute parser contract: " + ", ".join(missing_omni))
 main = (pathlib.Path(sys.argv[1]).parent / "Main.java").read_text(encoding="utf-8")
 security = (pathlib.Path(sys.argv[1]).parent / "HookAccountLoginSecurity.java").read_text(encoding="utf-8")
+if 'throw new z2.GatewayException(503, "native_adapter_unavailable"' not in security:
+    raise SystemExit("Open native adapter must fail closed before looking up protected z18 payload")
+if 'z14.payloadClass(Main.hostApplicationContext, "ds.dsh.DeepSeek.z18")' not in security:
+    raise SystemExit("Protected z18 execution boundary changed; re-review before enabling Open")
 if 'localApiFloatingWindowError = "";' not in security:
     raise SystemExit("Missing independent floating-window error storage")
 if 'localApiFloatingWindowError = "小窗保活启动失败：" + safeThrowableMessage(error);' not in main:
