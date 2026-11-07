@@ -64,9 +64,11 @@ Main.handleLoadPackage
   -> existing HookChatPipeline request-construction callback -> recordBuilt(...)
   -> existing HookChatPipeline transport callback -> recordTransport(...) / recordTransportResult(...)
   -> HookAttachmentPipeline.installExpertFlowCollectHook
-       -> RoiRuntimeInvocationObserver.wrapFlowCollector(...)
+       -> b41.b(q03, Continuation) collect boundary
        -> suspend emit: preserve original collector + UNSUPPORTED_SUSPEND_COLLECTOR coverage
        -> non-suspend emit: best-effort proxy observation -> RESPONSE_RECEIVED
+  -> HookChatPipeline vv7.e(Object) response deserializer -> rebuilt mv
+       -> UNSUPPORTED_RESPONSE_PARSER_CORRELATION coverage only (no request/Flow identity)
   -> no production RESPONSE_PARSED event producer is currently wired
   -> RoiRuntimeInvocationRecorder bounded, payload-free snapshots
   -> RoiDexKitDiscovery
