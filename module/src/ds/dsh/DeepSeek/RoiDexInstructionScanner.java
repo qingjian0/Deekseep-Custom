@@ -130,6 +130,17 @@ public final class RoiDexInstructionScanner {
                 Instruction payload=scan.at(payloadOffset);
                 for(int target:payloadTargets(code,payloadOffset,payload.payloadKind,i.offset))starts.add(target);
             }
+            // Preserve real code after a terminator as a disconnected block so
+            // downstream analyses can explicitly mark it unreachable. The one
+            // exception is the alignment NOP immediately preceding a payload.
+            if(isGoto(i.opcode)||isTerminal(i.opcode)) {
+                if(next<code.length&&scan.isInstructionBoundary(next)) {
+                    Instruction following=scan.at(next);
+                    boolean payloadAlignmentNop=following.opcode==0x00
+                            &&next+1<code.length&&scan.isPayloadStart(next+1);
+                    if(!payloadAlignmentNop)starts.add(next);
+                }
+            }
         }
         List<Integer> ordered=new ArrayList<Integer>(starts);
         Collections.sort(ordered);
