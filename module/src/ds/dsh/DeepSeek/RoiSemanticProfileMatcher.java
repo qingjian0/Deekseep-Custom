@@ -154,7 +154,8 @@ final class RoiSemanticProfileMatcher {
             weights += 0.15;
         }
         if (!source.interfaces.isEmpty() && !target.interfaces.isEmpty()) {
-            weighted += 0.15 * jaccard(normalizedTypes(source.interfaces), normalizedTypes(target.interfaces));
+            weighted += 0.15 * jaccard(new LinkedHashSet<String>(normalizedTypes(source.interfaces)),
+                    new LinkedHashSet<String>(normalizedTypes(target.interfaces)));
             weights += 0.15;
         }
         if (!source.fields.isEmpty() && !target.fields.isEmpty()) {
@@ -166,8 +167,8 @@ final class RoiSemanticProfileMatcher {
             weights += 0.30;
         }
         if (!source.externalCalls.isEmpty() && !target.externalCalls.isEmpty()) {
-            weighted += 0.15 * jaccard(normalizedExternalCalls(source.externalCalls),
-                    normalizedExternalCalls(target.externalCalls));
+            weighted += 0.15 * jaccard(new LinkedHashSet<String>(normalizedExternalCalls(source.externalCalls)),
+                    new LinkedHashSet<String>(normalizedExternalCalls(target.externalCalls)));
             weights += 0.15;
         }
         if (!source.semanticMarkers.isEmpty() && !target.semanticMarkers.isEmpty()) {
