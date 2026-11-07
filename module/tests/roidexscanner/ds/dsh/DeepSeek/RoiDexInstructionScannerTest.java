@@ -85,6 +85,15 @@ public final class RoiDexInstructionScannerTest {
         eq(0,g.blocks[0].startOffset);eq(1,g.blocks[0].endOffset);
         eq(8,g.blocks[1].startOffset);eq(11,g.blocks[2].startOffset);
         yes("GOTO".equals(g.edges[0].kind));
+
+        // If an exception handler or explicit control-flow entry targets the
+        // alignment NOP, it is reachable and must still fail closed.
+        try {
+            RoiDexInstructionScanner.buildControlFlowGraph(code,new int[]{1});
+        } catch(RoiDexInstructionScanner.ScanException expected) {
+            return;
+        }
+        throw new AssertionError("expected reachable alignment NOP to be rejected");
     }
     static void malformed()throws Exception {
         bad(new short[]{(short)0x0073});
