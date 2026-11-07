@@ -535,7 +535,7 @@ if re.search(r'while \(current != null && current != Object\.class\)', callback_
     raise SystemExit("callback observer must not traverse callback superclasses")
 require(
     probe,
-    r'callback-enter role=.*?observedArgumentTypes\(args\).*?callback-throw role=.*?exception=.*?callback-exit method=.*?durationMs=',
+    r'callback-enter role=.*?observedArgumentTypes\(args\).*?callback-throw method=.*?exception=.*?callback-exit method=.*?durationMs=',
     "callback trace captures entry, completion, elapsed time, and exception class without payload values",
 )
 require(
