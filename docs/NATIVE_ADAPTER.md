@@ -466,3 +466,81 @@ schema 5 记录了 Callback 方法描述符、参数类型、返回类型、执�
 相关提交位于 work/local-api-protocol-port：4212bf84（结构采集）、20ccdc7f（session 重置）、c9a79ef4（UI）、94a75ed4 / 2465873f（回归契约）。
 
 本次源码和回归契约已提交；尚未执行 Android 构建、脚本或设备验证，不声称 schema 6 已通过运行验证。
+
+
+## 2026-11-07：code289 APK 静态证据已找到并完成核心调用链还原
+
+### 证据来源更正
+
+此前本文件曾记录 apps 仓库未找到 2.7.2/code289 APK。该结论只检查了 apps/main，范围不完整。后续枚举 apps 全部分支后，在 qingjian0/apps 的 work/deepseek-272-static-audit 分支找到 deepseek-2-7-2.apk，并从 APK Manifest 的 Android binary XML 确认 package=com.deepseek.chat、versionName=2.7.2、versionCode=289。此前“code289 APK 不存在”的记录已被本节取代。
+
+- APK SHA-256：3c2fe31c73575400b9d59e46dde05daa2ef06491498ebfef658801e99eca1aff
+- DEX：3 个；class files：15,365；method declarations：72,258
+- 动态候选：23/23 个静态类匹配；117 个候选方法；3,369 个候选调用点
+- apps 审计 workflow run：42342447740，成功
+- 完整报告：[apps/docs/deepseek-272-native-callgraph.md](https://github.com/qingjian0/apps/blob/work/deepseek-272-static-audit/docs/deepseek-272-native-callgraph.md)
+
+### code289 真实 Request / Transport
+
+```text
+nn0 repository request factory
+  -> mw1 request coroutine
+  -> ly1 implements wu1
+  -> zn3.o(wu1, Long)
+  -> jw3.g(wu1, Long)
+  -> Ly60 (cold Flow)
+  -> collect via b(fl4, Continuation)
+  -> l5 coroutine
+  -> bi5.b (Ktor request execution)
+  -> g0 (HTTP response handler)
+  -> ts1 (SSE ByteReadChannel line parser)
+  -> s5 (event wrapper)
+  -> r3.c (business event decoder/reducer)
+```
+
+- ly1 Serializer jy1 的 JSON 字段：chat_session_id、parent_message_id、prompt、ref_file_ids、thinking_enabled、search_enabled、audio_id、preempt、model_type、action。
+- ly1.k 不属于 JSON serializer 字段；jw3.g 将其作为 X-DS-PoW-Response header 输入。
+- zn3.o / jw3.g 返回 Flow；调用入口不等于网络请求已经执行。必须 collect Ly60。
+- y60.b(fl4, Continuation) 是 Flow collect 边界，不是 SSE parser。
+- g0 处理 HTTP status / Content-Type 和 x-ds-sse-heartbeat-timeout-secs（默认 10 秒）。ts1 才负责读取 ByteReadChannel 并解析 SSE event/data。
+- s5 将 sha(eventName,data) 包装为 cv1；r3.c 负责 ready、hint、title、update_session、close 和 DeltaCommand 等业务事件分支。
+
+### code289 Challenge / PoW
+
+```text
+/api/v0/chat/create_pow_challenge
+  -> ut1(target_path)
+  -> ms9 ServerChatChallenge
+  -> df0.d(targetPath, ms9, Continuation)
+  -> bf0 / PowCalculator.a(difficulty, base, challenge)
+  -> gf0 AuthedPowSolution
+  -> nq1 ChallengePlugin
+  -> X-DS-Challenge-Response / X-DS-PoW-Response
+  -> request retry
+```
+
+- ms9 字段：algorithm、challenge、salt、signature、difficulty、expire_at、expire_after、target_path。
+- gf0 字段：algorithm、challenge、salt、signature、answer、target_path。
+- PowCalculator 位于 com.deepseek.crypto，调用 librscrypto 的 nativeCalculateDeepSeekHashV1Pow；code289 构造 base 为 salt + "_" + expire_at + "_"，并传入 challenge 与 difficulty。
+- nq1 是 Ktor ChallengePlugin，处理 challenge、PoW 求解、并发协调和 retry。应复用宿主 zn3/bi5 client，不应在 Local API 侧重写 PoW。
+
+### Delta / Response 语义
+
+- SSE 的 sha.a 为 event name，sha.b 为 data JSON。
+- 无 event name 的流数据由 r3.c 按 DeltaCommand 处理；DeltaCommand 数据含 p/o/v 三个成员，对应 path / operation / value。
+- st3(path, operation, value) 经 doc.W 交给 l23 patch engine；已确认操作包含 SET、APPEND、BATCH。
+- 初始 DeltaCommand 的 value 建立 zca root；zca.response 映射到 gy；gy 的 fragments 由 xr.B() 拼接可见文本。
+- delta 的 data 不能直接当作文本。需要应用 patch，再从 response.fragments 提取 RESPONSE / THINK / tool/search 等不同 fragment。
+
+### 对 Local API 的实现决策
+
+1. code289 不能使用旧版 liveQ71/liveR92；应捕获 nn0 主构造器注入的 zn3 或 zn3 构造器实例。
+2. 通过 ly1 -> zn3.o -> Ly60 collect 进入宿主原生 Ktor client。
+3. 复用 nq1 ChallengePlugin 自动完成 challenge / PoW / retry。
+4. 在 fl4 collector 中消费 cv1 -> sha；按 event name 解码。
+5. DeltaCommand 必须按 p/o/v patch 语义应用到 response state；文本从 gy.fragments / gy.B() 提取。
+6. 需要独立实现 request/session ID、parent_message_id 更新、stream cancellation、deadline、错误映射和 tool/reasoning fragment 映射。
+
+### 尚未声称完成的部分
+
+上述静态调用链已由 code289 APK 的 DEX/Smali 和 serializer descriptor 直接确认；但尚未完成在 Deekseep-Custom 中捕获 zn3、collect Ly60、应用 DeltaCommand、映射 CompletionResult 的实现，也没有 code289 真机端到端结果。Native Adapter 仍未完成，Local API 真实回复仍未验收。
