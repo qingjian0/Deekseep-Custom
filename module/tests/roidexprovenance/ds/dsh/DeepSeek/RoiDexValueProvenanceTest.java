@@ -24,7 +24,8 @@ public final class RoiDexValueProvenanceTest {
         RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching);
         RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(code,null,flow,reaching,useDef,links);
         RoiDexValueProvenance.Trace trace=provenance.traceUse(5,1,1);
-        yes(trace.unique);eq(0,trace.source.invokeOffset);eq(3,trace.source.resultOffset);
+        if(!trace.unique) throw new AssertionError("singleMoveChain: " + trace.rejectionReason);
+        eq(0,trace.source.invokeOffset);eq(3,trace.source.resultOffset);
         eq(2,trace.instructionOffsets.length);eq(4,trace.instructionOffsets[0]);eq(3,trace.instructionOffsets[1]);
     }
 
