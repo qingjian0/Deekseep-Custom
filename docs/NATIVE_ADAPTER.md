@@ -393,10 +393,19 @@ The foreground keeper runs in the module package `ds.dsh.DeepSeek`, while the ho
 A missing host acknowledgement is not equivalent to a user disabling Local API. The keeper must retain the persisted opt-in and continue retrying after boot when MIUI / HyperOS delays host startup or broadcast delivery. It may stop only after an explicit host-disabled acknowledgement or a user stop request; a 90-second acknowledgement timeout is diagnostic, not a shutdown condition.
 
 
-## Open Gateway protocol audit (2026-11-06)
+## Open Gateway protocol audit (supersedes 2026-11-06 snapshot)
 
-The Open direct-Java gateway currently exposes only `GET /v1/models` and `POST /v1/chat/completions`. Model discovery returns the configured IDs even while the native engine is unavailable; chat completions remain HTTP 503 until a verified Open adapter exists. Text and text-part messages are accepted; image parts, tools, Responses API, Anthropic Messages API, and usage accounting are not implemented in this Open gateway. Reasoning text is preserved as `reasoning_content` for non-stream responses and SSE deltas. The API accepts `max_tokens` and `max_completion_tokens` from 1 through 8192. Custom Bearer keys accept 8–256 visible ASCII characters and survive restart using the same validator. This capability statement applies to the Open direct-Java path, not the separate Closed payload gateway.
+The current `work/local-api-protocol-port` implementation supersedes the older protocol snapshot below. The Open Gateway currently exposes:
 
+- `GET /v1/models`: configured model catalog only; this does not imply native execution readiness.
+- `POST /v1/chat/completions`: request validation, non-streaming response mapping, text/reasoning SSE, and non-streaming structured tool-call bridge.
+- `POST /v1/responses`: input/output mapping, bounded process-local `previous_response_id` continuation state, and Responses-style SSE lifecycle/delta events.
+- `POST /v1/messages`: Anthropic Messages request/response mapping and SSE.
+- Tool calls are returned to the API client as structured calls; the module does not execute client tools. Tool-call streaming is not supported.
+- Usage is estimated and explicitly marked with `dsh_usage_estimated=true`; it is not an exact DeepSeek tokenizer count.
+- Image/audio inputs and non-text JSON output formats remain unsupported.
+
+These are protocol-layer capabilities only. The Open native Completion Adapter remains unimplemented and every completion route must continue returning HTTP 503 until the verified code289 host request, Challenge/PoW association, Transport, Flow event decoding, response assembly, cancellation, session isolation, and error mapping are implemented and validated. A passing CI run does not establish real-device native completion.
 
 ## 2026-11-07：code289 启动安装失败隔离修复
 
