@@ -66,7 +66,7 @@ Main.handleLoadPackage
   -> HookAttachmentPipeline.installExpertFlowCollectHook
        -> b41.b(q03, Continuation) collect boundary
        -> suspend emit: preserve original collector + UNSUPPORTED_SUSPEND_COLLECTOR coverage
-       -> non-suspend emit: best-effort proxy observation -> RESPONSE_RECEIVED
+       -> non-suspend emit: preserve original collector + UNSUPPORTED_NON_SUSPEND_COLLECTOR coverage
   -> HookChatPipeline vv7.e(Object) response deserializer -> rebuilt mv
        -> UNSUPPORTED_RESPONSE_PARSER_CORRELATION coverage only (no request/Flow identity)
   -> no production RESPONSE_PARSED event producer is currently wired
@@ -101,7 +101,7 @@ Important constraints:
 - Runtime observation is opt-in via the existing marker file and only enabled for maintained host adapters.
 - The observer's `hostFingerprint` field currently carries the adapter identity label from `HostCompat`, not an APK digest. Diagnostics already label it accordingly. Do not treat the name of this field as proof of cryptographic host identity.
 - Kotlin suspend `FlowCollector.emit` is detected at the actual `b41.b(q03, Continuation)` collect boundary. The observer preserves the original collector and records `UNSUPPORTED_SUSPEND_COLLECTOR`; it does not infer response delivery from `COROUTINE_SUSPENDED`.
-- `RESPONSE_RECEIVED` can only be emitted by the non-suspend proxy branch. That branch changes collector identity and therefore remains diagnostic-only until interface/identity behavior is verified on a real host build.
+- No collector proxy is installed: both suspend and non-suspend collector shapes preserve the original collector identity. This avoids changing equality, operator fusion, buffering, or coroutine ownership before device-level validation. Consequently, no production `RESPONSE_RECEIVED` event is emitted by this observer yet.
 - The existing `vv7.e(Object)` callback is the server-response deserialization boundary: after its original method returns a non-null rebuilt `mv`, the observer records `UNSUPPORTED_RESPONSE_PARSER_CORRELATION` coverage. It deliberately does not emit `RESPONSE_PARSED`, because this callback exposes no proven request/Flow identity and cannot be safely joined to a specific transport chain.
 - Non-interface, null, or mismatched collector types record `UNSUPPORTED_COLLECTOR_TYPE` against the actual host collect method, then return the original collector unchanged. These coverage entries describe capability gaps only, not response evidence. `RoiDexKitDiscovery` reports both new statuses under exact ClassLoader-scoped coverage counters so the diagnostics cannot silently disappear from the discovery report.
 - The resolver requires confirmed, high-confidence `HOST_IDENTITY`, `METHOD_SHAPE`, `CALL_GRAPH`, `RUNTIME_INVOCATION`, `RETURN_CONTRACT`, and `LIFECYCLE_CONTRACT` evidence, plus a reviewed adapter approval and explicit allowed role.
