@@ -23,7 +23,7 @@ grep -q 'wrapFlowCollector(' "$ROOT/module/src/ds/dsh/DeepSeek/HookAttachmentPip
 grep -q 'self, collector, q03, (Method) chain.getExecutable()' "$ROOT/module/src/ds/dsh/DeepSeek/HookAttachmentPipeline.java"
 grep -q 'collectorType.isInterface()' "$OBSERVER"
 grep -q 'UNSUPPORTED_COLLECTOR_TYPE' "$OBSERVER"
-grep -q 'recordCoverage(collectMethod' "$OBSERVER"
+grep -q 'recordCoverage(collectMethod,' "$OBSERVER"
 grep -q '"emit".equals(method.getName())' "$OBSERVER"
 grep -q 'recordResponseParserCoverage' "$OBSERVER"
 grep -q 'UNSUPPORTED_NON_SUSPEND_COLLECTOR' "$OBSERVER"
