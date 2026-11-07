@@ -7,12 +7,12 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /** Bridges an already-authorized feature-specific ROI candidate into lifecycle management. */
 final class RoiManagedHookInstaller {
-    interface Authorization { boolean isAuthorized() throws Throwable; }
+    interface InstallGate { boolean isAuthorized() throws Throwable; }
     private static final HookLifecycleManager LIFECYCLE = new HookLifecycleManager();
     private RoiManagedHookInstaller() {}
 
     static HookLifecycleManager.Status install(String targetId, LegacyXposedModule adapter,
-            Member target, LegacyXposedModule.Hooker hooker, Authorization authorization) {
+            Member target, LegacyXposedModule.Hooker hooker, InstallGate authorization) {
         if (targetId == null || targetId.trim().isEmpty())
             throw new IllegalArgumentException("stable target ID is required");
         if (adapter == null || target == null || hooker == null || authorization == null)

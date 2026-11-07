@@ -718,7 +718,7 @@ public final class LegacyXposedModuleRegressionTest {
                 new LegacyXposedModule.Hooker() {
                     @Override public Object intercept(LegacyXposedModule.Chain chain)
                             throws Throwable { return chain.proceed() + ":managed"; }
-                }, new RoiManagedHookInstaller.Authorization() {
+                }, new RoiManagedHookInstaller.InstallGate() {
                     @Override public boolean isAuthorized() { checks.incrementAndGet(); return true; }
                 });
         check(active.getState() == HookLifecycleManager.State.ACTIVE,
@@ -732,7 +732,7 @@ public final class LegacyXposedModuleRegressionTest {
                 new LegacyXposedModule.Hooker() {
                     @Override public Object intercept(LegacyXposedModule.Chain chain)
                             throws Throwable { return chain.proceed() + ":duplicate"; }
-                }, new RoiManagedHookInstaller.Authorization() {
+                }, new RoiManagedHookInstaller.InstallGate() {
                     @Override public boolean isAuthorized() { return true; }
                 });
         check(duplicate.getState() == HookLifecycleManager.State.ACTIVE
@@ -751,7 +751,7 @@ public final class LegacyXposedModuleRegressionTest {
                 module, method, new LegacyXposedModule.Hooker() {
                     @Override public Object intercept(LegacyXposedModule.Chain chain)
                             throws Throwable { return chain.proceed(); }
-                }, new RoiManagedHookInstaller.Authorization() {
+                }, new RoiManagedHookInstaller.InstallGate() {
                     @Override public boolean isAuthorized() { return revokedChecks.incrementAndGet() == 1; }
                 });
         check(revoked.getState() == HookLifecycleManager.State.ROLLED_BACK
@@ -764,7 +764,7 @@ public final class LegacyXposedModuleRegressionTest {
                 module, method, new LegacyXposedModule.Hooker() {
                     @Override public Object intercept(LegacyXposedModule.Chain chain)
                             throws Throwable { return chain.proceed(); }
-                }, new RoiManagedHookInstaller.Authorization() {
+                }, new RoiManagedHookInstaller.InstallGate() {
                     @Override public boolean isAuthorized() { return false; }
                 });
         check(denied.getState() == HookLifecycleManager.State.SKIPPED

@@ -907,7 +907,7 @@ final class HookChatPipeline {
         };
         HookLifecycleManager.Status status = RoiManagedHookInstaller.install(
                 targetId, module, requestConstructor, promptHook,
-                new RoiManagedHookInstaller.Authorization() {
+                new RoiManagedHookInstaller.InstallGate() {
                     @Override public boolean isAuthorized() {
                         return Main.isUnknownHostChatRequestHookAuthorized(candidate, requestConstructor);
                     }
