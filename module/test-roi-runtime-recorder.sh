@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-set -x
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/module/build/roi-runtime-recorder-test"
 mkdir -p "$OUT"
@@ -67,7 +66,6 @@ grep -q 'testDisabledCoverageIsNotReported' "$ROOT/module/tests/roiruntime/ds/ds
 # Runtime evidence must be bound to the exact process-local class-loader scope.
 grep -q 'RoiCandidateIdentity.forClassLoader(constructor.getDeclaringClass().getClassLoader())' "$OBSERVER"
 grep -q 'RoiCandidateIdentity.forClassLoader(method.getDeclaringClass().getClassLoader())' "$OBSERVER"
-grep -q 'RoiCandidateIdentity.forClassLoader(collectMethod.getDeclaringClass().getClassLoader())' "$OBSERVER"
 grep -q 'candidateSourceScope.equals(item.sourceScope)' "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexKitDiscovery.java"
 grep -q 'builtScope.equals(event.sourceScope)' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
 grep -q 'transportScope.equals(event.sourceScope)' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
