@@ -1,9 +1,9 @@
 # 项目状态与交付基线
 
  > 项目名称：ROI  
-> 状态日期：2026-11-07  
-> 当前工作分支：`work/local-api-protocol-port`  
-> 当前 PR：[#16](https://github.com/qingjian0/Deekseep-Custom/pull/16)，Draft，目标分支 `dev`  
+ > 状态日期：2026-11-08  
+ > 当前工作分支：`work/local-api`  
+ > 当前 PR：[#19](https://github.com/qingjian0/Deekseep-Custom/pull/19)，Draft，目标分支 `dev`；旧 PR #16 已关闭且未合并  
 > 最近一次已完成完整 CI：`cd2742b42a3cb7de2a25c15274500f77666c17e1`；Run `42355705172`（#1789，全部 Job 成功；后续提交需重新验证）  
 > `main` 未修改，未执行合并；本文件记录开发分支，不代表公开 Release 已包含这些改动。
 > 宿主：官方 DeepSeek Android `com.deepseek.chat`  
@@ -24,7 +24,7 @@
 
 | 项目 | 当前值 |
 |---|---|
-| 工作分支 | `work/local-api-protocol-port`（PR #16 → `dev`） |
+| 工作分支 | `work/local-api`（PR #16 → `dev`） |
 | 最近一次 Runtime 观察源码修复 | code289 `r3.c(dv1, yb3)` Delta 事件观察点；仅记录白名单事件名，不读 `sha.b`。当前仅有源码实现，尚无该观察点的设备运行日志 |
 | 最近一次 ROI 扫描预算实现 | `cca035d6b319a5ed0ab897bee6b1fb2a3c36589b` |
 | 最近一次已完成完整 CI | [Run `42355705172`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42355705172) — success（commit `cd2742b`）；后续 HEAD 仍需独立验证 |
@@ -113,7 +113,7 @@ Open 原生 Completion 诊断位于 DeepSeek 模块设置的“工程”→“�
 | [42355705172](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42355705172) | `cd2742b` | Success | ROI Fast Audit、Regression tests、Android Open build/Lint、APK 结构/对齐/签名检查全部通过；Open APK 与 Lint artifact 已上传 |
 | [41649071834](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41649071834) | `c34d8ba` | Success | Regression tests 与 Android Open build and lint 均成功；Open APK 结构、对齐和 CI 临时签名检查通过 |
 
-Run `41649071834` 是较早阶段的绿色基线。最近可引用的完整绿色 CI 为 [Run `42355705172`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42355705172)，对应历史提交 `cd2742b`；它不是当前 PR #16 HEAD 的验证结果。更早的 [Run `41836377762`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41836377762) 对应历史 `dev` 提交 `c0cec525`。两者都只证明各自提交上的 JVM/脚本回归与 Open Android 构建，不是宿主真机 Completion。当前 PR #16 的 CI 按用户要求留到源码阶段收尾后执行。
+Run `41649071834` 是较早阶段的绿色基线。最近可引用的完整绿色 CI 为 [Run `42355705172`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42355705172)，对应历史提交 `cd2742b`；它不是当前 PR #16 HEAD 的验证结果。更早的 [Run `41836377762`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41836377762) 对应历史 `dev` 提交 `c0cec525`。两者都只证明各自提交上的 JVM/脚本回归与 Open Android 构建，不是宿主真机 Completion。当前 PR #19 的 CI 按用户要求留到源码阶段收尾后执行。
 
 ## 5. 下一批任务顺序
 
@@ -640,7 +640,7 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 
 ## 2026-11-07 Local API protocol integration update
 
-- Active integration branch: `work/local-api-protocol-port`; review PR: [#16](https://github.com/qingjian0/Deekseep-Custom/pull/16), targeting `dev`. `main` remains untouched.
+- Active integration branch: `work/local-api`; review PR: [#16](https://github.com/qingjian0/Deekseep-Custom/pull/16), targeting `dev`. `main` remains untouched.
 - OpenAI Chat Completions, OpenAI Responses, and Anthropic Messages now have protocol/request normalization and response/SSE mapping in the Gateway. The Anthropic route is `POST /v1/messages`.
 - OpenAI tool definitions and model-generated tool-call text are bridged to structured client-facing `tool_calls` / `tool_use`. This does not execute tools inside the module; Chat and Responses tool calls are currently non-streaming only.
 - Usage values are estimates, not native tokenizer counts, and are marked `dsh_usage_estimated=true`. Streaming `include_usage` accepts boolean values and emits an explicitly estimated usage chunk when requested; non-boolean values are rejected.
