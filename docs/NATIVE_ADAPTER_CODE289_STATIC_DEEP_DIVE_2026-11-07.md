@@ -218,3 +218,79 @@ ly1(
 - 校验 `zn3.o` 接收的对象必须是 code289 的 `ly1`。
 
 不应在没有运行时生命周期证据时直接调用宿主 `nn0.d` 或 `mw1.y`；它们依赖宿主内部对象、协程上下文和网络/挑战状态。
+
+
+## 9. Session Provider 回退路径已确认：真实命中 `/api/v0/chat_session/create`
+
+本节是对第 2 节“尚不能断言完整服务端创建请求”的更新。继续展开 `mb0`、`ch2`、`rz0`、`zs9` 与 `j41` 后，code289 静态证据已经足以确认：**`fx1.m` 的预取队列 miss 回退会进入 DeepSeek 的 chat-session create 网络路由，并在业务成功分支构造本地 `ys` 状态对象。**
+
+### 9.1 调用链
+
+```text
+fx1.m(Continuation)
+  -> new mb0(pi, Continuation)              // mb0 branch e=7
+      -> mb0.F()
+          -> pi.c : zn3
+          -> zn3.b : ch2
+          -> ch2.b(Continuation)
+              -> new rz0(..., e=2)
+              -> bi5.e(serializer, rz0, Continuation)
+                  -> rz0.y()
+                      -> /api/v0/chat_session/create
+                      -> 5000ms timeout
+              -> zs9
+          -> zs9.a(true, Continuation)
+              -> normalize HTTP/business response
+          -> business code == 0
+              -> j41(gs9, ft9, zs9, ...)
+                  -> decode ft9.biz_data as ok2
+                  -> ok2.a : ss9
+                  -> new ys(ss9, ...)
+                  -> new tn2(ys, false)
+                  -> new pt7(businessCode, tn2)
+          -> non-zero business code / transport error
+              -> explicit tt7 / ut7 / st7 / rt7 error results
+```
+
+### 9.2 网络请求与响应包装证据
+
+- `ch2.b(Continuation)` 创建 `rz0`，构造 `ft9` 的泛型 serializer：外层为 `ServerResponseBizDataWrapper`，业务码类型为 `ServerDefaultBizCode`。
+- `rz0` 的 branch id 为 2；在 `rz0.y()` 对应的 packed-switch 分支中，明确构造路径 `/api/v0/chat_session/create`。
+- 同一分支设置请求超时为 `0x1388`，即 5000 ms。
+- `z2c.V(Lng5, Lxa3)` 设置的是 `Content-Type` header，不是 HTTP method。因此本证据不据此宣称请求一定是 POST；method 仍需沿 `Lng5` / `rh5` / 网络执行层继续核实。
+- `dt9` serializer descriptor 明确列出 `biz_code`、`biz_msg`、`biz_data`；`us9` 对应 `ServerDefaultBizCode`。
+- `zs9.a(true)` 对业务码执行分支判断；`j41` 在成功路径从 `ft9.c`（biz_data JSON element）使用 `ok2` serializer 解码，取得 `ok2.a : ss9`。
+- `j41` 使用该 `ss9` 构造 `ys`，再包装为 `tn2(ys, false)` 与 `pt7` 返回。这里确认的是本地 session state 初始化，不把 `ys.J(String)` 的短字段语义猜成 session id 或 title。
+- 业务码非零时会进入显式错误对象路径；不能把 HTTP 200 等同于业务成功。
+
+### 9.3 对前一版结论的修订
+
+此前第 2 节只确认 `fx1.m` 的回退进入 `ru7.N -> mb0`，并保留“可能没有完整服务端创建”的限制。现在应更新为：
+
+1. **已确认：** 预取队列 miss 时，回退路径确实发起 `/api/v0/chat_session/create` 请求。
+2. **已确认：** 响应按 `ServerResponseBizDataWrapper<ServerDefaultBizCode>` 解析；成功业务码分支解码 `ok2` / `ss9` 并构造 `ys`。
+3. **尚未确认：** 该创建请求是否还依赖未在当前链路中完全展开的认证、challenge/PoW、设备上下文或远端配置；也未证明在任意外部调用上下文中可安全复用该内部 API。
+4. **尚未确认：** `fx1.m` 返回对象在所有 UI / Agent 调用场景下的生命周期、是否写入持久化、与 `fx1.l -> pi.e` 的关系，以及取消时宿主侧清理语义。
+5. **不可直接移植：** 不能只复制 URL、serializer 和 DTO 就绕过宿主的 `bi5` 网络栈、拦截器、身份态或请求上下文。
+
+### 9.4 对 Local API Adapter 的工程含义
+
+这项发现让 Session Bootstrap 从“未知回退”推进为“静态可定位的原生 Session Create 入口”。但它还不是可直接接入的完成适配器：
+
+- 不应自行构造 `rz0`、`ch2` 或调用 `fx1.m`，除非先解决宿主依赖对象的获取、生命周期和线程约束。
+- 应继续追踪 `bi5.e` 到实际 HTTP 执行、认证拦截器、公共 header 与失败转换。
+- 应追踪 `ys` 的后续写入和 `tn2` 包装消费者，确认新会话如何进入宿主当前状态。
+- 应将业务码失败、HTTP 失败、超时、取消、反序列化失败分别建模；不得将任何失败伪装成空会话或成功响应。
+- 在缺少设备验证时，Gateway 继续保持 503 fail-closed。
+
+### 9.5 可复现静态审计
+
+新增脚本：`tools/audit_code289_session_fallback.py`
+
+执行方式：
+
+```bash
+python3 tools/audit_code289_session_fallback.py /path/to/all-smali.zip
+```
+
+本轮对 workflow artifact 中的 `all-smali.zip` 执行了相同的 14 项静态断言，结果 **14/14 PASS**。脚本只检查 Smali 结构和关键调用/常量，不执行宿主代码，也不代表 Android 构建、设备运行或认证链路通过。
