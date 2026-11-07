@@ -24,7 +24,7 @@
 
 | 项目 | 当前值 |
 |---|---|
-| 工作分支 | `work/local-api`（PR #16 → `dev`） |
+| 工作分支 | `work/local-api`（PR #19 → `dev`；PR #16 已关闭未合并） |
 | 最近一次 Runtime 观察源码修复 | code289 `r3.c(dv1, yb3)` Delta 事件观察点；仅记录白名单事件名，不读 `sha.b`。当前仅有源码实现，尚无该观察点的设备运行日志 |
 | 最近一次 ROI 扫描预算实现 | `cca035d6b319a5ed0ab897bee6b1fb2a3c36589b` |
 | 最近一次已完成完整 CI | [Run `42355705172`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42355705172) — success（commit `cd2742b`）；后续 HEAD 仍需独立验证 |
