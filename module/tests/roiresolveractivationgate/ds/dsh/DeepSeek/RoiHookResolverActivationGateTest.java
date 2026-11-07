@@ -23,7 +23,8 @@ public final class RoiHookResolverActivationGateTest {
                 evidence(RoiHookResolver.EvidenceKind.LIFECYCLE_CONTRACT)
         };
         return new RoiHookResolver.Candidate(fingerprint, role, owner, method, descriptor,
-                sourceScope, "test-candidate", false, true,
+                sourceScope, RoiCandidateIdentity.candidateId(sourceScope, owner, method, descriptor),
+                false, true,
                 Collections.singleton(fingerprint), Arrays.asList(evidence));
     }
 
@@ -61,6 +62,17 @@ public final class RoiHookResolverActivationGateTest {
         ClassLoader otherLoader = new ClassLoader(exactLoader) {};
         check(!gate.authorized(exact, otherLoader),
                 "evidence from another classloader must fail closed");
+
+        RoiHookResolver.Candidate forgedId = new RoiHookResolver.Candidate(
+                approved.hostFingerprint, approved.role, approved.className, approved.methodName,
+                approved.descriptor, approved.sourceScope, "forged-candidate-id",
+                false, true, Collections.singleton(approved.hostFingerprint), approved.evidence.values());
+        RoiHookResolverActivationGate forged = new RoiHookResolverActivationGate(
+                ignored -> forgedId,
+                ignored -> new RoiHookResolver.Policy(true,
+                        Collections.singleton("request"), 0.45, 0.82));
+        check(!forged.authorized(exact, exactLoader),
+                "candidate identity key must be derived from its exact scope and descriptor");
 
         check(!gate.authorized(spec("wrong-fingerprint", "fp-other", "request",
                 "com.deepseek.Request", "build", "java.lang.Object", "java.lang.String", "int"), exactLoader),
