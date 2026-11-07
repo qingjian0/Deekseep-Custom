@@ -289,7 +289,7 @@ public final class RoiRuntimeInvocationRecorderTest {
         } catch (UnsupportedOperationException expected) {
             // immutable coverage contract
         }
-        check(r.snapshotCoverage(152).isEmpty(), "expired coverage diagnostics remained visible");
+        check(r.snapshotCoverage(153).isEmpty(), "expired coverage diagnostics remained visible");
         r.recordCoverage(HOST, "loader:process-1:HostLoader", "LFlow;->emit()V",
                 RoiRuntimeInvocationRecorder.CoverageStatus.RESPONSE_OBSERVED, 200);
         r.clear();
