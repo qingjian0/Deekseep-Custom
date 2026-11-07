@@ -189,11 +189,11 @@ The observed `y60.b(fl4, yb3)` callback boundary is not by itself proof of a Flo
 
 ### A. Separate the adapter from the Closed payload
 
-Introduce an Open-only adapter implementing `z2.Backend` (or a dedicated native engine injected into the existing backend). Keep the gateway independent of host symbols. The adapter must default to not-ready until every required capability has been verified.
+Introduce an Open-only adapter implementing `z2.Backend` (or a dedicated native engine injected into the existing backend). Keep the gateway independent of host symbols. The HTTP surface stays exposed; the adapter reports missing capabilities per request and must not fabricate a successful completion.
 
 ### B. Split capability readiness
 
-Do not use `BuildInfo.LOCAL_API_INCLUDED` as a proxy for native adapter readiness. Replace the current all-or-nothing build flag only after the Open adapter exists, with explicit readiness checks for:
+Do not use `BuildInfo.LOCAL_API_INCLUDED` as a proxy for native adapter capability. The Open route is now dispatchable independent of adapter readiness. Track the following capabilities individually and report the first unsupported stage (and any partial progress) in the request result:
 
 - exact supported host/channel/version;
 - host ClassLoader identity;
@@ -203,7 +203,7 @@ Do not use `BuildInfo.LOCAL_API_INCLUDED` as a proxy for native adapter readines
 - response collector/decoder capability;
 - cancellation and cleanup capability.
 
-A partial capability set must remain not-ready and return 503.
+A missing capability is a per-request unsupported result, not a reason to hide the HTTP route.
 
 ### C. Implement from proven contracts
 
@@ -216,7 +216,7 @@ Build a version-specific code289 implementation first. Keep request construction
 3. Static audit that Open adapter has no reference to `z18` or Closed-only payload classes.
 4. Controlled code289 device test with a non-sensitive prompt.
 5. Verify both non-stream and SSE paths, including reasoning, error, disconnect, and cancellation.
-6. Only then mark the Open native adapter ready. Until then, keep 503.
+6. Keep the HTTP route exposed throughout development. Report native execution support only after the corresponding capability has actually been implemented and verified.
 
 ## Corrected status
 
@@ -226,4 +226,6 @@ Build a version-specific code289 implementation first. Keep request construction
 - **Native host observations:** partial code289 evidence exists.
 - **Open native Completion adapter:** not implemented.
 - **End-to-end model generation through Open Local API:** not verified and must not be claimed.
-- **This audit:** documentation-only; no runtime behavior changed.
+- **Open request dispatch:** implemented at source level; Open readiness no longer blocks the HTTP route, and the old `native_adapter_unavailable` preflight rejection was removed.
+- **Current request failure boundary:** the execution facade still depends on `z18`; when absent it reports `engine_missing` for that request.
+- **Validation:** source-level assertions were updated, but the shell regression script, Android build, CI, and device execution have not been run in this pass.
