@@ -116,7 +116,7 @@ public final class HostCompat {
         return isV271Limited() && hostCode == 287;
     }
 
-    /** 2.7.1 running the 2.4.1 feature code through HostRemap. */
+    /** A supported 2.7.x host (287/289/290) running reviewed legacy feature code through its build-specific HostRemap table. */
     static boolean isV271Full() {
         return v271 && HostRemap.active();
     }
