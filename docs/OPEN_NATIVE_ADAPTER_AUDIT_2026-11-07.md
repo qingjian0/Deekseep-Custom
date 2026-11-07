@@ -93,6 +93,24 @@ A source review of `OpenLocalApiGateway.streamCompletion(...)` confirms:
 
 Adapter implications: enforce `CompletionRequest.deadlineAtMs` independently of client writes; propagate cancellation into the actual upstream coroutine/job; preserve exactly-once Flow collection and cancellation; and define the semantics of `onUpstreamStarted()` before using it for first-token timing. Do not treat a successful HTTP 200 SSE header as proof that native generation started.
 
+## Probe implementation audit (schema 4)
+
+A follow-up source inspection of `OpenNativeCompletionProbe.java` confirms that the current diagnostic implementation is materially more complete than a class-name-only inventory:
+
+- The probe installs pass-through observers on the verified `zn3.o(ew0, Long)` / `jw3.g(ew0, Long)` transport boundaries only after explicit diagnostic enablement. The original host call is still executed exactly once through `chain.proceed()`.
+- When a transport call returns, the probe attempts to install a pass-through observer on the uniquely selected `y60.b(..., ...)` continuation method. Ambiguous or unavailable method resolution is logged and is not guessed.
+- At the continuation boundary it records callback argument identities, argument runtime types, shallow field-name/type shapes, thread identity, and stack. It then hooks concrete callback implementation methods on the runtime class and its superclass chain.
+- For each hooked callback invocation it records the full method descriptor, receiver identity, event sequence number, thread, argument runtime types, stack, exit/throw outcome, duration, and exception class. Aggregate per-method invocation/failure/timing counters are also emitted.
+- The observer excludes static, abstract, bridge, and Object identity methods. It does not read callback argument values or instance field values. In particular, it cannot directly distinguish two callback invocations whose semantic event is encoded only in a string/object payload value.
+- Every observer line is synchronously appended and flushed to the app-private `files/dsh_open_native_diagnostics/open-native-<epoch>.log` session file. The in-memory preview is capped at 48,000 characters, but the persisted file is the complete capture unless the log writer reports `persistent-log-write-failed`. The status output includes the persistent file path and callback aggregate summary.
+- `OPEN_NATIVE_API_TRACE` events use the same persisted session log, allowing time-based correlation with gateway request lifecycle records without capturing prompt/response content.
+
+### Consequence for the pending log analysis
+
+The requested raw session log is not needed to discover whether the probe *can* record callback descriptors and call order: the current source proves that it can. The log is still indispensable to determine which concrete descriptors actually fired, their order/frequency, and whether they correlate with a real API request. Even after parsing it, callback semantics must remain unclassified when the only evidence is a method name, parameter type, or opaque object shape; a real decoder/collector contract still needs a safe semantic discriminator or additional APK/runtime evidence.
+
+The capture itself has a diagnostic cost: each event is synchronously flushed to disk and also forwarded to the module log. Keep the probe explicitly user-enabled and do not leave it running as a normal production hot path.
+
 ## Actual implementation gap
 
 The missing component is not another HTTP route. It is an Open-only implementation of the `z2.Backend` contract that does not depend on `z18`.
