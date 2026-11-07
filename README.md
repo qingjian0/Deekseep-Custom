@@ -33,7 +33,8 @@ ROI 是面向官方 DeepSeek Android 客户端（`com.deepseek.chat`）的 LSPos
 | `GET /v1/models` | 返回配置模型清单；不代表原生执行就绪 |
 | `POST /v1/chat/completions` | HTTP/JSON/SSE 路由已实现；原生模型适配未就绪时返回 503 |
 | `POST /v1/responses` | 请求/响应与 SSE 协议映射已实现；原生适配器未就绪时返回 503 |
-| `POST /v1/messages` | Anthropic Messages 请求/响应与 SSE 映射已实现；原生适配器未就绪时返回 503 |\n| `POST /v1/agent/run` | 未实现 |
+| `POST /v1/messages` | Anthropic Messages 请求/响应与 SSE 映射已实现；原生适配器未就绪时返回 503 |
+| `POST /v1/agent/run` | 未实现 |
 
 LAN 默认关闭。开启后只绑定当前检测到的精确 `192.168.x.x` 地址，不绑定 `0.0.0.0`；远端来源限制在 `192.168.0.0/16`。LAN 使用明文 HTTP，只应在可信网络中使用。
 
