@@ -6,6 +6,7 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
 import android.os.Build;
+import android.os.Looper;
 
 import java.security.MessageDigest;
 import java.util.ArrayList;
@@ -25,6 +26,8 @@ final class RoiAndroidHostIdentity {
         if (context == null || loader == null || channel == null || channel.trim().isEmpty()) {
             return null;
         }
+        Looper mainLooper = Looper.getMainLooper();
+        if (mainLooper != null && Looper.myLooper() == mainLooper) return null;
         try {
             Context app = context.getApplicationContext();
             if (app == null) app = context;
