@@ -38,7 +38,7 @@ ROI 是面向官方 DeepSeek Android 客户端（`com.deepseek.chat`）的 LSPos
 
 LAN 默认关闭。开启后只绑定当前检测到的精确 `192.168.x.x` 地址，不绑定 `0.0.0.0`；远端来源限制在 `192.168.0.0/16`。LAN 使用明文 HTTP，只应在可信网络中使用。
 
-协议边界：Chat Completions 与 Responses 的工具调用仅解析并向 API 客户端返回结构化 `tool_calls`；模块不会代替客户端执行工具，且工具调用暂不支持流式模式。Responses 的 `previous_response_id` 状态仅保存在进程内，最多 64 条、30 分钟过期，服务重启后清空。Usage 是估算值，以 `dsh_usage_estimated=true` 标记，不是 DeepSeek tokenizer 的精确计数。图像、音频和非 text JSON 输出格式仍不支持。
+协议边界：Chat Completions 与 Responses 的工具调用仅解析并向 API 客户端返回结构化 `tool_calls`；模块不会代替客户端执行工具，且工具调用暂不支持流式模式。Responses 的 `previous_response_id` 状态仅保存在进程内，最多 64 条、30 分钟过期，服务重启后清空。Usage 是估算值，以 `dsh_usage_estimated=true` 标记，不是 DeepSeek tokenizer 的精确计数。 Chat Completions 流式请求只接受 `stream_options.include_usage=false`；`true` 和非 Boolean 值明确返回 HTTP 400。图像、音频和非 text JSON 输出格式仍不支持。
 
 详细说明：[Open Local API Gateway](docs/architecture/OPEN_LOCAL_API_GATEWAY.md)。 [dsmod.probe 源码参考分析](docs/architecture/DSMOD_PROBE_LOCAL_API_REFERENCE.md)。
 
