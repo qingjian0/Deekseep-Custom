@@ -501,7 +501,7 @@ require(
 )
 callback_observer = re.search(
     r'private static void installCallbackObserver\(Object callback, String role\)(.*?)'
-    r'(?=\\n    private static String observedMethodDescriptor)',
+    r'(?=\n    private static String observedMethodDescriptor)',
     probe,
     re.S,
 )
