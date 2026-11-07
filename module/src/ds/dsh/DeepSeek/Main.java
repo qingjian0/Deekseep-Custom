@@ -1700,9 +1700,16 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             ROI_UNIVERSAL_INSTALLERS = new ConcurrentHashMap<String, RoiUniversalHookRuntime.Installer>();
 
     /**
+     * Installs an evidence-authorized universal Hook batch under the existing feature lifecycle
+     * registry. Callers must provide a version-scoped adapter allowlist and evidence/policy sources;
+     * absent or incomplete evidence is rejected before the Xposed backend is reached.
+     */
+    /**
      * Captures the installed host identity from PackageManager and the actual installed APK set.
      * Call from a worker thread after an Application/Activity context is available. The channel
-     * must come from a reviewed build declaration, never from a discovery candidate or UI input.
+     * must come from the maintained HostCompat adapter selector, never from DexKit discovery or
+     * UI input. This classification is not itself authorization; the reviewed identity must match
+     * the installed APK and signer digests at the activation gate.
      */
     static RoiHostBuildIdentity captureRoiCurrentHostIdentity(
             Context context, ClassLoader loader, String reviewedChannel) {
@@ -1730,7 +1737,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         }
         Thread worker = new Thread(() -> {
             try {
-                // This is the source-controlled distribution selector, not a DexKit inference.
+                // This is the maintained source-controlled adapter selector, not DexKit inference.
+                // Its label is only one identity field; APK and signer digests remain mandatory.
                 String channel = HostCompat.isInternationalChannel() ? "google-play" : "mainland";
                 RoiHostBuildIdentity captured =
                         captureRoiCurrentHostIdentity(appContext, loader, channel);
@@ -1765,11 +1773,6 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         }
     }
 
-    /**
-     * Installs only from the immutable, source-reviewed catalog. The activation gate compares
-     * its reviewed build identity with the PackageManager/APK identity captured for this process
-     * and the exact ClassLoader supplied for resolution. An empty catalog denies all.
-     */
     void installRoiUniversalHookBatch(
             final String groupId,
             final List<RoiUniversalHookRuntime.Spec> specs,

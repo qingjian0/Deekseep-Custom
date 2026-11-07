@@ -265,9 +265,8 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - SHA-256 of the APK set is content identity; SHA-256 of the APK signing certificate is publisher identity. Both are independently required. A version/channel string or ClassLoader scope cannot substitute for either digest.
 
 
-## PackageManager ↔ base-manifest consistency (2026-11-07 follow-up)
+## Channel classification boundary clarification
 
-- Android identity capture independently reads `versionName` from the installed base APK's binary AndroidManifest.xml using `AndroidManifestVersion.readFromApk`.
-- Capture proceeds only when this value is non-empty and exactly equals `PackageManager.PackageInfo.versionName`. A mismatch or unreadable manifest returns an unavailable identity; no fallback to adapter labels or version-code inference is allowed.
-- Added JVM coverage for matching/missing/mismatched version metadata, invalid package/version/channel/digest fields, signer mismatch, and cross-ClassLoader identity mismatch.
-- This corroborates PackageManager metadata with the APK bytes being fingerprinted. It does not replace APK signature verification or prove that a Hook candidate is semantically correct.
+- The current lifecycle caller obtains `mainland` / `google-play` from `HostCompat.isInternationalChannel()`. This is a source-controlled adapter classification based on maintained host markers, not a separately signed distribution manifest.
+- The classification is only one field in the reviewed build tuple. It cannot authorize a Hook: activation still requires exact PackageManager version metadata, base/split APK content digest, signer-certificate digest, candidate descriptor, and ClassLoader scope to match a source-reviewed catalog record.
+- Do not describe this selector as cryptographic channel proof. If a future adapter requires stronger store-channel provenance, add a separately verified installer/store evidence source rather than trusting this label.
