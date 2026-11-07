@@ -109,7 +109,8 @@ class HookLifecycleManager {
             val activeConflict = spec.conflicts.firstOrNull {
                 entries[it]?.state == State.ACTIVE
             } ?: entries.values.firstOrNull {
-                it.state == State.ACTIVE && spec.id in it.spec.conflicts
+                (it.state == State.ACTIVE || it.state == State.INSTALLING) &&
+                    spec.id in it.spec.conflicts
             }?.spec?.id
             if (activeConflict != null) {
                 return Status(spec.id, State.SKIPPED, existing?.attempts ?: 0,
@@ -136,7 +137,7 @@ class HookLifecycleManager {
                     failure
                 }
                 synchronized(coordination) {
-                    entry.handle = null
+                    entry.handle = if (rollbackFailure == null) null else handle
                     entry.state = if (rollbackFailure == null) State.ROLLED_BACK else State.FAILED
                     entry.detail = if (rollbackFailure == null) {
                         "post_install_verification_failed"
