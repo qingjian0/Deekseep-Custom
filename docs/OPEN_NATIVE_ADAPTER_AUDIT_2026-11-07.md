@@ -156,7 +156,19 @@ Additional callback-1 exception counts: `pg1.y(Object)` 72, `x0.y(Object)` 39, `
 
 The code289 log contains no `OPEN_NATIVE_API_TRACE` records and no gateway request IDs. It proves the official app's chat transport/callback behavior for four requests, but it does not prove that a request initiated through the module's Open Local API reaches that same chain. It also logs callback argument types and object shapes, not their values. Therefore it does not yet map callback calls to text/reasoning/error/finish payloads or establish a safe collector/decoder contract.
 
-The user's apps repository also contains a focused ZIP evidence package and the exact code289 APK. The README has been used as an evidence index; the ZIP has not yet been unpacked and individually source-audited in this pass. Next static work should extract the archive's class/method evidence, then inspect the corresponding code289 DEX methods for callback constructors, field writes, enum constants, and call sites. Keep the 2.7.2 mapping isolated from 2.7.5.
+The focused ZIP evidence package has now been unpacked in-memory and its central directory and selected source files were parsed successfully. This corrects the earlier note that the archive had not yet been unpacked. The archive contains **2.7.3 and 2.7.5 evidence only**; it does not contain the 2.7.2/code289 APK, DEX, or callback smali. Its relevant contents include:
+
+- `evidence-map.md`: cross-version request/serializer, HTTP response, SSE parser, stream adapter, event dispatcher, auto-resume, lifecycle telemetry, and PoW semantic mapping.
+- `comparison-report.md`: route and marker counts for 2.7.3 vs 2.7.5, with explicit static-analysis limits.
+- `2.7.3/smali/` and `2.7.5/smali/`: selected request, response, SSE, PoW, and lifecycle classes.
+- `2.7.5/java/PowCalculator.java`: Java/JNI contract `nativeCalculateDeepSeekHashV1Pow(String base, String challenge, long difficulty): long`.
+- `native/librscrypto.so`: one native library shared by the two packaged APK evidence sets.
+
+The archive establishes useful **2.7.3↔2.7.5** mappings, not code289 mappings. For example, the 2.7.5 parser is `vs1.z` while the 2.7.3 parser is `jz0.A`; event dispatch and transport symbols also differ. The evidence map documents that the parser recognizes `event: ` and `data: ` lines, emits each data line as an event/data pair, and handles named events including `ready`, `finish`, `update_session` and `update_parent_message`. This is a static contract for those APKs only.
+
+Both archived versions report the same `librscrypto.so` SHA-256 (`4571b9bcf08d5f070a47a495bdcd4c77f4a088feee560ed11701ca93c7b56053`), with JNI export `Java_com_deepseek_crypto_PowCalculator_nativeCalculateDeepSeekHashV1Pow`. The archive's own analysis still leaves exact PoW preimage concatenation and acceptance predicate unproven. Do not assume the same native binary or JNI contract is present in code289 until the 2.7.2 APK is independently checked.
+
+Next static work remains code289-specific: obtain the 2.7.2 DEX/source evidence and inspect `ly1`, `zn3`, `jw3`, `y60`, callback constructors/field writes, and `cd3` enum constants. Keep all 2.7.2 mappings isolated from 2.7.3/2.7.5.
 
 ## Open API dispatch policy update
 
