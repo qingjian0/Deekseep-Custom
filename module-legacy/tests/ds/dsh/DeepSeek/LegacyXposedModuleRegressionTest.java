@@ -63,7 +63,7 @@ public final class LegacyXposedModuleRegressionTest {
                     }
                 },
                 new RoiUniversalHookRuntime.ActivationGate() {
-                    @Override public boolean authorized(RoiUniversalHookRuntime.Spec value) {
+                    @Override public boolean authorized(RoiUniversalHookRuntime.Spec value, ClassLoader loader) {
                         return true;
                     }
                 });
