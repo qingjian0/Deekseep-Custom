@@ -677,6 +677,11 @@ require(
     "gateway identifies the exact unsupported feature without logging request values",
 )
 require(
+    gateway,
+    r'"后端状态："\s*\+\s*\(backend != null && backend\.isReady\(\)',
+    "Open connection info reflects the exposed gateway readiness state",
+)
+require(
     tool_bridge,
     r"parseDefinitions\(JSONArray tools, boolean responses\).*?tools == null \|\| tools\.length\(\) == 0\) return Collections\.emptyList\(\)",
     "empty tools arrays produce an empty definition list",
