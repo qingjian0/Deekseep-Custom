@@ -341,6 +341,53 @@ abstract class LegacyXposedModule {
         }
     }
 
+    /**
+     * Adapts the universal runtime to the existing per-Member callback chain. This deliberately
+     * does not call XposedBridge.hookMethod directly: HookTarget owns the single native callback
+     * and preserves ordering, original-call, argument and exception semantics for all features.
+     *
+     * Unhook disables this logical callback. The shared native Xposed callback remains installed
+     * while the process lives because removing it would also remove unrelated callbacks on the
+     * same Member.
+     */
+    final RoiUniversalHookRuntime.Backend universalHookBackend() {
+        return new RoiUniversalHookRuntime.Backend() {
+            @Override public RoiUniversalHookRuntime.Handle install(
+                    final RoiUniversalHookRuntime.Target target,
+                    final RoiUniversalHookRuntime.Callback callback) {
+                if (target == null || target.member == null || callback == null) {
+                    throw new IllegalArgumentException("target and callback are required");
+                }
+                final java.util.concurrent.atomic.AtomicBoolean enabled =
+                        new java.util.concurrent.atomic.AtomicBoolean(true);
+                hook(target.member).intercept(new Hooker() {
+                    @Override public Object intercept(Chain chain) throws Throwable {
+                        if (!enabled.get()) return chain.proceed();
+                        RoiUniversalHookRuntime.Invocation invocation =
+                                new RoiUniversalHookRuntime.Invocation(
+                                        target.member, chain.getThisObject(),
+                                        chain.getArgs().toArray(new Object[0]));
+                        callback.before(invocation);
+                        if (!invocation.skipOriginal && invocation.throwable == null) {
+                            try {
+                                invocation.result = chain.proceed(invocation.args);
+                            } catch (Throwable originalFailure) {
+                                invocation.throwable = originalFailure;
+                            }
+                        }
+                        callback.after(invocation);
+                        if (invocation.throwable != null) throw invocation.throwable;
+                        return invocation.result;
+                    }
+                    @Override public boolean isRequired() { return target.spec.required; }
+                });
+                return new RoiUniversalHookRuntime.Handle() {
+                    @Override public void unhook() { enabled.set(false); }
+                };
+            }
+        };
+    }
+
     HookTarget hook(Member member) {
         if (member == null) throw new NullPointerException("member");
         HookTarget existing = targets.get(member);
