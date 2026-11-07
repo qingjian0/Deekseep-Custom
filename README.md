@@ -62,8 +62,3 @@ LAN 默认关闭。开启后只绑定当前检测到的精确 `192.168.x.x` 地�
 ## 许可
 
 本项目沿用仓库中的 GPL-3.0 许可与上游致谢。完整许可文本见 [LICENSE](LICENSE)。
-
-
-## DeepSeek 2.7.5 Native Adapter 研究
-
-2.7.5 APK 的请求 DTO、Challenge/PoW、Completion 路由已有独立静态证据归档；响应消费、Continuation、取消与真机链路尚未闭环。详见 [2.7.5 Native Adapter 证据与实施计划](docs/DEEPSEEK_275_NATIVE_ADAPTER_EVIDENCE.md)。在响应侧和真机验收完成前，Open Local API 继续对真实 Completion 返回 503，不将协议层 CI 通过描述为模型调用可用。
