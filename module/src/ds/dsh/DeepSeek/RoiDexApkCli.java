@@ -25,6 +25,8 @@ public final class RoiDexApkCli {
     private static final int MAX_METHODS_SCANNED = 150000;
     private static final int MAX_SELECTED_METHODS = 64;
     private static final int MAX_ANALYSIS_METHODS = 400;
+    // Keep capacity for the next transport/callback hop instead of letting hop 3 consume all slots.
+    private static final int MAX_FOURTH_HOP_RESERVE = 64;
     private static final int MAX_FIRST_HOP_METHODS = 128;
     private static final int MAX_CROSS_DEX_METHODS = 64;
     private static final long MAX_CODE_UNITS = 20000000L;
@@ -227,7 +229,10 @@ public final class RoiDexApkCli {
             }
             if (method == null) continue;
             for (String callee : method.invokes) {
-                if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;
+                // Reserve part of the bounded analysis budget for hop 4. Without this,
+                // broad helper fan-out can consume all 400 slots before transport callbacks
+                // such as Lirc.a(...) and Lmmc.d(...) are reached.
+                if (expandedMethods.size() >= MAX_ANALYSIS_METHODS - MAX_FOURTH_HOP_RESERVE) break;
                 if (definedMethods.contains(callee) && expandedMethods.add(callee)) {
                     thirdLevelCalleeMethods.add(callee);
                     Integer callerPriority = transitiveCalleePriority.get(callerKey);
@@ -420,6 +425,7 @@ public final class RoiDexApkCli {
         field(out, "third_level_callee_count", Integer.toString(thirdLevelCalleeMethods.size()), true);
         field(out, "fourth_level_callee_count", Integer.toString(fourthLevelCalleeMethods.size()), true);
         field(out, "analysis_method_budget", Integer.toString(MAX_ANALYSIS_METHODS), true);
+        field(out, "fourth_level_reserved_budget", Integer.toString(MAX_FOURTH_HOP_RESERVE), true);
         field(out, "cross_dex_candidate_count", Integer.toString(crossDexMethodSources.size()), true);
         field(out, "unresolved_app_call_count", Integer.toString(unresolvedAppCalls.size()), true);
         field(out, "unresolved_app_calls", stringArray(unresolvedAppCalls), true);
