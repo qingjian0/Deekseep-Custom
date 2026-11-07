@@ -133,6 +133,7 @@ public final class LegacyXposedModuleRegressionTest {
         runScopedRegistrationErrorAfterNativeInstallTest(method, api);
         runScopedRegistrationMultiplicityTest(method, api);
         runNestedRegistrationScopeRestoreTest(method, api);
+        runManagedHookRegistrationTests(method, api);
     }
 
     private static void registerScopedRetryHook(Module module, Method method) {
@@ -596,6 +597,109 @@ public final class LegacyXposedModuleRegressionTest {
         XposedBridge.callbackForTest.dispatchBeforeForTest(fatalParam);
         check(fatalParam.getThrowable() instanceof ThreadDeath,
                 "API " + api + " fatal VM control error must not be swallowed");
+    }
+
+
+    private static void runManagedHookRegistrationTests(final Method method, int api)
+            throws Throwable {
+        XposedBridge.resetTestState();
+        XposedBridge.originalMethodInvokerForTest = new XposedBridge.OriginalMethodInvoker() {
+            @Override public Object invoke(Member member, Object receiver,
+                                           Object[] invokeArgs) throws Throwable {
+                return ((Method) member).invoke(receiver, invokeArgs);
+            }
+        };
+
+        Module managedOnly = new Module();
+        LegacyXposedModule.HookRegistrationHandle onlyHandle = managedOnly.registerManaged(
+                method, new LegacyXposedModule.Hooker() {
+                    @Override public Object intercept(LegacyXposedModule.Chain chain)
+                            throws Throwable {
+                        return chain.proceed() + ":managed";
+                    }
+                });
+        XC_MethodHook.MethodHookParam managedParam = new XC_MethodHook.MethodHookParam();
+        managedParam.method = method;
+        managedParam.thisObject = new Target();
+        managedParam.args = new Object[] {"safe", "original"};
+        XposedBridge.callbackForTest.dispatchBeforeForTest(managedParam);
+        check("safe:original:managed".equals(managedParam.getResult()),
+                "API " + api + " managed Hooker was not dispatched");
+        onlyHandle.unhook();
+        onlyHandle.unhook();
+        check(XposedBridge.unhookCountForTest == 1,
+                "API " + api + " managed-only target should physically unhook exactly once");
+        check(XposedBridge.callbackForTest == null && !XposedBridge.nativeHookInstalledForTest,
+                "API " + api + " managed-only target left the Xposed callback installed");
+
+        XposedBridge.resetTestState();
+        XposedBridge.originalMethodInvokerForTest = new XposedBridge.OriginalMethodInvoker() {
+            @Override public Object invoke(Member member, Object receiver,
+                                           Object[] invokeArgs) throws Throwable {
+                return ((Method) member).invoke(receiver, invokeArgs);
+            }
+        };
+        Module sharedTarget = new Module();
+        sharedTarget.hook(method).intercept(new LegacyXposedModule.Hooker() {
+            @Override public Object intercept(LegacyXposedModule.Chain chain) throws Throwable {
+                return chain.proceed() + ":legacy";
+            }
+        });
+        LegacyXposedModule.HookRegistrationHandle sharedHandle = sharedTarget.registerManaged(
+                method, new LegacyXposedModule.Hooker() {
+                    @Override public Object intercept(LegacyXposedModule.Chain chain)
+                            throws Throwable {
+                        return chain.proceed() + ":managed";
+                    }
+                });
+        XC_MethodHook.MethodHookParam beforeRemoval = new XC_MethodHook.MethodHookParam();
+        beforeRemoval.method = method;
+        beforeRemoval.thisObject = new Target();
+        beforeRemoval.args = new Object[] {"safe", "original"};
+        XposedBridge.callbackForTest.dispatchBeforeForTest(beforeRemoval);
+        check("safe:original:managed:legacy".equals(beforeRemoval.getResult()),
+                "API " + api + " managed Hooker changed shared callback order");
+        sharedHandle.unhook();
+        check(XposedBridge.unhookCountForTest == 0,
+                "API " + api + " removing one Hooker must not unhook a shared callback");
+        XC_MethodHook.MethodHookParam afterRemoval = new XC_MethodHook.MethodHookParam();
+        afterRemoval.method = method;
+        afterRemoval.thisObject = new Target();
+        afterRemoval.args = new Object[] {"safe", "original"};
+        XposedBridge.callbackForTest.dispatchBeforeForTest(afterRemoval);
+        check("safe:original:legacy".equals(afterRemoval.getResult()),
+                "API " + api + " managed unhook removed another module's Hooker");
+
+        XposedBridge.resetTestState();
+        XposedBridge.originalMethodInvokerForTest = new XposedBridge.OriginalMethodInvoker() {
+            @Override public Object invoke(Member member, Object receiver,
+                                           Object[] invokeArgs) throws Throwable {
+                return ((Method) member).invoke(receiver, invokeArgs);
+            }
+        };
+        Module retryModule = new Module();
+        LegacyXposedModule.HookRegistrationHandle retryHandle = retryModule.registerManaged(
+                method, new LegacyXposedModule.Hooker() {
+                    @Override public Object intercept(LegacyXposedModule.Chain chain)
+                            throws Throwable {
+                        return chain.proceed();
+                    }
+                });
+        XposedBridge.unhookFailureForTest = new IllegalStateException("transient unhook failure");
+        boolean failed = false;
+        try {
+            retryHandle.unhook();
+        } catch (IllegalStateException expected) {
+            failed = true;
+        }
+        check(failed, "API " + api + " failed physical unhook was not surfaced");
+        check(XposedBridge.callbackForTest != null,
+                "API " + api + " failed unhook must retain the callback for retry");
+        retryHandle.unhook();
+        check(XposedBridge.unhookCountForTest == 2,
+                "API " + api + " managed unhook retry did not call the framework again");
+        check(XposedBridge.callbackForTest == null,
+                "API " + api + " managed unhook retry did not remove the callback");
     }
 
     private static void check(boolean condition, String message) {
