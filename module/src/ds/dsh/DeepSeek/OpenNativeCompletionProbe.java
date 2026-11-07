@@ -979,13 +979,13 @@ final class OpenNativeCompletionProbe {
             Field nameField = payload.getClass().getDeclaredField("a");
             nameField.setAccessible(true);
             Object nameValue = nameField.get(payload);
-            // code289 r3.c treats a null SSE event name as the initial DeltaCommand root patch.
-            // Keep it distinct from an empty/unknown string without reading sha.b.
-            if (nameValue == null) return "initial";
+            // code289 r3.c treats a null SSE event name as a DeltaCommand patch:
+            // the first such patch creates the root; later ones update it. Do not label
+            // the channel "delta": r3.c dispatches it by null event name, not that string.
+            if (nameValue == null) return "delta-command";
             if (!(nameValue instanceof String)) return "unavailable";
             String name = (String) nameValue;
-            if ("ready".equals(name) || "parse_error".equals(name) || "delta".equals(name)
-                    || "hint".equals(name) || "title".equals(name)
+            if ("ready".equals(name) || "hint".equals(name) || "title".equals(name)
                     || "update_session".equals(name) || "close".equals(name)) {
                 return name;
             }
