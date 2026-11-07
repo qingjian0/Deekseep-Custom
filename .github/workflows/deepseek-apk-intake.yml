@@ -12,6 +12,7 @@ on:
       - 'module/test-roi-dex-instruction-decoder.sh'
       - 'module/tests/roidexdecoder/ds/dsh/DeepSeek/RoiDexInstructionDecoderTest.java'
       - 'module/src/ds/dsh/DeepSeek/RoiDexRegisterFlowAnalyzer.java'
+      - 'module/test-roi-apk-cli-budget.sh'
       - 'module/test-roi-dex-register-flow.sh'
       - 'module/tests/roidexregisterflow/ds/dsh/DeepSeek/RoiDexRegisterFlowAnalyzerTest.java'
   workflow_dispatch:
@@ -64,6 +65,11 @@ jobs:
         run: |
           set -euo pipefail
           bash module/test-roi-dex-register-flow.sh
+
+      - name: Run APK CLI traversal budget regression tests
+        run: |
+          set -euo pipefail
+          bash module/test-roi-apk-cli-budget.sh
 
       - name: Install Android Build Tools
         run: |
