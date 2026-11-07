@@ -114,7 +114,7 @@ public final class RoiUniversalHookRuntime {
   public synchronized void uninstallAll(){List<String> ids=new ArrayList<String>(active.keySet());Collections.reverse(ids);for(String id:ids)uninstall(id);}
   public synchronized State state(String id){return states.get(id);}public synchronized int activeCount(){return active.size();}
   private Result result(boolean b,String id,String m){return new Result(b,id,m,states);}
-  private static boolean same(Spec a,Spec b){return a.kind==b.kind&&a.className.equals(b.className)&&a.name.equals(b.name)&&a.params.equals(b.params)&&a.fingerprint.equals(b.fingerprint)&&a.role.equals(b.role);}
+  private static boolean same(Spec a,Spec b){return a.kind==b.kind&&a.className.equals(b.className)&&a.name.equals(b.name)&&a.params.equals(b.params)&&a.returnType.equals(b.returnType)&&a.fingerprint.equals(b.fingerprint)&&a.role.equals(b.role)&&a.dependencies.equals(b.dependencies)&&a.priority==b.priority&&a.required==b.required;}
   private static List<Spec> order(Map<String,Spec> specs){List<Spec> out=new ArrayList<Spec>();Set<String>done=new HashSet<String>();while(out.size()<specs.size()){Spec next=null;for(Spec candidate:specs.values()){if(done.contains(candidate.id))continue;boolean ready=true;for(String dep:candidate.dependencies)if(specs.containsKey(dep)&&!done.contains(dep)){ready=false;break;}if(ready&&(next==null||candidate.priority<next.priority))next=candidate;}if(next==null)throw new IllegalArgumentException("dependency cycle");out.add(next);done.add(next.id);}return out;}
  }
  private static String text(String s,String field){if(s==null||s.trim().isEmpty())throw new IllegalArgumentException(field+" required");return s.trim();}
