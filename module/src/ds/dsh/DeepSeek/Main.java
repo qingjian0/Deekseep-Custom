@@ -1741,6 +1741,29 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         });
     }
 
+    /**
+     * Logically uninstalls one universal Hook group. The shared native Xposed callback remains
+     * installed by design; only this group's interceptors are disabled. A group can be installed
+     * again with the same stable ID after every owned handle has been deactivated successfully.
+     */
+    boolean uninstallRoiUniversalHookBatch(String groupId) {
+        if (groupId == null || groupId.trim().isEmpty()) return false;
+        final String registryId = "roi.universal." + groupId.trim();
+        RoiUniversalHookRuntime.Installer installer = ROI_UNIVERSAL_INSTALLERS.get(registryId);
+        if (installer == null) return false;
+        installer.uninstallAll();
+        if (installer.activeCount() != 0) {
+            log("ROI universal Hook group uninstall incomplete: " + registryId);
+            return false;
+        }
+        boolean transitioned = FEATURE_HOOK_INSTALL_REGISTRY.markUninstalled(registryId);
+        if (!transitioned) {
+            log("ROI universal Hook group registry state did not permit uninstall: " + registryId);
+            return false;
+        }
+        return true;
+    }
+
     void installBestEffortHook(String id, FeatureHookInstallRegistry.Installer installer,
             String logPrefix) {
         try {
