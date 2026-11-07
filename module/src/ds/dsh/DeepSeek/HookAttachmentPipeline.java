@@ -1910,7 +1910,7 @@ final class HookAttachmentPipeline {
                     Object cont = a.length > 1 ? a[1] : null;
                     if (entry == null) {
                         Object observed = RoiRuntimeInvocationObserver.wrapFlowCollector(
-                                self, collector, q03);
+                                self, collector, q03, (Method) chain.getExecutable());
                         if (observed == collector) return chain.proceed();
                         a[0] = observed;
                         return chain.proceed(a);
