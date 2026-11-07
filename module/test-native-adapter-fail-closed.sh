@@ -632,7 +632,7 @@ require(
 )
 require(
     gateway,
-    r'!"text".equals\\(format\\.optString\\("type", ""\\)\\).*?includeUsage != null.*?includeUsage != JSONObject\\.NULL.*?!\\(includeUsage instanceof Boolean\\).*?return "stream_options\\.include_usage";',
+    r'!\"text\".equals\(format\.optString\(\"type\", \"\"\)\).*?includeUsage != null.*?includeUsage != JSONObject\.NULL.*?!\(includeUsage instanceof Boolean\).*?return \"stream_options\.include_usage\";',
     "text response format is accepted and include_usage only rejects non-boolean values",
 )
 print("Native probe bounded-retry regression checks passed")
