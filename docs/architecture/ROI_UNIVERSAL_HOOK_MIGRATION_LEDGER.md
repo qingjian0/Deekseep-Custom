@@ -250,3 +250,13 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - The discovery report exposes only digest metadata and failure reason; it does not expose absolute APK paths.
 - This is an evidence/diagnostic primitive only. It is **not yet wired into `RoiReviewedHookEvidenceRegistry` or the activation gate**, and it does not grant authorization. The reviewed registry remains empty until independently reviewed, exact APK-set digests and host symbol evidence exist for each supported channel/version.
 - The SHA-256 value identifies bytes, not publisher authenticity. APK signing-certificate verification and PackageManager version metadata remain separate evidence requirements before production authorization.
+
+
+## Reviewed host-build identity binding (2026-11-07 follow-up)
+
+- Added immutable `RoiHostBuildIdentity`. A complete identity requires the exact target package, positive versionCode, versionName, channel, aggregate base+split APK SHA-256, signing-certificate SHA-256, and exact ClassLoader scope.
+- `RoiReviewedHookEvidenceRegistry.Builder.addReviewed` now requires a complete host identity and rejects a ClassLoader scope that differs from the candidate evidence scope. The identity is stored with the exact HookSpec record.
+- `RoiHookResolverActivationGate` now requires both the reviewed identity and a separate current-runtime identity source. Activation is denied unless every identity field matches and the current identity scope matches the actual ClassLoader passed to the gate.
+- `Main.installRoiUniversalHookBatch` now requires the caller to supply the current runtime identity. This is an intentional fail-closed API change: a missing or stale identity cannot authorize a Hook.
+- **Remaining production integration gap:** this commit does not yet collect the live PackageManager versionCode/signing certificate digest or construct the current identity from the running host's ApplicationInfo + APK set. No production call site should synthesize these fields from adapter labels or discovery reports. Until a trusted Android identity-capture path is implemented and verified, the gate remains unavailable to production callers and the reviewed catalog must remain empty.
+- SHA-256 of the APK set is content identity; SHA-256 of the APK signing certificate is publisher identity. Both are independently required. A version/channel string or ClassLoader scope cannot substitute for either digest.
