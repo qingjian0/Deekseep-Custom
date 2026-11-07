@@ -69,3 +69,14 @@ The current DexKit discovery pipeline still emits unresolved, non-approved candi
 - duplicate HookSpec identities.
 
 `build()` returns an immutable catalog implementing both the activation gate's evidence and policy source interfaces. The builder cannot be modified after build. Production adapter declarations must be compiled, code-reviewed, version-scoped records. There are currently no production records in the catalog; this is intentional until real APK/DEX and device evidence is reviewed.
+
+
+## R10 — Bind adapter fingerprint to installed host identity
+
+The activation fingerprint is derived from a canonical, length-prefixed SHA-256 input containing the exact host package name, Android PackageManager versionCode and versionName, maintained distribution channel, aggregate digest of the complete installed base + split APK set, and aggregate signer-certificate digest.
+
+The process-local ClassLoader scope remains a separate mandatory equality check; it is not folded into the artifact fingerprint. The activation gate rejects a HookSpec unless its fingerprint equals the current installed identity's derived activation fingerprint. The reviewed evidence catalog applies the same check before an entry can be admitted. Human adapter labels such as `code289-cn` are not accepted as fingerprints.
+
+This binds a reviewed method candidate and semantic-role policy to the exact installed host build rather than trusting an independent caller-supplied label. It does not create evidence for an uninspected APK, validate a candidate's behavior, or authorize any production Hook by itself. Discovery remains diagnostic-only and the production catalog remains empty until exact APK/DEX and device evidence is reviewed.
+
+Regression coverage verifies deterministic fingerprint generation and invalidation when APK-set digest, signer, or Android version code changes; it also rejects legacy human-readable labels at both the gate and catalog-builder boundaries.

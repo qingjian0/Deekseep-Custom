@@ -69,17 +69,18 @@ public final class RoiHookResolverActivationGateTest {
     public static void main(String[] args) {
         final ClassLoader exactLoader = RoiHookResolverActivationGateTest.class.getClassLoader();
         final String exactScope = RoiCandidateIdentity.forClassLoader(exactLoader);
-        final RoiHookResolver.Candidate approved = candidate("fp-289", "request",
+        final RoiHostBuildIdentity reviewedIdentity = identity(exactLoader, 'b', 'c', "2.7.2", "mainland");
+        final String activationFingerprint = reviewedIdentity.activationFingerprint();
+        final RoiHookResolver.Candidate approved = candidate(activationFingerprint, "request",
                 "com.deepseek.Request", "build",
                 "Lcom/deepseek/Request;->build(Ljava/lang/String;I)Ljava/lang/Object;",
                 exactScope);
-        final RoiHostBuildIdentity reviewedIdentity = identity(exactLoader, 'b', 'c', "2.7.2", "mainland");
         final RoiHookResolver.Policy policy = new RoiHookResolver.Policy(true,
                 Collections.singleton("request"), 0.45, 0.82);
         RoiHookResolverActivationGate gate = gate(
                 approved, exactLoader, reviewedIdentity, reviewedIdentity, policy);
 
-        RoiUniversalHookRuntime.Spec exact = spec("request.build", "fp-289", "request",
+        RoiUniversalHookRuntime.Spec exact = spec("request.build", activationFingerprint, "request",
                 "com.deepseek.Request", "build", "java.lang.Object", "java.lang.String", "int");
         check(gate.authorized(exact, exactLoader),
                 "fully corroborated exact host build and classloader should authorize");
@@ -126,20 +127,27 @@ public final class RoiHookResolverActivationGateTest {
                 spec("wrong-fingerprint", "fp-other", "request", "com.deepseek.Request", "build",
                         "java.lang.Object", "java.lang.String", "int"), exactLoader),
                 "fingerprint mismatch must fail closed");
+        RoiHookResolver.Candidate legacyLabelCandidate = candidate("code289-cn", "request",
+                "com.deepseek.Request", "build",
+                "Lcom/deepseek/Request;->build(Ljava/lang/String;I)Ljava/lang/Object;",
+                exactScope);
+        check(!gate(legacyLabelCandidate, exactLoader, reviewedIdentity,
+                reviewedIdentity, policy).authorized(exact, exactLoader),
+                "human-readable adapter labels must not masquerade as installed-build fingerprints");
         check(!gate(approved, exactLoader, reviewedIdentity, reviewedIdentity, policy).authorized(
-                spec("wrong-role", "fp-289", "response", "com.deepseek.Request", "build",
+                spec("wrong-role", activationFingerprint, "response", "com.deepseek.Request", "build",
                         "java.lang.Object", "java.lang.String", "int"), exactLoader),
                 "role mismatch must fail closed");
         check(!gate(approved, exactLoader, reviewedIdentity, reviewedIdentity, policy).authorized(
-                spec("wrong-class", "fp-289", "request", "com.deepseek.Other", "build",
+                spec("wrong-class", activationFingerprint, "request", "com.deepseek.Other", "build",
                         "java.lang.Object", "java.lang.String", "int"), exactLoader),
                 "class mismatch must fail closed");
         check(!gate(approved, exactLoader, reviewedIdentity, reviewedIdentity, policy).authorized(
-                spec("wrong-params", "fp-289", "request", "com.deepseek.Request", "build",
+                spec("wrong-params", activationFingerprint, "request", "com.deepseek.Request", "build",
                         "java.lang.Object", "long", "int"), exactLoader),
                 "parameter descriptor mismatch must fail closed");
         check(!gate(approved, exactLoader, reviewedIdentity, reviewedIdentity, policy).authorized(
-                spec("wrong-return", "fp-289", "request", "com.deepseek.Request", "build",
+                spec("wrong-return", activationFingerprint, "request", "com.deepseek.Request", "build",
                         "java.lang.String", "java.lang.String", "int"), exactLoader),
                 "return descriptor mismatch must fail closed");
 

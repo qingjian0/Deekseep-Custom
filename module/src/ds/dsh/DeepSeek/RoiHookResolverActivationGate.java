@@ -51,7 +51,8 @@ final class RoiHookResolverActivationGate implements RoiUniversalHookRuntime.Act
             if (!matches(spec, candidate, expectedScope) || policy == null
                     || reviewedIdentity == null || currentIdentity == null
                     || !reviewedIdentity.matches(currentIdentity)
-                    || !expectedScope.equals(currentIdentity.classLoaderScope)) return false;
+                    || !expectedScope.equals(currentIdentity.classLoaderScope)
+                    || !spec.fingerprint.equals(currentIdentity.activationFingerprint())) return false;
             return RoiHookResolver.resolve(candidate, policy).activationAuthorized;
         } catch (VirtualMachineError fatal) {
             throw fatal;

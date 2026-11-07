@@ -51,12 +51,13 @@ public final class RoiReviewedHookEvidenceRegistryTest {
 
     public static void main(String[] args) {
         ClassLoader loader = RoiReviewedHookEvidenceRegistryTest.class.getClassLoader();
-        RoiUniversalHookRuntime.Spec exact = spec("request.build", "fp-289", "request",
+        RoiHostBuildIdentity host = identity(loader, repeat('b'), repeat('c'));
+        String activationFingerprint = host.activationFingerprint();
+        RoiUniversalHookRuntime.Spec exact = spec("request.build", activationFingerprint, "request",
                 "com.deepseek.Request", "build", "java.lang.Object", "java.lang.String", "int");
-        RoiHookResolver.Candidate approved = candidate(loader, "fp-289", "request",
+        RoiHookResolver.Candidate approved = candidate(loader, activationFingerprint, "request",
                 "com.deepseek.Request", "build",
                 "Lcom/deepseek/Request;->build(Ljava/lang/String;I)Ljava/lang/Object;");
-        RoiHostBuildIdentity host = identity(loader, repeat('b'), repeat('c'));
 
         RoiReviewedHookEvidenceRegistry empty = RoiReviewedHookEvidenceRegistry.builder().build();
         check(empty.size() == 0 && empty.find(exact) == null && empty.policy(exact) == null
@@ -87,7 +88,7 @@ public final class RoiReviewedHookEvidenceRegistryTest {
         check(!mismatched.authorized(exact, loader),
                 "different installed APK-set digest must fail closed");
 
-        RoiUniversalHookRuntime.Spec wrongId = spec("request.other", "fp-289", "request",
+        RoiUniversalHookRuntime.Spec wrongId = spec("request.other", activationFingerprint, "request",
                 "com.deepseek.Request", "build", "java.lang.Object", "java.lang.String", "int");
         check(catalog.find(wrongId) == null && catalog.policy(wrongId) == null
                         && catalog.reviewedIdentity(wrongId) == null,
@@ -116,6 +117,18 @@ public final class RoiReviewedHookEvidenceRegistryTest {
             RoiReviewedHookEvidenceRegistry.builder().addReviewed(exact, wrong, policy("request"), host);
         } catch (IllegalArgumentException expected) { rejectedWrongCandidate = true; }
         check(rejectedWrongCandidate, "candidate mismatch must be rejected before catalog build");
+        boolean rejectedUnboundFingerprint = false;
+        try {
+            RoiUniversalHookRuntime.Spec labelSpec = spec("request.build", "code289-cn", "request",
+                    "com.deepseek.Request", "build", "java.lang.Object", "java.lang.String", "int");
+            RoiHookResolver.Candidate labelCandidate = candidate(loader, "code289-cn", "request",
+                    "com.deepseek.Request", "build",
+                    "Lcom/deepseek/Request;->build(Ljava/lang/String;I)Ljava/lang/Object;");
+            RoiReviewedHookEvidenceRegistry.builder().addReviewed(
+                    labelSpec, labelCandidate, policy("request"), host);
+        } catch (IllegalArgumentException expected) { rejectedUnboundFingerprint = true; }
+        check(rejectedUnboundFingerprint,
+                "reviewed catalog must reject human labels not cryptographically bound to host identity");
 
         boolean rejectedWrongScope = false;
         try {

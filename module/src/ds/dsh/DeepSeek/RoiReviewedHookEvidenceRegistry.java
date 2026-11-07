@@ -79,6 +79,11 @@ final class RoiReviewedHookEvidenceRegistry
             if (!hostIdentity.classLoaderScope.equals(candidate.sourceScope)) {
                 throw new IllegalArgumentException("host identity ClassLoader scope does not match candidate");
             }
+            if (!hostIdentity.activationFingerprint().equals(spec.fingerprint)
+                    || !hostIdentity.activationFingerprint().equals(candidate.hostFingerprint)) {
+                throw new IllegalArgumentException(
+                        "HookSpec/candidate fingerprint is not bound to the reviewed APK and signer identity");
+            }
             if (!RoiHookResolverActivationGate.matches(
                     spec, candidate, candidate.sourceScope)) {
                 throw new IllegalArgumentException("reviewed candidate does not exactly match HookSpec");

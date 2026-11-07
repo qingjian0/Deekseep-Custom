@@ -1,5 +1,8 @@
 package ds.dsh.DeepSeek;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Locale;
 
 /**
@@ -45,6 +48,46 @@ final class RoiHostBuildIdentity {
                 && isSha256(artifactSetSha256)
                 && isSha256(signerCertificateSha256)
                 && classLoaderScope.length() > 0;
+    }
+
+    /**
+     * Stable activation fingerprint for the exact installed host build.
+     *
+     * <p>This deliberately binds the adapter fingerprint to package, Android version code/name,
+     * channel, complete base+split APK-set digest and signer-set digest. ClassLoader scope remains
+     * a separate process-local check. Human labels such as "code289-cn" are not fingerprints.</p>
+     */
+    String activationFingerprint() {
+        if (!isComplete()) return "";
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            updateFingerprint(digest, "roi-host-activation-fingerprint-v1");
+            updateFingerprint(digest, packageName);
+            updateFingerprint(digest, Long.toString(versionCode));
+            updateFingerprint(digest, versionName);
+            updateFingerprint(digest, channel);
+            updateFingerprint(digest, artifactSetSha256);
+            updateFingerprint(digest, signerCertificateSha256);
+            byte[] bytes = digest.digest();
+            StringBuilder out = new StringBuilder(bytes.length * 2);
+            for (byte value : bytes) {
+                int unsigned = value & 0xff;
+                if (unsigned < 16) out.append('0');
+                out.append(Integer.toHexString(unsigned));
+            }
+            return out.toString();
+        } catch (NoSuchAlgorithmException unavailable) {
+            throw new IllegalStateException("SHA-256 unavailable for activation fingerprint", unavailable);
+        }
+    }
+
+    private static void updateFingerprint(MessageDigest digest, String value) {
+        byte[] bytes = safe(value).getBytes(StandardCharsets.UTF_8);
+        digest.update((byte) (bytes.length >>> 24));
+        digest.update((byte) (bytes.length >>> 16));
+        digest.update((byte) (bytes.length >>> 8));
+        digest.update((byte) bytes.length);
+        digest.update(bytes);
     }
 
     /** PackageManager and base APK manifest must independently report the same versionName. */

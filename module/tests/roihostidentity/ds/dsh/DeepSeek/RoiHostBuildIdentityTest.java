@@ -33,6 +33,20 @@ public final class RoiHostBuildIdentityTest {
         RoiHostBuildIdentity baseline = identity("com.deepseek.chat", 42L,
                 "2.7.2", "mainland", repeat('b'), repeat('c'), scope);
         check(baseline.isComplete(), "complete target identity should pass");
+        String activationFingerprint = baseline.activationFingerprint();
+        check(activationFingerprint.matches("[0-9a-f]{64}"),
+                "complete host identity must produce a canonical SHA-256 activation fingerprint");
+        check(activationFingerprint.equals(baseline.activationFingerprint()),
+                "activation fingerprint must be deterministic");
+        check(!activationFingerprint.equals(identity("com.deepseek.chat", 42L,
+                "2.7.2", "mainland", repeat('d'), repeat('c'), scope).activationFingerprint()),
+                "APK-set digest changes must change activation fingerprint");
+        check(!activationFingerprint.equals(identity("com.deepseek.chat", 42L,
+                "2.7.2", "mainland", repeat('b'), repeat('d'), scope).activationFingerprint()),
+                "signer changes must change activation fingerprint");
+        check(!activationFingerprint.equals(identity("com.deepseek.chat", 43L,
+                "2.7.2", "mainland", repeat('b'), repeat('c'), scope).activationFingerprint()),
+                "Android version-code changes must change activation fingerprint");
         check(!identity("com.example.fake", 42L, "2.7.2", "mainland",
                 repeat('b'), repeat('c'), scope).isComplete(), "wrong package must fail closed");
         check(!identity("com.deepseek.chat", 0L, "2.7.2", "mainland",

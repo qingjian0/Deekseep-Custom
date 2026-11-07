@@ -286,3 +286,20 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - Keep the namespaces distinct: the `HostCompat` values are internal mapping IDs; Android versionCode comes from PackageManager. Never relabel the 2.7.1/code288 report as code287, code289 or code290.
 - The 2.7.1 report itself explicitly leaves the main completion raw-byte parser, runtime Flow emit item type, cancellation/resume behavior and LSPosed device validation unresolved. It cannot satisfy the runtime invocation, return-contract or lifecycle-contract evidence required by the activation resolver.
 - Until exact installed artifacts and device traces exist for each supported 287 / 289 / 290 host, no production adapter record is authorized. Keep the catalog empty and preserve discovery-only policy.
+
+
+## R10 implementation — cryptographic adapter/build binding (2026-11-07)
+
+- Added `RoiHostBuildIdentity.activationFingerprint()`: deterministic SHA-256 over a domain-separated, length-prefixed tuple of package, real Android versionCode/versionName, channel, complete base+split APK-set digest and signer-set digest.
+- The fingerprint excludes process-local ClassLoader scope by design; the gate independently requires the exact scope on both reviewed and current identity.
+- Activation now requires `HookSpec.fingerprint == currentIdentity.activationFingerprint()`. Catalog admission independently requires both the spec and candidate fingerprint to equal the reviewed host identity's derived fingerprint.
+- Added negative tests for arbitrary labels such as `code289-cn`, plus digest, signer and Android version-code changes.
+- The discovery pipeline's existing `hostKey` remains a diagnostic adapter label and its candidates remain unresolved / unapproved / discovery-only. It is intentionally not upgraded into a production fingerprint.
+- No production HookSpec records were added. Exact installed APKs, reviewed DEX descriptors, full runtime invocation/return/lifecycle evidence and L5 LSPosed verification remain prerequisites.
+
+## R11–R12 migration disposition
+
+- R11 migration plumbing: the shared `FeatureHookInstallRegistry`, Main group installer and LegacyXposed per-Member callback chain are already the integration seam. Migration must use this seam; it must not create a second native Xposed callback.
+- R12 bulk migration: **not authorized in this batch**. The current evidence ledger has no feature with a complete, version-scoped activation record. Mechanically wrapping legacy call sites would only relabel unverified targets and could change invocation order, argument/return/throwable semantics, coroutine ownership or rollback behavior.
+- The migration inventory remains a plan, not a completed migration count. A feature may move only after its exact target and complete behavior contract are reviewed for the exact APK identity, then pass shadow comparison, install/uninstall/rollback tests and the host/device matrix.
+- This is an intentional fail-closed stop, not a claim that R11–R12 production migration is complete.
