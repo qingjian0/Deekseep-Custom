@@ -237,8 +237,10 @@ if '"/v1/responses".equals(request.path)' not in source or "handleResponses(out,
     raise SystemExit("Responses endpoint is not registered")
 if '"/v1/messages".equals(request.path)' not in source or "handleAnthropicMessages(out, request)" not in source:
     raise SystemExit("Anthropic Messages endpoint is not registered")
-if 'throw new z2.GatewayException(503, "native_adapter_unavailable"' not in security:
-    raise SystemExit("Open native completion must remain fail-closed")
+if 'throw new z2.GatewayException(503, "engine_missing"' not in security:
+    raise SystemExit("Open native completion must report engine_missing when the execution payload is absent")
+if 'native_adapter_unavailable' in security:
+    raise SystemExit("Open native completion must not be blocked by an edition-level gate")
 
 print("LAN lifecycle, key, URL, selectable UI, API protocol, and truthful Open capability checks passed")
 PY
