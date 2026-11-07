@@ -219,6 +219,8 @@ public final class HostCompatRegressionTest {
         check(HostCompat.isV275StaticOnly(), "2.7.5 static-only marker");
         check(HostCompat.diagnosticSummary().contains("channel=unknown"),
                 "2.7.5 distribution channel must not be inferred from missing legacy markers");
+        equals("", HostCompat.reviewedDistributionChannel(),
+                "unverified 2.7.5 channel must block ROI identity capture");
         check(!HostCompat.supportsMaintainedFeatureRuntime(),
                 "2.7.5 static reconnaissance must not authorize legacy feature hooks");
         check(!HostCompat.supportsHostVersionName("2.7.5"),
