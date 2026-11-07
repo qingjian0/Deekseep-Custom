@@ -6,6 +6,7 @@ on:
       - "module/src/ds/dsh/DeepSeek/RoiUniversalHookRuntime.java"
       - "module/src/ds/dsh/DeepSeek/RoiHookResolverActivationGate.java"
       - "module/src/ds/dsh/DeepSeek/RoiHostArtifactFingerprint.java"
+      - "module/src/ds/dsh/DeepSeek/RoiHostBuildIdentity.java"
       - "module/tests/roiartifact/**"
       - "module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationObserver.java"
       - "module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
@@ -30,6 +31,7 @@ on:
     paths:
       - "module/src/ds/dsh/DeepSeek/RoiUniversalHookRuntime.java"
       - "module/src/ds/dsh/DeepSeek/RoiHostArtifactFingerprint.java"
+      - "module/src/ds/dsh/DeepSeek/RoiHostBuildIdentity.java"
       - "module/tests/roiartifact/**"
       - "module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationObserver.java"
       - "module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
