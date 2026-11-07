@@ -150,11 +150,6 @@ final class RoiDexKitDiscovery {
                 MAX_TOTAL_CANDIDATES_PER_SCAN,
                 System.nanoTime() + SCAN_BUDGET_NANOS);
         append(out, "scan.apkPathsIncluded=" + includeApkPaths);
-        if (includeApkPaths) {
-            append(out, RoiHostArtifactFingerprint.inspect(apkPath, splitApkPaths).toReport());
-        } else {
-            append(out, "artifactIdentity.status=not_recomputed_runtime_rescan");
-        }
         append(out, "scan.budget.maxQueries=" + MAX_TOTAL_QUERIES_PER_SCAN);
         append(out, "scan.budget.maxCandidates=" + MAX_TOTAL_CANDIDATES_PER_SCAN);
         append(out, "scan.budget.softDeadlineMs=" + (SCAN_BUDGET_NANOS / 1_000_000L));
@@ -583,7 +578,43 @@ final class RoiDexKitDiscovery {
                                 if (emittedMethods++ >= 12) break;
                                 append(out, "loader.dexEvidence.method=" + safe(method.methodKey)
                                         + ",analysis=" + (method.analysis != null)
-                                        + ",failure=" + safe(method.analysisFailure));
+                                        + ",failure=" + safe(method.analysisFailure)
+                                        + ",serializerMapping=" + (method.serializerPipeline != null)
+                                        + ",serializerMappingFailure=" + safe(method.serializerPipelineFailure));
+                                if(method.serializerPipeline!=null) {
+                                    append(out, "loader.dexEvidence.serializerMapping="
+                                            + safe(method.methodKey)
+                                            + ",complete=" + method.serializerPipeline.complete
+                                            + ",registrationMethod="
+                                            + safe(method.serializerPipeline.registrationMethodKey)
+                                            + ",elements=" + (method.serializerPipeline.elementIndices==null
+                                                ? 0 : method.serializerPipeline.elementIndices.elements.length)
+                                            + ",parameters=" + (method.serializerPipeline.mapping==null
+                                                || method.serializerPipeline.mapping.constructors.length==0
+                                                ? 0 : method.serializerPipeline.mapping.constructors[0].parameters.length)
+                                            + ",rejected=" + (method.serializerPipeline.mapping==null
+                                                ? 0 : method.serializerPipeline.mapping.rejected.length)
+                                            + ",authorizationGranted=false");
+                                    if(method.serializerPipeline.mapping!=null
+                                            &&method.serializerPipeline.mapping.constructors.length>0) {
+                                        RoiDexSerializerMapper.ParameterMapping[] mapped=
+                                                method.serializerPipeline.mapping.constructors[0].parameters;
+                                        int mappingLimit=Math.min(mapped.length,16);
+                                        for(int mappingIndex=0;mappingIndex<mappingLimit;mappingIndex++) {
+                                            RoiDexSerializerMapper.ParameterMapping parameter=mapped[mappingIndex];
+                                            append(out,"loader.dexEvidence.serializerMapping.parameter="
+                                                    + safe(method.methodKey)
+                                                    + ",constructorParameter=" + parameter.constructorParameterIndex
+                                                    + ",field=" + safe(parameter.fieldName)
+                                                    + ",elementIndex=" + parameter.elementIndex
+                                                    + ",decode=" + safe(parameter.decodeOwner+"->"
+                                                        +parameter.decodeMethod+parameter.decodePrototype)
+                                                    + ",constructorOffset=" + parameter.constructorInvokeOffset
+                                                    + ",decodeOffset=" + parameter.decodeInvokeOffset
+                                                    + ",candidateEvidenceOnly=true");
+                                        }
+                                    }
+                                }
                                 if (method.analysis != null) {
                                     append(out, "loader.dexEvidence.methodFlow="
                                             + safe(method.methodKey)
@@ -819,9 +850,6 @@ final class RoiDexKitDiscovery {
         int otherScopeEvidenceEntries = 0;
         int exactScopeCoverageObserved = 0;
         int exactScopeCoverageUnsupportedSuspend = 0;
-        int exactScopeCoverageUnsupportedCollectorType = 0;
-        int exactScopeCoverageUnsupportedNonSuspendCollector = 0;
-        int exactScopeCoverageUnsupportedParserCorrelation = 0;
         int otherScopeCoverageEntries = 0;
         boolean orderedRequestTransportResponse = false;
         boolean orderedParsedResponse = false;
@@ -858,12 +886,6 @@ final class RoiDexKitDiscovery {
                         exactScopeCoverageObserved++;
                     } else if (item.status == RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_SUSPEND_COLLECTOR) {
                         exactScopeCoverageUnsupportedSuspend++;
-                    } else if (item.status == RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_COLLECTOR_TYPE) {
-                        exactScopeCoverageUnsupportedCollectorType++;
-                    } else if (item.status == RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_NON_SUSPEND_COLLECTOR) {
-                        exactScopeCoverageUnsupportedNonSuspendCollector++;
-                    } else if (item.status == RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_RESPONSE_PARSER_CORRELATION) {
-                        exactScopeCoverageUnsupportedParserCorrelation++;
                     }
                 }
             }
@@ -872,9 +894,6 @@ final class RoiDexKitDiscovery {
         append(out, prefix + ".runtimeEvidence.otherClassLoaderScopeEvidenceEntries=" + otherScopeEvidenceEntries);
         append(out, prefix + ".runtimeEvidence.exactScopeCoverage.responseObserved=" + exactScopeCoverageObserved);
         append(out, prefix + ".runtimeEvidence.exactScopeCoverage.unsupportedSuspendCollector=" + exactScopeCoverageUnsupportedSuspend);
-        append(out, prefix + ".runtimeEvidence.exactScopeCoverage.unsupportedCollectorType=" + exactScopeCoverageUnsupportedCollectorType);
-        append(out, prefix + ".runtimeEvidence.exactScopeCoverage.unsupportedNonSuspendCollector=" + exactScopeCoverageUnsupportedNonSuspendCollector);
-        append(out, prefix + ".runtimeEvidence.exactScopeCoverage.unsupportedResponseParserCorrelation=" + exactScopeCoverageUnsupportedParserCorrelation);
         append(out, prefix + ".runtimeEvidence.otherClassLoaderScopeCoverageEntries=" + otherScopeCoverageEntries);
         append(out, prefix + ".runtimeEvidence.phaseCounts=requestBuilt:" + requestBuilt
                 + ",transportEntered:" + transportEntered + ",responseReceived:" + responseReceived

@@ -47,6 +47,25 @@ public final class RoiDexFileReader {
         public final ClassDef[] classes;
         public final RoiDexCodeReader.ClassData[] classData;
         public final ResolvedMethod[] definedMethods;
+        /** Resolves any method_id entry, including external/referenced-only methods. */
+        public ResolvedMethodId resolveMethodId(int methodIndex) throws DexException {
+            if(methodIndex<0||methodIndex>=methods.length)
+                throw new DexException("method_id_out_of_range");
+            Method id=methods[methodIndex];
+            String owner=typeDescriptors[id.classIndex];
+            validateTypeDescriptor(owner,false);
+            Proto proto=protos[id.protoIndex];
+            StringBuilder signature=new StringBuilder("(");
+            for(int typeIndex:protoParameterTypeIndices[id.protoIndex]) {
+                String descriptor=typeDescriptors[typeIndex];
+                validateTypeDescriptor(descriptor,false);
+                signature.append(descriptor);
+            }
+            String returnDescriptor=typeDescriptors[proto.returnTypeIndex];
+            validateTypeDescriptor(returnDescriptor,true);
+            signature.append(')').append(returnDescriptor);
+            return new ResolvedMethodId(methodIndex,owner,strings[id.nameIndex],signature.toString());
+        }
         private DexFile(Header h,int[] s,int[] t,String[] decoded,String[] descriptors,int[][] params,
                 Proto[] p,Field[] f,Method[] m,ClassDef[] c,RoiDexCodeReader.ClassData[] cd,
                 ResolvedMethod[] resolved){
@@ -55,6 +74,15 @@ public final class RoiDexFileReader {
             definedMethods=resolved;
         }
     }
+    /** A method_id joined to its owner and proto, whether or not this DEX defines its code. */
+    public static final class ResolvedMethodId {
+        public final int methodIndex;
+        public final String ownerDescriptor,name,prototypeDescriptor;
+        ResolvedMethodId(int index,String owner,String methodName,String prototype) {
+            methodIndex=index;ownerDescriptor=owner;name=methodName;prototypeDescriptor=prototype;
+        }
+    }
+
     /** A method definition joined across class_data, method_id, proto_id and code_item. */
     public static final class ResolvedMethod {
         public final int methodIndex, accessFlags, codeOffset, declaringClassIndex;

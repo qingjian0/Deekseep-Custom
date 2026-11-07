@@ -17,6 +17,7 @@ import java.util.HashSet;
  */
 public final class RoiDexCandidateEvidence {
     private static final int MAX_SELECTED_METHODS = 544;
+    private static final int MAX_SERIALIZER_PIPELINE_ANALYSES = 8;
     private RoiDexCandidateEvidence() {}
 
     public static final class EvidenceException extends Exception {
@@ -35,10 +36,13 @@ public final class RoiDexCandidateEvidence {
         public final String analysisFailure;
         /** Empty only when the method's invoke references were decoded completely. */
         public final String invokeAnalysisFailure;
+        public final RoiDexSerializerPipeline.Result serializerPipeline;
+        public final String serializerPipelineFailure;
 
         MethodEvidence(int index, String key, List<String> calls,
                 List<String> reachable, List<String> unreachable, boolean reachabilityComplete,
-                RoiDexMethodAnalysis.Result result, String failure, String invokeFailure) {
+                RoiDexMethodAnalysis.Result result, String failure, String invokeFailure,
+                RoiDexSerializerPipeline.Result serializerResult, String serializerFailure) {
             methodIndex = index;
             methodKey = key;
             invokes = Collections.unmodifiableList(new ArrayList<String>(calls));
@@ -48,6 +52,8 @@ public final class RoiDexCandidateEvidence {
             analysis = result;
             analysisFailure = failure == null ? "" : failure;
             invokeAnalysisFailure = invokeFailure == null ? "" : invokeFailure;
+            serializerPipeline = serializerResult;
+            serializerPipelineFailure = serializerFailure == null ? "" : serializerFailure;
         }
     }
 
@@ -105,6 +111,10 @@ public final class RoiDexCandidateEvidence {
         Set<String> found = new HashSet<String>();
         int analyzed = 0;
         int failures = 0;
+        int serializerAttempts = 0;
+        Map<String, RoiDexSerializerPipeline.Result> serializerCache =
+                new LinkedHashMap<String, RoiDexSerializerPipeline.Result>();
+        Map<String, String> serializerFailureCache = new LinkedHashMap<String, String>();
 
         for (RoiDexFileReader.ResolvedMethod method : dex.definedMethods) {
             String key = methodKey(dex, method.methodIndex);
@@ -130,11 +140,40 @@ public final class RoiDexCandidateEvidence {
                 }
             }
             RoiDexInvokeReachability.Partition partition = partitionInvokes(invokeCollection, analysis);
+            RoiDexSerializerPipeline.Result serializerPipeline = null;
+            String serializerFailure = "";
+            if (method.codeItem != null && partition.complete) {
+                String expectedConstructor = null;
+                boolean constructorAmbiguous = false;
+                for (String invoked : partition.reachableInvokes) {
+                    if (!RoiDexSerializerPipeline.isRequestConstructorDescriptor(invoked)) continue;
+                    if (expectedConstructor == null) expectedConstructor = invoked;
+                    else if (!expectedConstructor.equals(invoked)) constructorAmbiguous = true;
+                }
+                if (constructorAmbiguous) {
+                    serializerFailure = "request_constructor_evidence_ambiguous";
+                } else if (expectedConstructor != null) {
+                    String pipelineKey = method.declaringClassDescriptor + "|" + key + "|" + expectedConstructor;
+                    if (serializerCache.containsKey(pipelineKey)) {
+                        serializerPipeline = serializerCache.get(pipelineKey);
+                        serializerFailure = serializerFailureCache.get(pipelineKey);
+                    } else if (serializerAttempts >= MAX_SERIALIZER_PIPELINE_ANALYSES) {
+                        serializerFailure = "serializer_pipeline_budget_exceeded";
+                    } else {
+                        serializerAttempts++;
+                        serializerPipeline = RoiDexSerializerPipeline.analyze(dex, method, expectedConstructor);
+                        serializerFailure = serializerPipeline.rejectionReason == null
+                                ? "" : serializerPipeline.rejectionReason;
+                        serializerCache.put(pipelineKey, serializerPipeline);
+                        serializerFailureCache.put(pipelineKey, serializerFailure);
+                    }
+                }
+            }
             observations.add(new RoiCandidateGraph.Observation(scope, key, "",
                     partition.reachableInvokes, Collections.<String>emptyList()));
             methodEvidence.add(new MethodEvidence(method.methodIndex, key, invokes,
                     partition.reachableInvokes, partition.unreachableInvokes, partition.complete,
-                    analysis, failure, invokeCollection.failure));
+                    analysis, failure, invokeCollection.failure, serializerPipeline, serializerFailure));
         }
 
         if (selected != null) {

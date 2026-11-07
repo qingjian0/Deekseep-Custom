@@ -29,6 +29,11 @@ public final class RoiDexInstructionScanner {
         }
         public int[] branchTargets() { return targets.clone(); }
     }
+    /** A switch key and its resolved executable target offset. */
+    public static final class SwitchCase {
+        public final int key, targetOffset;
+        SwitchCase(int key, int target) { this.key = key; targetOffset = target; }
+    }
     public static final class ScanResult {
         public final Instruction[] instructions;
         public final int codeUnits;
@@ -46,6 +51,35 @@ public final class RoiDexInstructionScanner {
         }
         public boolean isPayloadStart(int offset) {
             Instruction i=byOffset.get(offset); return i!=null&&i.payload;
+        }
+        /** Returns key-to-target pairs in DEX payload order; default is represented by the CFG edge. */
+        public SwitchCase[] switchCasesAt(int switchOffset) throws ScanException {
+            Instruction instruction = byOffset.get(switchOffset);
+            if (instruction == null || instruction.payload || !isSwitch(instruction.opcode))
+                throw new ScanException("not_switch_instruction:" + switchOffset);
+            int payloadOffset = checkedTarget(switchOffset, s32(code, switchOffset + 1));
+            Instruction payload = byOffset.get(payloadOffset);
+            if (payload == null || !payload.payload
+                    || (payload.payloadKind != 1 && payload.payloadKind != 2))
+                throw new ScanException("switch_payload_missing:" + switchOffset);
+            int count = u(code[payloadOffset + 1]);
+            SwitchCase[] cases = new SwitchCase[count];
+            if (payload.payloadKind == 1) {
+                int firstKey = s32(code, payloadOffset + 2);
+                for (int i = 0; i < count; i++) {
+                    int key = firstKey + i;
+                    int target = checkedTarget(switchOffset, s32(code, payloadOffset + 4 + i * 2));
+                    cases[i] = new SwitchCase(key, target);
+                }
+            } else {
+                int targetBase = payloadOffset + 2 + count * 2;
+                for (int i = 0; i < count; i++) {
+                    int key = s32(code, payloadOffset + 2 + i * 2);
+                    int target = checkedTarget(switchOffset, s32(code, targetBase + i * 2));
+                    cases[i] = new SwitchCase(key, target);
+                }
+            }
+            return cases;
         }
     }
     public static final class BasicBlock {
