@@ -2013,7 +2013,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         if (HostCompat.isV271Full()) {
             // Hand-verified 2.7.1 settings entry (gt0.Q page_show) as a guaranteed module entry;
             // the translated 2.4.1 settings hooks below are best effort on top of it.
-            log("installAllFeatureHooks: 2.7.1 full mode via HostRemap classes=" + HostRemap.classCount());
+            log("installAllFeatureHooks: " + HostCompat.hostLabel()
+                    + " compatibility map via HostRemap classes=" + HostRemap.classCount());
             installBestEffortHook("host.v271.settings-entry", () -> HostV271.installSettingsEntry(hookLoader),
                     "2.7.1 settings entry failed: ");
         }
