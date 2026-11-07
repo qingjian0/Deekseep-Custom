@@ -840,7 +840,7 @@ fx1.m queue miss
  -> tn2(ys, false) wrapped by pt7
 ```
 
-- `rz0` 分支明确包含 `/api/v0/chat_session/create`，并设置 5000 ms 请求超时。
+- `rz0` 分支明确包含 `/api/v0/chat_session/create`，并设置 5000 ms 请求超时。请求 builder 默认 method 是 GET，该分支没有显式覆盖；`rh5.d` 随后交给 `cf5.a` 客户端管线，因此最终线上 method 仍需排除管线改写后再定论。
 - `ch2.b` 使用 `ServerResponseBizDataWrapper` 与 `ServerDefaultBizCode` 的 serializer。
 - `dt9` descriptor 明确包含 `biz_code`、`biz_msg`、`biz_data`。
 - `j41` 从 biz_data 解码 `ok2`，提取 `ss9` 并构造 `ys`。
