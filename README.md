@@ -2,13 +2,13 @@
 
 ROI 是面向官方 DeepSeek Android 客户端（`com.deepseek.chat`）的 LSPosed / Xposed 项目。当前开发分支正在渐进引入 Kotlin Runtime、Agent Core 与本地 API Gateway，同时保留既有 Java Hook 和宿主兼容边界。
 
-> **开发状态提醒：** 本 README 对应当前工作分支，不等同于稳定 Release。Local API 的 HTTP 服务层已经实现，但 Open 构建的 DeepSeek 原生 Completion Adapter 尚未打通；GET /v1/models 可返回配置的模型清单；POST /v1/chat/completions 在原生适配器未接通时返回 HTTP 503。Open 当前不支持 Responses、Anthropic、工具调用、多模态或 usage。请勿将“端口可连接”理解为“已经能够调用 DeepSeek 模型”。
+> **开发状态提醒：** 当前开发分支已扩展 OpenAI Chat Completions、Responses、Anthropic Messages、SSE 与工具调用协议桥接；但 Open 版 DeepSeek 原生 Completion Adapter 仍未接通。`GET /v1/models` 仅返回模型目录，三个 Completion 协议入口在原生适配器未就绪时仍返回 HTTP 503。工具调用目前只将结构化调用结果返回客户端，不在模块内执行工具；Usage 为估算值并显式标记。请勿将协议路由可访问理解为模型已经可调用。
 
 ## 当前工程基线
 
 | 项目 | 当前值 |
 |---|---|
-| 工作分支 | `work/roi-agent-core-kotlin` |
+| 当前协议开发分支 | `work/local-api-protocol-port` |
 | 宿主包名 | `com.deepseek.chat` |
 | 模块包名 | `ds.dsh.DeepSeek` |
 | Xposed 入口 | `ds.dsh.DeepSeek.Main` |
@@ -32,10 +32,12 @@ ROI 是面向官方 DeepSeek Android 客户端（`com.deepseek.chat`）的 LSPos
 |---|---|
 | `GET /v1/models` | 返回配置模型清单；不代表原生执行就绪 |
 | `POST /v1/chat/completions` | HTTP/JSON/SSE 路由已实现；原生模型适配未就绪时返回 503 |
-| `POST /v1/responses` | 未实现 |
-| `POST /v1/agent/run` | 未实现 |
+| `POST /v1/responses` | 请求/响应与 SSE 协议映射已实现；原生适配器未就绪时返回 503 |
+| `POST /v1/messages` | Anthropic Messages 请求/响应与 SSE 映射已实现；原生适配器未就绪时返回 503 |\n| `POST /v1/agent/run` | 未实现 |
 
 LAN 默认关闭。开启后只绑定当前检测到的精确 `192.168.x.x` 地址，不绑定 `0.0.0.0`；远端来源限制在 `192.168.0.0/16`。LAN 使用明文 HTTP，只应在可信网络中使用。
+
+协议边界：Chat Completions 与 Responses 的工具调用仅解析并向 API 客户端返回结构化 `tool_calls`；模块不会代替客户端执行工具，且工具调用暂不支持流式模式。Responses 的 `previous_response_id` 状态仅保存在进程内，最多 64 条、30 分钟过期，服务重启后清空。Usage 是估算值，以 `dsh_usage_estimated=true` 标记，不是 DeepSeek tokenizer 的精确计数。图像、音频和非 text JSON 输出格式仍不支持。
 
 详细说明：[Open Local API Gateway](docs/architecture/OPEN_LOCAL_API_GATEWAY.md)。
 
