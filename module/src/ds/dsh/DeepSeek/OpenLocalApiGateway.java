@@ -1763,7 +1763,7 @@ final class OpenLocalApiGateway {
             if (options == null) return "stream_options";
             Object includeUsage = options.opt("include_usage");
             if (includeUsage != null && includeUsage != JSONObject.NULL
-                    && !Boolean.FALSE.equals(includeUsage)) {
+                    && !(includeUsage instanceof Boolean)) {
                 return "stream_options.include_usage";
             }
             java.util.Iterator<String> keys = options.keys();
