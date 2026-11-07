@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "profile_id": "deepseek-2.7.2-code289-cn",
+  "host_package": "com.deepseek.chat",
+  "version": "2.7.2",
+  "build": "code289-cn",
+  "apk": {
+    "path": "deepseek-2-7-2.apk",
+    "sha256": "3c2fe31c73575400b9d59e46dde05daa2ef06491498ebfef658801e99eca1aff",
+    "bytes": 22205160,
+    "dex_count": 3
+  },
+  "evidence": {
+    "dynamic_runtime": {
+      "source": "README.md sections 4-7 and 12-15",
+      "scope": "Observed 2.7.2/code289-cn runtime only",
+      "request_constructions": 4,
+      "transport_dispatch_entries": 4,
+      "low_level_entries": 4,
+      "same_request_object_between_dispatch_and_low_level": true,
+      "returned_type": "Ly60;",
+      "credentials_or_message_bodies_collected": false
+    },
+    "static_dex": {
+      "source": "GitHub Actions run 42341546518; APKTool smali",
+      "smali_files": 15365,
+      "method_declarations": 72258,
+      "jadx_java_files": 13935,
+      "jadx_exit_code": 3,
+      "jadx_errors": 346
+    }
+  },
+  "semantic_nodes": {
+    "chat_request_model": {
+      "class": "Lly1;",
+      "interfaces": [
+        "Lwu1;"
+      ],
+      "super": "Ljava/lang/Object;",
+      "fields": [
+        "a:Ljava/lang/String;",
+        "b:Ljava/lang/Integer;",
+        "c:Ljava/lang/String;",
+        "d:Ljava/util/List;",
+        "e:Z",
+        "f:Z",
+        "g:Ljava/lang/String;",
+        "h:Z",
+        "i:Ljava/lang/String;",
+        "j:Ljava/lang/String;",
+        "k:Ljava/lang/String;"
+      ],
+      "constructors": [
+        "<init>(ILjava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Ljava/util/List;ZZLjava/lang/String;ZLjava/lang/String;Ljava/lang/String;)V",
+        "<init>(Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Ljava/util/ArrayList;ZZLjava/lang/String;ZLjava/lang/String;Ljava/lang/String;I)V"
+      ],
+      "evidence": [
+        "runtime observer: request model implements wu1",
+        "DEX: exact descriptor and constructor set"
+      ],
+      "confidence": "high"
+    },
+    "transport_dispatch": {
+      "method": "Lzn3;->o(Lwu1;Ljava/lang/Long;)Ly60;",
+      "class_interfaces": [
+        "Lqz0;",
+        "Ljava/lang/AutoCloseable;"
+      ],
+      "field_link": "a:Ljw3;",
+      "calls": [
+        "Ljw3;->g(Lwu1;Ljava/lang/Long;)Ly60;"
+      ],
+      "evidence": [
+        "runtime observer: transport-dispatch",
+        "DEX call-site: zn3.o invokes jw3.g"
+      ],
+      "confidence": "high"
+    },
+    "transport_low_level": {
+      "method": "Ljw3;->g(Lwu1;Ljava/lang/Long;)Ly60;",
+      "interfaces": [
+        "Lmc6;"
+      ],
+      "evidence": [
+        "runtime observer: transport-low-level",
+        "runtime observer: same request object as root"
+      ],
+      "confidence": "high"
+    },
+    "async_continuation": {
+      "class": "Ly60;",
+      "interfaces": [
+        "Lel4;"
+      ],
+      "methods": [
+        "b(Lfl4;Lyb3;)Ljava/lang/Object;"
+      ],
+      "evidence": [
+        "runtime observer: transport returns y60",
+        "DEX: y60 implements el4 and exposes continuation method"
+      ],
+      "confidence": "high"
+    }
+  },
+  "hook_guidance": {
+    "preferred_order": [
+      "Lzn3;->o(Lwu1;Ljava/lang/Long;)Ly60;",
+      "Ljw3;->g(Lwu1;Ljava/lang/Long;)Ly60;",
+      "Ly60;->b(Lfl4;Lyb3;)Ljava/lang/Object;",
+      "Lly1; constructors"
+    ],
+    "mode": "read-only observer first",
+    "prohibited_assumptions": [
+      "Do not infer field semantics from obfuscated field letters alone",
+      "Do not modify request parameters at transport entry based only on this profile",
+      "Do not reuse class names as identities in another app version",
+      "Do not treat server tool-result fragments as proof of local Agent tool execution"
+    ],
+    "privacy": "Do not collect message bodies, credentials, cookies, or authorization headers"
+  },
+  "limitations": [
+    "JADX exited 3 with 346 decompilation errors; smali is the authoritative fallback for affected methods",
+    "AndroidManifest.xml was not decoded in APKTool resource-skip mode; package/build identity comes from repository evidence and APK filename",
+    "Static DEX presence does not prove device Hook execution",
+    "Cross-version mapping requires semantic and structural evidence, not name equality"
+  ]
+}
