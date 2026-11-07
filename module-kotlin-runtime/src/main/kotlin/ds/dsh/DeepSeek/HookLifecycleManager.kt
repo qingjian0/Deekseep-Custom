@@ -125,92 +125,7 @@ class HookLifecycleManager {
         }
 
         var handle: Unhook? = null
-        try {
-            handle = installer.install(spec)
-            synchronized(coordination) {
-                entry.handle = handle
-            }
-            if (!verifier.verify(spec)) {
-                val rollbackFailure = try {
-                    handle.uninstall()
-                    null
-                } catch (failure: Throwable) {
-                    failure
-                }
-                val result = synchronized(coordination) {
-                    entry.handle = if (rollbackFailure == null) null else handle
-                    entry.state = if (rollbackFailure == null) State.ROLLED_BACK else State.FAILED
-                    entry.detail = if (rollbackFailure == null) {
-                        "post_install_verification_failed"
-                    } else {
-                        "verification_failed_and_rollback_failed:${describe(rollbackFailure)}"
-                    }
-                    entry.snapshot()
-                }
-                if (rollbackFailure is VirtualMachineError) throw rollbackFailure
-                if (rollbackFailure is ThreadDeath) throw rollbackFailure
-                return result
-            }
-
-            synchronized(coordination) {
-                entry.state = State.ACTIVE
-                entry.detail = null
-                entry.snapshot()
-            }.also { return it }
-        } catch (failure: Throwable) {
-            var rollbackFailure: Throwable? = null
-            if (handle != null) {
-                try {
-                    handle.uninstall()
-                } catch (rollback: Throwable) {
-                    rollbackFailure = rollback
-                    if (rollback !== failure) failure.addSuppressed(rollback)
-                }
-            }
-            val result = synchronized(coordination) {
-                if (rollbackFailure == null) entry.handle = null else entry.handle = handle
-                entry.state = State.FAILED
-                entry.detail = if (rollbackFailure == null) describe(failure)
-                    else "install_or_verification_failed_rollback_failed:${describe(rollbackFailure)}"
-                entry.snapshot()
-            }
-            if (failure is VirtualMachineError) throw failure
-            if (failure is ThreadDeath) throw failure
-            if (rollbackFailure is VirtualMachineError) throw rollbackFailure
-            if (rollbackFailure is ThreadDeath) throw rollbackFailure
-            return result
-        }
-    }
-
-    /** Uninstalls an ACTIVE target. Repeated calls are idempotent. */
-    fun uninstall(id: String): Status {
-        require(id.isNotBlank()) { "hook target ID must not be blank" }
-        val entry: Entry
-        val handle: Unhook
-        synchronized(coordination) {
-            entry = entries[id] ?: return Status(id, State.NEW, 0, true, "target_not_registered")
-            if (entry.state == State.ROLLED_BACK || entry.state == State.SKIPPED ||
-                entry.state == State.NEW) {
-                return entry.snapshot()
-            }
-            if (entry.state == State.FAILED && entry.handle == null) return entry.snapshot()
-            if (entry.state != State.ACTIVE && entry.state != State.FAILED) return entry.snapshot()
-            val dependent = entries.values.firstOrNull {
-                it.state == State.ACTIVE && id in it.spec.dependencies
-            }
-            if (dependent != null) {
-                return Status(id, entry.state, entry.attempts, entry.spec.required,
-                    "required_by_active_target:${dependent.spec.id}")
-            }
-            handle = entry.handle ?: run {
-                entry.state = State.FAILED
-                entry.detail = "active_target_missing_unhook_handle"
-                return entry.snapshot()
-            }
-            entry.state = State.UNINSTALLING
-        }
-
-        try {
+        return try {
             handle.uninstall()
             synchronized(coordination) {
                 entry.handle = null
@@ -219,15 +134,14 @@ class HookLifecycleManager {
                 entry.snapshot()
             }
         } catch (failure: Throwable) {
-            synchronized(coordination) {
+            val result = synchronized(coordination) {
                 entry.state = State.FAILED
                 entry.detail = "uninstall_failed:${describe(failure)}"
                 entry.snapshot()
-            }.also {
-                if (failure is VirtualMachineError) throw failure
-                if (failure is ThreadDeath) throw failure
-                return it
             }
+            if (failure is VirtualMachineError) throw failure
+            if (failure is ThreadDeath) throw failure
+            result
         }
     }
 
