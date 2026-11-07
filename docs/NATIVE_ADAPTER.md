@@ -818,3 +818,40 @@ nn0 repository request factory
 本补充纠正此前将 `oe2.i()` 视为 Session Factory 的错误归类：当前 Smali 证据支持分别研究 `oe2.j/k/r`、`fx1.m()` 与 `fx1.l()`；其中 `fx1.m()` 是带预取队列快速路径和异步回退的 suspend 方法，不能仅凭该方法体断言其回退已完成服务端会话创建。新增记录同时展开 `zn3.o -> jw3.g -> y60` 与 `r3.c` 的静态边界。
 
 此文档是静态证据，不构成运行时 readiness。Native Completion 仍保持 503 fail-closed。
+
+
+## 2026-11-07：code289 Session Bootstrap 回退路径静态确认
+
+补充依据：`docs/NATIVE_ADAPTER_CODE289_STATIC_DEEP_DIVE_2026-11-07.md` 第 9 节；可复现检查脚本：`tools/audit_code289_session_fallback.py`。
+
+### 已确认的静态链
+
+```text
+fx1.m queue miss
+ -> mb0(pi)
+ -> pi.c / zn3.b / ch2.b
+ -> rz0 branch 2
+ -> /api/v0/chat_session/create
+ -> ServerResponseBizDataWrapper<ServerDefaultBizCode>
+ -> zs9.a(true)
+ -> biz_code == 0
+ -> j41 decodes ok2 / ss9
+ -> ys(ss9, ...)
+ -> tn2(ys, false) wrapped by pt7
+```
+
+- `rz0` 分支明确包含 `/api/v0/chat_session/create`，并设置 5000 ms 请求超时。
+- `ch2.b` 使用 `ServerResponseBizDataWrapper` 与 `ServerDefaultBizCode` 的 serializer。
+- `dt9` descriptor 明确包含 `biz_code`、`biz_msg`、`biz_data`。
+- `j41` 从 biz_data 解码 `ok2`，提取 `ss9` 并构造 `ys`。
+- 业务码非零及传输/解码异常有独立错误结果，不可把 HTTP 200 直接视为业务成功。
+- `ru7.N` 是协程上下文执行/切换层，不是该业务请求 API 本身。
+
+### 仍未证明
+
+- `rz0` 请求的 HTTP method 尚未从本段调用链确认；`z2c.V` 仅设置 `Content-Type`，不得误标为 POST。
+- `bi5.e` 的完整网络执行、认证拦截器、challenge/PoW 和公共 header 依赖尚未全部追完。
+- `ys` 后续写入、宿主当前会话绑定、`tn2` 消费者及取消清理语义尚未证明。
+- 该静态链不授权模块直接构造 `rz0/ch2` 或在外部上下文调用 `fx1.m`。
+
+本轮脚本对 code289 artifact 的 14 项断言全部通过（14/14）；这只是 Smali 静态结构验证，不是 Android 构建或真机运行验证。Gateway Completion 继续保持 HTTP 503 fail-closed。
