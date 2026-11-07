@@ -10,14 +10,19 @@ import sys
 
 source = Path(sys.argv[1]).read_text(encoding="utf-8")
 checks = {
-    "bounded analysis budget remains 400": "MAX_ANALYSIS_METHODS = 400" in source,
+    "bounded analysis budget remains 480": "MAX_ANALYSIS_METHODS = 480" in source,
     "fourth-hop reserve is explicit": "MAX_FOURTH_HOP_RESERVE = 64" in source,
-    "hop three stops before consuming the reserve":
-        "expandedMethods.size() >= MAX_ANALYSIS_METHODS - MAX_FOURTH_HOP_RESERVE" in source,
+    "fifth-hop reserve is explicit": "MAX_FIFTH_HOP_RESERVE = 64" in source,
+    "hop three stops before consuming both later-hop reserves":
+        "expandedMethods.size() >= MAX_ANALYSIS_METHODS - MAX_FOURTH_HOP_RESERVE - MAX_FIFTH_HOP_RESERVE" in source,
+    "hop four stops before consuming the fifth-hop reserve":
+        "expandedMethods.size() >= MAX_ANALYSIS_METHODS - MAX_FIFTH_HOP_RESERVE" in source,
+    "fifth-hop traversal is present": "fifthLevelCalleeMethods.add(callee)" in source,
     "hop four can consume the remaining bounded budget":
         "if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;" in source,
     "report exposes the reserved budget":
-        'field(out, "fourth_level_reserved_budget", Integer.toString(MAX_FOURTH_HOP_RESERVE), true);' in source,
+        'field(out, "fourth_level_reserved_budget", Integer.toString(MAX_FOURTH_HOP_RESERVE), true);' in source and
+        'field(out, "fifth_level_reserved_budget", Integer.toString(MAX_FIFTH_HOP_RESERVE), true);' in source,
 }
 missing = [label for label, ok in checks.items() if not ok]
 if missing:
