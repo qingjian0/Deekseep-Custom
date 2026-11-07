@@ -47,6 +47,8 @@ final class RoiHookResolverActivationGate implements RoiUniversalHookRuntime.Act
             String expectedScope) {
         if (candidate == null || expectedScope == null || expectedScope.length() == 0
                 || !expectedScope.equals(candidate.sourceScope)
+                || !RoiCandidateIdentity.candidateId(candidate.sourceScope, candidate.className,
+                        candidate.methodName, candidate.descriptor).equals(candidate.candidateId)
                 || !spec.fingerprint.equals(candidate.hostFingerprint)
                 || !spec.role.equals(candidate.role)
                 || !spec.className.equals(candidate.className)
