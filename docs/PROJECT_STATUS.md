@@ -607,3 +607,13 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 同步更新 UI 说明、`test-native-adapter-fail-closed.sh` 源码契约断言和 `docs/NATIVE_ADAPTER.md` 的实机证据及下一步计划。
 - 最新相关提交：`79f30cef`（探针范围修正）、`986a543e`（UI）、`d5dee1ce` / `2c5c1fbd` / `8818a200` / `f146f6f3`（回归保护）、`f8a389fa`（证据文档）。
 - 尚未获得本轮修改的 CI / Android build 结果；没有生成或发布新 APK。
+
+### 2026-11-07：code289 Callback 结构诊断 schema 6
+
+- Callback 方法先按完整描述符排序，再应用每类最多 12 个方法的上限，保证选择结果可复现。
+- 每个方法首次调用时记录参数对象结构；首次正常返回时记录返回对象结构。仅记录对象类名、字段名和字段类型，不读取字段值。
+- 参数/返回结构按方法签名去重；新 session 清理结构去重状态，但不清除已安装 Hook 注册状态，避免重复 Hook。
+- schema 升级到 6，UI、test-native-adapter-fail-closed.sh 和 docs/NATIVE_ADAPTER.md 同步更新。
+- 提交：4212bf84、20ccdc7f、c9a79ef4、94a75ed4、2465873f。
+- 目的：下一次 code289 真机采集时，进一步区分 callback 的事件 envelope、消息片段和协程包装对象，为响应解码定位提供结构证据。
+- 尚未运行 Android build / 回归脚本 / 真机验证；不宣称 schema 6 已通过验证。
