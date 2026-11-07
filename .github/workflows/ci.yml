@@ -89,7 +89,6 @@ jobs:
           bash module/test-roi-unknown-host-chat-request-wiring.sh
 
   regression:
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/dev'
     name: Regression tests
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -196,7 +195,6 @@ jobs:
           bash scripts/test-universal-feature-parity.sh
 
   android:
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/dev'
     name: Android Open build and lint
     runs-on: ubuntu-latest
     timeout-minutes: 60
