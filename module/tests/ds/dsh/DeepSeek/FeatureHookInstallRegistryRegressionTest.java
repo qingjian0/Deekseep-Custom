@@ -15,6 +15,7 @@ public final class FeatureHookInstallRegistryRegressionTest {
         installsDifferentIdsConcurrently();
         retriesPartialRegistrationWithoutDuplicateHooks();
         keepsSkippedInstallTerminal();
+        allowsExplicitUninstallAndReinstall();
         System.out.println("FeatureHookInstallRegistryRegressionTest OK");
     }
 
@@ -240,6 +241,35 @@ public final class FeatureHookInstallRegistryRegressionTest {
         check(status(registry, "test.partial").state
                         == FeatureHookInstallRegistry.State.INSTALLED,
                 "partial retry must finish installed");
+    }
+
+    private static void allowsExplicitUninstallAndReinstall() throws Throwable {
+        FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
+        AtomicInteger attempts = new AtomicInteger();
+        registry.install("test.reinstallable", () -> attempts.incrementAndGet());
+        check(status(registry, "test.reinstallable").state
+                        == FeatureHookInstallRegistry.State.INSTALLED,
+                "first install state");
+
+        check(registry.markUninstalled("test.reinstallable"),
+                "installed group should transition to UNINSTALLED");
+        check(status(registry, "test.reinstallable").state
+                        == FeatureHookInstallRegistry.State.UNINSTALLED,
+                "uninstall state");
+        check(!registry.hasFailures(), "uninstall is not an installation failure");
+
+        registry.install("test.reinstallable", () -> attempts.incrementAndGet());
+        check(attempts.get() == 2, "explicitly uninstalled group should be reinstallable");
+        check(status(registry, "test.reinstallable").state
+                        == FeatureHookInstallRegistry.State.INSTALLED,
+                "reinstalled group state");
+        check(status(registry, "test.reinstallable").attempts == 2,
+                "reinstall attempt count");
+
+        check(!registry.markUninstalled("test.missing"),
+                "missing registry entry must not be uninstalled");
+        check(!registry.markUninstalled("test.reinstallable"),
+                "non-installed state must not be uninstalled twice");
     }
 
     private static void keepsSkippedInstallTerminal() throws Throwable {
