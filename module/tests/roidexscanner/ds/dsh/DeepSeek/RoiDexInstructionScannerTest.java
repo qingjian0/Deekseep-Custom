@@ -2,7 +2,8 @@ package ds.dsh.DeepSeek;
 
 public final class RoiDexInstructionScannerTest {
     public static void main(String[] args)throws Exception {
-        widths(); payloads(); branches(); cfg(); cfgPayloads(); payloadCfg(); malformed();
+        widths(); payloads(); branches(); cfg(); cfgPayloads(); payloadCfg();
+        unreachableNopBeforePayload(); malformed();
         System.out.println("RoiDexInstructionScannerTest: PASS");
     }
     static void widths()throws Exception {
@@ -71,6 +72,19 @@ public final class RoiDexInstructionScannerTest {
                 RoiDexInstructionScanner.buildControlFlowGraph(switchCode);
         eq(3,sw.blocks.length);
         yes(sw.edges.length>=3);
+    }
+    static void unreachableNopBeforePayload()throws Exception {
+        // goto reaches the switch at code unit 8. The NOP at 1 only aligns the
+        // packed-switch payload at 2; the payload is referenced by that switch.
+        // Neither the NOP nor payload is reachable by fallthrough from the goto.
+        short[] code={(short)0x0828,(short)0x0000,(short)0x0100,1,0,0,3,0,
+                (short)0x002b,(short)0xfffa,(short)0xffff,(short)0x000e};
+        RoiDexInstructionScanner.ControlFlowGraph g=
+                RoiDexInstructionScanner.buildControlFlowGraph(code);
+        eq(3,g.blocks.length);
+        eq(0,g.blocks[0].startOffset);eq(1,g.blocks[0].endOffset);
+        eq(8,g.blocks[1].startOffset);eq(11,g.blocks[2].startOffset);
+        yes("GOTO".equals(g.edges[0].kind));
     }
     static void malformed()throws Exception {
         bad(new short[]{(short)0x0073});
