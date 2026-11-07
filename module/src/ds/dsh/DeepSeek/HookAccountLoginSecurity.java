@@ -1717,7 +1717,7 @@ Main.log("[RISK] Android ID spoof installed");
                                             || z2.PROTOCOL_ANTHROPIC.equals(protocol))))) {
                             success = false;
                             message = UiLanguage.text(context,
-                                    "Open 版当前仅支持 HTTP + OpenAI Chat Completions",
+                                    "Open 版当前支持 HTTP + OpenAI / Anthropic Messages；HTTPS 暂不可用",
                                     "The Open build currently supports HTTP + OpenAI Chat Completions only");
                         } else if ((operation == null || operation.length() == 0)
                                 && (z2.PROTOCOL_OPENAI.equals(protocol)
@@ -1745,7 +1745,7 @@ Main.log("[RISK] Android ID spoof installed");
                                 && (z21.OP_SET_HTTPS.equals(operation)
                                 || z21.OP_SET_PROTOCOL.equals(operation))) {
                             success = false;
-                            message = "Open 版当前仅支持 HTTP + OpenAI Chat Completions";
+                            message = "Open 版当前支持 HTTP + OpenAI / Anthropic Messages；HTTPS 暂不可用";
                         } else if (z21.OP_SET_PROTOCOL.equals(operation)
                                 && (z2.PROTOCOL_OPENAI.equals(value)
                                 || z2.PROTOCOL_ANTHROPIC.equals(value))) {
@@ -3327,6 +3327,13 @@ Main.log("[RISK] Android ID spoof installed");
     z2.CompletionResult executeLocalApiCompletion(
             z2.CompletionRequest request,
             z2.DeltaSink sink) throws Exception {
+        // The encrypted z18 execution engine is shipped only in protected builds. Open must
+        // fail with the explicit adapter status rather than probing that payload and reporting
+        // a misleading engine_missing/engine_failed error.
+        if ("Open".equals(BuildInfo.BUILD_EDITION) && !BuildInfo.LOCAL_API_INCLUDED) {
+            throw new z2.GatewayException(503, "native_adapter_unavailable",
+                    "server_error", "Open code289 native adapter is not connected yet");
+        }
         if (request != null && request.knownToolCalls != null
                 && !request.knownToolCalls.isEmpty()) {
             Main.log("local-api incoming known_tool_calls_count="
