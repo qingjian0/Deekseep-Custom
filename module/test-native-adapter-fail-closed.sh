@@ -45,14 +45,16 @@ require(
 )
 require(
     main,
-    r"@Override\s+public boolean isReady\(\)\s*\{\s*return BuildInfo\.LOCAL_API_INCLUDED\s*&&",
-    "Backend readiness requires the native adapter build flag",
+    r'@Override\s+public boolean isReady\(\).*?if \("Open"\.equals\(BuildInfo\.BUILD_EDITION\) && !BuildInfo\.LOCAL_API_INCLUDED\)\s*\{\s*return true;\s*\}.*?return BuildInfo\.LOCAL_API_INCLUDED',
+    "Open HTTP surface remains exposed and checks native capability per request",
 )
 require(
     main,
-    r"@Override\s+public boolean isReady\(\)\s*\{\s*return BuildInfo\.LOCAL_API_INCLUDED\s*&&\s*hostClassLoader != null && liveR92 != null && liveQ71 != null",
-    "Backend readiness does not accept missing legacy transport or PoW objects",
+    r'@Override\s+public z2\.CompletionResult complete\(.*?Main module = MODULE;.*?return module\.executeLocalApiCompletion\(request, sink\);',
+    "Open completion requests reach the execution facade instead of an edition-level preflight rejection",
 )
+if 'native_adapter_unavailable' in main:
+    raise SystemExit("Open completion must not be blocked by the old edition-level native_adapter_unavailable guard")
 require(
     main,
     r'if \(!HostCompat\.isV271\(\)\) installBestEffortHook\("network\.payload-capture"',
@@ -74,11 +76,6 @@ require(
     chat,
     r"void installPowManagerCapture\(ClassLoader cl\)",
     "legacy q71 capture entry point remains identifiable for a future version-specific adapter",
-)
-require(
-    main,
-    r'if \(!BuildInfo\.LOCAL_API_INCLUDED && "Open"\.equals\(BuildInfo\.BUILD_EDITION\)\)\s*\{\s*throw new z2\.GatewayException\(503, "native_adapter_unavailable"',
-    "Open completion requests fail with HTTP 503",
 )
 require(
     facade,
@@ -610,5 +607,5 @@ require(
     "text response format and include_usage false do not reject ordinary chat streaming",
 )
 print("Native probe bounded-retry regression checks passed")
-print("Native adapter fail-closed and read-only probe source checks passed")
+print("Open API exposure and read-only native probe source checks passed")
 PY
