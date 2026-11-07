@@ -158,10 +158,10 @@ public final class RoiDexSerializerMapperTest {
     static void decoderReceiverMismatchRejected()throws Exception {
         RoiDexCodeReader.CodeItem code=code(new short[]{
                 (short)0x0012,          // const/4 v0, #0
-                (short)0x026e,0,(short)0x0002, // invoke-virtual {v2,v0}, decodeStringElement(I)String
+                (short)0x026e,1,(short)0x0002, // invoke-virtual {v2,v0}, decodeStringElement(I)String
                 (short)0x040c,          // move-result-object v4
                 (short)0x1112,          // const/4 v1, #1
-                (short)0x026e,0,(short)0x0013, // invoke-virtual {v3,v1}, decodeStringElement(I)String
+                (short)0x026e,1,(short)0x0013, // invoke-virtual {v3,v1}, decodeStringElement(I)String
                 (short)0x050c,          // move-result-object v5
                 (short)0x0370,2,(short)0x0546, // <init> {v6,v4,v5}
                 (short)0x000e
