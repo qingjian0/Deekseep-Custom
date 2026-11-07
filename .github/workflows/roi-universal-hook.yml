@@ -1,0 +1,36 @@
+name: ROI Universal Hook Runtime
+on:
+  push:
+    branches: ["work/roi-universal-hook-r1-r9"]
+    paths:
+      - "module/src/ds/dsh/DeepSeek/RoiUniversalHookRuntime.java"
+      - "module/tests/roiuniversalhook/**"
+      - "module/test-roi-universal-hook-runtime.sh"
+      - "docs/architecture/ROI_UNIVERSAL_HOOK_RUNTIME.md"
+      - ".github/workflows/roi-universal-hook.yml"
+  pull_request:
+    branches: [dev]
+    paths:
+      - "module/src/ds/dsh/DeepSeek/RoiUniversalHookRuntime.java"
+      - "module/tests/roiuniversalhook/**"
+      - "module/test-roi-universal-hook-runtime.sh"
+      - "docs/architecture/ROI_UNIVERSAL_HOOK_RUNTIME.md"
+      - ".github/workflows/roi-universal-hook.yml"
+permissions:
+  contents: read
+jobs:
+  roi-universal-hook-jvm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Shell syntax
+        run: bash -n module/test-roi-universal-hook-runtime.sh
+      - name: Run isolated universal Hook tests
+        run: bash module/test-roi-universal-hook-runtime.sh
