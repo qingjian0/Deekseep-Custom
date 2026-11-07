@@ -809,3 +809,12 @@ nn0 repository request factory
 随后在后台工作线程中桥接 `fx1.m(Continuation)`，解析 `wt7/pt7/tn2` 成功/失败结果；成功后按宿主顺序更新 `ys.G(modelKey)` 并调用 `fx1.l(ys)`。但必须先验证 suspend Continuation 的结果解包、超时、取消传播和 actor 持久化时序，不能用阻塞 UI 线程或无取消能力的永久等待。
 
 该接入点目前只是从静态字段/构造器证据推导出的工程候选，未添加代码、未运行 Hook，也未验证生命周期覆盖率。
+
+
+## 2026-11-07 code289 静态深挖补充
+
+新增独立审计记录：[NATIVE_ADAPTER_CODE289_STATIC_DEEP_DIVE_2026-11-07.md](NATIVE_ADAPTER_CODE289_STATIC_DEEP_DIVE_2026-11-07.md)。
+
+本补充纠正此前将 `oe2.i()` 视为 Session Factory 的错误归类：当前 Smali 证据支持分别研究 `oe2.j/k/r`、`fx1.m()` 与 `fx1.l()`；其中 `fx1.m()` 是带预取队列快速路径和异步回退的 suspend 方法，不能仅凭该方法体断言其回退已完成服务端会话创建。新增记录同时展开 `zn3.o -> jw3.g -> y60` 与 `r3.c` 的静态边界。
+
+此文档是静态证据，不构成运行时 readiness。Native Completion 仍保持 503 fail-closed。
