@@ -62,8 +62,12 @@ Uninstall is logical: `uninstallRoiUniversalHookBatch(groupId)` disables the gro
 Main.handleLoadPackage
   -> RoiRuntimeInvocationObserver.initialize()
   -> existing HookChatPipeline request-construction callback -> recordBuilt(...)
-  -> existing Main transport callback -> recordTransport(...) / recordTransportResult(...)
-  -> optional response collector observation (non-suspend only)
+  -> existing HookChatPipeline transport callback -> recordTransport(...) / recordTransportResult(...)
+  -> HookAttachmentPipeline.installExpertFlowCollectHook
+       -> RoiRuntimeInvocationObserver.wrapFlowCollector(...)
+       -> suspend emit: preserve original collector + UNSUPPORTED_SUSPEND_COLLECTOR coverage
+       -> non-suspend emit: best-effort proxy observation -> RESPONSE_RECEIVED
+  -> no production RESPONSE_PARSED event producer is currently wired
   -> RoiRuntimeInvocationRecorder bounded, payload-free snapshots
   -> RoiDexKitDiscovery
        -> DexKit semantic string anchors
@@ -84,7 +88,7 @@ The discovery report explicitly records `runtimeEvidence.resolverContribution=no
 | Semantic marker | DexKit string anchors and serializer-field anchors | Candidate signal only |
 | Method shape | Exact parsed method descriptor and parameter/return shape | Partial corroboration |
 | Call graph | Invoke/caller relations; incomplete decode is explicitly surfaced | Not yet reviewed as a semantic contract |
-| Runtime invocation | Exact descriptor, ClassLoader scope, ordered request/transport/response observations | Limited; response collector does not support Kotlin suspend emit |
+| Runtime invocation | Exact descriptor and ClassLoader scope; request/transport events plus best-effort non-suspend collector observation | Actual Kotlin suspend emit is preserved but unsupported; no RESPONSE_PARSED producer exists; no complete response chain |
 | Return contract | No complete, reviewed per-adapter return contract supplied by the production evidence path | Missing |
 | Lifecycle contract | No complete, reviewed cancellation/error/continuation/ownership contract supplied | Missing |
 | Adapter approval | Discovery candidates deliberately set `adapterApproved=false` | Missing |
@@ -94,7 +98,9 @@ Important constraints:
 
 - Runtime observation is opt-in via the existing marker file and only enabled for maintained host adapters.
 - The observer's `hostFingerprint` field currently carries the adapter identity label from `HostCompat`, not an APK digest. Diagnostics already label it accordingly. Do not treat the name of this field as proof of cryptographic host identity.
-- Kotlin suspend `FlowCollector.emit` is explicitly marked unsupported; a suspended return cannot be treated as proof that a response was delivered.
+- Kotlin suspend `FlowCollector.emit` is detected at the actual `b41.b(q03, Continuation)` collect boundary. The observer preserves the original collector and records `UNSUPPORTED_SUSPEND_COLLECTOR`; it does not infer response delivery from `COROUTINE_SUSPENDED`.
+- `RESPONSE_RECEIVED` can only be emitted by the non-suspend proxy branch. That branch changes collector identity and therefore remains diagnostic-only until interface/identity behavior is verified on a real host build.
+- `RESPONSE_PARSED` is a recorder phase but has no production event writer in the audited source. Non-interface or mismatched collector types also currently return unchanged without recording `UNSUPPORTED_COLLECTOR_TYPE` coverage.
 - The resolver requires confirmed, high-confidence `HOST_IDENTITY`, `METHOD_SHAPE`, `CALL_GRAPH`, `RUNTIME_INVOCATION`, `RETURN_CONTRACT`, and `LIFECYCLE_CONTRACT` evidence, plus a reviewed adapter approval and explicit allowed role.
 - The activation gate additionally checks that the candidate ID is exactly derived from its source scope, owner, method and full descriptor. A forged or stale candidate key is denied.
 - A JVM pass validates deterministic policy and lifecycle logic. It does not validate the host's runtime behavior.
