@@ -509,8 +509,10 @@ if delta_name_helper is None:
     raise SystemExit("whitelisted Delta event-name helper is missing")
 if delta_name_helper.group(1).count('getDeclaredField("a")') != 2:
     raise SystemExit("Delta observer may read only cv1.a and sha.a")
-if 'if (nameValue == null) return "initial";' not in delta_name_helper.group(1):
-    raise SystemExit("Delta observer must distinguish the null-name initial DeltaCommand root patch")
+if 'if (nameValue == null) return "delta-command";' not in delta_name_helper.group(1):
+    raise SystemExit("Delta observer must identify the null-name DeltaCommand channel")
+if '"delta".equals(name)' in delta_name_helper.group(1) or '"parse_error".equals(name)' in delta_name_helper.group(1):
+    raise SystemExit("Delta observer must not whitelist event names that r3.c does not dispatch")
 if 'getDeclaredField("b")' in delta_name_helper.group(1):
     raise SystemExit("Delta observer must never read the SSE data payload")
 if "field.get(" in probe or "fields[i].get(" in probe:
