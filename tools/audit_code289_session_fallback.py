@@ -35,6 +35,9 @@ def main() -> int:
                 "ft9": source("smali/ft9.smali"),
                 "dt9": source("smali/dt9.smali"),
                 "us9": source("smali/us9.smali"),
+                "ng5": source("smali_classes3/ng5.smali"),
+                "yf5": source("smali_classes3/yf5.smali"),
+                "rh5": source("smali_classes3/rh5.smali"),
                 "rz0": source("smali/rz0.smali"),
                 "zs9": source("smali/zs9.smali"),
                 "j41": source("smali/j41.smali"),
@@ -62,6 +65,13 @@ def main() -> int:
         ),
         "rz0 applies the POST verb marker": "Lz2c;->V(Lng5;Lxa3;)V" in files["rz0"],
         "rz0 sets a 5000ms timeout": "const-wide/16 v8, 0x1388" in files["rz0"],
+        "request builder defaults to GET": (
+            "sget-object v0, Lyf5;->b:Lyf5;" in files["ng5"]
+            and "GET" in files["yf5"]
+        ),
+        "rh5 delegates the built request to cf5 client": (
+            "Lcf5;->a(Lng5;Lzb3;)Ljava/lang/Object;" in files["rh5"]
+        ),
         "biz wrapper descriptor names biz_code/msg/data": all(
             f'"{name}"' in files["dt9"] for name in ("biz_code", "biz_msg", "biz_data")
         ),
