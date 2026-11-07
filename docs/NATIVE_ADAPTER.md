@@ -855,3 +855,72 @@ fx1.m queue miss
 - 该静态链不授权模块直接构造 `rz0/ch2` 或在外部上下文调用 `fx1.m`。
 
 本轮脚本对 code289 artifact 的 17 项断言全部通过（17/17）；这只是 Smali 静态结构验证，不是 Android 构建或真机运行验证。Gateway Completion 继续保持 HTTP 503 fail-closed。
+
+
+## 2026-11-07：code289 Ktor ChallengePlugin / PoW 网络管线静态追踪
+
+本轮直接检查 code289 APK 的 `all-smali.zip`，继续展开此前尚未完成的 `bi5.e -> rh5 -> cf5` 网络执行路径。新增证据表明，宿主请求不是简单交给裸 HTTP client：其 Ktor Client 配置包含独立的 `ChallengePlugin`，请求阶段会协调 challenge attempt，并按需处理 challenge / PoW response header。
+
+### 1. 插件注册与调用入口
+
+- `p61` 的 Ktor client 配置路径读取 `Lnq1.a` 插件实例，并通过 `gf5.a(Plugin, Configuration)` 将其注册到 client builder。
+- `nq1.<clinit>` 为插件声明名 `ChallengePlugin`，并声明 `ChallengeAttempt` 属性键。
+- `y10` 的请求执行协程调用 `nq1.a(cf5, requestBuilder, hq1, continuation, ...)`，因此 challenge 处理属于宿主原始请求管线的一部分，不是 `jw3.g` 外部的可选补丁。
+- `nq1.a` 在请求阶段读取已有的 `X-DS-PoW-Response` header，进入 `nq1.c` 的 challenge/header 处理，并通过 `hq1.a(pq1, Continuation)` 协调 challenge attempt。该方法同时持有 `AtomicReference`，用于并发请求间的 attempt 协调；其具体生命周期和失败恢复语义仍需继续逐分支审计。
+
+### 2. Challenge / PoW header 处理
+
+`nq1.c(cf5, requestBuilder, ...)` 的静态行为：
+
+- 复制原始 `ng5` request builder，而不是直接修改传入 builder。
+- 在 challenge context 对应分支中移除或设置 `X-Debug-Recaptcha-Challenge`。
+- 有 challenge response 时写入 `X-DS-Challenge-Response`。
+- 有 PoW response 时写入 `X-DS-PoW-Response`。
+- 随后继续调用 `cf5.e` 执行宿主 client pipeline，并将响应交给 `nq1.b` 解析。
+
+`jw3.g(ly1, Long)` 的 completion request 构造路径也会在 PoW response 非空时写入 `X-DS-PoW-Response`。因此 PoW header 既出现在通用 challenge plugin 的处理阶段，也出现在 completion request builder 的显式分支；不能把其中任一处孤立复制为完整认证实现。
+
+### 3. PoW 算法调用证据
+
+`df0.d(String, ms9, Continuation)` 按 `ms9.a` 中的算法标识分支。对 `DeepSeekHashV1`，Smali 通过反射方法引用指向：
+
+`com.deepseek.crypto.PowCalculator.calculateDeepSeekHashV1Pow(String, String, long): long`
+
+这证明 code289 APK 包含该算法入口及其调用适配，不代表模块可以绕过 challenge 流程自行生成可用响应。算法输入来源、challenge 生命周期、attempt 失败/重试、服务端校验和线程资源仍应按宿主完整链路验证。
+
+### 4. 更新后的静态网络调用链
+
+```text
+ly1 request DTO
+  -> zn3.o(ly1, null)
+  -> jw3.g(ly1, ...)
+       -> completion route + timeout + optional PoW header
+       -> y60 cold Flow
+  -> bi5.e(request lambda, serializer)
+  -> rh5.d(builder copy)
+  -> cf5.a(Ktor HttpClient pipeline)
+       -> ChallengePlugin (nq1)
+            -> challenge attempt (hq1 / pq1)
+            -> challenge / PoW response headers
+       -> transport execution
+  -> ef5 response decoding
+  -> y60.b(collector, Continuation)
+  -> r3.c(delta event reducer)
+```
+
+Session bootstrap 的 `ch2.b -> bi5.e` 与 completion request 的 `jw3.g -> y60` 都进入同一类 `bi5/cf5` 请求执行体系。此处“同一网络体系”是 Smali 静态结构结论；尚未证明模块能安全取得并长期持有该 client 或 plugin 实例。
+
+### 5. 对 Local API 实现的约束
+
+1. 不自行拼接 `X-DS-Challenge-Response` / `X-DS-PoW-Response`，也不复制 challenge plugin 的局部逻辑来替代宿主。
+2. 不绕过登录、Challenge、PoW、服务端业务码或官方网络拦截器；Native Adapter 必须复用宿主正常请求链路。
+3. 优先继续确认 `zn3/jw3`、`bi5/cf5` 和 `hq1` 的实例来源、生命周期、并发边界与取消传播。
+4. `y60` 仍是 cold Flow；不得在诊断观察器中额外 collect，也不得替换原始 Flow 对象。
+5. challenge plugin 的静态注册和 header 写入不等于已证明所有 challenge 分支都能成功；HTTP 状态、业务码、challenge failure、PoW failure、serializer failure 必须分别保留。
+6. 本结论只适用于当前 code289-cn APK。287 与 290 必须有各自 APK 的 descriptor 和调用链证据。
+
+### 6. 可复现审计
+
+`tools/audit_code289_session_fallback.py` 已扩展为同时检查 session fallback 与 challenge/client pipeline 的静态锚点。新增检查覆盖插件注册、请求阶段插件调用、challenge attempt 调用、challenge/PoW header 写入、completion request 的 PoW header 分支，以及 DeepSeekHashV1 算法方法引用。
+
+该脚本只检查 Smali 静态结构；它不执行 challenge、不发送网络请求、不验证账号状态或设备运行时。Native Completion 仍保持 HTTP 503 fail-closed，直至独立的运行时对象、Flow collect、DeltaCommand reducer、取消和真实 Completion 验收全部完成。
