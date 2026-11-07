@@ -257,7 +257,8 @@ fx1.m(Continuation)
 - `ch2.b(Continuation)` 创建 `rz0`，构造 `ft9` 的泛型 serializer：外层为 `ServerResponseBizDataWrapper`，业务码类型为 `ServerDefaultBizCode`。
 - `rz0` 的 branch id 为 2；在 `rz0.y()` 对应的 packed-switch 分支中，明确构造路径 `/api/v0/chat_session/create`。
 - 同一分支设置请求超时为 `0x1388`，即 5000 ms。
-- `z2c.V(Lng5, Lxa3)` 设置的是 `Content-Type` header，不是 HTTP method。因此本证据不据此宣称请求一定是 POST；method 仍需沿 `Lng5` / `rh5` / 网络执行层继续核实。
+- `ng5` 构造器将 method 字段初始化为 `Lyf5.b`，而 `Lyf5.b` 的值是 `GET`；该 `rz0` 分支没有看到显式改写 method。随后 `rh5.d` 复制请求 builder 并调用 `cf5.a(Lng5, Continuation)` 进入客户端执行管线。因此当前能确认“builder 初值为 GET、该分支未显式覆盖”；最终线上 method 仍需排除客户端插件/转换器改写，不能武断标成 POST 或最终 GET。
+- `z2c.V(Lng5, Lxa3)` 设置的是 `Content-Type` header，不是 HTTP method。
 - `dt9` serializer descriptor 明确列出 `biz_code`、`biz_msg`、`biz_data`；`us9` 对应 `ServerDefaultBizCode`。
 - `zs9.a(true)` 对业务码执行分支判断；`j41` 在成功路径从 `ft9.c`（biz_data JSON element）使用 `ok2` serializer 解码，取得 `ok2.a : ss9`。
 - `j41` 使用该 `ss9` 构造 `ys`，再包装为 `tn2(ys, false)` 与 `pt7` 返回。这里确认的是本地 session state 初始化，不把 `ys.J(String)` 的短字段语义猜成 session id 或 title。
