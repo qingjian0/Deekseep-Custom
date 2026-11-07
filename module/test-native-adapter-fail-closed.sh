@@ -202,7 +202,7 @@ require(
 )
 require(
     probe,
-    r'line\(out, "report\.schema", "4"\)',
+    r'line\(out, "report\.schema", "5"\)',
     "probe report schema is versioned",
 )
 require(
