@@ -25,7 +25,7 @@
 | 项目 | 当前值 |
 |---|---|
 | 工作分支 | `work/local-api-protocol-port`（PR #16 → `dev`） |
-| 最近一次 Runtime 观察修复 | code289 `r3.c(dv1, yb3)` Delta 事件观察点；仅记录白名单事件名，不读 `sha.b` |
+| 最近一次 Runtime 观察源码修复 | code289 `r3.c(dv1, yb3)` Delta 事件观察点；仅记录白名单事件名，不读 `sha.b`。当前仅有源码实现，尚无该观察点的设备运行日志 |
 | 最近一次 ROI 扫描预算实现 | `cca035d6b319a5ed0ab897bee6b1fb2a3c36589b` |
 | 最近一次已完成完整 CI | [Run `42355705172`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42355705172) — success（commit `cd2742b`）；后续 HEAD 仍需独立验证 |
 | Kotlin 架构基线 | `refactor/kotlin-hook-architecture`（历史基线） |
@@ -89,9 +89,9 @@
 
 下一阶段必须追踪官方客户端的请求构造、PoW 管理、网络 Transport、Flow/SSE 事件、响应消费、会话上下文、取消与超时，找出可在 Open 版合法实现的最小原生调用边界。
 
-code289（DeepSeek 2.7.2 / versionCode 289）的 APK 静态证据已补齐：`ly1 implements wu1`；`zn3.o(wu1, Long)` 委托到 `jw3.g(wu1, Long)` 并返回冷 Flow `Ly60`；`r3.c(dv1, yb3)` 是 DeltaCommand 事件 reducer，`cv1(sha)` 中 `sha.a` 为事件名、`sha.b` 为数据 JSON。Patch 支持 `SET / APPEND / BATCH)，`BATCH` 顺序递归应用，路径/操作缺省继承上下文。
+code289（DeepSeek 2.7.2 / versionCode 289）的 APK 静态证据已补齐：`ly1 implements wu1`；`zn3.o(wu1, Long)` 委托到 `jw3.g(wu1, Long)` 并返回冷 Flow `Ly60`；`r3.c(dv1, yb3)` 是 DeltaCommand 事件 reducer，`cv1(sha)` 中 `sha.a` 为事件名、`sha.b` 为数据 JSON。静态分析记录了 `SET / APPEND / BATCH` 操作及其顺序应用规则；这些结构证据不等于运行时事件和数据契约已验证。
 
-当前 schema-6 诊断构建已加入 `r3.c) 透明观察点，只读取白名单事件名，不读取 `sha.b)。此前真实设备日志证明 Flow 收集器/Continuation 有执行，但未直接观察到 `cv1` / `r3.c` 事件分发；因此还没有真实 `ready -> delta* -> close` 证据。Native Adapter 仍未实现，所有 Completion 路由继续 HTTP 503。
+当前分支 schema-6 源码已加入 `r3.c` 透明观察点，只读取白名单事件名，不读取 `sha.b`。已归档的 1,676 行真实设备日志是 schema 5，证明 Flow collect 与部分 continuation/callback 执行，但不含 `delta-dispatch-*` 事件。schema-6 观察器尚无设备运行日志，真实 `ready → delta* → close` 序列仍未证实。诊断探针要求 `BuildInfo.LOCAL_API_INCLUDED == false`，应由独立诊断构建运行；不能把该日志说成正式 Local API APK 的运行证据。Native Adapter 仍未实现，所有 Completion 路由继续 HTTP 503。
 
 ### 3.5 诊断 UI
 
@@ -113,16 +113,16 @@ Open 原生 Completion 诊断位于 DeepSeek 模块设置的“工程”→“�
 | [42355705172](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42355705172) | `cd2742b` | Success | ROI Fast Audit、Regression tests、Android Open build/Lint、APK 结构/对齐/签名检查全部通过；Open APK 与 Lint artifact 已上传 |
 | [41649071834](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41649071834) | `c34d8ba` | Success | Regression tests 与 Android Open build and lint 均成功；Open APK 结构、对齐和 CI 临时签名检查通过 |
 
-Run `41649071834` 是较早阶段的绿色基线。最新完整绿色 CI 为 [Run `41836377762`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41836377762)，对应 `dev` 提交 `c0cec525`，Regression、ROI fast audit、Android Open build/Lint 均通过。该 Run 验证的是 JVM/脚本回归和 Open Android 构建，不是宿主真机 Completion。
+Run `41649071834` 是较早阶段的绿色基线。最近可引用的完整绿色 CI 为 [Run `42355705172`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42355705172)，对应历史提交 `cd2742b`；它不是当前 PR #16 HEAD 的验证结果。更早的 [Run `41836377762`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41836377762) 对应历史 `dev` 提交 `c0cec525`。两者都只证明各自提交上的 JVM/脚本回归与 Open Android 构建，不是宿主真机 Completion。当前 PR #16 的 CI 按用户要求留到源码阶段收尾后执行。
 
 ## 5. 下一批任务顺序
 
-1. **R2 运行时证据**：在 code289 真机上验证 `zn3.o` 与 `jw3.g` 是否出现真实嵌套调用，以及同一请求对象是否透传；只记录结构元数据，不读取请求字段。
-2. **Native Adapter 证据调查**：见 [NATIVE_ADAPTER.md](NATIVE_ADAPTER.md)，继续核验 287/289/290 的请求、PoW、Transport、Flow 和响应消费。
-3. **Native Adapter 调查**：围绕 287/289/290 的官方请求链路建立符号、调用顺序、线程与生命周期证据；优先只读诊断和可验证的窄边界。
-4. **Agent Core 验收**：补充故障注入、恢复、幂等、权限确认和执行器集成测试。
-5. **构建矩阵**：Open、Legacy、Universal 分别验证；再分别记录模拟环境与真机结果。
-6. **交付**：提交 SHA、CI Run、构建产物、校验和及未验证范围分开记录。
+1. **schema-6 运行时证据**：使用不含 Local API Gateway 的独立 Open 诊断构建，在 code289 设备上取得 `r3.c` 的安装记录、事件名序列和 `y60.b` collect 关联；不读取 `sha.b`。
+2. **Native Adapter 设计/实现**：仅按已证实的 Request / Challenge / PoW / Transport / Flow 契约实施；构造器、字段和 payload 解析未证实前不得猜测。具体证据门槛见 [NATIVE_ADAPTER.md](NATIVE_ADAPTER.md)。
+3. **协议与运行时边界测试**：补齐取消、deadline、会话隔离、错误映射、SSE 终态和断连回收的独立测试。
+4. **集成回归**：审计 Gateway → Backend → Adapter → DeltaSink 全链路，确保 Adapter 未就绪时所有 Completion 入口仍为 503。
+5. **最终验证**：源码阶段结束后统一执行 PR CI、Open APK 构建/结构检查及 code289 真机测试；分别记录证据等级，不互相替代。
+6. **交付**：记录提交 SHA、CI Run、APK 校验和、设备/宿主/LSPosed 版本及未验证范围。
 
 ## 6. 验证口径
 
