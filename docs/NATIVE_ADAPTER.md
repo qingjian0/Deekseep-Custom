@@ -397,3 +397,41 @@ A missing host acknowledgement is not equivalent to a user disabling Local API. 
 ## Open Gateway protocol audit (2026-11-06)
 
 The Open direct-Java gateway currently exposes only `GET /v1/models` and `POST /v1/chat/completions`. Model discovery returns the configured IDs even while the native engine is unavailable; chat completions remain HTTP 503 until a verified Open adapter exists. Text and text-part messages are accepted; image parts, tools, Responses API, Anthropic Messages API, and usage accounting are not implemented in this Open gateway. Reasoning text is preserved as `reasoning_content` for non-stream responses and SSE deltas. The API accepts `max_tokens` and `max_completion_tokens` from 1 through 8192. Custom Bearer keys accept 8–256 visible ASCII characters and survive restart using the same validator. This capability statement applies to the Open direct-Java path, not the separate Closed payload gateway.
+
+
+## 2026-11-07：code289 启动安装失败隔离修复
+
+### 直接证据
+
+```text
+hostGeneration=2.7.2/code289-cn
+installAllFeatureHooks: 2.7.1 full mode via HostRemap classes=7636
+code257 agent tool-log Canvas renderer unavailable:
+  ClassNotFoundException: Didn't find class "deekseep unmapped mf6"
+installAllFeatureHooks failed: ClassNotFoundException ...
+```
+
+该启动记录来自 `qingjian0/apps/README.md` 所归档的 `dsprobe.log`。它同时证明宿主识别结果为 code289、安装诊断标签错误地固定显示 2.7.1，以及旧 code257 Agent Tool Log / Canvas 映射在该宿主上不可解析。该记录不能证明 `mf6` 在 code289 中存在其他可替代类。
+
+### 源码根因
+
+`Main.installAllFeatureHooks()` 将 `agent.tool-log.rounded-rect` 作为普通 `installHookStep()` 执行。该安装步骤抛出异常时会进入外层安装异常处理并中止本轮后续 Hook 安装，而不是仅将该可选渲染功能标记为降级。
+
+### 已提交修复
+
+- `Main.java`：将 Agent Tool Log / rounded-rect 渲染器安装改为 `installBestEffortHook()`。安装失败只标记该可选 Hook degraded，并记录明确日志，不再中断其后的独立功能 Hook。
+- `Main.java`：2.7.x full-mode 诊断行改用 `HostCompat.hostLabel()`，不再把 code289/code290 误标为 2.7.1。
+- `module/test-hostmap-regression.sh`：新增回归断言，要求该可选 Hook 必须走 best-effort 路径，并要求诊断使用实际宿主标签。
+- 提交：`6827f709`（源码）；`eef5a18e`（回归断言），均位于 `work/local-api-protocol-port`。
+
+### 验证边界
+
+本轮只完成源码修改与回归断言编写；尚未获得这两个提交对应的 GitHub Actions 完成结果，也未在 code289 真机重跑启动日志。因此不能声称该修复已通过 CI 或设备验证。
+
+此修复仅隔离可选 UI Hook 的安装失败，不会自动接通 Native Completion。Local API 仍必须在 Request Factory、Challenge/PoW、真实 Transport、响应事件解码、取消/超时和 Session 隔离全部具备证据并通过验证前保持 HTTP 503 fail-closed。
+
+### code289 APK 静态证据资产边界
+
+`qingjian0/apps` 的 2026-11-07 双版本审计工作流 `42339059934` 所发布的 artifacts 名称为 `deepseek-audit-273`、`deepseek-audit-275` 和 `deepseek-273-275-comparison`；没有 code289 / 2.7.2 APK 静态审计 artifact。该仓库 README 中的 code289 结论属于动态日志证据，不能据此声称已经完成 code289 DEX 静态还原。
+
+后续若继续仅凭现有证据推进，应先取得 code289 APK 或 schema-5 新设备日志。不得把 2.7.3 / 2.7.5 的混淆符号映射到 code289。
