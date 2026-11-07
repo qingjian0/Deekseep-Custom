@@ -191,11 +191,10 @@ if continuation_hook.count("chain.proceed()") != 2:
     raise SystemExit("continuation observer must have one proceed in the disabled path and one in the observed path")
 if "value = chain.proceed();" not in continuation_hook or "return value;" not in continuation_hook:
     raise SystemExit("continuation observer must preserve the original successful return value")
-require(
-    probe,
-    r"private static void safeObserverLog\\(String message\\).*?catch \\(Throwable ignored\\)",
-    "observer logging failures are isolated while fatal VM/control-flow errors propagate",
-)
+if "private static void safeObserverLog(String message)" not in probe:
+    raise SystemExit("observer safe logger wrapper is missing")
+if "catch (Throwable ignored) {}" not in probe:
+    raise SystemExit("observer safe logger must isolate ordinary diagnostic failures")
 for forbidden in ("getResult().toString()", "chain.getArg(0).toString()", "Authorization", "prompt", "requestBody"):
     if forbidden in probe:
         raise SystemExit("runtime observer must not serialize sensitive request data: " + forbidden)
