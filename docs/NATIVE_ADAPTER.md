@@ -701,12 +701,12 @@ nn0 repository request factory
 
 - 已证实：宿主 UI 新会话占位对象的 `ys.a == ""`。
 - 已证实：新会话消息回调拿到 `Lik2` 与 `Lo97`，请求对象包含从当前会话选择状态得到的 model type；为空时回退当前组件 model selection。
-- 尚未证实：`sendMessageToNewSession` 回调内部是否先调用服务端 create-session API、如何将服务端返回的真实 ID 写回 `ys.a`、以及首次 `nn0.d()` 是否发生在回填前还是回填后。该 function reference 的原始函数体在当前 R8 Smali 导出中未能直接定位；不能把引用签名当成实现体。
-- 尚未证实：Local API 可否安全地复用这条 UI 事件/回调链；它依赖宿主 UI 的组件、状态和回调上下文。
+- 后续已将该 function reference 映射到静态目标 `oe2.i(oe2, Lik2, Lo97, Function0)`；其调用 `fx1.m()`，使用宿主预取队列或 `/api/v0/chat_session/create` 获取 `ss9`，装配真实 `ys`，更新 model key 并安排仓库持久化。该发现和完整链路见后续“服务端 Session Factory”章节。
+- 尚待确认：回调之后 `jj2` 消息事件进入 `ik2/uj2/nn0.d()` 的精确对象传递与时序，以及 actor 持久化完成是否先于原生请求。Local API 是否安全复用 UI 回调链仍未证明。
 
 ### 4. 对 Native Session Factory 的决策
 
-目前最可靠的实现候选不再是自行生成 UUID，而是研究并复用宿主的 `oe2.j()` 占位对象构造及 `sendMessageToNewSession` 回调语义。但在确认真实 ID 回填点、请求发送顺序和线程/生命周期约束前，不直接调用或仿造该回调。
+目前最可靠的实现候选是复用宿主 `fx1.m()` Session Factory，并遵循 `oe2.i` 中的 model key 更新和 `fx1.l()` 持久化顺序；不要自行生成 UUID 或复制创建 HTTP。Local API 尚未完成对 `fx1` 的安全获取和 suspend 桥接。
 
 `ys.a == ""` 只证明 UI 新会话占位对象的初始键值，不证明服务端最终请求必须始终携带空字符串。Native Completion 继续 HTTP 503 fail-closed。
 
