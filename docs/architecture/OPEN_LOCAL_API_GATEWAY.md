@@ -15,10 +15,19 @@ class loader, native transport and PoW objects to become ready before accepting 
 | Method | Route | Status |
 |---|---|---|
 | GET | `/v1/models` | Returns the configured model IDs; does not imply native execution readiness |
-| POST | `/v1/chat/completions` | HTTP/JSON/SSE route implemented; returns 503 until the Open native adapter is connected |
-| POST | `/v1/responses` | Not implemented |
+| POST | `/v1/chat/completions` | OpenAI Chat request validation, response mapping, SSE, and non-stream tool-call bridge implemented; returns 503 until the native adapter is connected |
+| POST | `/v1/responses` | Responses input/output mapping, bounded `previous_response_id` state, and SSE events implemented; returns 503 until the native adapter is connected |
+| POST | `/v1/messages` | Anthropic Messages request/response mapping and SSE implemented; returns 503 until the native adapter is connected |
 | POST | `/v1/agent/run` | Not implemented |
 
+## Protocol behavior and boundaries
+
+- **OpenAI Chat Completions**: validates chat messages, model IDs, token limits, response format and tool schemas; supports non-streaming and SSE text/reasoning deltas. Tool-call decoding is currently non-streaming only.
+- **OpenAI Responses**: accepts string/array input, instructions, text output format, tools and `previous_response_id`; emits Responses-style output and SSE lifecycle/delta events. Response continuation state is process-local, bounded to 64 entries with a 30-minute TTL, and is lost on service restart.
+- **Anthropic Messages**: exposed at `POST /v1/messages`; requires `anthropic-version`, accepts `x-api-key` (Bearer fallback is also accepted), and maps text/tool-use output to Anthropic JSON or SSE events.
+- **Tool calls are not local tool execution**: the bridge converts caller tool definitions into a constrained prompt protocol, validates decoded calls against the request-scoped schema, and returns structured `tool_calls` / `tool_use` to the API client. The module does not execute client tools.
+- **Usage is estimated**: the gateway does not receive exact tokenizer counters from the native backend. Returned counts are estimates and carry `dsh_usage_estimated=true`; they must not be presented as exact DeepSeek usage.
+- Image/audio input and non-text structured output formats remain unsupported and are rejected explicitly.
 The canonical model IDs are `deepseek-chat` and `deepseek-reasoner`. For compatibility with
 clients configured against the earlier internal model catalog, `deepseek-flash` is also advertised
 as a legacy alias and canonicalized to `deepseek-chat` before request construction. The alias does
@@ -43,7 +52,7 @@ backend therefore reports itself unavailable rather than falsely advertising mod
 
 ## Known limitations before release
 
-- No Responses API, Anthropic protocol, tools/function calling, image/audio input, or usage accounting. Plain string and OpenAI `text` / `input_text` message parts are accepted; unsupported tool, response-format, image, and usage-streaming options are rejected explicitly rather than silently ignored.
+- Chat Completions, Responses, and Anthropic Messages protocol adapters are implemented at the HTTP/request-normalization layer. This does not mean model execution works: the Open native Completion Adapter is still unavailable and these completion routes return 503 until it is connected.
 - LAN access is limited to `192.168.0.0/16`; it uses plain HTTP, so enable it only on a trusted Wi-Fi/LAN. No TLS, external tunnel, or remote port forwarding.
 - While LAN access is enabled, the gateway observes Android's default-network callbacks and re-reads the active network's link properties. It binds a replacement socket to the new exact `192.168.x.x` address before closing the previous listener; loss of an eligible address closes the LAN listener while preserving loopback. Callback registration or rebind failures are logged and do not stop the loopback API. Connection diagnostics expose the current LAN binding state and the exception class on bind failure.
 - The connection information reports the loopback Base URL as `http://127.0.0.1:<port>/v1`; the raw listener root remains an internal compatibility value.
