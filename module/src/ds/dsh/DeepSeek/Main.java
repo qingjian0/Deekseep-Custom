@@ -119,6 +119,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     private static final String TAG = "DSPROBE";
     private static volatile Main roiMainInstance;
+    private static volatile RoiHostBuildIdentity currentRoiHostIdentity;
+    private static final AtomicBoolean ROI_HOST_IDENTITY_CAPTURE_IN_PROGRESS =
+            new AtomicBoolean(false);
 
     private static final String ROI_CLASS_LOAD_OBSERVATION_ENABLE_FILE =
             "/data/data/com.deepseek.chat/files/deekseep_roi_class_load_observation_enabled";
@@ -1711,13 +1714,68 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         return RoiAndroidHostIdentity.capture(context, loader, reviewedChannel);
     }
 
+    private void scheduleRoiHostIdentityCapture(Activity activity, ClassLoader loader) {
+        if (activity == null || loader == null) return;
+        RoiHostBuildIdentity current = currentRoiHostIdentity;
+        String loaderScope = RoiCandidateIdentity.forClassLoader(loader);
+        if (current != null && current.isComplete()
+                && loaderScope.equals(current.classLoaderScope)) return;
+        if (!ROI_HOST_IDENTITY_CAPTURE_IN_PROGRESS.compareAndSet(false, true)) return;
+
+        final Context appContext;
+        try {
+            appContext = activity.getApplicationContext();
+        } catch (Throwable unavailable) {
+            ROI_HOST_IDENTITY_CAPTURE_IN_PROGRESS.set(false);
+            return;
+        }
+        if (appContext == null) {
+            ROI_HOST_IDENTITY_CAPTURE_IN_PROGRESS.set(false);
+            return;
+        }
+        Thread worker = new Thread(() -> {
+            try {
+                // This is the source-controlled distribution selector, not a DexKit inference.
+                String channel = HostCompat.isInternationalChannel() ? "google-play" : "mainland";
+                RoiHostBuildIdentity captured =
+                        captureRoiCurrentHostIdentity(appContext, loader, channel);
+                currentRoiHostIdentity = captured;
+                if (captured == null) {
+                    log("ROI host identity capture unavailable; Universal Hook activation remains closed");
+                } else {
+                    log("ROI host identity captured package=" + captured.packageName
+                            + " version=" + captured.versionName
+                            + " versionCode=" + captured.versionCode
+                            + " channel=" + captured.channel
+                            + " splitCountAndDigest=verified");
+                }
+            } catch (VirtualMachineError fatal) {
+                throw fatal;
+            } catch (ThreadDeath fatal) {
+                throw fatal;
+            } catch (Throwable error) {
+                currentRoiHostIdentity = null;
+                log("ROI host identity capture failed=" + error.getClass().getName());
+            } finally {
+                ROI_HOST_IDENTITY_CAPTURE_IN_PROGRESS.set(false);
+            }
+        }, "roi-host-identity-capture");
+        worker.setDaemon(true);
+        try {
+            worker.start();
+        } catch (RuntimeException | Error failure) {
+            ROI_HOST_IDENTITY_CAPTURE_IN_PROGRESS.set(false);
+            currentRoiHostIdentity = null;
+            log("ROI host identity worker could not start");
+        }
+    }
+
     void installRoiUniversalHookBatch(
             final String groupId,
             final List<RoiUniversalHookRuntime.Spec> specs,
             final ClassLoader loader,
             final String fingerprint,
             final RoiUniversalHookRuntime.Adapters adapters,
-            final RoiHostBuildIdentity currentHostIdentity,
             RoiReviewedHookEvidenceRegistry reviewedEvidence) throws Throwable {
         if (groupId == null || groupId.trim().isEmpty()) {
             throw new IllegalArgumentException("ROI universal Hook group ID is required");
@@ -1741,7 +1799,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                         reviewedEvidence,
                         new RoiHookResolverActivationGate.CurrentIdentitySource() {
                             @Override public RoiHostBuildIdentity currentIdentity() {
-                                return currentHostIdentity;
+                                return currentRoiHostIdentity;
                             }
                         }));
         RoiUniversalHookRuntime.Installer previous =
@@ -2528,6 +2586,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         try {
             curAct = new WeakReference<>(act);
             hostApplicationContext = act.getApplicationContext();
+            scheduleRoiHostIdentityCapture(act, cl);
             if (!isDeepSeekMainActivity(act)) return;
 
             // 模块使用凭证门禁：未通过认证前不注入任何功能
