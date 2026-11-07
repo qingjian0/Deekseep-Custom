@@ -19,6 +19,7 @@ javac -source 8 -target 8 -cp "$RUNTIME_CP" -d "$OUT" \
     src/de/robv/android/xposed/XposedBridge.java \
     tests/support/ds/dsh/DeepSeek/LegacyInstrumentationStubs.java \
     compat/ds/dsh/DeepSeek/LegacyXposedModule.java \
+    ../module/src/ds/dsh/DeepSeek/RoiUniversalHookRuntime.java \
     ../module/src/ds/dsh/DeepSeek/RoiManagedHookInstaller.java \
     tests/ds/dsh/DeepSeek/LegacyXposedModuleRegressionTest.java
 matrix_output="$(java -cp "$OUT:$RUNTIME_CP" ds.dsh.DeepSeek.LegacyXposedModuleRegressionTest)"
