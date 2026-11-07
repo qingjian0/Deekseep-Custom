@@ -12,6 +12,7 @@ public final class RoiSemanticProfileMatcherTest {
         testAmbiguousCandidatesFailClosed();
         testLowConfidenceAndRoleMismatch();
         testStableMarkerConflict();
+        testAmbiguousMethodRoleFailsClosed();
         System.out.println("ROI semantic profile matcher tests passed");
     }
 
@@ -84,6 +85,25 @@ public final class RoiSemanticProfileMatcherTest {
                 source, Collections.singletonList(conflict)).get(0);
         equal(RoiSemanticProfileMatcher.State.CONTRADICTORY, match.state,
                 "contradictory stable marker must reject");
+    }
+
+
+    private static void testAmbiguousMethodRoleFailsClosed() {
+        RoiSemanticProfileMatcher.ClassProfile source = sourceProfile();
+        RoiSemanticProfileMatcher.ClassProfile base = targetProfile("Labc;");
+        RoiSemanticProfileMatcher.ClassProfile duplicateMethod = new RoiSemanticProfileMatcher.ClassProfile(
+                base.hostBuild, base.role, base.classDescriptor, base.superclassDescriptor,
+                base.interfaces, base.fields,
+                Arrays.asList("<init>(Lcfg;)V", "dispatch(Lreq;Ljava/lang/Long;)Lresp;",
+                        "route(Lother;Ljava/lang/Long;)Lresult;", "close()V"),
+                base.externalCalls, base.semanticMarkers, base.methodRoles);
+        RoiSemanticProfileMatcher.Match match = RoiSemanticProfileMatcher.rank(
+                source, Collections.singletonList(duplicateMethod)).get(0);
+        equal(RoiSemanticProfileMatcher.State.LOW_CONFIDENCE, match.state,
+                "duplicate method prototypes must not produce a resolved role");
+        check(!match.resolvedMethodRoles.containsKey("transport.dispatch"),
+                "ambiguous method role must be omitted");
+        check(!match.activationAuthorized, "ambiguous method role never authorizes activation");
     }
 
     private static RoiSemanticProfileMatcher.ClassProfile sourceProfile() {
