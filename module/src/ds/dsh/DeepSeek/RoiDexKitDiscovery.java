@@ -150,6 +150,11 @@ final class RoiDexKitDiscovery {
                 MAX_TOTAL_CANDIDATES_PER_SCAN,
                 System.nanoTime() + SCAN_BUDGET_NANOS);
         append(out, "scan.apkPathsIncluded=" + includeApkPaths);
+        if (includeApkPaths) {
+            append(out, RoiHostArtifactFingerprint.inspect(apkPath, splitApkPaths).toReport());
+        } else {
+            append(out, "artifactIdentity.status=not_recomputed_runtime_rescan");
+        }
         append(out, "scan.budget.maxQueries=" + MAX_TOTAL_QUERIES_PER_SCAN);
         append(out, "scan.budget.maxCandidates=" + MAX_TOTAL_CANDIDATES_PER_SCAN);
         append(out, "scan.budget.softDeadlineMs=" + (SCAN_BUDGET_NANOS / 1_000_000L));
