@@ -33,7 +33,7 @@ Callers must provide:
 - an `EvidenceSource` that returns the candidate for the exact spec;
 - a `PolicySource` whose policy explicitly enables the role.
 
-The activation gate receives the exact `ClassLoader` that the installer will use, derives its process-local source scope through `RoiCandidateIdentity`, and rejects a candidate whose `sourceScope` belongs to another loader. It then verifies fingerprint, role, class, method, parameter descriptors and return descriptor before asking `RoiHookResolver`. Any missing candidate, missing policy, identity mismatch, contradictory/incomplete evidence or discovery-only policy is denied before the backend is called.
+The activation gate receives the exact `ClassLoader` that the installer will use, derives its process-local source scope through `RoiCandidateIdentity`, and rejects a candidate whose `sourceScope` belongs to another loader. It recomputes and verifies `candidateId` from the source scope, owner, method and full descriptor, then verifies fingerprint, role, class, method, parameter descriptors and return descriptor before asking `RoiHookResolver`. Any missing candidate, missing policy, identity mismatch, contradictory/incomplete evidence or discovery-only policy is denied before the backend is called.
 
 No default evidence provider or automatic role policy is enabled by this change. This preserves the existing unknown-host and feature-activation fail-closed behavior.
 
@@ -46,7 +46,7 @@ Run `bash module/test-roi-universal-hook-runtime.sh` for resolver/runtime and ev
 
 The activation gate validates not only the candidate's fields but also its stable identity key. It recomputes `RoiCandidateIdentity.candidateId(sourceScope, className, methodName, descriptor)` and rejects a candidate if the stored `candidateId` differs. This prevents stale or forged candidate records from being accepted merely because their visible method fields happen to match the requested HookSpec.
 
-The current DexKit discovery pipeline still emits unresolved, non-approved candidates and a discovery-only policy. It does not populate a production authorization catalog. See [ROI Universal Hook Production Evidence and Feature Migration Ledger](ROI_UNIVERSAL_HOOK_MIGRATION_LEDGER.md) for the audited call chains, existing hook inventory, evidence gaps and migration gates.
+The current DexKit discovery pipeline still emits unresolved, non-approved candidates and a discovery-only policy. It does not populate a production authorization catalog. `RoiReviewedHookEvidenceRegistry` is now the immutable, source-controlled catalog boundary: its builder accepts only exact HookSpec/candidate matches that already pass the resolver's complete evidence and activation policy. Empty catalogs are valid and deny all installs; no runtime preference, discovery report or remote response can add approval records. No reviewed production entries are bundled yet. See [ROI Universal Hook Production Evidence and Feature Migration Ledger](ROI_UNIVERSAL_HOOK_MIGRATION_LEDGER.md) for the audited call chains, existing hook inventory, evidence gaps and migration gates.
 
 ## Group lifecycle API
 
@@ -55,3 +55,17 @@ The current DexKit discovery pipeline still emits unresolved, non-approved candi
 - A successful uninstall permits reinstalling the same group ID. The registry attempt counter is retained for diagnostics.
 - A failed unhook leaves the group registered as active/failed; do not retry by creating a second installer for the same group ID.
 - This lifecycle API does not physically unregister the shared native Xposed callback.
+
+
+## Reviewed evidence catalog
+
+`RoiReviewedHookEvidenceRegistry.Builder.addReviewed(spec, candidate, policy)` is the only catalog population path. It rejects:
+
+- missing spec, candidate or policy;
+- source-scope / candidate-ID / owner / method / descriptor mismatches;
+- incomplete or unconfirmed required evidence;
+- unapproved adapter fingerprints or roles;
+- discovery-only and otherwise non-authorizing policies;
+- duplicate HookSpec identities.
+
+`build()` returns an immutable catalog implementing both the activation gate's evidence and policy source interfaces. The builder cannot be modified after build. Production adapter declarations must be compiled, code-reviewed, version-scoped records. There are currently no production records in the catalog; this is intentional until real APK/DEX and device evidence is reviewed.
