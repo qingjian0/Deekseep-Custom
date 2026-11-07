@@ -1693,6 +1693,54 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         });
     }
 
+    private final ConcurrentHashMap<String, RoiUniversalHookRuntime.Installer>
+            ROI_UNIVERSAL_INSTALLERS = new ConcurrentHashMap<String, RoiUniversalHookRuntime.Installer>();
+
+    /**
+     * Installs an evidence-authorized universal Hook batch under the existing feature lifecycle
+     * registry. Callers must provide a version-scoped adapter allowlist and evidence/policy sources;
+     * absent or incomplete evidence is rejected before the Xposed backend is reached.
+     */
+    void installRoiUniversalHookBatch(
+            final String groupId,
+            final List<RoiUniversalHookRuntime.Spec> specs,
+            final ClassLoader loader,
+            final String fingerprint,
+            final RoiUniversalHookRuntime.Adapters adapters,
+            RoiHookResolverActivationGate.EvidenceSource evidenceSource,
+            RoiHookResolverActivationGate.PolicySource policySource) throws Throwable {
+        if (groupId == null || groupId.trim().isEmpty()) {
+            throw new IllegalArgumentException("ROI universal Hook group ID is required");
+        }
+        final String registryId = "roi.universal." + groupId.trim();
+        RoiUniversalHookRuntime.Installer created = new RoiUniversalHookRuntime.Installer(
+                new RoiUniversalHookRuntime.Resolver(),
+                universalHookBackend(),
+                new RoiUniversalHookRuntime.Health() {
+                    @Override public boolean verify(
+                            RoiUniversalHookRuntime.Target target,
+                            RoiUniversalHookRuntime.Handle handle) {
+                        // Confirms successful registration with the shared Xposed callback chain.
+                        // Behavioral correctness still requires host/device validation.
+                        return target != null && handle != null;
+                    }
+                },
+                new RoiHookResolverActivationGate(evidenceSource, policySource));
+        RoiUniversalHookRuntime.Installer previous =
+                ROI_UNIVERSAL_INSTALLERS.putIfAbsent(registryId, created);
+        final RoiUniversalHookRuntime.Installer installer =
+                previous == null ? created : previous;
+
+        installHookStep(registryId, () -> {
+            RoiUniversalHookRuntime.Result result =
+                    installer.install(specs, loader, fingerprint, adapters);
+            if (!result.success) {
+                throw new IllegalStateException("ROI universal Hook batch rejected: "
+                        + result.failedId + " " + result.message);
+            }
+        });
+    }
+
     void installBestEffortHook(String id, FeatureHookInstallRegistry.Installer installer,
             String logPrefix) {
         try {
