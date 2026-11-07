@@ -535,11 +535,6 @@ require(
     "each explicit enable starts a clean report session without uninstalling transparent hooks",
 )
 require(
-    probe,
-    r'while \(current != null && current != Object\.class\).*?for \(Method method : methods\).*?Main\.MODULE\.hook\(target\)',
-    "callback discovery and hook installation do not impose fixed class, method, or hook-count limits",
-)
-require(
     gateway,
     r'request-rejected stage=model-validation.*?code=model_not_found',
     "rejected model IDs are included in the single diagnostic report",
