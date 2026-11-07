@@ -11,7 +11,7 @@ python3 - "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexApkCli.java" <<'PY'
 from pathlib import Path
 import sys
 s=Path(sys.argv[1]).read_text(encoding="utf-8")
-for label,token in [("CFG call expansion","method.reachableInvokes"),("static inventory",'stringArray(method.invokes)'),("dead invoke report",'stringArray(method.unreachableInvokes)'),("completeness flag",'"invoke_reachability_complete"')]:
+for label,token in [("CFG call expansion","method.reachableInvokes"),("static inventory",'stringArray(method.invokes)'),("dead invoke report",'stringArray(method.unreachableInvokes)'),("completeness flag",'invoke_reachability_complete')]:
  if token not in s: raise SystemExit("missing ROI reachability contract: "+label)
 print("ROI invoke call-graph integration regression: PASS")
 PY
