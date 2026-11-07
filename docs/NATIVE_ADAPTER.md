@@ -854,4 +854,4 @@ fx1.m queue miss
 - `ys` 后续写入、宿主当前会话绑定、`tn2` 消费者及取消清理语义尚未证明。
 - 该静态链不授权模块直接构造 `rz0/ch2` 或在外部上下文调用 `fx1.m`。
 
-本轮脚本对 code289 artifact 的 16 项断言全部通过（16/16）；这只是 Smali 静态结构验证，不是 Android 构建或真机运行验证。Gateway Completion 继续保持 HTTP 503 fail-closed。
+本轮脚本对 code289 artifact 的 17 项断言全部通过（17/17）；这只是 Smali 静态结构验证，不是 Android 构建或真机运行验证。Gateway Completion 继续保持 HTTP 503 fail-closed。
