@@ -28,7 +28,15 @@ public final class RoiHostBuildIdentityTest {
         check(!RoiHostBuildIdentity.manifestVersionMatches("", ""),
                 "empty version metadata must fail closed");
 
+        check(RoiHostBuildIdentity.manifestVersionMatches("2.7.5", "2.7.5"),
+                "2.7.5 PackageManager and manifest version should agree");
         ClassLoader loader = RoiHostBuildIdentityTest.class.getClassLoader();
+        String earlyScope = RoiCandidateIdentity.forClassLoader(loader);
+        RoiHostBuildIdentity staticOnly275 = identity("com.deepseek.chat", 295L,
+                "2.7.5", "unverified-channel", repeat('a'), "", earlyScope);
+        check(!staticOnly275.isComplete()
+                        && staticOnly275.activationFingerprint().isEmpty(),
+                "2.7.5 static APK evidence without the signer digest must not authorize identity");
         String scope = RoiCandidateIdentity.forClassLoader(loader);
         RoiHostBuildIdentity baseline = identity("com.deepseek.chat", 42L,
                 "2.7.2", "mainland", repeat('b'), repeat('c'), scope);
