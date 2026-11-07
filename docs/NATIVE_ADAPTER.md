@@ -347,22 +347,29 @@ collecting it, subscribe to it, invoke methods on the result, or alter the origi
   how it is collected.
 - The observer is enabled only for code289. It must not be generalized to code287 or code290
   without their own APK-derived exact descriptors and evidence.
-- No real-device observer log has yet been attached to this repository snapshot. Source presence
-  and CI success are not runtime evidence.
+- Real-device evidence is available on the diagnostic branch [fix/native-probe-concrete-callback-hooks](https://github.com/qingjian0/Deekseep-Custom/tree/fix/native-probe-concrete-callback-hooks): [open-native-1793943559724.log](https://github.com/qingjian0/Deekseep-Custom/blob/fix/native-probe-concrete-callback-hooks/open-native-1793943559724.log). The 1,676-line capture records four Request/Transport entries, nested `zn3.o -> jw3.g` calls using the same `ly1` object, and three observed continuation callback pairs: `cr9/k41`, `ec0/mm4`, `s5/g0`.
+- That capture records 833 callback-enter and 823 callback-exit events with no callback throws in that session. Most events came from inherited `zb3` / `rj0` methods, demonstrating that the former superclass-wide observer generated substantial unrelated traffic. The bounded concrete-class-only observer is a corrective diagnostic change, not new runtime evidence.
+- Runtime evidence does not prove that a complete HTTP response was decoded into UI messages or that a Local API request can drive the host. Source presence and CI success are not runtime evidence.
 
 ### Next bounded work
 
-1. Collect the complete [OPEN_NATIVE_CALL_OBSERVER] block from a controlled code289 device,
-   using a non-sensitive test conversation and redacting unrelated logs.
-2. Compare id, role, parent, sameRequestObjectAsRoot, thread, depth, and result
-   interface metadata to establish whether zn3.o nests into jw3.g or runs independently.
-3. Use the returned type and the official APK's call sites to locate the actual Flow collector
-   and response decoder. Do not hook guessed collector methods.
-4. Add a separate, bounded observation only after the collector's exact owner and descriptor
-   are proven from the same APK. Preserve the original Flow/result object and cancellation
-   semantics; do not subscribe a second time for diagnostics.
-5. Confirm the Request-to-Challenge/PoW relationship independently. Do not treat the Long
-   argument as a timeout or challenge until its call-site semantics are established.
+1. Re-run the updated schema-5 bounded probe on code289 with one ordinary host chat
+   request and one minimal Local API request. Confirm that only methods declared by the concrete
+   callback classes are hooked, no parent methods such as zb3.t() are observed, and the original
+   host behavior remains unchanged.
+2. Use the already observed callback pairs and full descriptors to statically inspect the
+   callback implementations and their call sites, prioritizing callback-1 methods and the
+   frequently observed result wrappers `cd3` / `zgb`. Do not infer business semantics from
+   obfuscated names or exception classes alone.
+3. Locate the exact response/event consumer from code289 APK call sites and DEX data flow.
+   Separate transport completion, callback dispatch, message-fragment decoding, UI reduction,
+   and persistence; do not assume `y60.b` itself is the SSE parser.
+4. Only after the collector/decoder owner and descriptor are proven, add a separate bounded,
+   pass-through observation of the real consumer. Preserve the original Flow/result object and
+   cancellation semantics; do not subscribe a second time.
+5. Confirm Request construction and Challenge/PoW association independently from the code289
+   APK. Do not treat the `Long` argument as a timeout or challenge until its call-site semantics
+   are established.
 
 The Gateway remains fail-closed with HTTP 503 until a separately reviewed Open native adapter
 implements and verifies Request construction, Challenge/PoW, Transport, event decoding,
