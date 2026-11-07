@@ -41,7 +41,7 @@ DeepSeek Hook startup
                                       +-- missing method/class => 503 engine_missing
 ```
 
-注意：Open 版的 `z14` 是空实现，`detect()` 返回 null、`available()` 返回 false、`payloadClass()` 返回 null。因此当前 Open 版不会取得该反射执行目标。Gateway 对此返回 not-ready，而不是伪造成功响应。
+注意：Open 版的 `z14` 是空实现，`detect()` 返回 null、`available()` 返回 false、`payloadClass()` 返回 null。因此当前 Open 版不会取得该反射执行目标。协议路由仍保持开放；实际 Completion 请求进入执行门面后返回 `engine_missing`（HTTP 503），不会伪造成功响应。
 
 ## 2. 已确认的源码事实
 
@@ -49,10 +49,10 @@ DeepSeek Hook startup
 
 `module/src/ds/dsh/DeepSeek/Main.java` 的 Backend 实现：
 
-- `isReady()` 要求 `BuildInfo.LOCAL_API_INCLUDED`、宿主 ClassLoader、`liveR92` 和 `liveQ71` 均可用。
-- Open 且未包含本地适配载荷时，`readinessDetail()` 返回“Open 版原生模型适配器尚未接通”。
-- `complete()` 在 Open + 未包含适配器时直接抛出 HTTP 503 / `native_adapter_unavailable`。
-- 只有通过上述门禁后才会进入 `module.executeLocalApiCompletion()`。
+- Open edition 的 `isReady()` 返回 true，以便 HTTP 协议路由保持开放；这不代表原生模型执行能力就绪。
+- Open 的 `readinessDetail()` 明确说明 API 路由已开放，原生执行能力按请求检测。
+- `complete()` 不再按 Open edition 预先拒绝；请求直接进入 `module.executeLocalApiCompletion()`。
+- Open stub 缺少 `z18` payload 时，执行门面按请求返回 HTTP 503 / `engine_missing`。
 
 ### 2.2 执行门面
 
@@ -437,7 +437,7 @@ installAllFeatureHooks failed: ClassNotFoundException ...
 
 本轮只完成源码修改与回归断言编写；尚未获得这两个提交对应的 GitHub Actions 完成结果，也未在 code289 真机重跑启动日志。因此不能声称该修复已通过 CI 或设备验证。
 
-此修复仅隔离可选 UI Hook 的安装失败，不会自动接通 Native Completion。Local API 仍必须在 Request Factory、Challenge/PoW、真实 Transport、响应事件解码、取消/超时和 Session 隔离全部具备证据并通过验证前保持 HTTP 503 fail-closed。
+此修复仅隔离可选 UI Hook 的安装失败，不会自动接通 Native Completion。Local API 协议入口保持开放；在 Request Factory、Challenge/PoW、真实 Transport、响应事件解码、取消/超时和 Session 隔离全部具备证据并通过验证前，执行门面按请求返回 `engine_missing`（HTTP 503），不得伪造回复。
 
 ### code289 APK 静态证据资产边界（已更正，2026-11-07）
 
@@ -612,7 +612,7 @@ nn0 repository request factory
 
 ### 对 Native Adapter 的实施约束
 
-在上述 schema-6 事件日志与响应消费证据补齐前，不实现猜测性的 `cv1/sha` payload 解码、Delta reducer 或响应组装。可以继续完成不依赖宿主私有字段语义的协议边界、取消契约、会话隔离和纯 JVM 测试；任何宿主调用仍须经过官方正常 Request / Challenge / PoW / Transport 路径，Completion 保持 503 fail-closed。
+在上述 schema-6 事件日志与响应消费证据补齐前，不实现猜测性的 `cv1/sha` payload 解码、Delta reducer 或响应组装。可以继续完成不依赖宿主私有字段语义的协议边界、取消契约、会话隔离和纯 JVM 测试；任何宿主调用仍须经过官方正常 Request / Challenge / PoW / Transport 路径，Completion 协议入口保持开放；原生引擎缺失时按请求返回 `engine_missing`（HTTP 503）。
 
 
 ## 2026-11-07：Request 构造器与 Repository 注入的 Smali 级复核
@@ -708,7 +708,7 @@ nn0 repository request factory
 
 目前最可靠的实现候选是复用宿主 `fx1.m()` Session Factory，并遵循 `oe2.i` 中的 model key 更新和 `fx1.l()` 持久化顺序；不要自行生成 UUID 或复制创建 HTTP。Local API 尚未完成对 `fx1` 的安全获取和 suspend 桥接。
 
-`ys.a == ""` 只证明 UI 新会话占位对象的初始键值，不证明服务端最终请求必须始终携带空字符串。Native Completion 继续 HTTP 503 fail-closed。
+`ys.a == ""` 只证明 UI 新会话占位对象的初始键值，不证明服务端最终请求必须始终携带空字符串。Native Completion 协议入口保持开放；原生引擎缺失时按请求返回 `engine_missing`（HTTP 503）。
 
 本节结论来自 code289 APK 静态 Smali；没有声称真机运行已观察到该过程。
 
@@ -725,7 +725,7 @@ nn0 repository request factory
 
 **实现含义：** 如果要复用宿主新会话模型语义，应读取当前宿主选中模型的 `vi7.a` / `oe2.q` 状态；不能硬编码 `default`，也不能仅凭 API 模型名 `deepseek-chat` 或 `deepseek-reasoner` 自行映射。当前静态证据证明的是宿主内部 model_type 状态来源，不证明 API model ID 与内部 model_type 的映射规则。
 
-静态 Smali 可见 `vi7` 的默认构造字段值为 `default`，且代码存在对 `expert` 值的专门分支；但这不足以推导 Local API 的外部模型映射。Completion 继续 503 fail-closed。
+静态 Smali 可见 `vi7` 的默认构造字段值为 `default`，且代码存在对 `expert` 值的专门分支；但这不足以推导 Local API 的外部模型映射。Completion 协议入口保持开放；原生引擎缺失时按请求返回 `engine_missing`（HTTP 503）。
 
 
 ### 5. 对共享 sendMessageToNewSession 回调的额外边界
@@ -790,7 +790,7 @@ nn0 repository request factory
 - 不直接复制 `/api/v0/chat_session/create` 请求；必须保留 `zn3/ch2/bi5` 网络栈、响应校验、认证/Challenge/PoW 与宿主错误处理。
 - 当前仍未实现 Local API 到该宿主服务的安全桥接。需要确认可稳定取得 `fx1` 实例的生命周期入口、Continuation/取消语义，以及 `fx1.l()` actor 写入完成与失败反馈。
 - `fx1.m()` 返回的缓存命中和网络创建结果需要分别测试；不能只测试无缓存分支。
-- 由于本轮只有静态 Smali 证据，尚未声称已在真机观察到该 endpoint 或会话回填。Completion 继续 HTTP 503 fail-closed。
+- 由于本轮只有静态 Smali 证据，尚未声称已在真机观察到该 endpoint 或会话回填。Completion 协议入口保持开放；原生引擎缺失时按请求返回 `engine_missing`（HTTP 503）。
 
 本节是 code289 APK 静态调用链结论，不代表运行时验证或 Local API 已可用。
 
@@ -854,7 +854,7 @@ fx1.m queue miss
 - `ys` 后续写入、宿主当前会话绑定、`tn2` 消费者及取消清理语义尚未证明。
 - 该静态链不授权模块直接构造 `rz0/ch2` 或在外部上下文调用 `fx1.m`。
 
-本轮脚本对 code289 artifact 的 17 项断言全部通过（17/17）；这只是 Smali 静态结构验证，不是 Android 构建或真机运行验证。Gateway Completion 继续保持 HTTP 503 fail-closed。
+本轮脚本对 code289 artifact 的 17 项断言全部通过（17/17）；这只是 Smali 静态结构验证，不是 Android 构建或真机运行验证。Gateway 协议入口保持开放；原生引擎缺失时按请求返回 `engine_missing`（HTTP 503）。
 
 
 ## 2026-11-07：code289 Ktor ChallengePlugin / PoW 网络管线静态追踪
@@ -923,4 +923,4 @@ Session bootstrap 的 `ch2.b -> bi5.e` 与 completion request 的 `jw3.g -> y60`
 
 `tools/audit_code289_session_fallback.py` 已扩展为同时检查 session fallback 与 challenge/client pipeline 的静态锚点。新增检查覆盖插件注册、请求阶段插件调用、challenge attempt 调用、challenge/PoW header 写入、completion request 的 PoW header 分支，以及 DeepSeekHashV1 算法方法引用。
 
-该脚本只检查 Smali 静态结构；它不执行 challenge、不发送网络请求、不验证账号状态或设备运行时。Native Completion 仍保持 HTTP 503 fail-closed，直至独立的运行时对象、Flow collect、DeltaCommand reducer、取消和真实 Completion 验收全部完成。
+该脚本只检查 Smali 静态结构；它不执行 challenge、不发送网络请求、不验证账号状态或设备运行时。Native Completion 协议入口保持开放；在独立运行时对象、Flow collect、DeltaCommand reducer、取消和真实 Completion 验收全部完成前，执行门面按请求返回 `engine_missing`（HTTP 503）。
