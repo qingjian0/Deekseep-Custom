@@ -36,6 +36,7 @@ The 2.7.5 audit artifact contains the APKTool DEX/smali archive. The binary `And
 | Package | `com.deepseek.chat` | Binary manifest `package` attribute |
 | versionName | `2.7.5` | Binary manifest `versionName` attribute |
 | versionCode | `295` | Binary manifest typed integer attribute |
+| Distribution channel | Unknown | Not established by the current APK evidence; do not infer mainland from missing legacy markers |
 
 DEX inventory:
 
