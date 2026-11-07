@@ -251,7 +251,8 @@ public final class RoiDexValueProvenanceTest {
         RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(
                 code,null,index->"Lx;",flow,reaching,useDef,links);
         RoiDexValueProvenance.ReceiverTrace trace=provenance.traceReceiverUse(1,0);
-        yes(trace.unique);eq("receiver",trace.identity);
+        if(!trace.unique)throw new AssertionError("receiverCheckCastAlias: "+trace.rejectionReason);
+        eq("receiver",trace.identity);
     }
 
     static RoiDexValueProvenance.Trace trace(RoiDexCodeReader.CodeItem code,String producer,
