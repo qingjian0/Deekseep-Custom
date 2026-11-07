@@ -730,7 +730,7 @@ nn0 repository request factory
 
 ### 5. 对共享 sendMessageToNewSession 回调的额外边界
 
-进一步检查 `oe2.k(Lys)` 发现：恢复已有会话组件时也注入同一个 `sendMessageToNewSession` function reference。因此不能仅凭函数名就认定该回调只负责“创建新 session”；它是 ChatSessionComponent 的消息转发回调，既被新占位组件 `oe2.j()` 使用，也被已有会话组件 `oe2.k(ys)` 使用。当前 R8 Smali 中未定位到该引用对应的函数体，回调内部是否区分空/非空 sessionId 仍待证实。
+进一步检查 `oe2.k(Lys` 发现：恢复已有会话组件时也注入同一个 `sendMessageToNewSession` function reference。因此不能仅凭函数名就认定该回调只负责“创建新 session”；它是 ChatSessionComponent 的消息转发回调，既被新占位组件 `oe2.j()` 使用，也被已有会话组件 `oe2.k(ys` 使用。当前 R8 Smali 中未定位到该引用对应的函数体，回调内部是否区分空/非空 sessionId 仍待证实。
 
 同时，`oe2.q` 的初始化来源可进一步确定：`oe2.<init>` 调用 `i37.s(mj7)`，取返回 `vi7.a`，封装为 StateFlow 后保存到 `oe2.q`；`i37.s` 从模型配置列表优先选择 `vi7.e == true` 的项，无选中项才回退 `kj7.c`。因此新占位 `ys` 的 model_type 状态初值来自宿主当前选择模型配置的 key。它不是从 API model 字符串直接推导出来的。
 
@@ -777,8 +777,8 @@ nn0 repository request factory
 1. 从 `tn2.a` 取回服务端会话 `ys)；
 2. 使用 `ys.G(Lo97.d)` 将当前消息请求选择的模型 key 写入 `ys.d)（model type StateFlow）；这一步发生在持久化之前；
 3. 记录 `chat_session_created`，其中 `chat_session_id` 取自 `ys.a)，`sse_transaction_uuid` 取自消息/fragment `ada)；
-4. 启动 `Leo2` 对应协程，调用 `fx1.l(ys)`；
-5. `fx1.l(ys)` 委托到 `pi.e(ys)`，通过 `wn2` 投递到 `pi.g:Lix0` actor/队列更新流程；
+4. 启动 `Leo2` 对应协程，调用 `fx1.l(ys`；
+5. `fx1.l(ys` 委托到 `pi.e(ys`，通过 `wn2` 投递到 `pi.g:Lix0` actor/队列更新流程；
 6. 完成 UI 回调后，再把原始 `Lo97` 请求转换为消息事件投递给当前会话组件。
 
 这给出了宿主会话初始化的实际顺序：**服务端/预取会话取得 → 当前模型 key 回填 → 会话仓库异步持久化 → 消息事件进入组件**。
@@ -793,3 +793,19 @@ nn0 repository request factory
 - 由于本轮只有静态 Smali 证据，尚未声称已在真机观察到该 endpoint 或会话回填。Completion 继续 HTTP 503 fail-closed。
 
 本节是 code289 APK 静态调用链结论，不代表运行时验证或 Local API 已可用。
+
+
+### 5. Local API 取得宿主 Session Factory 的候选接入点
+
+继续检查 `oe2` 构造器可确认：
+
+- `oe2` 是宿主会话 ViewModel/状态持有者（继承 `ksb`）。
+- 它通过宿主 DI 容器 `di9.c(...)` 取得 `fx1)，并保存到 final 字段 `oe2.h:Lfx1;`。
+- `oe2.j()` 和 `oe2.k(ys)` 均使用该字段构造 `Lik2`，因此 `oe2.h` 与前述 `fx1.m()/fx1.l()` 属于同一会话仓库实例。
+- `Main.startz1()` 已经拥有宿主 `hostClassLoader`，且通过 `Main.MODULE.hook(Method)` 安装透明 Hook；同一 Hook API 可对 `oe2` 构造器或 `fx1` 构造器做 after-hook 观察。
+
+**候选方案（尚未实现）：** 在 code289 Open 分支安装只读构造器 Hook，优先从 `oe2` 实例字段 `h` 捕获 `fx1`，必要时辅以 `fx1` 构造器捕获；只保存弱引用或生命周期受控引用。没有捕获到可用仓库实例时，Session Factory 应明确返回 unavailable/503，不扫描任意对象堆、不构造替代 session、不直接请求创建 endpoint。
+
+随后在后台工作线程中桥接 `fx1.m(Continuation)`，解析 `wt7/pt7/tn2` 成功/失败结果；成功后按宿主顺序更新 `ys.G(modelKey)` 并调用 `fx1.l(ys)`。但必须先验证 suspend Continuation 的结果解包、超时、取消传播和 actor 持久化时序，不能用阻塞 UI 线程或无取消能力的永久等待。
+
+该接入点目前只是从静态字段/构造器证据推导出的工程候选，未添加代码、未运行 Hook，也未验证生命周期覆盖率。
