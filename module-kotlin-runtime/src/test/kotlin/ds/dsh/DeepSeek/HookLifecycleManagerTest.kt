@@ -197,4 +197,47 @@ class HookLifecycleManagerTest {
         assertTrue(second.detail!!.contains("transport.v1"))
         assertEquals(HookLifecycleManager.State.ACTIVE, firstResult.get().state)
     }
+
+    @Test
+    fun uninstallFailureRetainsHandleForRetry() {
+        val manager = HookLifecycleManager()
+        val unhooks = AtomicInteger()
+        val spec = HookLifecycleManager.Spec("chat.transport")
+        val installed = manager.install(
+            spec,
+            HookLifecycleManager.Installer {
+                HookLifecycleManager.Unhook {
+                    if (unhooks.incrementAndGet() == 1) error("temporary unhook failure")
+                }
+            },
+            HookLifecycleManager.Verifier { true }
+        )
+        assertEquals(HookLifecycleManager.State.ACTIVE, installed.state)
+
+        val failed = manager.uninstall(spec.id)
+        assertEquals(HookLifecycleManager.State.FAILED, failed.state)
+        assertTrue(failed.detail!!.contains("temporary unhook failure"))
+
+        val retried = manager.uninstall(spec.id)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, retried.state)
+        assertEquals(2, unhooks.get())
+    }
+
+    @Test
+    fun disabledTargetIsSkippedWithoutCallingInstaller() {
+        val manager = HookLifecycleManager()
+        val installs = AtomicInteger()
+        val status = manager.install(
+            HookLifecycleManager.Spec("chat.experimental", enabled = false),
+            HookLifecycleManager.Installer {
+                installs.incrementAndGet()
+                HookLifecycleManager.Unhook { }
+            },
+            HookLifecycleManager.Verifier { true }
+        )
+
+        assertEquals(HookLifecycleManager.State.SKIPPED, status.state)
+        assertEquals("disabled_by_policy", status.detail)
+        assertEquals(0, installs.get())
+    }
 }
