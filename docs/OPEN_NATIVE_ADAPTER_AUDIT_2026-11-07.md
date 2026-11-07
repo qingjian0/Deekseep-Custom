@@ -113,7 +113,7 @@ The earlier statement that the raw code289 log was unavailable is superseded. Th
 
 - `deekseep_vision.log`: blob `dd7b52291befe7052db8c6f7632e39f033e079de`, 6,440,972 bytes, 19,747 lines.
 - `deepseek-sse-hook-evidence.zip`: blob `2764d640be7252c02d4f3527018e6bdd91992765`, 329,086 bytes.
-- `deepseek-2-7-2.apk`: 22,205,160 bytes.
+- `deepseek-2-7-2.apk`: 22,205,160 bytes; Git blob `b94ed9c0b2ea38cb2f50948b09ba20cf9b22575e`. The repository file is present, but the GitHub file connector returned an empty binary body for this 22 MB APK in this pass, so its DEX has not yet been extracted here.
 - `apps/README.md`: blob `49e566eef32ae0b6c89411523a9b9444ca60bff3`, contains the evidence inventory and cross-check statistics.
 
 The complete log blob was retrieved and parsed directly. It is a code289-cn / DeepSeek 2.7.2 runtime capture, timestamp range 02:37:11.549–02:38:55.863. It records four request constructions, four `zn3.o` dispatch entries, four `jw3.g` low-level entries, and 129 `y60.b(fl4,yb3)` continuation entries (87 exits, 42 throws). The four transport dispatches receive `ly1` and pass the same request object through `zn3.o(wu1,Long)` → `jw3.g(wu1,Long)` → `y60`.
@@ -156,7 +156,7 @@ Additional callback-1 exception counts: `pg1.y(Object)` 72, `x0.y(Object)` 39, `
 
 The code289 log contains no `OPEN_NATIVE_API_TRACE` records and no gateway request IDs. It proves the official app's chat transport/callback behavior for four requests, but it does not prove that a request initiated through the module's Open Local API reaches that same chain. It also logs callback argument types and object shapes, not their values. Therefore it does not yet map callback calls to text/reasoning/error/finish payloads or establish a safe collector/decoder contract.
 
-The focused ZIP evidence package has now been unpacked in-memory and its central directory and selected source files were parsed successfully. This corrects the earlier note that the archive had not yet been unpacked. The archive contains **2.7.3 and 2.7.5 evidence only**; it does not contain the 2.7.2/code289 APK, DEX, or callback smali. Its relevant contents include:
+The focused ZIP evidence package has now been unpacked in-memory: its 37 central-directory entries were parsed and five selected Markdown/JSON/Java files were inflated and read successfully. This corrects the earlier note that the archive had not yet been unpacked. The archive contains **2.7.3 and 2.7.5 evidence only**; it does not contain the 2.7.2/code289 APK, DEX, or callback smali. Its relevant contents include:
 
 - `evidence-map.md`: cross-version request/serializer, HTTP response, SSE parser, stream adapter, event dispatcher, auto-resume, lifecycle telemetry, and PoW semantic mapping.
 - `comparison-report.md`: route and marker counts for 2.7.3 vs 2.7.5, with explicit static-analysis limits.
