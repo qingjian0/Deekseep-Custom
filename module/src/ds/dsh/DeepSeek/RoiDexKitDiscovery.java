@@ -815,6 +815,7 @@ final class RoiDexKitDiscovery {
         int exactScopeCoverageObserved = 0;
         int exactScopeCoverageUnsupportedSuspend = 0;
         int exactScopeCoverageUnsupportedCollectorType = 0;
+        int exactScopeCoverageUnsupportedNonSuspendCollector = 0;
         int exactScopeCoverageUnsupportedParserCorrelation = 0;
         int otherScopeCoverageEntries = 0;
         boolean orderedRequestTransportResponse = false;
@@ -854,6 +855,8 @@ final class RoiDexKitDiscovery {
                         exactScopeCoverageUnsupportedSuspend++;
                     } else if (item.status == RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_COLLECTOR_TYPE) {
                         exactScopeCoverageUnsupportedCollectorType++;
+                    } else if (item.status == RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_NON_SUSPEND_COLLECTOR) {
+                        exactScopeCoverageUnsupportedNonSuspendCollector++;
                     } else if (item.status == RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_RESPONSE_PARSER_CORRELATION) {
                         exactScopeCoverageUnsupportedParserCorrelation++;
                     }
@@ -865,6 +868,7 @@ final class RoiDexKitDiscovery {
         append(out, prefix + ".runtimeEvidence.exactScopeCoverage.responseObserved=" + exactScopeCoverageObserved);
         append(out, prefix + ".runtimeEvidence.exactScopeCoverage.unsupportedSuspendCollector=" + exactScopeCoverageUnsupportedSuspend);
         append(out, prefix + ".runtimeEvidence.exactScopeCoverage.unsupportedCollectorType=" + exactScopeCoverageUnsupportedCollectorType);
+        append(out, prefix + ".runtimeEvidence.exactScopeCoverage.unsupportedNonSuspendCollector=" + exactScopeCoverageUnsupportedNonSuspendCollector);
         append(out, prefix + ".runtimeEvidence.exactScopeCoverage.unsupportedResponseParserCorrelation=" + exactScopeCoverageUnsupportedParserCorrelation);
         append(out, prefix + ".runtimeEvidence.otherClassLoaderScopeCoverageEntries=" + otherScopeCoverageEntries);
         append(out, prefix + ".runtimeEvidence.phaseCounts=requestBuilt:" + requestBuilt
