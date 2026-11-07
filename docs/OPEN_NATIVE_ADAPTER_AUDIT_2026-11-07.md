@@ -113,7 +113,7 @@ The earlier statement that the raw code289 log was unavailable is superseded. Th
 
 - `deekseep_vision.log`: blob `dd7b52291befe7052db8c6f7632e39f033e079de`, 6,440,972 bytes, 19,747 lines.
 - `deepseek-sse-hook-evidence.zip`: blob `2764d640be7252c02d4f3527018e6bdd91992765`, 329,086 bytes.
-- `deepseek-2-7-2.apk`: 22,205,160 bytes; Git blob `b94ed9c0b2ea38cb2f50948b09ba20cf9b22575e`. The repository file is present, but the GitHub file connector returned an empty binary body for this 22 MB APK in this pass, so its DEX has not yet been extracted here.
+- `deepseek-2-7-2.apk`: 22,205,160 bytes; Git blob `b94ed9c0b2ea38cb2f50948b09ba20cf9b22575e`. Its binary body was not returned by `fetch_file`, but the `apps` repository's successful code289 Actions run `42342447740` produced the full static audit artifact, which has now been downloaded and unpacked locally. APK SHA-256: `3c2fe31c73575400b9d59e46dde05daa2ef06491498ebfef658801e99eca1aff`.
 - `apps/README.md`: blob `49e566eef32ae0b6c89411523a9b9444ca60bff3`, contains the evidence inventory and cross-check statistics.
 
 The complete log blob was retrieved and parsed directly. It is a code289-cn / DeepSeek 2.7.2 runtime capture, timestamp range 02:37:11.549–02:38:55.863. It records four request constructions, four `zn3.o` dispatch entries, four `jw3.g` low-level entries, and 129 `y60.b(fl4,yb3)` continuation entries (87 exits, 42 throws). The four transport dispatches receive `ly1` and pass the same request object through `zn3.o(wu1,Long)` → `jw3.g(wu1,Long)` → `y60`.
@@ -169,6 +169,68 @@ The archive establishes useful **2.7.3↔2.7.5** mappings, not code289 mappings.
 Both archived versions report the same `librscrypto.so` SHA-256 (`4571b9bcf08d5f070a47a495bdcd4c77f4a088feee560ed11701ca93c7b56053`), with JNI export `Java_com_deepseek_crypto_PowCalculator_nativeCalculateDeepSeekHashV1Pow`. The archive's own analysis still leaves exact PoW preimage concatenation and acceptance predicate unproven. Do not assume the same native binary or JNI contract is present in code289 until the 2.7.2 APK is independently checked.
 
 Next static work remains code289-specific: obtain the 2.7.2 DEX/source evidence and inspect `ly1`, `zn3`, `jw3`, `y60`, callback constructors/field writes, and `cd3` enum constants. Keep all 2.7.2 mappings isolated from 2.7.3/2.7.5.
+
+
+## Code289 static audit recovered from the apps Actions artifact
+
+The earlier statement that code289 DEX had not been extracted is superseded. The apps branch work/deepseek-272-static-audit contains a successful static-audit workflow:
+
+- Run: 42342447740
+- Head commit: 7364dd010a4141d63127e52a51e62b2e4e4edecf
+- Artifact: deepseek-272-static-evidence
+- Artifact ID: 13561683064
+- Artifact SHA-256: 923b1f319803f87e27d0f3e44b65cc7148cdcd82c7713826ec9631f0bfb0d61e
+- Job conclusion: success; all ten audit steps completed, including APK identity check, JADX, APKTool, descriptor/call-site extraction, semantic-profile validation, and artifact upload.
+
+The artifact contains all-smali.zip plus candidate class descriptors, 3,369 call-site records, method inventory, marker hits, report and summary. The verified APK identity is com.deepseek.chat, versionName 2.7.2, versionCode 289; 3 DEX files, 15,365 smali files, 72,258 method declarations, 23/23 dynamic candidate classes found, 117 candidate methods, and 3,369 candidate call sites. JADX exited with code 3 and 346 diagnostics; the audit correctly treats smali/DEX as authoritative for failed methods.
+
+### Exact request and transport chain
+
+The code289 static evidence now confirms:
+
+1. nn0 is the request repository. Its 11-argument constructor receives a zn3 instance and stores it in field b.
+2. nn0.d(Lys,String,Integer,List,boolean,boolean,String,Lada,Lnr2,Continuation) creates the lazy request factory coroutine mw1.
+3. mw1.y(Object) constructs the code289 ly1 request model and calls zn3.o(Lwu1,Long).
+4. zn3.o delegates to jw3.g(Lwu1,Long).
+5. jw3.g selects the endpoint by concrete request model, serializes ly1, adds X-DS-PoW-Response when its PoW field is non-null, and returns a y60 Flow wrapper.
+6. The request is lazy: creating y60 does not itself complete the HTTP operation. Its Flow must be collected; the host uses the configured bi5 Ktor client.
+
+The code289 ly1 serializer maps fields to chat_session_id, parent_message_id, prompt, ref_file_ids, thinking_enabled, search_enabled, audio_id, preempt, model_type, and action. Its extra PoW response field is consumed by the transport/header path rather than serialized as ordinary JSON.
+
+### Challenge and PoW
+
+- Challenge endpoint: /api/v0/chat/create_pow_challenge; request DTO ut1 carries target_path.
+- Challenge DTO: ms9; serializer keys are algorithm, challenge, salt, signature, difficulty, expire_at, expire_after, and target_path.
+- df0.d(String,ms9,Continuation) creates the authenticated PoW solution model gf0.
+- The code289 base string is salt + "_" + expire_at + "_"; challenge and difficulty are passed to com.deepseek.crypto.PowCalculator.
+- PowCalculator loads librscrypto.so; the JNI symbol is Java_com_deepseek_crypto_PowCalculator_nativeCalculateDeepSeekHashV1Pow.
+- The code289 librscrypto.so hash is 4571b9bcf08d5f070a47a495bdcd4c77f4a088feee560ed11701ca93c7b56053, matching the separately audited 2.7.3/2.7.5 library hash.
+- nq1 is the Ktor challenge plugin and sets X-DS-Challenge-Response and X-DS-PoW-Response when the relevant values exist.
+
+This is sufficient to plan reuse of the host's configured Ktor client/plugin stack. It is not a reason to duplicate PoW or fabricate challenge headers in the gateway.
+
+### Response, SSE and event reducer
+
+- g0 is the Ktor HTTP response handler. It separates successful streaming responses from non-2xx/JSON error responses and reads x-ds-sse-heartbeat-timeout-secs (default 10 seconds).
+- ts1 is the SSE byte-channel reader/parser. It constructs sha(eventName,dataJson), then wraps it as cv1(sha).
+- r3.c(Ldv1,Continuation) is a business event reducer. It handles cv1 events and dispatches event names into typed data / patch handling.
+- ready uses ChatCompletionReadyEventData; delta uses DeltaCommand and st3(path,operation,value); other known event branches include hint, title, update_session, and close.
+- Delta commands update the response state tree through the host reducer; the resulting response model stores fragments, and the host's fragment traversal joins visible text.
+- Tool/Search/Find/Open fragment models are present in this APK. They must not be flattened into ordinary text or silently dropped.
+
+The runtime callback observer's y60.b hook is not the parser or business event decoder. The static callgraph now distinguishes the Flow boundary, SSE parser, event wrapper, and reducer. The 21 callback classes from the runtime log are coroutine/lambda implementation classes; their method names alone are not semantic event labels.
+
+### Implementation consequences
+
+1. Capture the exact code289 nn0 repository or its zn3 dependency using a version-gated hook; do not borrow code287/code290 transport instances.
+2. Prefer the host repository factory when constructing requests because it owns ys session state, parent-message rules, model selection, attachment flags and request action.
+3. Reuse the bi5-backed Ktor client and nq1 challenge plugin so challenge caching, PoW and retry remain host-owned.
+4. Collect the returned Flow exactly once per request. Do not subscribe twice or proxy/replace the host Flow object.
+5. Decode cv1 → sha event/data pairs; apply delta patch operations before extracting text/reasoning.
+6. Keep text, reasoning, finish, error, tool/search fragments and cancellation as distinct result paths.
+7. Preserve request-scoped cancellation and cleanup; cancelling the HTTP socket alone is not sufficient if the Flow coroutine remains active.
+
+The apps-side detailed report is docs/deepseek-272-native-callgraph.md on branch work/deepseek-272-static-audit. The full evidence artifact was downloaded in this pass and its nested smali archive was unpacked and inspected. Static success still does not prove runtime Hook installation or end-to-end Local API generation.
 
 ## Open API dispatch policy update
 
