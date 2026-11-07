@@ -2444,7 +2444,6 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 lastUiLanguageLog = languageState;
                 log("UI language " + languageState);
             }
-            reportActivationHeartbeat(act);
             ModuleUpdateChecker.checkOnStartup(act);
             if (!proactiveHeartbeatConfigSynced) {
                 proactiveHeartbeatConfigSynced = true;
@@ -2461,18 +2460,6 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             }
             if (HostCompat.isV241() && isLocalApiFloatingWindowEnabled()) {
                 requestLocalApiFloatingWindow(act, true);
-            }
-            final String pid = String.valueOf(android.os.Process.myPid());
-            if (!loadToastShown && !pid.equals(System.getProperty("deekseep.toast.shown.pid"))) {
-                loadToastShown = true;
-                System.setProperty("deekseep.toast.shown.pid", pid);
-                try {
-                    UiLanguage.toast(act,
-                            UiLanguage.text(act,
-                                    "YunSeek 已注入 (v" + BuildInfo.DISPLAY_VERSION + ")",
-                                    "YunSeek injected (v" + BuildInfo.DISPLAY_VERSION + ")"),
-                            android.widget.Toast.LENGTH_SHORT).show();
-                } catch (Throwable ignored) {}
             }
             showOpenSourceLetterNoticeIfNeeded(act);
             if (!maybeShowUnsupportedHostVersion(act)) {
@@ -2492,6 +2479,24 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             curAct = new WeakReference<>(act);
             hostApplicationContext = act.getApplicationContext();
             if (!isDeepSeekMainActivity(act)) return;
+
+            // Framework injection status is independent of feature-hook completeness. A single
+            // optional feature failing to resolve must not leave the launcher falsely "inactive"
+            // or suppress the startup injection confirmation.
+            reportActivationHeartbeat(act);
+            final String activationPid = String.valueOf(android.os.Process.myPid());
+            if (!loadToastShown
+                    && !activationPid.equals(System.getProperty("deekseep.toast.shown.pid"))) {
+                loadToastShown = true;
+                System.setProperty("deekseep.toast.shown.pid", activationPid);
+                try {
+                    UiLanguage.toast(act,
+                            UiLanguage.text(act,
+                                    "YunSeek 已注入 (v" + BuildInfo.DISPLAY_VERSION + ")",
+                                    "YunSeek injected (v" + BuildInfo.DISPLAY_VERSION + ")"),
+                            android.widget.Toast.LENGTH_SHORT).show();
+                } catch (Throwable ignored) {}
+            }
 
             // 模块使用凭证门禁：未通过认证前不注入任何功能
             if (BuildInfo.PROTECTED_BUILD && !CloudPromptClient.hasValidLicense(act)) {
