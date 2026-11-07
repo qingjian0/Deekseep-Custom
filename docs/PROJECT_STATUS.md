@@ -688,3 +688,19 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 静态 Smali 检查已对以下 8 项事实逐项通过：新会话占位对象空 ID、回调引用及签名、`kj2` 事件回调分发、模型选中项选择、默认配置回退、`oe2.q` 的配置 key 来源、`mw1` 从 `ys.k()` 取 model_type、parent 非空时将 model_type 置 null。该检查仅验证静态 APK 证据，不是模块回归测试或运行时验证。
 
 本轮最新文档提交：`bd7372e3bb9e3e2590f3a054b13ce0d76c7d4917`。
+
+
+## 2026-11-07：服务端 Session Factory 调用链已定位
+
+本轮从 `oe2.i` 继续向下追踪，已在 code289 Smali 中定位宿主会话创建与持久化路径（完整证据见 `docs/NATIVE_ADAPTER.md`）：
+
+- `oe2.i` 是注入给 `Lik2` 的 `sendMessageToNewSession` function reference 对应的实际静态目标，签名为 `(oe2, Lik2, Lo97, Function0)`。
+- `oe2.i` 调用 `fx1.m()`；该方法优先从 `pi.e` 管理的会话预取队列取出可用 `ss9)，否则走服务端创建分支。
+- 服务端分支经 `pi.c -> zn3.b -> ch2.b -> bi5`，`rz0` 请求构造器明确包含 `/api/v0/chat_session/create`。
+- `ft9` 是 ServerResponseBizDataWrapper，`a/b/c` 对应 biz_code/biz_msg/biz_data；`j41` 从 `ft9.c` 解码 `Lok2)，取 `Lok2.a:ss9`，再创建 `ys(ss9, qs)`。
+- `fx1.m()` 成功返回 `pt7)，其中 `tn2.a` 是真实 `ys)，`tn2.b` 标记缓存命中。
+- `oe2.i` 在持久化前调用 `ys.G(Lo97.d)` 更新模型 key；随后通过 `fx1.l(ys) -> pi.e(ys) -> wn2 -> ix0` 异步写入会话仓库，最后再将消息事件交给当前组件。
+
+**阶段决策：** 已经定位到可复用的宿主 Session Factory 核心 `fx1.m()`，不再需要猜测 sessionId 生成方式。下一步不是重写创建 HTTP，而是验证模块如何稳定取得 `fx1` 实例、如何桥接 suspend Continuation 与取消/超时，以及如何确认 actor 持久化完成。缓存命中和网络创建两个分支都必须覆盖。Completion 仍 503 fail-closed。
+
+本轮文档提交：`764683fee54228b4e7b7922043aa72f63d48d874`（`docs/NATIVE_ADAPTER.md`）。本轮未执行 CI、APK 构建或真机验证。
