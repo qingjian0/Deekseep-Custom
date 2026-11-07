@@ -726,3 +726,10 @@ nn0 repository request factory
 **实现含义：** 如果要复用宿主新会话模型语义，应读取当前宿主选中模型的 `vi7.a` / `oe2.q` 状态；不能硬编码 `default`，也不能仅凭 API 模型名 `deepseek-chat` 或 `deepseek-reasoner` 自行映射。当前静态证据证明的是宿主内部 model_type 状态来源，不证明 API model ID 与内部 model_type 的映射规则。
 
 静态 Smali 可见 `vi7` 的默认构造字段值为 `default`，且代码存在对 `expert` 值的专门分支；但这不足以推导 Local API 的外部模型映射。Completion 继续 503 fail-closed。
+
+
+### 5. 对共享 sendMessageToNewSession 回调的额外边界
+
+进一步检查 `oe2.k(Lys)` 发现：恢复已有会话组件时也注入同一个 `sendMessageToNewSession` function reference。因此不能仅凭函数名就认定该回调只负责“创建新 session”；它是 ChatSessionComponent 的消息转发回调，既被新占位组件 `oe2.j()` 使用，也被已有会话组件 `oe2.k(ys)` 使用。当前 R8 Smali 中未定位到该引用对应的函数体，回调内部是否区分空/非空 sessionId 仍待证实。
+
+同时，`oe2.q` 的初始化来源可进一步确定：`oe2.<init>` 调用 `i37.s(mj7)`，取返回 `vi7.a`，封装为 StateFlow 后保存到 `oe2.q`；`i37.s` 从模型配置列表优先选择 `vi7.e == true` 的项，无选中项才回退 `kj7.c`。因此新占位 `ys` 的 model_type 状态初值来自宿主当前选择模型配置的 key。它不是从 API model 字符串直接推导出来的。
