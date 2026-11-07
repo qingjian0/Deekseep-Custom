@@ -30,22 +30,18 @@ Reviewed source files and blob identities:
 
 The `CompletionRequest`, `CompletionResult`, and `DeltaSink` contracts are in the main DEX. This is the intended boundary between HTTP/protocol handling and the native host adapter.
 
-### Current hard stop in Main
+### Previous Main gate and current request dispatch
 
-The backend registered by `Main.startz1(...)` currently has two Open-specific hard stops:
+The earlier implementation had two Open-specific preflight blocks: `isReady()` required `BuildInfo.LOCAL_API_INCLUDED`, and `complete(...)` threw `native_adapter_unavailable` before reaching the execution facade. These edition-level blocks have now been removed on `dev` per the user's explicit direction.
 
-1. `isReady()` begins with `BuildInfo.LOCAL_API_INCLUDED && ...`. For the Open path selected by `z13`, `LOCAL_API_INCLUDED` is false, so the backend can never report ready, regardless of whether the host loader, transport, or PoW manager has been observed.
-2. `complete(...)` explicitly throws HTTP 503 `native_adapter_unavailable` for Open before it delegates to the module execution method.
+Current behavior:
 
-This is intentional fail-closed behavior, but it means transport/PoW object capture alone cannot make the Open gateway ready.
+1. For Open builds without the bundled Local API payload, `isReady()` returns true so the HTTP surface can dispatch requests.
+2. `Backend.complete(...)` no longer throws `native_adapter_unavailable` before execution.
+3. The request reaches `Main.executeLocalApiCompletion(...)` and then `HookAccountLoginSecurity.INSTANCE.executeLocalApiCompletion(...)`.
+4. That facade still resolves `ds.dsh.DeepSeek.z18` from the protected payload and invokes `executeLocalApiCompletion(CompletionRequest, DeltaSink)`. If absent, it reports `engine_missing` for that request.
 
-### Current execution method is payload-dependent
-
-`Main.executeLocalApiCompletion(...)` delegates to `HookAccountLoginSecurity.INSTANCE.executeLocalApiCompletion(...)`.
-
-That method currently resolves `ds.dsh.DeepSeek.z18` from the protected payload and reflectively invokes its `executeLocalApiCompletion(CompletionRequest, DeltaSink)`. If the payload class or method is absent, it throws 503 `engine_missing`.
-
-Therefore, simply removing the Open readiness/503 guards would not create a working Open adapter. It would only move the failure from the explicit Open guard to the missing `z18` engine lookup. Do not make that change as a shortcut.
+This is the requested open-dispatch policy: API exposure is not blocked by a global readiness gate, and unsupported native execution is reported by the execution path. It does not claim that the native adapter has been implemented.
 
 ## Prior code289 callback-observation handoff
 
