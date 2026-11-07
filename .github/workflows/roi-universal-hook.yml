@@ -16,6 +16,8 @@ on:
       - "module-legacy/src/de/robv/android/xposed/**"
       - "module/tests/roiuniversalhook/**"
       - "module/tests/roiresolveractivationgate/**"
+      - "module/tests/roiruntime/**"
+      - "module/test-roi-runtime-recorder.sh"
       - "module/test-roi-universal-hook-runtime.sh"
       - "docs/architecture/ROI_UNIVERSAL_HOOK_RUNTIME.md"
       - "docs/architecture/ROI_UNIVERSAL_HOOK_MIGRATION_LEDGER.md"
@@ -33,6 +35,7 @@ on:
       - "module/tests/roiuniversalhook/**"
       - "module/test-roi-universal-hook-runtime.sh"
       - "docs/architecture/ROI_UNIVERSAL_HOOK_RUNTIME.md"
+      - "docs/architecture/ROI_UNIVERSAL_HOOK_MIGRATION_LEDGER.md"
       - ".github/workflows/roi-universal-hook.yml"
 permissions:
   contents: read
@@ -49,7 +52,11 @@ jobs:
           distribution: temurin
           java-version: "21"
       - name: Shell syntax
-        run: bash -n module/test-roi-universal-hook-runtime.sh
+        run: |
+          bash -n module/test-roi-universal-hook-runtime.sh
+          bash -n module/test-roi-runtime-recorder.sh
+      - name: Run runtime invocation recorder tests
+        run: bash module/test-roi-runtime-recorder.sh
       - name: Run isolated universal Hook tests
         run: bash module/test-roi-universal-hook-runtime.sh
       - name: Run legacy Xposed adapter regression matrix
