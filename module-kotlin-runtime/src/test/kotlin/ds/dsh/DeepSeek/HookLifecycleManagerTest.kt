@@ -143,4 +143,58 @@ class HookLifecycleManagerTest {
         assertEquals(HookLifecycleManager.State.ACTIVE, manager.install(spec, installer, verifier).state)
         assertEquals(2, attempts.get())
     }
+
+    @Test
+    fun failedRollbackRetainsHandleForExplicitCleanupRetry() {
+        val manager = HookLifecycleManager()
+        val unhooks = AtomicInteger()
+        val status = manager.install(
+            HookLifecycleManager.Spec("chat.transport"),
+            HookLifecycleManager.Installer {
+                HookLifecycleManager.Unhook {
+                    if (unhooks.incrementAndGet() == 1) error("temporary unhook failure")
+                }
+            },
+            HookLifecycleManager.Verifier { false }
+        )
+
+        assertEquals(HookLifecycleManager.State.FAILED, status.state)
+        assertTrue(status.detail!!.contains("rollback_failed"))
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("chat.transport").state)
+        assertEquals(2, unhooks.get())
+    }
+
+    @Test
+    fun conflictingTargetIsReservedWhileFirstInstallIsInProgress() {
+        val manager = HookLifecycleManager()
+        val installerStarted = CountDownLatch(1)
+        val allowInstallToFinish = CountDownLatch(1)
+        val firstResult = java.util.concurrent.atomic.AtomicReference<HookLifecycleManager.Status>()
+        val first = Thread {
+            firstResult.set(manager.install(
+                HookLifecycleManager.Spec("transport.v1", conflicts = setOf("transport.v2")),
+                HookLifecycleManager.Installer {
+                    installerStarted.countDown()
+                    check(allowInstallToFinish.await(5, TimeUnit.SECONDS))
+                    HookLifecycleManager.Unhook { }
+                },
+                HookLifecycleManager.Verifier { true }
+            ))
+        }
+        first.start()
+        assertTrue(installerStarted.await(5, TimeUnit.SECONDS))
+
+        val second = manager.install(
+            HookLifecycleManager.Spec("transport.v2"),
+            HookLifecycleManager.Installer { error("conflicting install must be blocked") },
+            HookLifecycleManager.Verifier { true }
+        )
+        allowInstallToFinish.countDown()
+        first.join(5000)
+
+        assertFalse(first.isAlive)
+        assertEquals(HookLifecycleManager.State.SKIPPED, second.state)
+        assertTrue(second.detail!!.contains("transport.v1"))
+        assertEquals(HookLifecycleManager.State.ACTIVE, firstResult.get().state)
+    }
 }
