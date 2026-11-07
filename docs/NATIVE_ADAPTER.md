@@ -711,3 +711,18 @@ nn0 repository request factory
 `ys.a == ""` 只证明 UI 新会话占位对象的初始键值，不证明服务端最终请求必须始终携带空字符串。Native Completion 继续 HTTP 503 fail-closed。
 
 本节结论来自 code289 APK 静态 Smali；没有声称真机运行已观察到该过程。
+
+
+## 2026-11-07：code289 新会话模型选择状态来源
+
+继续追踪 `oe2.q`、`i37.s`、`vi7` 与 `mw1.y` 后，补充 model_type 来源：
+
+1. `oe2` 初始化时通过 `i37.s(mj7)` 从模型配置列表选取 `vi7`：优先取 `vi7.e == true` 的当前选中项；若不存在，回退静态默认配置 `kj7.c`。
+2. `oe2.q` 保存的是上述选中项的 `vi7.a` 字符串 StateFlow。
+3. `oe2.j()` 创建空 ID 新会话占位对象时，将 `oe2.q` 直接传入 `ys.d`（model type StateFlow），所以新会话初始 model_type 来自当前宿主模型选择，而不是从 API 请求名推导。
+4. `ik2` 处理消息事件时优先取 `ys.k()`；若为空则回退 `Lik2.Z()` 当前模型选择，再构造 MessageForwardRequest。
+5. `mw1.y()` 构造原生 `ly1` 请求时，只有 parentMessageId 为 null 才把 `ys.k()` 放入 request 的 model_type 字段；有 parent 时传 null。这个行为与之前确认的 `nn0.d` 产品调用链一致。
+
+**实现含义：** 如果要复用宿主新会话模型语义，应读取当前宿主选中模型的 `vi7.a` / `oe2.q` 状态；不能硬编码 `default`，也不能仅凭 API 模型名 `deepseek-chat` 或 `deepseek-reasoner` 自行映射。当前静态证据证明的是宿主内部 model_type 状态来源，不证明 API model ID 与内部 model_type 的映射规则。
+
+静态 Smali 可见 `vi7` 的默认构造字段值为 `default`，且代码存在对 `expert` 值的专门分支；但这不足以推导 Local API 的外部模型映射。Completion 继续 503 fail-closed。
