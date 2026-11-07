@@ -606,7 +606,7 @@ require(
 )
 require(
     gateway,
-    r'!"text".equals\(format\.optString\("type", ""\)\).*?stream_options\.include_usage.*?Boolean\.FALSE\.equals\(includeUsage\)',
+    r'!"text".equals\(format\.optString\("type", ""\)\).*?Boolean\.FALSE\.equals\(includeUsage\).*?return "stream_options\.include_usage";',
     "text response format and include_usage false do not reject ordinary chat streaming",
 )
 print("Native probe bounded-retry regression checks passed")
