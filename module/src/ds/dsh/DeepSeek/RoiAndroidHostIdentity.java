@@ -40,6 +40,9 @@ final class RoiAndroidHostIdentity {
                     ? PackageManager.GET_SIGNING_CERTIFICATES : PackageManager.GET_SIGNATURES;
             PackageInfo packageInfo = manager.getPackageInfo(appInfo.packageName, flags);
             if (packageInfo == null || !appInfo.packageName.equals(packageInfo.packageName)) return null;
+            String manifestVersionName = AndroidManifestVersion.readFromApk(appInfo.sourceDir);
+            if (!RoiHostBuildIdentity.manifestVersionMatches(
+                    packageInfo.versionName, manifestVersionName)) return null;
 
             RoiHostArtifactFingerprint.Result artifacts =
                     RoiHostArtifactFingerprint.inspect(appInfo.sourceDir, appInfo.splitSourceDirs);

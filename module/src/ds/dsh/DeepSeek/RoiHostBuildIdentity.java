@@ -47,6 +47,13 @@ final class RoiHostBuildIdentity {
                 && classLoaderScope.length() > 0;
     }
 
+    /** PackageManager and base APK manifest must independently report the same versionName. */
+    static boolean manifestVersionMatches(String packageVersionName, String manifestVersionName) {
+        String packageVersion = safe(packageVersionName);
+        String manifestVersion = safe(manifestVersionName);
+        return packageVersion.length() > 0 && packageVersion.equals(manifestVersion);
+    }
+
     boolean matches(RoiHostBuildIdentity other) {
         return other != null && isComplete() && other.isComplete()
                 && packageName.equals(other.packageName)

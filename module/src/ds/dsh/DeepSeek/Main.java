@@ -1700,11 +1700,6 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             ROI_UNIVERSAL_INSTALLERS = new ConcurrentHashMap<String, RoiUniversalHookRuntime.Installer>();
 
     /**
-     * Installs an evidence-authorized universal Hook batch under the existing feature lifecycle
-     * registry. Callers must provide a version-scoped adapter allowlist and evidence/policy sources;
-     * absent or incomplete evidence is rejected before the Xposed backend is reached.
-     */
-    /**
      * Captures the installed host identity from PackageManager and the actual installed APK set.
      * Call from a worker thread after an Application/Activity context is available. The channel
      * must come from a reviewed build declaration, never from a discovery candidate or UI input.
@@ -1770,6 +1765,11 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         }
     }
 
+    /**
+     * Installs only from the immutable, source-reviewed catalog. The activation gate compares
+     * its reviewed build identity with the PackageManager/APK identity captured for this process
+     * and the exact ClassLoader supplied for resolution. An empty catalog denies all.
+     */
     void installRoiUniversalHookBatch(
             final String groupId,
             final List<RoiUniversalHookRuntime.Spec> specs,

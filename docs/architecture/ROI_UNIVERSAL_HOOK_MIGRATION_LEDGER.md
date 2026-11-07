@@ -263,3 +263,11 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - The captured identity is stored as the process-current host identity and is read by the activation gate at install time. A missing/failed capture leaves the current identity null and therefore denies activation. The installer no longer accepts an arbitrary caller-supplied identity argument.
 - **Remaining production evidence gap:** there are still no reviewed production records in the registry, and the Universal Hook batch has no production feature migration call site. The lifecycle capture proves installed package/build identity, not that any candidate Hook symbol is correct. Do not synthesize adapter records from discovery output.
 - SHA-256 of the APK set is content identity; SHA-256 of the APK signing certificate is publisher identity. Both are independently required. A version/channel string or ClassLoader scope cannot substitute for either digest.
+
+
+## PackageManager ↔ base-manifest consistency (2026-11-07 follow-up)
+
+- Android identity capture independently reads `versionName` from the installed base APK's binary AndroidManifest.xml using `AndroidManifestVersion.readFromApk`.
+- Capture proceeds only when this value is non-empty and exactly equals `PackageManager.PackageInfo.versionName`. A mismatch or unreadable manifest returns an unavailable identity; no fallback to adapter labels or version-code inference is allowed.
+- Added JVM coverage for matching/missing/mismatched version metadata, invalid package/version/channel/digest fields, signer mismatch, and cross-ClassLoader identity mismatch.
+- This corroborates PackageManager metadata with the APK bytes being fingerprinted. It does not replace APK signature verification or prove that a Hook candidate is semantically correct.
