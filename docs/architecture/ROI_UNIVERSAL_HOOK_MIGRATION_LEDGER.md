@@ -277,3 +277,12 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - `HostCompat.hostCode271()` values (287 / 289 / 290) are internal adapter/mapping identifiers. They are **not** the Android package's `PackageInfo.versionCode`.
 - The identity capture always records the real `PackageInfo.getLongVersionCode()` value and the actual base-manifest `versionName`. Do not infer one from the other or copy the adapter code into the identity tuple.
 - Host identity JVM fixtures now use synthetic version codes (42/43) so tests do not accidentally present an adapter identifier as a real APK version code. Actual release values must come from PackageManager on the installed target.
+
+
+## Prior static APK report scope guard (2026-11-07)
+
+- The available DeepSeek reverse-engineering report for `DeepSeek_2.7.1.apks` identifies that artifact as package `com.deepseek.chat`, versionName `2.7.1`, Android versionCode `288`, Google Play split set.
+- That report is useful for protocol research (request DTOs, Flow/SSE consumers and response models), but it is **not** an APK identity record for the maintained `HostCompat` adapter identifiers 287 / 289 / 290.
+- Keep the namespaces distinct: the `HostCompat` values are internal mapping IDs; Android versionCode comes from PackageManager. Never relabel the 2.7.1/code288 report as code287, code289 or code290.
+- The 2.7.1 report itself explicitly leaves the main completion raw-byte parser, runtime Flow emit item type, cancellation/resume behavior and LSPosed device validation unresolved. It cannot satisfy the runtime invocation, return-contract or lifecycle-contract evidence required by the activation resolver.
+- Until exact installed artifacts and device traces exist for each supported 287 / 289 / 290 host, no production adapter record is authorized. Keep the catalog empty and preserve discovery-only policy.
