@@ -544,3 +544,8 @@ nn0 repository request factory
 ### 尚未声称完成的部分
 
 上述静态调用链已由 code289 APK 的 DEX/Smali 和 serializer descriptor 直接确认；但尚未完成在 Deekseep-Custom 中捕获 zn3、collect Ly60、应用 DeltaCommand、映射 CompletionResult 的实现，也没有 code289 真机端到端结果。Native Adapter 仍未完成，Local API 真实回复仍未验收。
+
+
+## 外部 Local API 参考
+
+已对开源项目 [`Xposed-Modules-Repo/com.dsmod.probe`](https://github.com/Xposed-Modules-Repo/com.dsmod.probe) 的 Local API 实现进行源码级分析，重点核对了 `LocalApiGateway`、`Main.executeLocalApiCompletion`、`NativeApiPatchDecoder`、`OpenAiToolBridge` 和协议回归测试。其宿主版本为 DeepSeek 2.2.2（code233/236），不能直接复用混淆符号到本项目 2.7.x/code289。架构差异、可移植设计、禁止照搬项和 ROI 实施顺序见 [DSMOD_PROBE_LOCAL_API_REFERENCE.md](architecture/DSMOD_PROBE_LOCAL_API_REFERENCE.md)。
