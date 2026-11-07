@@ -4827,6 +4827,11 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         }
         z13.start(appContext, new z2.Backend() {
             @Override public boolean isReady() {
+                // Open exposes the full HTTP surface even when a native capability is absent.
+                // The execution path reports the exact unsupported capability per request.
+                if ("Open".equals(BuildInfo.BUILD_EDITION) && !BuildInfo.LOCAL_API_INCLUDED) {
+                    return true;
+                }
                 return BuildInfo.LOCAL_API_INCLUDED
                         && hostClassLoader != null && liveR92 != null && liveQ71 != null;
             }
@@ -4834,8 +4839,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             @Override public String readinessDetail() {
                 if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
                     return UiLanguage.text(
-                            "Open 版原生模型适配器尚未接通",
-                            "Open native model adapter is not connected yet");
+                            "Open API 已开放；原生执行能力按请求实际检测",
+                            "Open API is exposed; native execution support is checked per request");
                 }
                 if (hostClassLoader == null) return UiLanguage.text(
                         "等待宿主类加载器", "Waiting for host class loader");
@@ -4854,10 +4859,6 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             @Override public z2.CompletionResult complete(
                     z2.CompletionRequest request,
                     z2.DeltaSink sink) throws Exception {
-                if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
-                    throw new z2.GatewayException(503, "native_adapter_unavailable",
-                            "server_error", "Open native model adapter is not connected yet");
-                }
                 Main module = MODULE;
                 if (module == null) {
                     throw new z2.GatewayException(503, "host_not_ready",
