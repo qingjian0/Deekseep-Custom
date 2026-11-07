@@ -1707,8 +1707,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             final ClassLoader loader,
             final String fingerprint,
             final RoiUniversalHookRuntime.Adapters adapters,
-            RoiHookResolverActivationGate.EvidenceSource evidenceSource,
-            RoiHookResolverActivationGate.PolicySource policySource) throws Throwable {
+            RoiReviewedHookEvidenceRegistry reviewedEvidence) throws Throwable {
         if (groupId == null || groupId.trim().isEmpty()) {
             throw new IllegalArgumentException("ROI universal Hook group ID is required");
         }
@@ -1725,7 +1724,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                         return target != null && handle != null;
                     }
                 },
-                new RoiHookResolverActivationGate(evidenceSource, policySource));
+                new RoiHookResolverActivationGate(
+                        java.util.Objects.requireNonNull(reviewedEvidence, "reviewed evidence catalog"),
+                        reviewedEvidence));
         RoiUniversalHookRuntime.Installer previous =
                 ROI_UNIVERSAL_INSTALLERS.putIfAbsent(registryId, created);
         final RoiUniversalHookRuntime.Installer installer =
