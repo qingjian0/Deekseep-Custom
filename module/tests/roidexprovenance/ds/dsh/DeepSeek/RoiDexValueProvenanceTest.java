@@ -286,7 +286,7 @@ public final class RoiDexValueProvenanceTest {
                 new RoiDexFileReader.ResolvedMethodId(index,"Lx;",
                         index==0?"decodeSerializableElement":"<init>",
                         index==0?"()Ljava/lang/Object;":"(Lx;)V"));
-        RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(protectedCode);
+        RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(base);
         RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
         RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching);
         RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(
