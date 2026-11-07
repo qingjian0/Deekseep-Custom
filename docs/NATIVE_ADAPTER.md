@@ -662,3 +662,52 @@ nn0 repository request factory
 - 在此之前，不实现猜测性的 Session Factory；Completion 继续 HTTP 503 fail-closed。
 
 本节结论来自 APK DEX/Smali 静态结构；不代表已在设备上验证该会话创建链路。
+
+
+## 2026-11-07：code289 宿主新会话占位对象与空 sessionId 证据
+
+本轮继续检查完整 APK 的 `oe2`、`ik2`、`ys`、`nn0` 调用关系，发现宿主 UI 确实有一条显式的新会话占位对象路径。
+
+### 1. `oe2.j()` 创建新会话占位组件
+
+`oe2.j()` 的 Smali 直接执行：
+
+- `new ys(...)`；
+- 第一个 String 参数（`ys.a`，会话 ID）为字面量空字符串 `""`；
+- 第二个 String（标题）也为 `""`；
+- 其余会话统计字段以初始值构造；
+- 随后创建 `Lik2`（ChatSessionComponent）并返回。
+
+`oe2.j()` 构造 `Lik2` 时，向其回调参数传入一个 Kotlin function reference，引用名为 `sendMessageToNewSession`，签名字符串为：
+
+`sendMessageToNewSession(ChatSessionComponent, MessageForwardRequest, Function0)`
+
+因此，空字符串确实是宿主 UI 新会话占位对象的 session key；这不是 UUID 推测，也不是 continuation 占位参数。
+
+### 2. 首次消息事件进入该回调的证据
+
+`ik2` 处理 `kj2` 事件时：
+
+- 从 `kj2.a` 的 `xr` 读取文本与附件；
+- 从当前 `ys` 读取 `model_type`（`ys.k()`）；
+- 当 `ys.k()` 为空时，回退到 `Lik2.Z()` 的当前 model selection；
+- 读取 `kj2.b` 的 action；
+- 生成的 UUID 与 elapsedRealtime 被封装进 `ada`，作为消息/fragment 标识；
+- 构造 `Lo97`（MessageForwardRequest），再调用 `Lik2.i` 中保存的回调，参数为当前 ChatSessionComponent、请求对象和完成回调。
+
+`Lik2.i` 正是 `oe2.j()` 创建时注入的 `sendMessageToNewSession` function reference。由此可确认：宿主新会话组件将消息转交给专门的新会话回调，而不是把 fragment UUID 当作 session ID。
+
+### 3. 证据边界与实现约束
+
+- 已证实：宿主 UI 新会话占位对象的 `ys.a == ""`。
+- 已证实：新会话消息回调拿到 `Lik2` 与 `Lo97`，请求对象包含从当前会话选择状态得到的 model type；为空时回退当前组件 model selection。
+- 尚未证实：`sendMessageToNewSession` 回调内部是否先调用服务端 create-session API、如何将服务端返回的真实 ID 写回 `ys.a`、以及首次 `nn0.d()` 是否发生在回填前还是回填后。该 function reference 的原始函数体在当前 R8 Smali 导出中未能直接定位；不能把引用签名当成实现体。
+- 尚未证实：Local API 可否安全地复用这条 UI 事件/回调链；它依赖宿主 UI 的组件、状态和回调上下文。
+
+### 4. 对 Native Session Factory 的决策
+
+目前最可靠的实现候选不再是自行生成 UUID，而是研究并复用宿主的 `oe2.j()` 占位对象构造及 `sendMessageToNewSession` 回调语义。但在确认真实 ID 回填点、请求发送顺序和线程/生命周期约束前，不直接调用或仿造该回调。
+
+`ys.a == ""` 只证明 UI 新会话占位对象的初始键值，不证明服务端最终请求必须始终携带空字符串。Native Completion 继续 HTTP 503 fail-closed。
+
+本节结论来自 code289 APK 静态 Smali；没有声称真机运行已观察到该过程。
