@@ -129,6 +129,9 @@ final class RoiSemanticProfileMatcher {
             } else if (item != best) {
                 state = State.LOW_CONFIDENCE;
                 reason = "not_the_unique_top_candidate";
+            } else if (item.resolvedMethodRoles.size() != source.methodRoles.size()) {
+                state = State.LOW_CONFIDENCE;
+                reason = "one_or_more_method_roles_not_uniquely_resolved";
             } else {
                 state = State.MATCHED;
                 reason = "unique_semantic_profile_candidate";
