@@ -437,8 +437,11 @@ final class OpenLocalApiGateway {
                                 + "网络变化监听：" + lanNetworkMonitorStatus + "\n"
                         : "局域网状态：未启用\n")
                 + "允许的局域网范围：192.168.0.0/16\n"
-                + "后端状态：" + (backend != null && backend.isReady()
-                        ? "就绪" : (backend == null ? "不可用" : backend.readinessDetail()));
+                + "后端状态：" + (backend == null ? "不可用"
+                        : ("Open".equals(BuildInfo.BUILD_EDITION)
+                                && !BuildInfo.LOCAL_API_INCLUDED)
+                                ? backend.readinessDetail()
+                                : (backend.isReady() ? "就绪" : backend.readinessDetail()));
     }
     static String runtimeStatus() {
         return RUNNING.get() ? "Running on 127.0.0.1"
