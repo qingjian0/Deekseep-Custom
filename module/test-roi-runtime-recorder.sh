@@ -25,8 +25,12 @@ grep -q 'collectorType.isInterface()' "$OBSERVER"
 grep -q 'UNSUPPORTED_COLLECTOR_TYPE' "$OBSERVER"
 grep -q 'recordCoverage(collectMethod' "$OBSERVER"
 grep -q '"emit".equals(method.getName())' "$OBSERVER"
-grep -q 'recordResponseReceived(key, method)' "$OBSERVER"
 grep -q 'recordResponseParserCoverage' "$OBSERVER"
+grep -q 'UNSUPPORTED_NON_SUSPEND_COLLECTOR' "$OBSERVER"
+if grep -q 'Proxy.newProxyInstance\|InvocationHandler\|recordResponseReceived' "$OBSERVER"; then
+  echo "ROI observer must not proxy or replace host FlowCollector identity" >&2
+  exit 1
+fi
 grep -q 'UNSUPPORTED_RESPONSE_PARSER_CORRELATION' "$OBSERVER"
 grep -q 'recordResponseParserCoverage' "$CHAT"
 grep -q 'rethrowFatal(ignored)' "$OBSERVER"
@@ -100,5 +104,6 @@ grep -q 'otherClassLoaderScopeEvidenceEntries' "$DISCOVERY"
 grep -q 'otherClassLoaderScopeCoverageEntries' "$DISCOVERY"
 grep -q 'exactScopeCoverage.unsupportedSuspendCollector' "$DISCOVERY"
 grep -q 'exactScopeCoverage.unsupportedCollectorType' "$DISCOVERY"
+grep -q 'exactScopeCoverage.unsupportedNonSuspendCollector' "$DISCOVERY"
 grep -q 'exactScopeCoverage.unsupportedResponseParserCorrelation' "$DISCOVERY"
 grep -q 'candidateSourceScope.startsWith("loader:")' "$DISCOVERY"
