@@ -279,6 +279,8 @@ public final class RoiDexValueProvenanceTest {
                 base.instructionsOffset,base.instructions,
                 new RoiDexCodeReader.TryItem[]{new RoiDexCodeReader.TryItem(0,1,0)},
                 new RoiDexCodeReader.CatchHandler[0],base.nextOffset);
+        // Link the unchanged instruction stream without the deliberately incomplete try metadata;
+        // provenance receives protectedCode and must reject it before consuming this link.
         RoiDexInvokeResultLinker.Result links=RoiDexInvokeResultLinker.analyze(base,index->
                 new RoiDexFileReader.ResolvedMethodId(index,"Lx;",
                         index==0?"decodeSerializableElement":"<init>",
