@@ -15,7 +15,7 @@ class loader, native transport and PoW objects to become ready before accepting 
 | Method | Route | Status |
 |---|---|---|
 | GET | `/v1/models` | Returns the configured model IDs; does not imply native execution readiness |
-| POST | `/v1/chat/completions` | OpenAI Chat request validation, response mapping, SSE, and non-stream tool-call bridge implemented; returns 503 until the native adapter is connected |
+| POST | `/v1/chat/completions` | OpenAI Chat request validation, response mapping, SSE, and non-stream tool-call bridge implemented; remains exposed; the execution facade reports `engine_missing` (HTTP 503) per request until the native adapter is connected |
 | POST | `/v1/responses` | Responses input/output mapping, bounded `previous_response_id` state, and SSE events implemented; returns 503 until the native adapter is connected |
 | POST | `/v1/messages` | Anthropic Messages request/response mapping and SSE implemented; returns 503 until the native adapter is connected |
 | POST | `/v1/agent/run` | Not implemented |
