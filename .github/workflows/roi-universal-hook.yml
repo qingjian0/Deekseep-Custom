@@ -8,21 +8,26 @@ on:
       - "module/src/ds/dsh/DeepSeek/RoiHostArtifactFingerprint.java"
       - "module/src/ds/dsh/DeepSeek/RoiHostBuildIdentity.java"
       - "module/src/ds/dsh/DeepSeek/RoiAndroidHostIdentity.java"
-      - "module/tests/roihostidentity/**"
-      - "module/tests/roiartifact/**"
+      - "module/src/ds/dsh/DeepSeek/RoiReviewedHookEvidenceRegistry.java"
       - "module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationObserver.java"
       - "module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
-      - "module/src/ds/dsh/DeepSeek/HookAttachmentPipeline.java"
-      - "module/src/ds/dsh/DeepSeek/HookChatPipeline.java"
       - "module/src/ds/dsh/DeepSeek/RoiDexKitDiscovery.java"
       - "module/src/ds/dsh/DeepSeek/Main.java"
+      - "module/src/ds/dsh/DeepSeek/HookAttachmentPipeline.java"
+      - "module/src/ds/dsh/DeepSeek/HookChatPipeline.java"
+      - "module-kotlin-runtime/src/main/kotlin/ds/dsh/DeepSeek/FeatureHookInstallRegistry.kt"
       - "module-legacy/compat/ds/dsh/DeepSeek/LegacyXposedModule.java"
       - "module-legacy/test-adapter-regression.sh"
       - "module-legacy/tests/**"
       - "module-legacy/src/de/robv/android/xposed/**"
-      - "module/tests/roiuniversalhook/**"
+      - "module/tests/roiartifact/**"
+      - "module/tests/roihostidentity/**"
       - "module/tests/roiresolveractivationgate/**"
+      - "module/tests/roireviewedevidence/**"
       - "module/tests/roiruntime/**"
+      - "module/tests/roiuniversalhook/**"
+      - "module/tests/ds/dsh/DeepSeek/FeatureHookInstallRegistryRegressionTest.java"
+      - "module/test-hook-install-registry.sh"
       - "module/test-roi-runtime-recorder.sh"
       - "module/test-roi-universal-hook-runtime.sh"
       - "docs/architecture/ROI_UNIVERSAL_HOOK_RUNTIME.md"
@@ -32,19 +37,31 @@ on:
     branches: [dev]
     paths:
       - "module/src/ds/dsh/DeepSeek/RoiUniversalHookRuntime.java"
+      - "module/src/ds/dsh/DeepSeek/RoiHookResolverActivationGate.java"
       - "module/src/ds/dsh/DeepSeek/RoiHostArtifactFingerprint.java"
       - "module/src/ds/dsh/DeepSeek/RoiHostBuildIdentity.java"
       - "module/src/ds/dsh/DeepSeek/RoiAndroidHostIdentity.java"
-      - "module/tests/roihostidentity/**"
-      - "module/tests/roiartifact/**"
+      - "module/src/ds/dsh/DeepSeek/RoiReviewedHookEvidenceRegistry.java"
       - "module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationObserver.java"
       - "module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
+      - "module/src/ds/dsh/DeepSeek/RoiDexKitDiscovery.java"
+      - "module/src/ds/dsh/DeepSeek/Main.java"
       - "module/src/ds/dsh/DeepSeek/HookAttachmentPipeline.java"
       - "module/src/ds/dsh/DeepSeek/HookChatPipeline.java"
-      - "module/src/ds/dsh/DeepSeek/RoiDexKitDiscovery.java"
+      - "module-kotlin-runtime/src/main/kotlin/ds/dsh/DeepSeek/FeatureHookInstallRegistry.kt"
+      - "module-legacy/compat/ds/dsh/DeepSeek/LegacyXposedModule.java"
+      - "module-legacy/test-adapter-regression.sh"
+      - "module-legacy/tests/**"
+      - "module-legacy/src/de/robv/android/xposed/**"
+      - "module/tests/roiartifact/**"
+      - "module/tests/roihostidentity/**"
+      - "module/tests/roiresolveractivationgate/**"
+      - "module/tests/roireviewedevidence/**"
       - "module/tests/roiruntime/**"
-      - "module/test-roi-runtime-recorder.sh"
       - "module/tests/roiuniversalhook/**"
+      - "module/tests/ds/dsh/DeepSeek/FeatureHookInstallRegistryRegressionTest.java"
+      - "module/test-hook-install-registry.sh"
+      - "module/test-roi-runtime-recorder.sh"
       - "module/test-roi-universal-hook-runtime.sh"
       - "docs/architecture/ROI_UNIVERSAL_HOOK_RUNTIME.md"
       - "docs/architecture/ROI_UNIVERSAL_HOOK_MIGRATION_LEDGER.md"
@@ -67,8 +84,12 @@ jobs:
         run: |
           bash -n module/test-roi-universal-hook-runtime.sh
           bash -n module/test-roi-runtime-recorder.sh
+          bash -n module/test-hook-install-registry.sh
+          bash -n module-legacy/test-adapter-regression.sh
       - name: Run runtime invocation recorder tests
         run: bash module/test-roi-runtime-recorder.sh
+      - name: Run feature install registry tests
+        run: bash module/test-hook-install-registry.sh
       - name: Run isolated universal Hook tests
         run: bash module/test-roi-universal-hook-runtime.sh
       - name: Run legacy Xposed adapter regression matrix
