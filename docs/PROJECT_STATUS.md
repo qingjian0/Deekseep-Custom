@@ -679,3 +679,12 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 本轮文档提交：
 - `2fd1a8be1ded6a5923e5b249982356bd34e6fdf1` — `docs/NATIVE_ADAPTER.md` 新会话占位语义。
 - `566e3784494dab63da09daa5372f102015322662` — `docs/NATIVE_ADAPTER.md` model_type 状态来源。
+
+
+## 2026-11-07：共享消息转发回调边界
+
+补充校正：`oe2.k(ys)` 为已有会话构造 `Lik2` 时也注入相同的 `sendMessageToNewSession` function reference。因此不能按函数名推断该回调只处理新会话创建；它是会话组件的消息转发回调，内部如何区分空/非空 sessionId 尚未定位。详见 `docs/NATIVE_ADAPTER.md`。
+
+静态 Smali 检查已对以下 8 项事实逐项通过：新会话占位对象空 ID、回调引用及签名、`kj2` 事件回调分发、模型选中项选择、默认配置回退、`oe2.q` 的配置 key 来源、`mw1` 从 `ys.k()` 取 model_type、parent 非空时将 model_type 置 null。该检查仅验证静态 APK 证据，不是模块回归测试或运行时验证。
+
+本轮最新文档提交：`bd7372e3bb9e3e2590f3a054b13ce0d76c7d4917`。
