@@ -2062,7 +2062,12 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             if (HostCompat.isV236() || HostCompat.isV241()) {
                 installHookStep("host.navigation.bridge", () -> HostNavigationBridge.install(this, hookLoader));
             }
-            installHookStep("agent.tool-log.rounded-rect", () -> HookAgentPipeline.INSTANCE.hookAgentToolLogRoundedRect(hookLoader));
+            // Agent Canvas/tool-log rendering is an optional UI enhancement. Its host-specific
+            // renderer class may be absent on a supported DeepSeek build; do not let that single
+            // missing class abort every remaining required feature hook.
+            installBestEffortHook("agent.tool-log.rounded-rect",
+                    () -> HookAgentPipeline.INSTANCE.hookAgentToolLogRoundedRect(hookLoader),
+                    "agent tool-log renderer unavailable: ");
             if (!HostCompat.isV271()) installHookStep("remote.feature-flags", () -> RemoteFeatureFlags.install(this, hookLoader));
             installHookStep("config.attachment-guide-rollout", () -> HookConfigRollout.INSTANCE.hookAttachmentGuidePromptRollout(hookLoader));
             installHookStep("config.home-welcome-rollout", () -> HookConfigRollout.INSTANCE.hookHomeWelcomeRollout(hookLoader));
