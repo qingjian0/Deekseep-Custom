@@ -16,7 +16,7 @@ import java.util.HashSet;
  * invoke host code, install hooks, or authorize runtime behavior.
  */
 public final class RoiDexCandidateEvidence {
-    private static final int MAX_SELECTED_METHODS = 480;
+    private static final int MAX_SELECTED_METHODS = 544;
     private RoiDexCandidateEvidence() {}
 
     public static final class EvidenceException extends Exception {

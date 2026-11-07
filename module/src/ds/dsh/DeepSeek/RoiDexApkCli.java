@@ -24,10 +24,11 @@ import java.util.Set;
 public final class RoiDexApkCli {
     private static final int MAX_METHODS_SCANNED = 150000;
     private static final int MAX_SELECTED_METHODS = 64;
-    private static final int MAX_ANALYSIS_METHODS = 480;
-    // Reserve bounded capacity for both transport/callback traversal stages.
+    private static final int MAX_ANALYSIS_METHODS = 544;
+    // Reserve bounded capacity for each downstream callback/transport traversal stage.
     private static final int MAX_FOURTH_HOP_RESERVE = 64;
     private static final int MAX_FIFTH_HOP_RESERVE = 64;
+    private static final int MAX_SIXTH_HOP_RESERVE = 64;
     private static final int MAX_FIRST_HOP_METHODS = 128;
     private static final int MAX_CROSS_DEX_METHODS = 64;
     private static final long MAX_CODE_UNITS = 20000000L;
@@ -148,6 +149,8 @@ public final class RoiDexApkCli {
         Set<String> fourthLevelCalleeMethods = new LinkedHashSet<String>();
         Map<String, Integer> fourthLevelCalleePriority = new LinkedHashMap<String, Integer>();
         Set<String> fifthLevelCalleeMethods = new LinkedHashSet<String>();
+        Map<String, Integer> fifthLevelCalleePriority = new LinkedHashMap<String, Integer>();
+        Set<String> sixthLevelCalleeMethods = new LinkedHashSet<String>();
         RoiDexCandidateEvidence.Result seedEvidence =
                 RoiDexCandidateEvidence.analyzeSelected(dex, scope, expandedMethods);
         Set<String> definedMethods = new LinkedHashSet<String>();
@@ -232,10 +235,9 @@ public final class RoiDexApkCli {
             }
             if (method == null) continue;
             for (String callee : method.invokes) {
-                // Reserve part of the bounded analysis budget for hop 4. Without this,
-                // broad helper fan-out can consume all 400 slots before transport callbacks
-                // such as Lirc.a(...) and Lmmc.d(...) are reached.
-                if (expandedMethods.size() >= MAX_ANALYSIS_METHODS - MAX_FOURTH_HOP_RESERVE - MAX_FIFTH_HOP_RESERVE) break;
+                // Reserve bounded capacity for hops 4, 5, and 6 so broad helper fan-out
+                // cannot starve transport callbacks such as Lirc.a(...) and Lmmc.d(...).
+                if (expandedMethods.size() >= MAX_ANALYSIS_METHODS - MAX_FOURTH_HOP_RESERVE - MAX_FIFTH_HOP_RESERVE - MAX_SIXTH_HOP_RESERVE) break;
                 if (definedMethods.contains(callee) && expandedMethods.add(callee)) {
                     thirdLevelCalleeMethods.add(callee);
                     Integer callerPriority = transitiveCalleePriority.get(callerKey);
@@ -270,14 +272,14 @@ public final class RoiDexApkCli {
             }
             if (method == null) continue;
             for (String callee : method.invokes) {
-                if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;
+                if (expandedMethods.size() >= MAX_ANALYSIS_METHODS - MAX_FIFTH_HOP_RESERVE - MAX_SIXTH_HOP_RESERVE) break;
                 if (definedMethods.contains(callee) && expandedMethods.add(callee)) {
                     fourthLevelCalleeMethods.add(callee);
                     Integer callerPriority = thirdLevelCalleePriority.get(callerKey);
                     fourthLevelCalleePriority.put(callee, callerPriority == null ? 0 : callerPriority);
                 }
             }
-            if (expandedMethods.size() >= MAX_ANALYSIS_METHODS - MAX_FIFTH_HOP_RESERVE) break;
+            if (expandedMethods.size() >= MAX_ANALYSIS_METHODS - MAX_FIFTH_HOP_RESERVE - MAX_SIXTH_HOP_RESERVE) break;
         }
         // Analyze hop 4 before following its callbacks into hop 5.
         RoiDexCandidateEvidence.Result fourthHopEvidence =
@@ -306,16 +308,50 @@ public final class RoiDexApkCli {
             }
             if (method == null) continue;
             for (String callee : method.invokes) {
-                if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;
+                if (expandedMethods.size() >= MAX_ANALYSIS_METHODS - MAX_SIXTH_HOP_RESERVE) break;
                 if (definedMethods.contains(callee) && expandedMethods.add(callee)) {
                     fifthLevelCalleeMethods.add(callee);
+                    Integer callerPriority = fourthLevelCalleePriority.get(callerKey);
+                    fifthLevelCalleePriority.put(callee, callerPriority == null ? 0 : callerPriority);
+                }
+            }
+            if (expandedMethods.size() >= MAX_ANALYSIS_METHODS - MAX_SIXTH_HOP_RESERVE) break;
+        }
+        RoiDexCandidateEvidence.Result fifthHopEvidence =
+                RoiDexCandidateEvidence.analyzeSelected(dex, scope, expandedMethods);
+        List<String> orderedFifthLevelCallees =
+                new ArrayList<String>(fifthLevelCalleeMethods);
+        Collections.sort(orderedFifthLevelCallees, new Comparator<String>() {
+            @Override public int compare(String left, String right) {
+                int leftPriority = fifthLevelCalleePriority.containsKey(left)
+                        ? fifthLevelCalleePriority.get(left) : 0;
+                int rightPriority = fifthLevelCalleePriority.containsKey(right)
+                        ? fifthLevelCalleePriority.get(right) : 0;
+                if ("Lfqc;->c(Lrkc;Lmrc;Ljava/util/ArrayList;)V".equals(left)) leftPriority += 10000;
+                if ("Lfqc;->c(Lrkc;Lmrc;Ljava/util/ArrayList;)V".equals(right)) rightPriority += 10000;
+                if (leftPriority != rightPriority) return rightPriority - leftPriority;
+                return left.compareTo(right);
+            }
+        });
+        // Hop 6: inspect the service/callback helpers reached by the queue dispatcher.
+        for (String callerKey : orderedFifthLevelCallees) {
+            RoiDexCandidateEvidence.MethodEvidence method = null;
+            for (RoiDexCandidateEvidence.MethodEvidence candidate : fifthHopEvidence.methods) {
+                if (callerKey.equals(candidate.methodKey)) { method = candidate; break; }
+            }
+            if (method == null) continue;
+            for (String callee : method.invokes) {
+                if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;
+                if (definedMethods.contains(callee) && expandedMethods.add(callee)) {
+                    sixthLevelCalleeMethods.add(callee);
                 }
             }
             if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;
         }
         int expandedCalleeCount = directCalleeMethods.size()
                 + transitiveCalleeMethods.size() + thirdLevelCalleeMethods.size()
-                + fourthLevelCalleeMethods.size() + fifthLevelCalleeMethods.size();
+                + fourthLevelCalleeMethods.size() + fifthLevelCalleeMethods.size()
+                + sixthLevelCalleeMethods.size();
         RoiDexCandidateEvidence.Result evidence =
                 RoiDexCandidateEvidence.analyzeSelected(dex, scope, expandedMethods);
 
@@ -464,9 +500,11 @@ public final class RoiDexApkCli {
         field(out, "third_level_callee_count", Integer.toString(thirdLevelCalleeMethods.size()), true);
         field(out, "fourth_level_callee_count", Integer.toString(fourthLevelCalleeMethods.size()), true);
         field(out, "fifth_level_callee_count", Integer.toString(fifthLevelCalleeMethods.size()), true);
+        field(out, "sixth_level_callee_count", Integer.toString(sixthLevelCalleeMethods.size()), true);
         field(out, "analysis_method_budget", Integer.toString(MAX_ANALYSIS_METHODS), true);
         field(out, "fourth_level_reserved_budget", Integer.toString(MAX_FOURTH_HOP_RESERVE), true);
         field(out, "fifth_level_reserved_budget", Integer.toString(MAX_FIFTH_HOP_RESERVE), true);
+        field(out, "sixth_level_reserved_budget", Integer.toString(MAX_SIXTH_HOP_RESERVE), true);
         field(out, "cross_dex_candidate_count", Integer.toString(crossDexMethodSources.size()), true);
         field(out, "unresolved_app_call_count", Integer.toString(unresolvedAppCalls.size()), true);
         field(out, "unresolved_app_calls", stringArray(unresolvedAppCalls), true);
@@ -498,6 +536,7 @@ public final class RoiDexApkCli {
                             : thirdLevelCalleeMethods.contains(method.methodKey) ? "third_level_callee"
                             : fourthLevelCalleeMethods.contains(method.methodKey) ? "fourth_level_callee"
                             : fifthLevelCalleeMethods.contains(method.methodKey) ? "fifth_level_callee"
+                            : sixthLevelCalleeMethods.contains(method.methodKey) ? "sixth_level_callee"
                             : "expanded_callee"));
             out.append(",\"anchors\":").append(stringArray(methodAnchors));
             out.append(",\"anchor_priority\":").append(anchorPriority(methodAnchors));
