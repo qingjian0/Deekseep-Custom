@@ -704,3 +704,18 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 **阶段决策：** 已经定位到可复用的宿主 Session Factory 核心 `fx1.m()`，不再需要猜测 sessionId 生成方式。下一步不是重写创建 HTTP，而是验证模块如何稳定取得 `fx1` 实例、如何桥接 suspend Continuation 与取消/超时，以及如何确认 actor 持久化完成。缓存命中和网络创建两个分支都必须覆盖。Completion 仍 503 fail-closed。
 
 本轮文档提交：`764683fee54228b4e7b7922043aa72f63d48d874`（`docs/NATIVE_ADAPTER.md`）。本轮未执行 CI、APK 构建或真机验证。
+
+
+## 2026-11-07：fx1 Session Factory 接入点已定位
+
+补充完成宿主对象获取路径审计：
+
+- `oe2` 会话 ViewModel 构造器通过宿主 DI 容器取得 `fx1)，保存在 final 字段 `oe2.h:Lfx1;`。
+- `oe2.j()` / `oe2.k(ys)` 都通过该 `fx1` 实例构造会话组件。
+- Local API 当前已有 `Main.startz1()` 和 `Main.MODULE.hook(...)` 透明 Hook 入口；因此 code289 Open 分支可考虑通过 `oe2` 构造器 after-hook 读取 `h)，或辅以 `fx1` 构造器 after-hook，捕获宿主真实 Session Factory 实例。
+- 捕获失败时应 fail-closed 503，不扫描任意对象堆、不生成伪 sessionId、不自行复制创建接口。
+- 后续需要在后台桥接 `fx1.m(Continuation)`，正确解析 `wt7/pt7/tn2)，更新模型 key，再按宿主顺序调用 `fx1.l(ys))。Continuation 结果、超时、取消与 actor 写入时序仍待实现和验证。
+
+**本轮边界：** 只完成静态接入点定位和文档记录，没有新增模块代码，没有运行 Hook/CI/APK/真机测试。Completion 继续 503 fail-closed。
+
+本轮文档提交：`75f7dbbfc160d0ae819836de7533e319c78c7db3`。
