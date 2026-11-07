@@ -435,3 +435,34 @@ installAllFeatureHooks failed: ClassNotFoundException ...
 `qingjian0/apps` 的 2026-11-07 双版本审计工作流 `42339059934` 所发布的 artifacts 名称为 `deepseek-audit-273`、`deepseek-audit-275` 和 `deepseek-273-275-comparison`；没有 code289 / 2.7.2 APK 静态审计 artifact。该仓库 README 中的 code289 结论属于动态日志证据，不能据此声称已经完成 code289 DEX 静态还原。
 
 后续若继续仅凭现有证据推进，应先取得 code289 APK 或 schema-5 新设备日志。不得把 2.7.3 / 2.7.5 的混淆符号映射到 code289。
+
+
+## 2026-11-07：code289 Callback 结构诊断 schema 6
+
+### 问题
+
+schema 5 记录了 Callback 方法描述符、参数类型、返回类型、执行耗时和异常类型，但不记录参数/返回对象的结构。对 qj3.y(Object) 等高频方法，仅凭 Object 参数类型无法区分事件 envelope、消息 fragment、协程状态或其他包装对象。
+
+### 修改
+
+- Callback 方法按完整描述符排序后再应用每类最多 12 个方法的上限，避免反射返回顺序不确定导致不同运行选择不同方法。
+- 每个 Callback 方法第一次执行时，记录 arg0/arg1 的对象类名以及最多 16 个声明字段的字段名/字段类型。
+- 每个 Callback 方法第一次正常返回时，记录返回对象相同范围的结构。
+- 结构记录只读取反射元数据，不读取字段值、不调用 getter、不序列化对象；不记录消息正文、凭据、Cookie、Token 或请求头。
+- 参数结构和成功返回结构分别按方法签名去重；新诊断 session 清空结构去重状态，但保留已安装 Hook 注册状态，避免重复注册。
+- UI 说明同步明确结构采集边界和方法排序策略。
+
+### schema
+
+- report.schema=6
+- session-start schema=6
+- diagnostic.callback_hook_limits 声明 descriptor 排序、每类最多 12 个方法、不遍历父类。
+- diagnostic.callback_shape_capture 声明每方法一次参数/成功返回对象字段名和类型采集，不读取字段值。
+
+### 影响与边界
+
+该修改用于让下一轮 code289 真机日志可以识别 callback 的数据对象形状，帮助定位事件包装层和响应解码边界。它不会自行解释混淆字段的业务语义，也不会把 qj3.y 直接认定为 SSE parser 或 DeltaCommand reducer。
+
+相关提交位于 work/local-api-protocol-port：4212bf84（结构采集）、20ccdc7f（session 重置）、c9a79ef4（UI）、94a75ed4 / 2465873f（回归契约）。
+
+本次源码和回归契约已提交；尚未执行 Android 构建、脚本或设备验证，不声称 schema 6 已通过运行验证。
