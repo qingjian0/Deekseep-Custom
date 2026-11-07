@@ -17,6 +17,7 @@ javac -source 8 -target 8 -nowarn -d "$OUT" \
  "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexUseDefChains.java" \
  "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexMethodAnalysis.java" \
  "$ROOT/module/src/ds/dsh/DeepSeek/RoiCandidateGraph.java" \
+ "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexInvokeReachability.java" \
  "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexCandidateEvidence.java" \
  "$ROOT/module/tests/roidexfilereader/ds/dsh/DeepSeek/RoiDexFileReaderTest.java" \
  "$ROOT/module/tests/roidexexportreader/ds/dsh/DeepSeek/RoiDexKitExportReaderTest.java"

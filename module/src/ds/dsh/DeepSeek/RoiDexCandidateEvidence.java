@@ -212,7 +212,7 @@ public final class RoiDexCandidateEvidence {
                 int first = code.instructions[instruction.offset] & 0xffff;
                 int opcode = first & 0xff;
                 int argumentWords = (first >>> 12) & 0x0f;
-                return new InvokeCollection(Collections.<String>emptyList(),
+                return new InvokeCollection(Collections.<InvokeReference>emptyList(),
                         "invoke_decode_invalid:method=" + callerMethodIndex
                                 + ":offset=" + instruction.offset
                                 + ":opcode=0x" + Integer.toHexString(opcode)
