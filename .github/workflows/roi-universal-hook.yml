@@ -5,6 +5,8 @@ on:
     paths:
       - "module/src/ds/dsh/DeepSeek/RoiUniversalHookRuntime.java"
       - "module/src/ds/dsh/DeepSeek/RoiHookResolverActivationGate.java"
+      - "module/src/ds/dsh/DeepSeek/Main.java"
+      - "module-legacy/compat/ds/dsh/DeepSeek/LegacyXposedModule.java"
       - "module/tests/roiuniversalhook/**"
       - "module/tests/roiresolveractivationgate/**"
       - "module/test-roi-universal-hook-runtime.sh"
