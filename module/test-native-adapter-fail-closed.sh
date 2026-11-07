@@ -516,7 +516,7 @@ if "callback.toString()" in probe or "receiver.toString()" in probe:
 
 require(
     probe,
-    r'line\(out, "report\.schema", "5"\).*?diagnostic\.coverage.*?diagnostic\.sensitive_data.*?diagnostic\.callback_hook_limits.*?max-12-methods-per-class.*?no-superclass-traversal',
+    r'line\(out, "report\.schema", "5"\).*?diagnostic\.coverage.*?diagnostic\.sensitive_data.*?diagnostic\.callback_hook_limits.*?concrete-class-declared-methods-1-to-2-args-nonvoid-max-12-no-superclass-traversal',
     "schema 5 declares bounded concrete-callback hook coverage and persistent selected-method capture",
 )
 require(
