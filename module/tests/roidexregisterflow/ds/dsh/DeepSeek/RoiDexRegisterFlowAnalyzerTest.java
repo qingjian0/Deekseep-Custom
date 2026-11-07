@@ -71,7 +71,7 @@ public final class RoiDexRegisterFlowAnalyzerTest {
     private static void testInvoke35cCountNibbleIndependentOfFifthRegister()
             throws Exception {
         // invoke-static 35c: A=5 argument words, G=0 fifth register.
-        short[] code = {(short) 0x5071, (short) 0x0000, (short) 0x4321,
+        short[] code = {(short) 0x0571, (short) 0x0000, (short) 0x4321,
                 (short) 0x000e};
         RoiDexRegisterFlowAnalyzer.Result result =
                 RoiDexRegisterFlowAnalyzer.analyze(code, 8);
