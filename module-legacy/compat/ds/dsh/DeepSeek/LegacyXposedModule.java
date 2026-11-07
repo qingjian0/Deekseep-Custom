@@ -77,6 +77,23 @@ abstract class LegacyXposedModule {
         default boolean isRequired() { return false; }
     }
 
+    interface HookRegistrationHandle {
+        /** Removes this logical Hooker; removes the underlying Xposed callback when it is alone. */
+        void unhook();
+    }
+
+    private static final class ManagedHooker implements Hooker {
+        private final Hooker delegate;
+
+        ManagedHooker(Hooker delegate) { this.delegate = delegate; }
+
+        @Override public Object intercept(Chain chain) throws Throwable {
+            return delegate.intercept(chain);
+        }
+
+        @Override public boolean isRequired() { return delegate.isRequired(); }
+    }
+
     private static final class InvocationState {
         boolean originalInvoked;
         Object originalResult;
@@ -250,6 +267,7 @@ abstract class LegacyXposedModule {
                 new CopyOnWriteArrayList<Hooker>();
         private final Set<String> scopedRegistrations = new HashSet<String>();
         private boolean registered;
+        private XC_MethodHook.Unhook xposedUnhook;
         // XposedBridge implementations may publish a callback in their per-Member callback
         // registry before native hook installation completes. If hookMethod then throws, a
         // second call can observe that stale registry entry and return without retrying the
@@ -332,6 +350,7 @@ abstract class LegacyXposedModule {
                         "XposedBridge.hookMethod returned null for " + member);
             }
             registered = true;
+            xposedUnhook = unhook;
             if (registrationKey != null) {
                 scopedRegistrations.add(registrationKey);
                 scope.commitKey(member, hooker);
@@ -339,6 +358,52 @@ abstract class LegacyXposedModule {
             RawHookTrace.registered(member);
             JavaPluginRuntimeBridge.registered(member);
         }
+
+        synchronized HookRegistrationHandle interceptManaged(final Hooker delegate) {
+            if (delegate == null) throw new NullPointerException("hooker");
+            final Hooker managed = new ManagedHooker(delegate);
+            // Managed registrations have their own lifecycle identity. Do not let an enclosing
+            // feature retry scope alias a newly-created handle to an earlier Hooker instance.
+            HookRegistrationScope previous = hookRegistrationScope.get();
+            hookRegistrationScope.remove();
+            try {
+                intercept(managed);
+            } finally {
+                if (previous == null) hookRegistrationScope.remove();
+                else hookRegistrationScope.set(previous);
+            }
+
+            return new HookRegistrationHandle() {
+                private boolean closed;
+
+                @Override public void unhook() {
+                    synchronized (HookTarget.this) {
+                        if (closed) return;
+                        if (!hookers.contains(managed)) {
+                            closed = true;
+                            return;
+                        }
+                        if (hookers.size() == 1 && registered) {
+                            if (xposedUnhook == null) {
+                                throw new IllegalStateException(
+                                        "registered Xposed callback has no unhook handle for " + member);
+                            }
+                            // If the framework throws, keep the Hooker and this handle live so
+                            // the caller can retry cleanup without silently leaving a live hook.
+                            xposedUnhook.unhook();
+                            registered = false;
+                            xposedUnhook = null;
+                        }
+                        hookers.remove(managed);
+                        closed = true;
+                    }
+                }
+            };
+        }
+    }
+
+    final HookRegistrationHandle registerManaged(Member member, Hooker hooker) {
+        return hook(member).interceptManaged(hooker);
     }
 
     HookTarget hook(Member member) {
