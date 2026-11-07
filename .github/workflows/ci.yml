@@ -42,6 +42,7 @@ jobs:
           bash -n module/test-roi-dex-code-reader.sh
           bash -n module/test-roi-dex-instruction-scanner.sh
           bash -n module/test-roi-dex-register-flow.sh
+          bash -n module/test-roi-invoke-reachability.sh
           bash -n module/test-roi-hook-resolver.sh
           bash -n module/test-roi-dexkit-discovery.sh
           bash -n module/test-roi-candidate-graph.sh
@@ -66,6 +67,7 @@ jobs:
           bash module/test-roi-dex-code-reader.sh
           bash module/test-roi-dex-instruction-scanner.sh
           bash module/test-roi-dex-register-flow.sh
+          bash module/test-roi-invoke-reachability.sh
           bash module/test-roi-hook-resolver.sh
           bash module/test-roi-dexkit-discovery.sh
           bash module/test-roi-candidate-graph.sh

@@ -27,6 +27,9 @@ public final class RoiDexCandidateEvidence {
         public final int methodIndex;
         public final String methodKey;
         public final List<String> invokes;
+        public final List<String> reachableInvokes;
+        public final List<String> unreachableInvokes;
+        public final boolean invokeReachabilityComplete;
         public final RoiDexMethodAnalysis.Result analysis;
         /** Empty when analysis succeeded; otherwise a stable fail-closed reason. */
         public final String analysisFailure;
@@ -34,10 +37,14 @@ public final class RoiDexCandidateEvidence {
         public final String invokeAnalysisFailure;
 
         MethodEvidence(int index, String key, List<String> calls,
+                List<String> reachable, List<String> unreachable, boolean reachabilityComplete,
                 RoiDexMethodAnalysis.Result result, String failure, String invokeFailure) {
             methodIndex = index;
             methodKey = key;
             invokes = Collections.unmodifiableList(new ArrayList<String>(calls));
+            reachableInvokes = Collections.unmodifiableList(new ArrayList<String>(reachable));
+            unreachableInvokes = Collections.unmodifiableList(new ArrayList<String>(unreachable));
+            invokeReachabilityComplete = reachabilityComplete;
             analysis = result;
             analysisFailure = failure == null ? "" : failure;
             invokeAnalysisFailure = invokeFailure == null ? "" : invokeFailure;
@@ -105,14 +112,11 @@ public final class RoiDexCandidateEvidence {
             if (selected != null && !found.add(key))
                 throw new EvidenceException("selected_method_definition_ambiguous:" + key);
             InvokeCollection invokeCollection = method.codeItem == null
-                    ? new InvokeCollection(Collections.<String>emptyList(), "")
+                    ? new InvokeCollection(Collections.<InvokeReference>emptyList(), "")
                     : collectInvokes(dex, method.codeItem, method.methodIndex);
-            // Never publish a partial call list as a complete graph when one invoke
-            // instruction cannot be decoded. Preserve the candidate and its failure.
+            // Preserve syntactic references separately from entry-reachable call edges.
             List<String> invokes = invokeCollection.complete
-                    ? invokeCollection.invokes : Collections.<String>emptyList();
-            observations.add(new RoiCandidateGraph.Observation(scope, key, "",
-                    invokes, Collections.<String>emptyList()));
+                    ? invokeKeys(invokeCollection.invokes) : Collections.<String>emptyList();
 
             RoiDexMethodAnalysis.Result analysis = null;
             String failure = "";
@@ -125,7 +129,11 @@ public final class RoiDexCandidateEvidence {
                     failures++;
                 }
             }
+            RoiDexInvokeReachability.Partition partition = partitionInvokes(invokeCollection, analysis);
+            observations.add(new RoiCandidateGraph.Observation(scope, key, "",
+                    partition.reachableInvokes, Collections.<String>emptyList()));
             methodEvidence.add(new MethodEvidence(method.methodIndex, key, invokes,
+                    partition.reachableInvokes, partition.unreachableInvokes, partition.complete,
                     analysis, failure, invokeCollection.failure));
         }
 
@@ -142,26 +150,57 @@ public final class RoiDexCandidateEvidence {
         return new Result(scope, graph, methodEvidence, analyzed, failures);
     }
 
+    private static final class InvokeReference {
+        final int offset;
+        final String methodKey;
+        InvokeReference(int offset, String key) { this.offset = offset; this.methodKey = key; }
+    }
+
     private static final class InvokeCollection {
-        final List<String> invokes;
+        final List<InvokeReference> invokes;
         final String failure;
         final boolean complete;
-        InvokeCollection(List<String> values, String error) {
-            invokes = Collections.unmodifiableList(new ArrayList<String>(values));
+        InvokeCollection(List<InvokeReference> values, String error) {
+            invokes = Collections.unmodifiableList(new ArrayList<InvokeReference>(values));
             failure = error == null ? "" : error;
             complete = failure.length() == 0;
         }
     }
 
+    private static List<String> invokeKeys(List<InvokeReference> refs) {
+        List<String> keys = new ArrayList<String>(refs.size());
+        for (InvokeReference ref : refs) keys.add(ref.methodKey);
+        return keys;
+    }
+
+    private static RoiDexInvokeReachability.Partition partitionInvokes(
+            InvokeCollection collection, RoiDexMethodAnalysis.Result analysis) {
+        if (collection == null || !collection.complete || analysis == null)
+            return RoiDexInvokeReachability.Partition.incomplete();
+        RoiDexReachingDefinitions.BlockResult[] blocks = analysis.reachingDefinitions.blocks;
+        int[] starts = new int[blocks.length], ends = new int[blocks.length];
+        boolean[] reachable = new boolean[blocks.length];
+        for (int i = 0; i < blocks.length; i++) {
+            starts[i] = blocks[i].startOffset;
+            ends[i] = blocks[i].endOffset;
+            reachable[i] = blocks[i].reachableFromEntry;
+        }
+        List<RoiDexInvokeReachability.Invocation> calls =
+                new ArrayList<RoiDexInvokeReachability.Invocation>(collection.invokes.size());
+        for (InvokeReference ref : collection.invokes)
+            calls.add(new RoiDexInvokeReachability.Invocation(ref.offset, ref.methodKey));
+        return RoiDexInvokeReachability.partition(calls, starts, ends, reachable, true);
+    }
+
     private static InvokeCollection collectInvokes(RoiDexFileReader.DexFile dex,
             RoiDexCodeReader.CodeItem code, int callerMethodIndex)
             throws EvidenceException {
-        List<String> invokes = new ArrayList<String>();
+        List<InvokeReference> invokes = new ArrayList<InvokeReference>();
         final RoiDexInstructionScanner.ScanResult scan;
         try {
             scan = RoiDexInstructionScanner.scan(code.instructions);
         } catch (RoiDexInstructionScanner.ScanException error) {
-            return new InvokeCollection(Collections.<String>emptyList(),
+            return new InvokeCollection(Collections.<InvokeReference>emptyList(),
                     "invoke_scan_invalid:method=" + callerMethodIndex + ":" + error.getMessage());
         }
         for (RoiDexInstructionScanner.Instruction instruction : scan.instructions) {
@@ -183,7 +222,7 @@ public final class RoiDexCandidateEvidence {
             if (decoded.referenceIndex < 0 || decoded.referenceIndex >= dex.methods.length)
                 throw new EvidenceException("invoke_method_index_out_of_range:method="
                         + callerMethodIndex + ":offset=" + instruction.offset);
-            invokes.add(methodKey(dex, decoded.referenceIndex));
+            invokes.add(new InvokeReference(instruction.offset, methodKey(dex, decoded.referenceIndex)));
         }
         return new InvokeCollection(invokes, "");
     }
