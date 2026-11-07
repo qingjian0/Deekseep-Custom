@@ -849,28 +849,29 @@ final class HookChatPipeline {
      * at a serializer-identified ChatFullCompletionRequest constructor. It deliberately does not
      * advertise Agent tools, rewrite auth/PoW, replace transport, or observe response payloads.
      */
-    boolean hookUnknownHostChatRequest(Constructor<?> requestConstructor) throws Throwable {
-        if (requestConstructor == null
+    boolean hookUnknownHostChatRequest(
+            final RoiUnknownHostChatRequestResolver.Candidate candidate,
+            final Constructor<?> requestConstructor) throws Throwable {
+        if (candidate == null || requestConstructor == null
                 || !RoiUnknownHostChatRequestResolver.hasExpectedConstructorShape(
-                        requestConstructor.getParameterTypes())) return false;
-        final int promptIndex = 2;
-        Main module = Main.MODULE;
+                        requestConstructor.getParameterTypes())
+                || !Main.isUnknownHostChatRequestHookAuthorized(candidate, requestConstructor)) {
+            return false;
+        }
+        final Main module = Main.MODULE;
         if (module == null) return false;
-        module.hook(requestConstructor).intercept(new Hooker() {
+        final int promptIndex = 2;
+        final String targetId = "roi.unknown-host.chat-request|"
+                + candidate.sourceScope + "|" + candidate.constructorDescriptor;
+        LegacyXposedModule.Hooker promptHook = new Hooker() {
             @Override public Object intercept(Chain chain) throws Throwable {
                 Object[] modified = null;
                 try {
-                    if (!Main.isUnknownHostFeatureHookEnabled()) {
-                        return chain.proceed();
-                    }
-                    if (Boolean.TRUE.equals(tlLocalApiRequest.get())) {
-                        return chain.proceed();
-                    }
+                    if (!Main.isUnknownHostFeatureHookEnabled()) return chain.proceed();
+                    if (Boolean.TRUE.equals(tlLocalApiRequest.get())) return chain.proceed();
                     Object[] originalArgs = chain.getArgs().toArray();
                     if (originalArgs.length != 11
-                            || !(originalArgs[promptIndex] instanceof String)) {
-                        return chain.proceed();
-                    }
+                            || !(originalArgs[promptIndex] instanceof String)) return chain.proceed();
                     String originalPrompt = (String) originalArgs[promptIndex];
                     String originalBody = HistoryBridge.stripInjectedSystemPrompts(
                             originalPrompt == null ? "" : originalPrompt).trim();
@@ -884,16 +885,13 @@ final class HookChatPipeline {
                     String userPrompt = readPrompt();
                     if (userPrompt == null) userPrompt = "";
                     if (userPrompt.length() > 0
-                            && !shouldInjectUserPrompt(conversationId, originalArgs[1])) {
-                        userPrompt = "";
-                    }
+                            && !shouldInjectUserPrompt(conversationId, originalArgs[1])) userPrompt = "";
                     String pluginPrompt = JavaPluginPlatform.systemPrompt(conversationId);
                     if (pluginPrompt == null) pluginPrompt = "";
                     String combined = combineSystemPrompts(userPrompt, pluginPrompt);
                     if (combined.length() > 0) {
                         modified = originalArgs.clone();
-                        modified[promptIndex] = HistoryBridge.wrapSystemPrompt(
-                                combined, originalPrompt);
+                        modified[promptIndex] = HistoryBridge.wrapSystemPrompt(combined, originalPrompt);
                         HookLogOverlay.event("HOST", "Unknown-host request prompt injected",
                                 "body_chars=" + originalBody.length()
                                         + " system_chars=" + combined.length());
@@ -904,11 +902,21 @@ final class HookChatPipeline {
                     Main.log("unknown-host chat request rewrite skipped: "
                             + Main.safeThrowableMessage(error));
                 }
-                // The original constructor is invoked exactly once, even if discovery-side
-                // metadata becomes stale or the optional prompt source fails.
                 return modified == null ? chain.proceed() : chain.proceed(modified);
             }
-        });
+        };
+        HookLifecycleManager.Status status = RoiManagedHookInstaller.install(
+                targetId, module, requestConstructor, promptHook,
+                new RoiManagedHookInstaller.InstallGate() {
+                    @Override public boolean isAuthorized() {
+                        return Main.isUnknownHostChatRequestHookAuthorized(candidate, requestConstructor);
+                    }
+                });
+        if (status.getState() != HookLifecycleManager.State.ACTIVE) {
+            Main.log("unknown-host chat request Hook not activated: state="
+                    + status.getState() + ", detail=" + status.getDetail());
+            return false;
+        }
         Main.log("unknown-host chat request constructor hooked; feature=system_prompt");
         return true;
     }

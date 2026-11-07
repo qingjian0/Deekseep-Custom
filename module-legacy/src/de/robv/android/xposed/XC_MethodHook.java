@@ -39,6 +39,6 @@ public abstract class XC_MethodHook {
         private final Member hookedMethod;
         Unhook(Member hookedMethod) { this.hookedMethod = hookedMethod; }
         public Member getHookedMethod() { return hookedMethod; }
-        public void unhook() {}
+        public void unhook() { XposedBridge.unhookForTest(hookedMethod); }
     }
 }
