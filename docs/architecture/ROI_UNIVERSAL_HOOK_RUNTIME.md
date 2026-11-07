@@ -33,7 +33,7 @@ Callers must provide:
 - an `EvidenceSource` that returns the candidate for the exact spec;
 - a `PolicySource` whose policy explicitly enables the role.
 
-The gate verifies fingerprint, role, class, method, parameter descriptors and return descriptor before asking `RoiHookResolver`. Any missing candidate, missing policy, identity mismatch, contradictory/incomplete evidence or discovery-only policy is denied before the backend is called.
+The activation gate receives the exact `ClassLoader` that the installer will use, derives its process-local source scope through `RoiCandidateIdentity`, and rejects a candidate whose `sourceScope` belongs to another loader. It then verifies fingerprint, role, class, method, parameter descriptors and return descriptor before asking `RoiHookResolver`. Any missing candidate, missing policy, identity mismatch, contradictory/incomplete evidence or discovery-only policy is denied before the backend is called.
 
 No default evidence provider or automatic role policy is enabled by this change. This preserves the existing unknown-host and feature-activation fail-closed behavior.
 
