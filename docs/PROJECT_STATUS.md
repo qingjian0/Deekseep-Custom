@@ -91,7 +91,7 @@
 
 code289（DeepSeek 2.7.2 / versionCode 289）的 APK 静态证据已补齐：`ly1 implements wu1`；`zn3.o(wu1, Long)` 委托到 `jw3.g(wu1, Long)` 并返回冷 Flow `Ly60`；`r3.c(dv1, yb3)` 是 DeltaCommand 事件 reducer，`cv1(sha)` 中 `sha.a` 为事件名、`sha.b` 为数据 JSON。静态分析记录了 `SET / APPEND / BATCH` 操作及其顺序应用规则；这些结构证据不等于运行时事件和数据契约已验证。
 
-当前分支 schema-6 源码已加入 `r3.c` 透明观察点，只读取白名单事件名，不读取 `sha.b`。已归档的 1,676 行真实设备日志是 schema 5，证明 Flow collect 与部分 continuation/callback 执行，但不含 `delta-dispatch-*` 事件。schema-6 观察器尚无设备运行日志，真实 `ready → delta* → close` 序列仍未证实。诊断探针要求 `BuildInfo.LOCAL_API_INCLUDED == false`，应由独立诊断构建运行；不能把该日志说成正式 Local API APK 的运行证据。Native Adapter 仍未实现，所有 Completion 路由继续 HTTP 503。
+当前分支 schema-6 源码已加入 `r3.c` 透明观察点，只读取白名单事件名，不读取 `sha.b`。Smali 复核进一步确认：`sha.a == null` 才是 DeltaCommand 通道；第一个 null-name Patch 创建 root，后续 null-name Patch 更新 root；`ready` 是独立元数据事件。观察器现将 null-name 记录为 `delta-command`，而不是错误地归入 `other`；字符串 `delta` / `parse_error` 不属于 `r3.c` 已确认的分支。已归档的 1,676 行真实设备日志是 schema 5，证明 Flow collect 与部分 continuation/callback 执行，但不含 `delta-dispatch-*` 事件。schema-6 观察器尚无设备运行日志，null-name DeltaCommand、`ready`、`close` 的真实运行时序列仍未证实。诊断探针要求 `BuildInfo.LOCAL_API_INCLUDED == false`，应由独立诊断构建运行；不能把该日志说成正式 Local API APK 的运行证据。Native Adapter 仍未实现，所有 Completion 路由继续 HTTP 503。
 
 ### 3.5 诊断 UI
 
