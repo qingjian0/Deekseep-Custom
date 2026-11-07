@@ -221,6 +221,16 @@ final class RoiRuntimeInvocationObserver {
         return null;
     }
 
+    /**
+     * Records that the host response parser ran, but deliberately does not claim it belongs to
+     * a request: vv7.e has no proven request/Flow identity parameter at this boundary.
+     */
+    static void recordResponseParserCoverage(Method parserMethod) {
+        if (parserMethod == null) return;
+        recordCoverage(parserMethod,
+                RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_RESPONSE_PARSER_CORRELATION);
+    }
+
     private static void recordCoverage(Method method,
             RoiRuntimeInvocationRecorder.CoverageStatus status) {
         try {
