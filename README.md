@@ -2,7 +2,7 @@
 
 ROI 是面向官方 DeepSeek Android 客户端（`com.deepseek.chat`）的 LSPosed / Xposed 项目。当前开发分支正在渐进引入 Kotlin Runtime、Agent Core 与本地 API Gateway，同时保留既有 Java Hook 和宿主兼容边界。
 
-> **开发状态提醒：** 当前开发分支已扩展 OpenAI Chat Completions、Responses、Anthropic Messages、SSE 与工具调用协议桥接；但 Open 版 DeepSeek 原生 Completion Adapter 仍未接通。`GET /v1/models` 仅返回模型目录，三个 Completion 协议入口在原生适配器未就绪时仍返回 HTTP 503。工具调用目前只将结构化调用结果返回客户端，不在模块内执行工具；Usage 为估算值并显式标记。请勿将协议路由可访问理解为模型已经可调用。
+> **开发状态提醒：** 当前开发分支已扩展 OpenAI Chat Completions、Responses、Anthropic Messages、SSE 与工具调用协议桥接；但 Open 版 DeepSeek 原生 Completion Adapter 仍未接通。`GET /v1/models` 仅返回模型目录，三个 Completion 协议入口均保持开放并进入执行门面；原生引擎缺失时按请求返回明确的 `engine_missing`，不在 Open 版本级别隐藏或预先关闭协议入口。工具调用目前只将结构化调用结果返回客户端，不在模块内执行工具；Usage 为估算值并显式标记。请勿将协议路由可访问理解为模型已经可调用。
 
 ## 当前工程基线
 
