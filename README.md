@@ -8,7 +8,7 @@ ROI 是面向官方 DeepSeek Android 客户端（`com.deepseek.chat`）的 LSPos
 
 | 项目 | 当前值 |
 |---|---|
-| 当前协议开发分支 | `work/local-api-protocol-port` |
+| 当前协议开发分支 | `work/local-api` |
 | 宿主包名 | `com.deepseek.chat` |
 | 模块包名 | `ds.dsh.DeepSeek` |
 | Xposed 入口 | `ds.dsh.DeepSeek.Main` |
