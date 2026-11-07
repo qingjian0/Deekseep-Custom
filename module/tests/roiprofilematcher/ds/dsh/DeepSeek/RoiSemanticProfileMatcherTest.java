@@ -95,7 +95,7 @@ public final class RoiSemanticProfileMatcherTest {
                 base.hostBuild, base.role, base.classDescriptor, base.superclassDescriptor,
                 base.interfaces, base.fields,
                 Arrays.asList("<init>(Lcfg;)V", "dispatch(Lreq;Ljava/lang/Long;)Lresp;",
-                        "route(Lother;Ljava/lang/Long;)Lresult;", "close()V"),
+                        "route(Lothr;Ljava/lang/Long;)Lres;", "close()V"),
                 base.externalCalls, base.semanticMarkers, base.methodRoles);
         RoiSemanticProfileMatcher.Match match = RoiSemanticProfileMatcher.rank(
                 source, Collections.singletonList(duplicateMethod)).get(0);
