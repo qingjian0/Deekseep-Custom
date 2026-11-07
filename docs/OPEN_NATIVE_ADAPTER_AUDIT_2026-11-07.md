@@ -47,6 +47,31 @@ That method currently resolves `ds.dsh.DeepSeek.z18` from the protected payload 
 
 Therefore, simply removing the Open readiness/503 guards would not create a working Open adapter. It would only move the failure from the explicit Open guard to the missing `z18` engine lookup. Do not make that change as a shortcut.
 
+## Prior code289 callback-observation handoff
+
+The previous runtime-diagnostic handoff records these concrete callback implementation classes discovered at the `y60.b(fl4, yb3)` boundary:
+
+- `cr9`
+- `ec0`
+- `s5`
+- `qa`
+- `k41`
+- `x0`
+
+It also records `zgb` as an observed related type. These names are runtime observations, not semantic classifications. In particular, do not infer that `cr9` or `ec0` is a text delta, that `s5` is a terminal event, or that `zgb` is a collector solely from the names.
+
+The handoff lists five diagnostic session logs, with one reported as 1,676 lines / approximately 532 KB. The raw session logs were not available in the current Library retrieval results during this audit, so the exact callback method descriptors, callback-enter/exit ordering, and event payload schemas have not been independently re-parsed in this commit.
+
+The next evidence pass must extract from the complete session log:
+
+1. `continuation-enter` callback0/callback1 implementation names, identity hashes, argument type lists, field-name/type shapes, and stack.
+2. Every `callback-class-observed` record and its installed method count.
+3. `callback-enter` / `callback-exit` / `callback-throw` records grouped by full method descriptor and receiver identity.
+4. Per-method aggregate invocation/failure counts and timing.
+5. Correlation between those records and the gateway's `OPEN_NATIVE_API_TRACE` lifecycle, without logging or exposing prompt/response contents.
+
+Until that extraction is complete, the class list narrows the investigation but does not establish response event semantics or authorize a functional Hook.
+
 ## What is already present
 
 - Open direct-Java HTTP server and request parsing.
