@@ -99,7 +99,7 @@ public final class RoiUniversalHookRuntime {
    for(Spec s:byId.values())for(String d:s.dependencies)if(!byId.containsKey(d)&&!active.containsKey(d))return result(false,s.id,"missing dependency "+d);
    List<Spec> ordered;try{ordered=order(byId);}catch(Exception e){return result(false,null,e.getMessage());}
    List<Target> targets=new ArrayList<Target>();
-   try{for(Spec s:ordered){Active old=active.get(s.id);if(old!=null){if(!same(old.target.spec,s))return result(false,s.id,"id already bound to another spec");continue;}targets.add(resolver.resolve(s,loader));}}
+   try{for(Spec s:ordered){Active old=active.get(s.id);if(old!=null){if(!same(old.target.spec,s))return result(false,s.id,"id already bound to another spec");if(states.get(s.id)!=State.ACTIVE)return result(false,s.id,"existing target has unresolved lifecycle failure; uninstall before retry");continue;}targets.add(resolver.resolve(s,loader));}}
    catch(ResolveException e){return result(false,null,e.getMessage());}
    List<Active> batch=new ArrayList<Active>();String current=null;
    try{for(Target t:targets){current=t.spec.id;for(Active a:active.values())if(a.target.member.equals(t.member))throw new IllegalStateException("target conflict with "+a.target.spec.id);
@@ -107,7 +107,7 @@ public final class RoiUniversalHookRuntime {
     Active item=new Active(t,h);batch.add(item);if(!health.verify(t,h))throw new IllegalStateException("post-install health failed");
     active.put(current,item);states.put(current,State.ACTIVE);}
     return result(true,null,"installed");
-   }catch(Throwable e){for(int i=batch.size()-1;i>=0;i--){Active a=batch.get(i);active.remove(a.target.spec.id);try{a.handle.unhook();states.put(a.target.spec.id,State.ROLLED_BACK);}catch(Exception rollback){states.put(a.target.spec.id,State.FAILED);}}
+   }catch(Throwable e){for(int i=batch.size()-1;i>=0;i--){Active a=batch.get(i);try{a.handle.unhook();active.remove(a.target.spec.id);states.put(a.target.spec.id,State.ROLLED_BACK);}catch(Exception rollback){active.put(a.target.spec.id,a);states.put(a.target.spec.id,State.FAILED);}}
     if(current!=null)states.put(current,State.FAILED);return result(false,current,e.getClass().getSimpleName()+": "+String.valueOf(e.getMessage()));}
   }
   public synchronized boolean uninstall(String id){Active a=active.remove(id);if(a==null)return false;try{a.handle.unhook();states.put(id,State.UNINSTALLED);return true;}catch(Exception e){active.put(id,a);states.put(id,State.FAILED);return false;}}

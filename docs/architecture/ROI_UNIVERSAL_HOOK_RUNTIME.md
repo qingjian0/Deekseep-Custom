@@ -80,3 +80,10 @@ The process-local ClassLoader scope remains a separate mandatory equality check;
 This binds a reviewed method candidate and semantic-role policy to the exact installed host build rather than trusting an independent caller-supplied label. It does not create evidence for an uninspected APK, validate a candidate's behavior, or authorize any production Hook by itself. Discovery remains diagnostic-only and the production catalog remains empty until exact APK/DEX and device evidence is reviewed.
 
 Regression coverage verifies deterministic fingerprint generation and invalidation when APK-set digest, signer, or Android version code changes; it also rejects legacy human-readable labels at both the gate and catalog-builder boundaries.
+
+
+## R11 lifecycle audit — retain handles after rollback failure
+
+A batch rollback is not complete when `Handle.unhook()` throws. The installer now retains that handle in its active map and marks its state `FAILED`, so `activeCount()` continues to expose the unresolved native registration. A later install attempt using that ID is rejected until explicit uninstall successfully retries cleanup. This prevents a retry from silently accepting a possibly live old callback or creating a duplicate registration.
+
+Regression coverage injects a backend install failure followed by a rollback-unhook failure, verifies the uncertain handle remains tracked, verifies duplicate install is blocked, then retries explicit cleanup and proves a fresh installation can proceed. Main's group uninstall gate therefore cannot mark the registry entry uninstalled while a failed rollback handle remains.

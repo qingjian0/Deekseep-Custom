@@ -6,8 +6,8 @@ public final class RoiUniversalHookRuntimeTest {
  static void ok(boolean b,String m){if(!b)throw new AssertionError(m);}
  static RoiUniversalHookRuntime.Callback cb(){return new RoiUniversalHookRuntime.Callback(){public void before(RoiUniversalHookRuntime.Invocation i){}public void after(RoiUniversalHookRuntime.Invocation i){}};}
  static RoiUniversalHookRuntime.Spec method(String id,String name,String ret,String...p){return RoiUniversalHookRuntime.Spec.builder(id).role("chat").className(Sample.class.getName()).method(name).params(p).returns(ret).fingerprint("fp").callback(cb()).build();}
- static final class Fake implements RoiUniversalHookRuntime.Backend {AtomicInteger adds=new AtomicInteger(),removes=new AtomicInteger();int failAt=-1;
- public RoiUniversalHookRuntime.Handle install(RoiUniversalHookRuntime.Target t,RoiUniversalHookRuntime.Callback c)throws Exception{if(adds.incrementAndGet()==failAt)throw new Exception("injected");return new RoiUniversalHookRuntime.Handle(){public void unhook(){removes.incrementAndGet();}};}}
+ static final class Fake implements RoiUniversalHookRuntime.Backend {AtomicInteger adds=new AtomicInteger(),removes=new AtomicInteger();int failAt=-1,failUnhookAt=-1;
+ public RoiUniversalHookRuntime.Handle install(RoiUniversalHookRuntime.Target t,RoiUniversalHookRuntime.Callback c)throws Exception{if(adds.incrementAndGet()==failAt)throw new Exception("injected");return new RoiUniversalHookRuntime.Handle(){public void unhook()throws Exception{if(removes.incrementAndGet()==failUnhookAt)throw new Exception("unhook injected");}};}}
  public static void main(String[]z)throws Exception{
   RoiUniversalHookRuntime.Resolver r=new RoiUniversalHookRuntime.Resolver();
   ok(r.resolve(method("m","convert","java.lang.String","int"),Sample.class.getClassLoader()).member.getName().equals("convert"),"exact private method");
@@ -36,6 +36,13 @@ public final class RoiUniversalHookRuntimeTest {
   ok(i.activeCount()==0&&f.removes.get()==4,"second group uninstall");
   Fake fail=new Fake();fail.failAt=2;RoiUniversalHookRuntime.Installer rollback=new RoiUniversalHookRuntime.Installer(r,fail,new RoiUniversalHookRuntime.Health(){public boolean verify(RoiUniversalHookRuntime.Target t,RoiUniversalHookRuntime.Handle h){return true;}},new RoiUniversalHookRuntime.ActivationGate(){public boolean authorized(RoiUniversalHookRuntime.Spec s,ClassLoader loader){return true;}});
   ok(!rollback.install(batch,Sample.class.getClassLoader(),"fp",a).success&&rollback.activeCount()==0&&fail.removes.get()==1,"reverse rollback");
+  Fake rollbackUnhookFailure=new Fake();rollbackUnhookFailure.failAt=2;rollbackUnhookFailure.failUnhookAt=1;
+  RoiUniversalHookRuntime.Installer uncertain=new RoiUniversalHookRuntime.Installer(r,rollbackUnhookFailure,new RoiUniversalHookRuntime.Health(){public boolean verify(RoiUniversalHookRuntime.Target t,RoiUniversalHookRuntime.Handle h){return true;}},new RoiUniversalHookRuntime.ActivationGate(){public boolean authorized(RoiUniversalHookRuntime.Spec s,ClassLoader loader){return true;}});
+  ok(!uncertain.install(batch,Sample.class.getClassLoader(),"fp",a).success&&uncertain.activeCount()==1&&uncertain.state("one")==RoiUniversalHookRuntime.State.FAILED,"failed rollback must retain uncertain handle");
+  ok(!uncertain.install(batch,Sample.class.getClassLoader(),"fp",a).success&&rollbackUnhookFailure.adds.get()==2,"uncertain handle must block duplicate installation");
+  ok(uncertain.uninstall("one")&&uncertain.activeCount()==0,"explicit cleanup must retry failed rollback unhook");
+  ok(uncertain.install(batch,Sample.class.getClassLoader(),"fp",a).success&&uncertain.activeCount()==2,"installation may resume after uncertain handle is cleared");
+  uncertain.uninstallAll();ok(uncertain.activeCount()==0,"cleanup after recovered installation");
   RoiUniversalHookRuntime.Installer unhealthy=new RoiUniversalHookRuntime.Installer(r,new Fake(),new RoiUniversalHookRuntime.Health(){public boolean verify(RoiUniversalHookRuntime.Target t,RoiUniversalHookRuntime.Handle h){return false;}},new RoiUniversalHookRuntime.ActivationGate(){public boolean authorized(RoiUniversalHookRuntime.Spec s,ClassLoader loader){return true;}});
   ok(!unhealthy.install(Collections.singletonList(one),Sample.class.getClassLoader(),"fp",a).success&&unhealthy.activeCount()==0,"health failure rollback");
   System.out.println("ROI universal hook runtime tests passed");
