@@ -1233,6 +1233,10 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             RoiDexKitDiscovery.schedule(cl,
                     param.appInfo == null ? null : param.appInfo.sourceDir,
                     param.appInfo == null ? null : param.appInfo.splitSourceDirs);
+            // Unknown hosts remain read-only, but activation reporting is independent of feature
+            // compatibility. Keep the user-visible injection confirmation and target heartbeat
+            // alive without installing any DeepSeek business/feature hooks.
+            installUnknownHostActivationObserver();
             // Unknown-host switches never fall through to legacy feature hooks. The separate
             // feature switch can authorize only the serializer-verified chat prompt adapter.
             return;
@@ -1636,6 +1640,44 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             installAllFeatureHooks(cl);
         } else {
             log("Cold start: unauthenticated, feature hooks suppressed pending activation");
+        }
+    }
+
+    /**
+     * Unknown-host activation lane. This hooks only the Android Activity lifecycle boundary;
+     * it does not inspect or hook DeepSeek business classes and does not authorize feature hooks.
+     */
+    private void installUnknownHostActivationObserver() {
+        try {
+            Method onResume = HostRemap.declaredMethod(Activity.class, "onResume");
+            hook(onResume).intercept(new Hooker() {
+                @Override public Object intercept(Chain chain) throws Throwable {
+                    Object result = chain.proceed();
+                    try {
+                        Activity act = (Activity) chain.getThisObject();
+                        if (act == null || !TARGET.equals(act.getPackageName())) return result;
+                        reportActivationHeartbeat(act);
+                        final String pid = String.valueOf(android.os.Process.myPid());
+                        if (!loadToastShown
+                                && !pid.equals(System.getProperty("deekseep.toast.shown.pid"))) {
+                            loadToastShown = true;
+                            System.setProperty("deekseep.toast.shown.pid", pid);
+                            Toast.makeText(act,
+                                    "YunSeek 已注入（未知版本只读模式）",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (Throwable error) {
+                        log("unknown-host activation observer callback failed: "
+                                + safeThrowableMessage(error));
+                    }
+                    return result;
+                }
+            });
+            log("unknown-host activation observer installed (Activity.onResume only)");
+        } catch (Throwable error) {
+            rethrowFatalHookInstallFailure(error);
+            log("unknown-host activation observer unavailable: "
+                    + safeThrowableMessage(error));
         }
     }
 
@@ -7493,7 +7535,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
      * arbitrary app cannot make the launcher claim that the DeepSeek scope is active.
      */
     private static void reportActivationHeartbeat(Activity act) {
-        if (!BuildInfo.PROTECTED_BUILD || act == null) return;
+        // Activation is a host-injection fact, not a protected-build feature. Open/unknown-host
+        // builds must report it too so the launcher does not remain falsely "Not activated".
+        if (act == null) return;
         long now = System.currentTimeMillis();
         if (now - activationHeartbeatAttemptAt < 60_000L) return;
         activationHeartbeatAttemptAt = now;
