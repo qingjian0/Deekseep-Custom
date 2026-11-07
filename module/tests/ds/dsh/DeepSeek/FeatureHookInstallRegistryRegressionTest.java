@@ -256,6 +256,8 @@ public final class FeatureHookInstallRegistryRegressionTest {
         check(status(registry, "test.reinstallable").state
                         == FeatureHookInstallRegistry.State.UNINSTALLED,
                 "uninstall state");
+        check(!registry.markUninstalled("test.reinstallable"),
+                "already uninstalled state must not transition twice");
         check(!registry.hasFailures(), "uninstall is not an installation failure");
 
         registry.install("test.reinstallable", () -> attempts.incrementAndGet());
@@ -268,8 +270,6 @@ public final class FeatureHookInstallRegistryRegressionTest {
 
         check(!registry.markUninstalled("test.missing"),
                 "missing registry entry must not be uninstalled");
-        check(!registry.markUninstalled("test.reinstallable"),
-                "non-installed state must not be uninstalled twice");
     }
 
     private static void keepsSkippedInstallTerminal() throws Throwable {
