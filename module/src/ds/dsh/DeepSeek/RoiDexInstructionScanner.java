@@ -124,14 +124,22 @@ public final class RoiDexInstructionScanner {
                     if(!scan.isInstructionBoundary(next))throw new ScanException("fallthrough_enters_payload:"+next);
                     starts.add(next);
                 }
-            } else if(isGoto(i.opcode)||isTerminal(i.opcode)) {
-                int executableNext=nextExecutableOffset(scan,next);
-                if(executableNext<code.length)starts.add(executableNext);
             }
             if(isSwitch(i.opcode)) {
                 int payloadOffset=checkedTarget(i.offset,s32(code,i.offset+1));
                 Instruction payload=scan.at(payloadOffset);
                 for(int target:payloadTargets(code,payloadOffset,payload.payloadKind,i.offset))starts.add(target);
+            }
+            // Preserve real code after a terminator as a disconnected block so
+            // downstream analyses can explicitly mark it unreachable. The one
+            // exception is the alignment NOP immediately preceding a payload.
+            if(isGoto(i.opcode)||isTerminal(i.opcode)) {
+                if(next<code.length&&scan.isInstructionBoundary(next)) {
+                    Instruction following=scan.at(next);
+                    boolean payloadAlignmentNop=following.opcode==0x00
+                            &&next+1<code.length&&scan.isPayloadStart(next+1);
+                    if(!payloadAlignmentNop)starts.add(next);
+                }
             }
         }
         List<Integer> ordered=new ArrayList<Integer>(starts);
@@ -157,6 +165,10 @@ public final class RoiDexInstructionScanner {
                 if(p+ins.width>limit)throw new ScanException("invalid_block_extent:"+p);
                 body.add(ins);
                 p+=ins.width;
+                // A goto/return has no fallthrough. A following real instruction
+                // may still begin a disconnected dead-code block; payload-alignment
+                // NOPs are excluded above and payload data is never a block.
+                if(isGoto(ins.opcode)||isTerminal(ins.opcode))break;
             }
             if(body.isEmpty())throw new ScanException("empty_basic_block:"+start);
             int end=body.get(body.size()-1).offset+body.get(body.size()-1).width;
@@ -190,16 +202,6 @@ public final class RoiDexInstructionScanner {
     private static void requireFallthroughBoundary(ScanResult scan,int offset)throws ScanException {
         if(offset<scan.codeUnits&&!scan.isInstructionBoundary(offset))
             throw new ScanException("fallthrough_enters_payload:"+offset);
-    }
-    private static int nextExecutableOffset(ScanResult scan,int offset) {
-        int p=offset;
-        while(p<scan.codeUnits) {
-            Instruction ins=scan.at(p);
-            if(ins==null)return scan.codeUnits;
-            if(!ins.payload)return p;
-            p+=ins.width;
-        }
-        return scan.codeUnits;
     }
     private static void addFallthrough(List<Edge> e,int from,int target,Map<Integer,Integer> blocks,String kind)throws ScanException {
         Integer to=blocks.get(target);
