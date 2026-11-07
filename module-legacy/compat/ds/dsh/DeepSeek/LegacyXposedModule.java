@@ -77,6 +77,15 @@ abstract class LegacyXposedModule {
         default boolean isRequired() { return false; }
     }
 
+    interface HookRegistrationHandle { void unhook(); boolean isActive(); }
+
+    private static final class ManagedHooker implements Hooker {
+        private final Hooker delegate;
+        ManagedHooker(Hooker delegate) { this.delegate = delegate; }
+        @Override public Object intercept(Chain chain) throws Throwable { return delegate.intercept(chain); }
+        @Override public boolean isRequired() { return delegate.isRequired(); }
+    }
+
     private static final class InvocationState {
         boolean originalInvoked;
         Object originalResult;
@@ -252,6 +261,7 @@ abstract class LegacyXposedModule {
         private final java.util.IdentityHashMap<Hooker, String> scopedRegistrationKeys =
                 new java.util.IdentityHashMap<Hooker, String>();
         private boolean registered;
+        private XC_MethodHook.Unhook xposedUnhook;
         // XposedBridge implementations may publish a callback in their per-Member callback
         // registry before native hook installation completes. If hookMethod then throws, a
         // second call can observe that stale registry entry and return without retrying the
@@ -344,6 +354,7 @@ abstract class LegacyXposedModule {
                         "XposedBridge.hookMethod returned null for " + member);
             }
             registered = true;
+            xposedUnhook = unhook;
             if (registrationKey != null) {
                 scopedRegistrations.add(registrationKey);
                 if (removable) scopedRegistrationKeys.put(hooker, registrationKey);
@@ -354,6 +365,35 @@ abstract class LegacyXposedModule {
             return true;
         }
 
+        synchronized HookRegistrationHandle interceptManaged(final Hooker delegate) {
+            if (delegate == null) throw new NullPointerException("hooker");
+            final Hooker managed = new ManagedHooker(delegate);
+            HookRegistrationScope previous = hookRegistrationScope.get();
+            hookRegistrationScope.remove();
+            try { intercept(managed); }
+            finally { if (previous == null) hookRegistrationScope.remove(); else hookRegistrationScope.set(previous); }
+            return new HookRegistrationHandle() {
+                private boolean closed;
+                @Override public void unhook() {
+                    synchronized (HookTarget.this) {
+                        if (closed) return;
+                        if (!hookers.contains(managed)) { closed = true; return; }
+                        if (hookers.size() == 1 && registered) {
+                            if (xposedUnhook == null) throw new IllegalStateException("missing Xposed unhook handle: " + member);
+                            xposedUnhook.unhook();
+                            registered = false;
+                            xposedUnhook = null;
+                        }
+                        hookers.remove(managed);
+                        closed = true;
+                    }
+                }
+                @Override public boolean isActive() {
+                    synchronized (HookTarget.this) { return !closed && hookers.contains(managed); }
+                }
+            };
+        }
+
         synchronized void remove(Hooker hooker) {
             if (hooker == null) return;
             String registrationKey = scopedRegistrationKeys.get(hooker);
@@ -361,6 +401,10 @@ abstract class LegacyXposedModule {
             scopedRegistrationKeys.remove(hooker);
             hookers.remove(hooker);
         }
+    }
+
+    final HookRegistrationHandle registerManaged(Member member, Hooker hooker) {
+        return hook(member).interceptManaged(hooker);
     }
 
     /**
