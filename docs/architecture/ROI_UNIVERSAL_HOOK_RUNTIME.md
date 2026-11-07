@@ -1,7 +1,7 @@
 # ROI Universal Hook Runtime — R1–R9
 
 ## Delivery status
-This change supplies a backend-neutral Java 8 Hook runtime core. It does not claim that a production Xposed backend is wired into every existing feature hook or that any host build has passed device validation. Existing RoiHookResolver remains the evidence/authorization gate.
+This change supplies a backend-neutral Java 8 Hook runtime core. It does not claim that a production Xposed backend is wired into every existing feature hook or that any host build has passed device validation. Existing RoiHookResolver remains the evidence/authorization gate. Installer requires a non-null ActivationGate; production integration must delegate that gate to RoiHookResolver, and the runtime rejects activation before calling Backend when the gate denies.
 
 | Stage | Implemented in this change | Remaining integration boundary |
 |---|---|---|
