@@ -733,3 +733,63 @@ nn0 repository request factory
 进一步检查 `oe2.k(Lys)` 发现：恢复已有会话组件时也注入同一个 `sendMessageToNewSession` function reference。因此不能仅凭函数名就认定该回调只负责“创建新 session”；它是 ChatSessionComponent 的消息转发回调，既被新占位组件 `oe2.j()` 使用，也被已有会话组件 `oe2.k(ys)` 使用。当前 R8 Smali 中未定位到该引用对应的函数体，回调内部是否区分空/非空 sessionId 仍待证实。
 
 同时，`oe2.q` 的初始化来源可进一步确定：`oe2.<init>` 调用 `i37.s(mj7)`，取返回 `vi7.a`，封装为 StateFlow 后保存到 `oe2.q`；`i37.s` 从模型配置列表优先选择 `vi7.e == true` 的项，无选中项才回退 `kj7.c`。因此新占位 `ys` 的 model_type 状态初值来自宿主当前选择模型配置的 key。它不是从 API model 字符串直接推导出来的。
+
+
+## 2026-11-07：code289 服务端 Session Factory 与预取队列已定位
+
+本轮继续沿 `oe2.i`、`fx1.m`、`mb0.F`、`ch2.b`、`rz0`、`j41`、`ft9`、`Lok2`、`ss9` 追踪，已经定位宿主的服务端会话创建实现，而不再只是 UI 空 ID 占位对象。
+
+### 1. 宿主创建流程入口与预取队列
+
+`oe2.i(oe2, Lik2, Lo97, Function0)` 是此前 function reference `sendMessageToNewSession` 对应的实际静态目标方法（签名与回调调用参数一致）。其协程 `a20` 会调用：
+
+`fx1.m(Continuation)`
+
+`fx1.m()` 先检查 `fx1.m` 持有的 `pi` 内部会话预取队列（`pi.e` 为 `ce3` / 队列管理器）：
+
+- 队列有可用 `fn8`：从队列取出已有 `ss9`，更新计时字段，装配 `ys(ss9, qs)`，清空标题，作为缓存命中返回。
+- 队列无可用项：通过 `pi.b` 的宿主 coroutine context 启动 `mb0.F()`，走服务端创建分支。
+- 两种成功分支都返回 `pt7`，其 `b` 是 `tn2(ys, cacheHit)`；`tn2.b` 用于后续 `is_cache_hit` 埋点。
+
+因此，宿主的“创建新会话”不是每次都裸调 HTTP；它优先消费预取队列，缺少缓存时才走服务端创建。
+
+### 2. 服务端创建请求与响应解析
+
+`mb0.F()` 通过 `pi.c`（`zn3`）进入 `zn3.b`（`ch2`）网络服务；`ch2.b()` 使用 `bi5` 的 serializer/request pipeline。对应 `rz0` request builder 的分支明确包含路径：
+
+`/api/v0/chat_session/create`
+
+响应包装类 `ft9` 明确声明字段：
+- `a`：biz_code；
+- `b`：biz_msg；
+- `c`：biz_data（`Lc26` JSON payload）。
+
+`mb0.F()` 取得并校验响应后，将响应交给 `j41`；`j41` 的对应分支使用 `Lok2.serializer()` 解码 `ft9.c`，取出 `Lok2.a:Lss9`，再执行：
+
+`new ys(ss9, qs)`
+
+随后将该 `ys` 包装为 `tn2(ys, false)` 并返回。真实 session ID 因而来自服务端响应中的 `ss9.a`，而不是客户端 UUID。
+
+### 3. 模型选择更新与会话持久化顺序
+
+`oe2.i` 收到 `fx1.m()` 的 `pt7` 成功结果后：
+
+1. 从 `tn2.a` 取回服务端会话 `ys)；
+2. 使用 `ys.G(Lo97.d)` 将当前消息请求选择的模型 key 写入 `ys.d)（model type StateFlow）；这一步发生在持久化之前；
+3. 记录 `chat_session_created`，其中 `chat_session_id` 取自 `ys.a)，`sse_transaction_uuid` 取自消息/fragment `ada)；
+4. 启动 `Leo2` 对应协程，调用 `fx1.l(ys)`；
+5. `fx1.l(ys)` 委托到 `pi.e(ys)`，通过 `wn2` 投递到 `pi.g:Lix0` actor/队列更新流程；
+6. 完成 UI 回调后，再把原始 `Lo97` 请求转换为消息事件投递给当前会话组件。
+
+这给出了宿主会话初始化的实际顺序：**服务端/预取会话取得 → 当前模型 key 回填 → 会话仓库异步持久化 → 消息事件进入组件**。
+
+### 4. Native Session Factory 实现决策
+
+- 不再自行构造 `ss9` 或生成 `chat_session_id`。
+- 优先研究复用宿主 `fx1.m()` 的预取/服务端创建逻辑，并在成功后按宿主顺序更新 model type 与持久化。
+- 不直接复制 `/api/v0/chat_session/create` 请求；必须保留 `zn3/ch2/bi5` 网络栈、响应校验、认证/Challenge/PoW 与宿主错误处理。
+- 当前仍未实现 Local API 到该宿主服务的安全桥接。需要确认可稳定取得 `fx1` 实例的生命周期入口、Continuation/取消语义，以及 `fx1.l()` actor 写入完成与失败反馈。
+- `fx1.m()` 返回的缓存命中和网络创建结果需要分别测试；不能只测试无缓存分支。
+- 由于本轮只有静态 Smali 证据，尚未声称已在真机观察到该 endpoint 或会话回填。Completion 继续 HTTP 503 fail-closed。
+
+本节是 code289 APK 静态调用链结论，不代表运行时验证或 Local API 已可用。
