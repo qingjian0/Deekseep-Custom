@@ -25,6 +25,9 @@ public final class RoiUniversalHookRuntimeTest {
   ok(i.install(batch,Sample.class.getClassLoader(),"fp",a).success&&f.adds.get()==2,"idempotency");
   RoiUniversalHookRuntime.Spec collision=RoiUniversalHookRuntime.Spec.builder("one").role("chat").className(Sample.class.getName()).method("convert").params("int").returns("void").fingerprint("fp").callback(cb()).build();
   ok(!i.install(Collections.singletonList(collision),Sample.class.getClassLoader(),"fp",a).success&&f.adds.get()==2,"same id with changed return contract must be rejected");
+  RoiUniversalHookRuntime.Spec callbackReplacement=method("one","convert","java.lang.String","int");
+  ok(!i.install(Collections.singletonList(callbackReplacement),Sample.class.getClassLoader(),"fp",a).success
+      &&f.adds.get()==2,"same ID and target with a different callback binding must be rejected");
   i.uninstallAll();
   ok(i.activeCount()==0&&f.removes.get()==2,"group uninstallAll");
   ok(i.install(batch,Sample.class.getClassLoader(),"fp",a).success
