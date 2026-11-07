@@ -294,4 +294,4 @@ fx1.m(Continuation)
 python3 tools/audit_code289_session_fallback.py /path/to/all-smali.zip
 ```
 
-本轮对 workflow artifact 中的 `all-smali.zip` 执行了相同的 14 项静态断言，结果 **14/14 PASS**。脚本只检查 Smali 结构和关键调用/常量，不执行宿主代码，也不代表 Android 构建、设备运行或认证链路通过。
+本轮对 workflow artifact 中的 `all-smali.zip` 执行了相同的 16 项静态断言，结果 **16/16 PASS**。脚本只检查 Smali 结构和关键调用/常量，不执行宿主代码，也不代表 Android 构建、设备运行或认证链路通过。
