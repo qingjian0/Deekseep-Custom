@@ -558,7 +558,7 @@ require(
 )
 require(
     probe,
-    r'readCompleteSessionLog\\(\\).*?FileInputStream\\(file\\).*?while \\(\\(count = input\\.read\\(buffer\\)\\) != -1\\).*?OPEN_NATIVE_PERSISTED_SESSION_LOG',
+    r'readCompleteSessionLog\(\).*?FileInputStream\(file\).*?while \(\(count = input\.read\(buffer\)\) != -1\).*?OPEN_NATIVE_PERSISTED_SESSION_LOG',
     "the copy-report action includes the complete persisted session log rather than only the in-memory preview",
 )
 require(
