@@ -4,7 +4,9 @@ on:
     branches: ["work/roi-universal-hook-r1-r9"]
     paths:
       - "module/src/ds/dsh/DeepSeek/RoiUniversalHookRuntime.java"
+      - "module/src/ds/dsh/DeepSeek/RoiHookResolverActivationGate.java"
       - "module/tests/roiuniversalhook/**"
+      - "module/tests/roiresolveractivationgate/**"
       - "module/test-roi-universal-hook-runtime.sh"
       - "docs/architecture/ROI_UNIVERSAL_HOOK_RUNTIME.md"
       - ".github/workflows/roi-universal-hook.yml"
