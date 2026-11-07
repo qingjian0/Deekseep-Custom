@@ -546,7 +546,6 @@ final class OpenNativeCompletionProbe {
         } catch (ThreadDeath fatal) {
             throw fatal;
         } catch (Throwable error) {
-            OBSERVATION_R3.set(false);
             safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] delta-dispatch-install-failed exception="
                     + error.getClass().getName());
         }

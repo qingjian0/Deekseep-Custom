@@ -355,28 +355,25 @@ collecting it, subscribe to it, invoke methods on the result, or alter the origi
 
 ### Next bounded work
 
-1. Re-run the updated schema-5 bounded probe on code289 with one ordinary host chat
-   request and one minimal Local API request. Confirm that only methods declared by the concrete
-   callback classes are hooked, no parent methods such as zb3.t() are observed, and the original
-   host behavior remains unchanged.
-2. Use the already observed callback pairs and full descriptors to statically inspect the
-   callback implementations and their call sites, prioritizing callback-1 methods and the
-   frequently observed result wrappers `cd3` / `zgb`. Do not infer business semantics from
-   obfuscated names or exception classes alone.
-3. Locate the exact response/event consumer from code289 APK call sites and DEX data flow.
-   Separate transport completion, callback dispatch, message-fragment decoding, UI reduction,
-   and persistence; do not assume `y60.b` itself is the SSE parser.
-4. Only after the collector/decoder owner and descriptor are proven, add a separate bounded,
-   pass-through observation of the real consumer. Preserve the original Flow/result object and
-   cancellation semantics; do not subscribe a second time.
-5. Confirm Request construction and Challenge/PoW association independently from the code289
-   APK. Do not treat the `Long` argument as a timeout or challenge until its call-site semantics
-   are established.
+1. Install the current schema-6 Open diagnostic APK on the code289 host build (the diagnostic
+   observer is excluded when `BuildInfo.LOCAL_API_INCLUDED=true`). Explicitly enable the probe,
+   perform one ordinary host chat, and export the app-private session log.
+2. Verify the direct `r3.c(dv1, yb3)` observer reports the actual `cv1` event-name sequence
+   (`ready`, one or more `delta`, terminal `close`, or an explicit `parse_error`). Confirm
+   each dispatch preserves the host result/exception and that no `sha.b` payload is read.
+3. Correlate those dispatch records with the existing `y60.b` collector/Continuation records
+   and the completed host UI message. Validate `response.fragments`, fragment type via
+   `nk0.k()`, text via `nk0.f()`, and the RESPONSE / THINK / SEARCH / tool fragment mapping.
+4. Only after the runtime event ledger is complete, implement the Open adapter around the
+   verified `ly1` Request and `zn3.o -> jw3.g -> Ly60` path. Prove Flow collection, cancellation,
+   deadline propagation, session creation/reuse, PoW association, and error mapping. Do not
+   subscribe a second time or infer the meaning of the `Long` argument.
+5. Keep every completion route fail-closed with HTTP 503 until code289 runtime tests prove
+   non-streaming, streaming, cancellation, error propagation, and session isolation.
 
 The Gateway remains fail-closed with HTTP 503 until a separately reviewed Open native adapter
 implements and verifies Request construction, Challenge/PoW, Transport, event decoding,
 cancellation, session isolation, and error mapping.
-
 
 ## 2026-11-07：code289 回调探针限域修正
 
@@ -571,3 +568,11 @@ nn0 repository request factory
 ## 外部 Local API 参考
 
 已对开源项目 [`Xposed-Modules-Repo/com.dsmod.probe`](https://github.com/Xposed-Modules-Repo/com.dsmod.probe) 的 Local API 实现进行源码级分析，重点核对了 `LocalApiGateway`、`Main.executeLocalApiCompletion`、`NativeApiPatchDecoder`、`OpenAiToolBridge` 和协议回归测试。其宿主版本为 DeepSeek 2.2.2（code233/236），不能直接复用混淆符号到本项目 2.7.x/code289。架构差异、可移植设计、禁止照搬项和 ROI 实施顺序见 [DSMOD_PROBE_LOCAL_API_REFERENCE.md](architecture/DSMOD_PROBE_LOCAL_API_REFERENCE.md)。
+
+
+## 2026-11-07：code289 Delta dispatch 观察点
+
+- 新增 code289-only `r3.c(dv1, yb3)` 透明 Hook，直接观察静态调用图中的 DeltaCommand reducer，不再仅凭 `y60.b` 的返回值推断事件已被消费。
+- 事件日志只读取 `cv1.a -> sha.a) 的白名单事件名：`ready`、`parse_error`、`delta`、`hint`、`title`、`update_session)、`close`；未知名称统一记录为 `other`。绝不读取 `sha.b) 数据 JSON。
+- Hook 在禁用时直接透传；启用时原方法只执行一次，保留原始返回值和异常。诊断读取/日志异常不替代宿主执行。Hook 注册尝试一旦开始即保持去重标记，避免框架部分注册后重试造成重复拦截。
+- 该观察点只用于补齐真机证据，不构成 Native Adapter。当前仍未证明真实 `ready -> delta* -> close` 事件序列，也未证明 Local API 能驱动模型执行。

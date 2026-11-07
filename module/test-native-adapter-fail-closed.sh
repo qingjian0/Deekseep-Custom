@@ -555,6 +555,8 @@ if delta_observer is None:
     raise SystemExit("Delta dispatch observer method boundary is missing")
 if delta_observer.group(1).count("chain.proceed()") != 2:
     raise SystemExit("Delta dispatch observer must pass through once when disabled and once when enabled")
+if "OBSERVATION_R3.set(false)" in delta_observer.group(1):
+    raise SystemExit("Delta observer must not retry after a hook registration may have partially succeeded")
 
 require(
     probe,

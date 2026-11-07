@@ -1,10 +1,11 @@
 # 项目状态与交付基线
 
  > 项目名称：ROI  
-> 状态日期：2026-11-05  
-> 适用分支：`dev`  
-> 最近一次历史完整 CI 成功：`c0cec5256e84917781b10591f4268c13a49ab42d`；Run `41836377762`（历史记录，不代表当前 HEAD）  
-> R2.5.3 当前代码已提交至 `dev`；以分支最新 HEAD 为准。最新 GitHub Actions 检查仍在排队，尚无完成结果  
+> 状态日期：2026-11-07  
+> 当前工作分支：`work/local-api-protocol-port`  
+> 当前 PR：[#16](https://github.com/qingjian0/Deekseep-Custom/pull/16)，Draft，目标分支 `dev`  
+> 最近一次已完成完整 CI：`cd2742b42a3cb7de2a25c15274500f77666c17e1`；Run `42355705172`（#1789，全部 Job 成功；后续提交需重新验证）  
+> `main` 未修改，未执行合并；本文件记录开发分支，不代表公开 Release 已包含这些改动。
 > 宿主：官方 DeepSeek Android `com.deepseek.chat`  
 > 宿主版本目标：国内版 2.7.1（versionCode 287）、国内版 2.7.2（289）、Google Play / 国际版 2.7.2（290）
 
@@ -23,10 +24,10 @@
 
 | 项目 | 当前值 |
 |---|---|
-| 工作分支 | `dev` |
-| 最近一次 Runtime 观察修复 | R2.5.3 sourceScope 精确归属（见当前 HEAD） |
+| 工作分支 | `work/local-api-protocol-port`（PR #16 → `dev`） |
+| 最近一次 Runtime 观察修复 | code289 `r3.c(dv1, yb3)` Delta 事件观察点；仅记录白名单事件名，不读 `sha.b` |
 | 最近一次 ROI 扫描预算实现 | `cca035d6b319a5ed0ab897bee6b1fb2a3c36589b` |
-| 最近一次历史完整 CI | [Run `41836377762`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41836377762) — success；R2.5.3 CI pending |
+| 最近一次已完成完整 CI | [Run `42355705172`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42355705172) — success（commit `cd2742b`）；后续 HEAD 仍需独立验证 |
 | Kotlin 架构基线 | `refactor/kotlin-hook-architecture`（历史基线） |
 | 与架构基线关系 | 不作为当前 `dev` 的实时 ahead/behind 指标 |
 | 主干策略 | 不自动合并 `main`；不重置或覆盖工作分支 |
@@ -61,8 +62,9 @@
 | 路由 | 当前状态 |
 |---|---|
 | `GET /v1/models` | 返回配置模型清单；不代表原生执行就绪 |
-| `POST /v1/chat/completions` | HTTP/JSON/SSE 路由已实现；原生适配器未就绪时返回 503 |
-| `POST /v1/responses` | 未实现 |
+| `POST /v1/chat/completions` | OpenAI Chat 请求校验、响应映射、SSE 和非流式 tool-call bridge 已实现；原生适配器未就绪时返回 503 |
+| `POST /v1/responses` | Responses 输入/输出映射、受限 `previous_response_id` 状态和 SSE 已实现；原生适配器未就绪时返回 503 |
+| `POST /v1/messages` | Anthropic Messages 请求/响应映射和 SSE 已实现；原生适配器未就绪时返回 503 |
 | `POST /v1/agent/run` | 未实现 |
 
 网络与安全边界：
@@ -87,6 +89,10 @@
 
 下一阶段必须追踪官方客户端的请求构造、PoW 管理、网络 Transport、Flow/SSE 事件、响应消费、会话上下文、取消与超时，找出可在 Open 版合法实现的最小原生调用边界。
 
+code289（DeepSeek 2.7.2 / versionCode 289）的 APK 静态证据已补齐：`ly1 implements wu1`；`zn3.o(wu1, Long)` 委托到 `jw3.g(wu1, Long)` 并返回冷 Flow `Ly60`；`r3.c(dv1, yb3)` 是 DeltaCommand 事件 reducer，`cv1(sha)` 中 `sha.a` 为事件名、`sha.b` 为数据 JSON。Patch 支持 `SET / APPEND / BATCH)，`BATCH` 顺序递归应用，路径/操作缺省继承上下文。
+
+当前 schema-6 诊断构建已加入 `r3.c) 透明观察点，只读取白名单事件名，不读取 `sha.b)。此前真实设备日志证明 Flow 收集器/Continuation 有执行，但未直接观察到 `cv1` / `r3.c` 事件分发；因此还没有真实 `ready -> delta* -> close` 证据。Native Adapter 仍未实现，所有 Completion 路由继续 HTTP 503。
+
 ### 3.5 诊断 UI
 
 2026-11-06 修复：观察器的 setup / enter / exit / throw 日志此前有路径直接写外部日志，未进入复制缓冲区。现已统一经 `observerLog()` 写入有界缓冲区并镜像外部日志；回归脚本增加约束，防止观察事件绕过缓冲区。提交：`fa86b091`；对应回归断言：`87118b3c`（同时断言观察器区域不得直接调用 `Main.extLog()`）。
@@ -104,6 +110,7 @@ Open 原生 Completion 诊断位于 DeepSeek 模块设置的“工程”→“�
 |---|---|---|---|
 | [41647101079](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41647101079) | `4f80b5a` | Failure | Android Open build and lint 成功；Regression 因两条新 Toast 文案缺少精确译文失败 |
 | [41648546478](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41648546478) | `c87ce1b` | Cancelled | 后续同分支提交触发并发取消 |
+| [42355705172](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42355705172) | `cd2742b` | Success | ROI Fast Audit、Regression tests、Android Open build/Lint、APK 结构/对齐/签名检查全部通过；Open APK 与 Lint artifact 已上传 |
 | [41649071834](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41649071834) | `c34d8ba` | Success | Regression tests 与 Android Open build and lint 均成功；Open APK 结构、对齐和 CI 临时签名检查通过 |
 
 Run `41649071834` 是较早阶段的绿色基线。最新完整绿色 CI 为 [Run `41836377762`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41836377762)，对应 `dev` 提交 `c0cec525`，Regression、ROI fast audit、Android Open build/Lint 均通过。该 Run 验证的是 JVM/脚本回归和 Open Android 构建，不是宿主真机 Completion。
