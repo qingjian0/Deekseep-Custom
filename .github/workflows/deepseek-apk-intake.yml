@@ -2,12 +2,15 @@ name: DeepSeek APK read-only intake
 
 on:
   push:
-    branches: [dev]
+    branches: [dev, "work/**"]
     paths:
       - '.github/workflows/deepseek-apk-intake.yml'
       - 'scripts/inspect-deepseek-apk.py'
       - 'module/src/ds/dsh/DeepSeek/RoiDexApkCli.java'
       - 'module/src/ds/dsh/DeepSeek/RoiDexCandidateEvidence.java'
+      - 'module/src/ds/dsh/DeepSeek/RoiDexInvokeReachability.java'
+      - 'module/test-roi-invoke-reachability.sh'
+      - 'module/tests/roidexinvokereachability/ds/dsh/DeepSeek/RoiDexInvokeReachabilityTest.java'
       - 'module/src/ds/dsh/DeepSeek/RoiDexInstructionDecoder.java'
       - 'module/test-roi-dex-instruction-decoder.sh'
       - 'module/tests/roidexdecoder/ds/dsh/DeepSeek/RoiDexInstructionDecoderTest.java'
@@ -71,6 +74,11 @@ jobs:
           set -euo pipefail
           bash module/test-roi-apk-cli-budget.sh
 
+      - name: Run invoke reachability regression tests
+        run: |
+          set -euo pipefail
+          bash module/test-roi-invoke-reachability.sh
+
       - name: Install Android Build Tools
         run: |
           set -euo pipefail
@@ -123,6 +131,7 @@ jobs:
             "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexUseDefChains.java" \
             "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexMethodAnalysis.java" \
             "$ROOT/module/src/ds/dsh/DeepSeek/RoiCandidateGraph.java" \
+            "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexInvokeReachability.java" \
             "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexCandidateEvidence.java" \
             "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexApkCli.java"
 
