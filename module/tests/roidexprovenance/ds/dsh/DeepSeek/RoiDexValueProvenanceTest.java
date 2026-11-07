@@ -279,7 +279,7 @@ public final class RoiDexValueProvenanceTest {
                 base.instructionsOffset,base.instructions,
                 new RoiDexCodeReader.TryItem[]{new RoiDexCodeReader.TryItem(0,1,0)},
                 new RoiDexCodeReader.CatchHandler[0],base.nextOffset);
-        RoiDexInvokeResultLinker.Result links=RoiDexInvokeResultLinker.analyze(protectedCode,index->
+        RoiDexInvokeResultLinker.Result links=RoiDexInvokeResultLinker.analyze(base,index->
                 new RoiDexFileReader.ResolvedMethodId(index,"Lx;",
                         index==0?"decodeSerializableElement":"<init>",
                         index==0?"()Ljava/lang/Object;":"(Lx;)V"));
