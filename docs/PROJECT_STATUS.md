@@ -647,3 +647,17 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - Responses `previous_response_id` state is process-local, bounded to 64 entries and a 30-minute TTL; it is not durable across service restarts.
 - **Native execution remains the release blocker.** The code289 APK static audit establishes the Request/Transport/Challenge/PoW/Flow/SSE/DeltaCommand call graph, but no Open adapter currently captures the live `nn0/zn3` host objects, collects the native Flow, applies DeltaCommand patches, or maps the final response to `CompletionResult`. Completion routes must remain fail-closed with HTTP 503 until this is implemented and validated.
 - No code289 real-device completion, cancellation, timeout, resume, or concurrent-session verification is claimed.
+
+## 2026-11-07：code289 Session Factory 静态审计校正
+
+本轮继续追踪 code289 会话状态与原生请求调用点，已将以下校正同步到 `docs/NATIVE_ADAPTER.md`：
+
+- `kw1` 是 `nn0.d` 的 Kotlin suspend continuation；其 `y()` 以 null 占位参数重入后由 `nn0.d` 恢复保存的参数，不能作为独立的空 session 请求证据。
+- 业务发送入口由 `ik2.j0(...)` 创建 `uj2`，并携带真实 `ys` 会话状态进入 `nn0.d`。
+- `ys(ss9, qs)` 是从持久化/服务端 `ss9` 记录装配会话状态的明确路径；`fx1` 对 `ss9` 的直接构造是复制既有记录。
+- `oe2` 中发现的 UUID 生成用于 `ada` 消息/fragment 标识，不是 `chat_session_id` 生成证据。
+- `ys` 的直接多参数构造器存在，但其上游 `sr7` 选择/导航来源尚未完整映射，尚不能确定首次用户消息时 session ID 的创建策略。
+
+**阶段结论：** Session Factory 仍未实现；本轮没有添加猜测性的 sessionId/model_type/preempt，也没有启用 Completion。HTTP 503 fail-closed 保持。当前只完成静态证据与文档校正，不声称代码测试、CI、APK 或真机验证通过。
+
+本轮文档提交：`2d57a560b62de35686ae279a54a013c6f257156d`（`docs/NATIVE_ADAPTER.md`）；PR #16 仍为 Draft，目标 `dev`，未合并。
