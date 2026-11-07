@@ -20,6 +20,8 @@ public final class HostCompat {
     private static volatile boolean v236;
     private static volatile boolean v241;
     private static volatile boolean v250;
+    /** 2.7.5/code295 static markers recognized; feature runtime intentionally remains disabled. */
+    private static volatile boolean v275StaticOnly;
     /**
      * Mainland 2.7.1 (versionCode 287). Ported without a 2.4.1->2.7.1 structural diff, so only a
      * small, string/signature-anchored symbol set is maintained. Every other logical symbol
@@ -58,6 +60,14 @@ public final class HostCompat {
             // 2.4.1 -> 2.7.1 symbol table. Limited (whitelist) mode only if the table is missing.
             boolean full = HostRemap.activate(code271);
             v241 = v234 = v230 = full;
+            initialized = true;
+            return;
+        }
+        // DeepSeek 2.7.5/code295 has an independently audited static symbol family. Recognize
+        // it for diagnostics only: no HostRemap table or reviewed ROI activation catalog exists.
+        // Returning here is critical; falling through would expose the legacy 2.2.x identity path.
+        if (hasV275StaticMarkers(loader)) {
+            v275StaticOnly = true;
             initialized = true;
             return;
         }
@@ -100,6 +110,11 @@ public final class HostCompat {
 
     static boolean isV250() {
         return v250;
+    }
+
+    /** Static reconnaissance only; never implies maintained feature-hook support. */
+    static boolean isV275StaticOnly() {
+        return v275StaticOnly;
     }
 
     static boolean isV271() {
@@ -153,7 +168,7 @@ public final class HostCompat {
 
     static String diagnosticSummary() {
         return "channel=" + (isInternationalChannel() ? "google-play" : "mainland")
-                + "\ngeneration=" + (v271 ? (HostRemap.active() ? hostLabel() + " (2.4.1 map, " + HostRemap.classCount() + " classes)" : hostLabel() + " (limited)") : v250 ? "2.5.0" : v241 ? "2.4.1" : v236 ? "2.3.6"
+                + "\ngeneration=" + (v275StaticOnly ? "2.7.5/code295 (static-only; hooks disabled)" : v271 ? (HostRemap.active() ? hostLabel() + " (2.4.1 map, " + HostRemap.classCount() + " classes)" : hostLabel() + " (limited)") : v250 ? "2.5.0" : v241 ? "2.4.1" : v236 ? "2.3.6"
                 : v234 ? "2.3.4" : v230 ? "2.3.0" : "2.2.x")
                 + "\nlegacyUnit=" + (legacyUnitUsesTi8 ? "ti8" : "ui8");
     }
@@ -171,6 +186,7 @@ public final class HostCompat {
     }
 
     static String generationName() {
+        if (v275StaticOnly) return "2.7.5/code295-static-only";
         if (v271) return hostLabel() + (HostRemap.active() ? "" : "-limited");
         if (v250) return "2.5.0/code268-gp";
         if (v241) return "2.4.1/code257-cn";
@@ -254,6 +270,15 @@ public final class HostCompat {
             // mapping; the normal constructor will report a precise failure.
             return false;
         }
+    }
+
+    private static boolean hasV275StaticMarkers(ClassLoader loader) {
+        // These four symbols are independently present in the 2.7.5 static audit:
+        // qy1 request model, nw3 request/router owner, pv1 SSE dispatcher, b70 Flow wrapper.
+        // This is a generation hint only; exact APK/signer identity and reviewed HookSpecs
+        // remain mandatory before any ROI feature activation.
+        return classExists(loader, "qy1") && classExists(loader, "nw3")
+                && classExists(loader, "pv1") && classExists(loader, "b70");
     }
 
     private static boolean classExists(ClassLoader loader, String name) {
