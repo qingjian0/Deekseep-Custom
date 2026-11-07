@@ -12,14 +12,14 @@ import sys
 source = Path(sys.argv[1]).read_text(encoding="utf-8")
 evidence = Path(sys.argv[2]).read_text(encoding="utf-8")
 checks = {
-    "bounded analysis budget remains 480": "MAX_ANALYSIS_METHODS = 544" in source,
-    "selected-method analyzer accepts the bounded 480-method budget": "MAX_SELECTED_METHODS = 544" in evidence and "selectedMethodDescriptors.size() > MAX_SELECTED_METHODS" in evidence,
+    "bounded analysis budget remains 544": "MAX_ANALYSIS_METHODS = 544" in source,
+    "selected-method analyzer accepts the bounded 544-method budget": "MAX_SELECTED_METHODS = 544" in evidence and "selectedMethodDescriptors.size() > MAX_SELECTED_METHODS" in evidence,
     "fourth-hop reserve is explicit": "MAX_FOURTH_HOP_RESERVE = 64" in source,
     "fifth-hop reserve is explicit": "MAX_FIFTH_HOP_RESERVE = 64" in source,
     "sixth-hop reserve is explicit": "MAX_SIXTH_HOP_RESERVE = 64" in source,
     "hop three stops before consuming both later-hop reserves":
         "expandedMethods.size() >= MAX_ANALYSIS_METHODS - MAX_FOURTH_HOP_RESERVE - MAX_FIFTH_HOP_RESERVE - MAX_SIXTH_HOP_RESERVE" in source,
-    "hop four stops before consuming the fifth-hop reserve":
+    "hop four and five stop before consuming later-hop reserves":
         "expandedMethods.size() >= MAX_ANALYSIS_METHODS - MAX_FIFTH_HOP_RESERVE - MAX_SIXTH_HOP_RESERVE" in source and
         "expandedMethods.size() >= MAX_ANALYSIS_METHODS - MAX_SIXTH_HOP_RESERVE" in source,
     "fifth-hop traversal is present": "fifthLevelCalleeMethods.add(callee)" in source,

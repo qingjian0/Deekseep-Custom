@@ -247,7 +247,7 @@ public final class RoiDexApkCli {
                     thirdLevelCalleePriority.put(callee, priority);
                 }
             }
-            if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;
+            if (expandedMethods.size() >= MAX_ANALYSIS_METHODS - MAX_FOURTH_HOP_RESERVE - MAX_FIFTH_HOP_RESERVE - MAX_SIXTH_HOP_RESERVE) break;
         }
         RoiDexCandidateEvidence.Result thirdHopEvidence =
                 RoiDexCandidateEvidence.analyzeSelected(dex, scope, expandedMethods);
