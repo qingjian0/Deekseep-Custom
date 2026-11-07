@@ -2002,7 +2002,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         if (HostCompat.isV271Full()) {
             // Hand-verified 2.7.1 settings entry (gt0.Q page_show) as a guaranteed module entry;
             // the translated 2.4.1 settings hooks below are best effort on top of it.
-            log("installAllFeatureHooks: 2.7.1 full mode via HostRemap classes=" + HostRemap.classCount());
+            log("installAllFeatureHooks: " + HostCompat.hostLabel() + " full mode via HostRemap classes=" + HostRemap.classCount());
             installBestEffortHook("host.v271.settings-entry", () -> HostV271.installSettingsEntry(hookLoader),
                     "2.7.1 settings entry failed: ");
         }
@@ -2010,7 +2010,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             if (HostCompat.isV236() || HostCompat.isV241()) {
                 installHookStep("host.navigation.bridge", () -> HostNavigationBridge.install(this, hookLoader));
             }
-            installHookStep("agent.tool-log.rounded-rect", () -> HookAgentPipeline.INSTANCE.hookAgentToolLogRoundedRect(hookLoader));
+            installBestEffortHook("agent.tool-log.rounded-rect", () -> HookAgentPipeline.INSTANCE.hookAgentToolLogRoundedRect(hookLoader),
+                    "Agent tool-log rounded-rect hook unavailable: ");
             if (!HostCompat.isV271()) installHookStep("remote.feature-flags", () -> RemoteFeatureFlags.install(this, hookLoader));
             installHookStep("config.attachment-guide-rollout", () -> HookConfigRollout.INSTANCE.hookAttachmentGuidePromptRollout(hookLoader));
             installHookStep("config.home-welcome-rollout", () -> HookConfigRollout.INSTANCE.hookHomeWelcomeRollout(hookLoader));

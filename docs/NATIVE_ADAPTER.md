@@ -1,9 +1,10 @@
 # DeepSeek Native Completion Adapter 调查与实施边界
 
-> 适用分支：`work/roi-agent-core-kotlin`  
-> 当前源码快照：`690d7d7dd63f48e2762e34d001de99e4ae97e590`  
-> 宿主目标：`com.deepseek.chat`，versionCode 287 / 289 / 290  
-> 当前结论：**Open 原生 Completion Adapter 未完成；Gateway 保持 503 fail-closed。**
+> 适用分支：`work/local-api-protocol-port`（PR #16 → `dev`）  
+> 当前源码快照：PR #16 当前 HEAD（以 GitHub PR 元数据为准）  
+> 当前宿主验证目标：`com.deepseek.chat` 国内版 2.7.2 / versionCode 289（287 / 290 仅保留独立兼容调查，不继承 code289 证据）  
+> 当前结论：**协议网关已扩展；schema-6 只读诊断探针源码已加入，但 null-name DeltaCommand / `ready` / `close` 运行时事件尚未取得完整证据；Open 原生 Completion Adapter 未完成，所有 Completion 路由保持 HTTP 503 fail-closed。**  
+> 验证安排：按工程要求，PR CI、Open APK 构建与 code289 真机验证统一留到本阶段源码工作完成后执行；此前不宣称通过。
 
 ## 1. 结论摘要
 
@@ -347,26 +348,40 @@ collecting it, subscribe to it, invoke methods on the result, or alter the origi
   how it is collected.
 - The observer is enabled only for code289. It must not be generalized to code287 or code290
   without their own APK-derived exact descriptors and evidence.
-- No real-device observer log has yet been attached to this repository snapshot. Source presence
-  and CI success are not runtime evidence.
+- Real-device evidence is available on the diagnostic branch [fix/native-probe-concrete-callback-hooks](https://github.com/qingjian0/Deekseep-Custom/tree/fix/native-probe-concrete-callback-hooks): [open-native-1793943559724.log](https://github.com/qingjian0/Deekseep-Custom/blob/fix/native-probe-concrete-callback-hooks/open-native-1793943559724.log). The 1,676-line capture records four Request/Transport entries, nested `zn3.o -> jw3.g` calls using the same `ly1` object, and three observed continuation callback pairs: `cr9/k41`, `ec0/mm4`, `s5/g0`.
+- That capture records 833 callback-enter, 823 callback-exit, and zero callback-throw events; ten enter events have no matching terminal event in this file, so the capture is not a fully closed callback ledger. Most recorded calls came from inherited `zb3` / `rj0` methods, demonstrating that the former superclass-wide observer generated substantial unrelated traffic. The bounded concrete-class-only observer is a corrective diagnostic change, not new runtime evidence.
+- Re-reading the capture at event granularity shows three `y60.b(fl4,yb3)` collect invocations: `cr9/k41`, `ec0/mm4`, and `s5/g0`. `cr9` and `ec0` implement `fl4`; their observed `a(Object,yb3)` calls received argument types `av1/jf9` and `vd6/kl4`, respectively, and both returned `zgb` (suspended). The first `y60.b` later reported `zgb`; another reported `cd3`; the third collect window has no matching exit in this capture.
+- The capture contains no direct `cv1`, `sha`, or `r3.c` dispatch record. It proves that the returned Flow is collected and that concrete collector/continuation pairs execute; it does **not** prove that the DeltaCommand reducer received `ready` / `delta` events or completed message assembly. This is the specific gap addressed by the new code289-only `r3.c` observer, which records allowlisted event names and never reads `sha.b`.
+- Runtime evidence does not prove that a complete HTTP response was decoded into UI messages or that a Local API request can drive the host. Source presence and CI success are not runtime evidence.
 
 ### Next bounded work
 
-1. Collect the complete [OPEN_NATIVE_CALL_OBSERVER] block from a controlled code289 device,
-   using a non-sensitive test conversation and redacting unrelated logs.
-2. Compare id, role, parent, sameRequestObjectAsRoot, thread, depth, and result
-   interface metadata to establish whether zn3.o nests into jw3.g or runs independently.
-3. Use the returned type and the official APK's call sites to locate the actual Flow collector
-   and response decoder. Do not hook guessed collector methods.
-4. Add a separate, bounded observation only after the collector's exact owner and descriptor
-   are proven from the same APK. Preserve the original Flow/result object and cancellation
-   semantics; do not subscribe a second time for diagnostics.
-5. Confirm the Request-to-Challenge/PoW relationship independently. Do not treat the Long
-   argument as a timeout or challenge until its call-site semantics are established.
+1. Install the current schema-6 Open diagnostic APK on the code289 host build (the diagnostic
+   observer is excluded when `BuildInfo.LOCAL_API_INCLUDED=true`). Explicitly enable the probe,
+   perform one ordinary host chat, and export the app-private session log.
+2. Verify the direct `r3.c(dv1, yb3)` observer reports the actual `cv1` event-name sequence
+   (`ready`, one or more `delta`, terminal `close`, or an explicit `parse_error`). Confirm
+   each dispatch preserves the host result/exception and that no `sha.b` payload is read.
+3. Correlate those dispatch records with the existing `y60.b` collector/Continuation records
+   and the completed host UI message. Validate `response.fragments`, fragment type via
+   `nk0.k()`, text via `nk0.f()`, and the RESPONSE / THINK / SEARCH / tool fragment mapping.
+4. Only after the runtime event ledger is complete, implement the Open adapter around the
+   verified `ly1` Request and `zn3.o -> jw3.g -> Ly60` path. Prove Flow collection, cancellation,
+   deadline propagation, session creation/reuse, PoW association, and error mapping. Do not
+   subscribe a second time or infer the meaning of the `Long` argument.
+5. Keep every completion route fail-closed with HTTP 503 until code289 runtime tests prove
+   non-streaming, streaming, cancellation, error propagation, and session isolation.
 
 The Gateway remains fail-closed with HTTP 503 until a separately reviewed Open native adapter
 implements and verifies Request construction, Challenge/PoW, Transport, event decoding,
 cancellation, session isolation, and error mapping.
+
+## 2026-11-07：code289 回调探针限域修正
+
+- 依据 2026-11-06 五份真实设备日志，Transport 与 `y60.b(fl4, yb3)` 边界已经确认；日志还显示沿回调父类链安装观察器会引入大量无关调用（例如 `zb3.t()`）和同步写盘开销。
+- 当前 Local API 工作分支将回调观察范围收窄到 `y60` continuation 实际传入的具体回调类，仅检查该类自身声明的实例方法；排除 static、abstract、bridge、synthetic、0 参数、超过 2 参数及 void 方法；每个具体回调类最多尝试 12 个方法，不遍历父类。
+- 选中方法仍完整记录 entry/exit/throw 与类型、线程、耗时，保留逐方法聚合计数；Hook 始终只执行原方法一次。探针关闭后立即透传。
+- 报告 schema 更新为 5，显式声明覆盖边界。该修正只降低无关 Hook 和诊断开销，不代表响应 DTO / 事件语义或 Native Adapter 已完成。
 
 
 ## Xiaomi MIUI / HyperOS background retention
@@ -379,6 +394,533 @@ The foreground keeper runs in the module package `ds.dsh.DeepSeek`, while the ho
 A missing host acknowledgement is not equivalent to a user disabling Local API. The keeper must retain the persisted opt-in and continue retrying after boot when MIUI / HyperOS delays host startup or broadcast delivery. It may stop only after an explicit host-disabled acknowledgement or a user stop request; a 90-second acknowledgement timeout is diagnostic, not a shutdown condition.
 
 
-## Open Gateway protocol audit (2026-11-06)
+## Open Gateway protocol audit (supersedes 2026-11-06 snapshot)
 
-The Open direct-Java gateway currently exposes only `GET /v1/models` and `POST /v1/chat/completions`. Model discovery returns the configured IDs even while the native engine is unavailable; chat completions remain HTTP 503 until a verified Open adapter exists. Text and text-part messages are accepted; image parts, tools, Responses API, Anthropic Messages API, and usage accounting are not implemented in this Open gateway. Reasoning text is preserved as `reasoning_content` for non-stream responses and SSE deltas. The API accepts `max_tokens` and `max_completion_tokens` from 1 through 8192. Custom Bearer keys accept 8–256 visible ASCII characters and survive restart using the same validator. This capability statement applies to the Open direct-Java path, not the separate Closed payload gateway.
+The current `work/local-api-protocol-port` implementation supersedes the older protocol snapshot below. The Open Gateway currently exposes:
+
+- `GET /v1/models`: configured model catalog only; this does not imply native execution readiness.
+- `POST /v1/chat/completions`: request validation, non-streaming response mapping, text/reasoning SSE, and non-streaming structured tool-call bridge.
+- `POST /v1/responses`: input/output mapping, bounded process-local `previous_response_id` continuation state, and Responses-style SSE lifecycle/delta events.
+- `POST /v1/messages`: Anthropic Messages request/response mapping and SSE.
+- Tool calls are returned to the API client as structured calls; the module does not execute client tools. Tool-call streaming is not supported.
+- Usage is estimated and explicitly marked with `dsh_usage_estimated=true`; it is not an exact DeepSeek tokenizer count.
+- Image/audio inputs and non-text JSON output formats remain unsupported.
+
+These are protocol-layer capabilities only. The Open native Completion Adapter remains unimplemented and every completion route must continue returning HTTP 503 until the verified code289 host request, Challenge/PoW association, Transport, Flow event decoding, response assembly, cancellation, session isolation, and error mapping are implemented and validated. A passing CI run does not establish real-device native completion.
+
+## 2026-11-07：code289 启动安装失败隔离修复
+
+### 直接证据
+
+```text
+hostGeneration=2.7.2/code289-cn
+installAllFeatureHooks: 2.7.1 full mode via HostRemap classes=7636
+code257 agent tool-log Canvas renderer unavailable:
+  ClassNotFoundException: Didn't find class "deekseep unmapped mf6"
+installAllFeatureHooks failed: ClassNotFoundException ...
+```
+
+该启动记录来自 `qingjian0/apps/README.md` 所归档的 `dsprobe.log`。它同时证明宿主识别结果为 code289、安装诊断标签错误地固定显示 2.7.1，以及旧 code257 Agent Tool Log / Canvas 映射在该宿主上不可解析。该记录不能证明 `mf6` 在 code289 中存在其他可替代类。
+
+### 源码根因
+
+`Main.installAllFeatureHooks()` 将 `agent.tool-log.rounded-rect` 作为普通 `installHookStep()` 执行。该安装步骤抛出异常时会进入外层安装异常处理并中止本轮后续 Hook 安装，而不是仅将该可选渲染功能标记为降级。
+
+### 已提交修复
+
+- `Main.java`：将 Agent Tool Log / rounded-rect 渲染器安装改为 `installBestEffortHook()`。安装失败只标记该可选 Hook degraded，并记录明确日志，不再中断其后的独立功能 Hook。
+- `Main.java`：2.7.x full-mode 诊断行改用 `HostCompat.hostLabel()`，不再把 code289/code290 误标为 2.7.1。
+- `module/test-hostmap-regression.sh`：新增回归断言，要求该可选 Hook 必须走 best-effort 路径，并要求诊断使用实际宿主标签。
+- 提交：`6827f709`（源码）；`eef5a18e`（回归断言），均位于 `work/local-api-protocol-port`。
+
+### 验证边界
+
+本轮只完成源码修改与回归断言编写；尚未获得这两个提交对应的 GitHub Actions 完成结果，也未在 code289 真机重跑启动日志。因此不能声称该修复已通过 CI 或设备验证。
+
+此修复仅隔离可选 UI Hook 的安装失败，不会自动接通 Native Completion。Local API 仍必须在 Request Factory、Challenge/PoW、真实 Transport、响应事件解码、取消/超时和 Session 隔离全部具备证据并通过验证前保持 HTTP 503 fail-closed。
+
+### code289 APK 静态证据资产边界（已更正，2026-11-07）
+
+此前“没有 code289 / 2.7.2 APK 静态审计 artifact”的判断只覆盖了 apps 仓库的双版本审计工作流 `42339059934`（2.7.3 / 2.7.5），没有覆盖后续静态审计分支。该结论已由以下独立证据更正：
+
+- apps workflow：`42342447740`，分支 `work/deepseek-272-static-audit`，artifact：`deepseek-272-static-evidence`。
+- APK：`deepseek-2-7-2.apk`；Manifest：package `com.deepseek.chat`、versionName `2.7.2`、versionCode `289`。
+- APK SHA-256：`3c2fe31c73575400b9d59e46dde05daa2ef06491498ebfef658801e99eca1aff`；大小 22,205,160 bytes。
+- DEX：3 个；Smali classes：15,365；method declarations：72,258；候选类 23/23 命中、117 个候选方法、3,369 个候选调用点。
+- JADX 退出码 3、346 条诊断；关键调用链以 APK DEX/Smali 和 Serializer descriptor 为准。
+
+因此 code289 的静态 Request / Challenge / Transport / Flow / SSE / Delta reducer 链路已有直接 APK 证据。该证据只证明静态结构，不代表模块已经运行时 collect Flow，也不代表 Native Adapter 或真机 Completion 已完成。不得把 2.7.3 / 2.7.5 的混淆符号映射到 code289。
+
+
+## 2026-11-07：code289 Callback 结构诊断 schema 6
+
+### 问题
+
+schema 5 记录了 Callback 方法描述符、参数类型、返回类型、执行耗时和异常类型，但不记录参数/返回对象的结构。对 qj3.y(Object) 等高频方法，仅凭 Object 参数类型无法区分事件 envelope、消息 fragment、协程状态或其他包装对象。
+
+### 修改
+
+- Callback 方法按完整描述符排序后再应用每类最多 12 个方法的上限，避免反射返回顺序不确定导致不同运行选择不同方法。
+- 每个 Callback 方法第一次执行时，记录 arg0/arg1 的对象类名以及最多 16 个声明字段的字段名/字段类型。
+- 每个 Callback 方法第一次正常返回时，记录返回对象相同范围的结构。
+- 结构记录只读取反射元数据，不读取字段值、不调用 getter、不序列化对象；不记录消息正文、凭据、Cookie、Token 或请求头。
+- 参数结构和成功返回结构分别按方法签名去重；新诊断 session 清空结构去重状态，但保留已安装 Hook 注册状态，避免重复注册。
+- UI 说明同步明确结构采集边界和方法排序策略。
+
+### schema
+
+- report.schema=6
+- session-start schema=6
+- diagnostic.callback_hook_limits 声明 descriptor 排序、每类最多 12 个方法、不遍历父类。
+- diagnostic.callback_shape_capture 声明每方法一次参数/成功返回对象字段名和类型采集，不读取字段值。
+
+### 影响与边界
+
+该修改用于让下一轮 code289 真机日志可以识别 callback 的数据对象形状，帮助定位事件包装层和响应解码边界。它不会自行解释混淆字段的业务语义，也不会把 qj3.y 直接认定为 SSE parser 或 DeltaCommand reducer。
+
+相关提交位于 work/local-api-protocol-port：4212bf84（结构采集）、20ccdc7f（session 重置）、c9a79ef4（UI）、94a75ed4 / 2465873f（回归契约）。
+
+本次源码和回归契约已提交；尚未执行 Android 构建、脚本或设备验证，不声称 schema 6 已通过运行验证。
+
+
+## 2026-11-07：code289 APK 静态证据已找到并完成核心调用链还原
+
+### 证据来源更正
+
+此前本文件曾记录 apps 仓库未找到 2.7.2/code289 APK。该结论只检查了 apps/main，范围不完整。后续枚举 apps 全部分支后，在 qingjian0/apps 的 work/deepseek-272-static-audit 分支找到 deepseek-2-7-2.apk，并从 APK Manifest 的 Android binary XML 确认 package=com.deepseek.chat、versionName=2.7.2、versionCode=289。此前“code289 APK 不存在”的记录已被本节取代。
+
+- APK SHA-256：3c2fe31c73575400b9d59e46dde05daa2ef06491498ebfef658801e99eca1aff
+- DEX：3 个；class files：15,365；method declarations：72,258
+- 动态候选：23/23 个静态类匹配；117 个候选方法；3,369 个候选调用点
+- apps 审计 workflow run：42342447740，成功
+- 完整报告：[apps/docs/deepseek-272-native-callgraph.md](https://github.com/qingjian0/apps/blob/work/deepseek-272-static-audit/docs/deepseek-272-native-callgraph.md)
+
+### code289 真实 Request / Transport
+
+```text
+nn0 repository request factory
+  -> mw1 request coroutine
+  -> ly1 implements wu1
+  -> zn3.o(wu1, Long)
+  -> jw3.g(wu1, Long)
+  -> Ly60 (cold Flow)
+  -> collect via b(fl4, Continuation)
+  -> l5 coroutine
+  -> bi5.b (Ktor request execution)
+  -> g0 (HTTP response handler)
+  -> ts1 (SSE ByteReadChannel line parser)
+  -> s5 (event wrapper)
+  -> r3.c (business event decoder/reducer)
+```
+
+- ly1 Serializer jy1 的 JSON 字段：chat_session_id、parent_message_id、prompt、ref_file_ids、thinking_enabled、search_enabled、audio_id、preempt、model_type、action。
+- ly1.k 不属于 JSON serializer 字段；jw3.g 将其作为 X-DS-PoW-Response header 输入。
+- zn3.o / jw3.g 返回 Flow；调用入口不等于网络请求已经执行。必须 collect Ly60。
+- y60.b(fl4, Continuation) 是 Flow collect 边界，不是 SSE parser。
+- g0 处理 HTTP status / Content-Type 和 x-ds-sse-heartbeat-timeout-secs（默认 10 秒）。ts1 才负责读取 ByteReadChannel 并解析 SSE event/data。
+- s5 将 sha(eventName,data) 包装为 cv1；r3.c 负责 ready、hint、title、update_session、close 和 DeltaCommand 等业务事件分支。
+
+### code289 Challenge / PoW
+
+```text
+/api/v0/chat/create_pow_challenge
+  -> ut1(target_path)
+  -> ms9 ServerChatChallenge
+  -> df0.d(targetPath, ms9, Continuation)
+  -> bf0 / PowCalculator.a(difficulty, base, challenge)
+  -> gf0 AuthedPowSolution
+  -> nq1 ChallengePlugin
+  -> X-DS-Challenge-Response / X-DS-PoW-Response
+  -> request retry
+```
+
+- ms9 字段：algorithm、challenge、salt、signature、difficulty、expire_at、expire_after、target_path。
+- gf0 字段：algorithm、challenge、salt、signature、answer、target_path。
+- PowCalculator 位于 com.deepseek.crypto，调用 librscrypto 的 nativeCalculateDeepSeekHashV1Pow；code289 构造 base 为 salt + "_" + expire_at + "_"，并传入 challenge 与 difficulty。
+- nq1 是 Ktor ChallengePlugin，处理 challenge、PoW 求解、并发协调和 retry。应复用宿主 zn3/bi5 client，不应在 Local API 侧重写 PoW。
+
+### Delta / Response 语义
+
+- SSE 的 sha.a 为 event name，sha.b 为 data JSON。
+- 当 `sha.a == null`（没有 SSE event name）时，`r3.c` 将 `sha.b` 按 DeltaCommand 解码；其 `p/o/v` 三个成员分别对应 path / operation / value。
+- 第一个 null-name DeltaCommand 通过 `doc.c0()` 建立 `zca` root；后续 null-name DeltaCommand 通过 `doc.W()` 交给 `l23` patch engine。已确认操作包含 SET、APPEND、BATCH。
+- `ready` 是独立的 `ChatCompletionReadyEventData` 元数据事件，不负责创建 `zca` root；`hint`、`title`、`update_session`、`close` 也有各自分支。`r3.c` 没有名为 `delta` 或 `parse_error` 的字符串事件分支，不能把它们当成 DeltaCommand 的事件名。
+- `zca.response` 映射到 `gy`；`gy` 的 fragments 由 `xr.B()` 拼接可见文本。
+- delta 的 data 不能直接当作文本。需要应用 patch，再从 response.fragments 提取 RESPONSE / THINK / tool/search 等不同 fragment。
+
+#### code289 DeltaCommand 的实际 Patch 规则（Smali 已确认）
+
+- `r3.c(Ldv1, Lyb3)` 收到 `cv1(sha)` 后，以 `sha.a` 作为 event name、`sha.b` 作为 data JSON。只有当 `sha.a == null` 时，data 才按 `st3` Serializer 解码为 DeltaCommand；`st3` 的 JSON 成员名确认为 `p`、`o`、`v`，分别对应 path、operation、value。
+- 第一个 null-name DeltaCommand 建立初始 `zca` response root；后续 null-name DeltaCommand 进入 `doc.W(st3, gv1)`。`ready` 另行解码为 `uu1` ReadyData。无效事件会走 `InvalidEvent`，Patch 返回失败会走 `InvalidDelta`，不能静默吞掉。
+- `doc.W` 保存 path / operation 上下文：初始 path 为空字符串、operation 为 `SET`；命令字段为 null 时沿用上一次上下文。它随后调用 `l23.y`。
+- `l23.y` 按 `/` 拆分 path，逐段调用 `s13.c` 定位父节点，再对末段执行操作：`SET` 调用目标节点的 `l(path, value, context)`；`APPEND` 调用 `m(value, path)`。
+- `BATCH` 先定位 path 指向的节点，再把 value 解码为 `List<st3>`，按列表顺序递归应用；子命令缺少 path / operation 时继承当前 BATCH 的 path / operation。子命令不是并行应用。
+- `zca.c("response")` 返回 `gy`；`gy.c("fragments")` 返回 `Ley1`；`Ley1.c(index)` 支持有效范围内的负索引。
+- 对 `gy.fragments`：`SET` 会解码列表并替换现有 fragments；`APPEND` 会解码列表并追加。对文本 fragment（例如实现 `d54` / `nk0` 的 `v44`）：`SET content` 替换当前文本，`APPEND content` 将新文本拼接到已有文本后面；`APPEND references` 追加引用列表。
+- `nk0.k()` 返回 fragment 类型，`nk0.f()` 返回该 fragment 的当前文本；`xr.B()` 遍历 fragments，只拼接实现 `nk0` 的 fragment 文本。它不是对 SSE data 字符串做简单提取。
+- `gy` 还单独处理 `accumulated_token_usage`、`conversation_mode`、`ban_regenerate`、`incomplete_message`、`thinking_enabled`、`status`、`has_pending_fragment`、`search_enabled`、`quasi_status`、`search_triggered` 和 `extra_search_providers` 等根字段；不能把所有 patch 都简化为 fragments 文本。
+
+**实现约束：** Open Adapter 若自行实现 reducer，必须保留 path/op 上下文、BATCH 顺序、数组索引语义、SET/APPEND 差异和未知字段处理；若复用宿主 reducer，则必须先证明其根状态和 collector 生命周期可安全隔离。仅凭静态证据不能声称任一方案已运行。
+
+### 对 Local API 的实现决策
+
+1. code289 不能使用旧版 liveQ71/liveR92；应捕获 nn0 主构造器注入的 zn3 或 zn3 构造器实例。
+2. 通过 ly1 -> zn3.o -> Ly60 collect 进入宿主原生 Ktor client。
+3. 复用 nq1 ChallengePlugin 自动完成 challenge / PoW / retry。
+4. 在 fl4 collector 中消费 cv1 -> sha；按 event name 解码。
+5. DeltaCommand 必须按 p/o/v patch 语义应用到 response state；文本从 gy.fragments / gy.B() 提取。
+6. 需要独立实现 request/session ID、parent_message_id 更新、stream cancellation、deadline、错误映射和 tool/reasoning fragment 映射。
+
+### 尚未声称完成的部分
+
+上述静态调用链已由 code289 APK 的 DEX/Smali 和 serializer descriptor 直接确认；但尚未完成在 Deekseep-Custom 中捕获 zn3、collect Ly60、应用 DeltaCommand、映射 CompletionResult 的实现，也没有 code289 真机端到端结果。Native Adapter 仍未完成，Local API 真实回复仍未验收。
+
+
+## 外部 Local API 参考
+
+已对开源项目 [`Xposed-Modules-Repo/com.dsmod.probe`](https://github.com/Xposed-Modules-Repo/com.dsmod.probe) 的 Local API 实现进行源码级分析，重点核对了 `LocalApiGateway`、`Main.executeLocalApiCompletion`、`NativeApiPatchDecoder`、`OpenAiToolBridge` 和协议回归测试。其宿主版本为 DeepSeek 2.2.2（code233/236），不能直接复用混淆符号到本项目 2.7.x/code289。架构差异、可移植设计、禁止照搬项和 ROI 实施顺序见 [DSMOD_PROBE_LOCAL_API_REFERENCE.md](architecture/DSMOD_PROBE_LOCAL_API_REFERENCE.md)。
+
+
+## 2026-11-07：code289 Delta dispatch 观察点
+
+- 新增 code289-only `r3.c(dv1, yb3)` 透明 Hook，直接观察静态调用图中的 DeltaCommand reducer，不再仅凭 `y60.b` 的返回值推断事件已被消费。
+- 事件日志只读取 `cv1.a -> sha.a`：null event name 记录为 `delta-command`；白名单字符串仅包括 `ready`、`hint`、`title`、`update_session`、`close`；其他字符串记录为 `other`。不读取 `sha.b` 数据 JSON。
+- Hook 在禁用时直接透传；启用时原方法只执行一次，保留原始返回值和异常。诊断读取/日志异常不替代宿主执行。Hook 注册尝试一旦开始即保持去重标记，避免框架部分注册后重试造成重复拦截。
+- 该观察点只用于补齐真机证据，不构成 Native Adapter。当前仍未证明真实 null-name DeltaCommand、`ready` 与 `close` 的运行时事件序列，也未证明 Local API 能驱动模型执行。
+
+
+## 2026-11-07：schema-5 设备日志与 schema-6 Delta 探针证据隔离
+
+本节固定区分历史设备证据与当前源码能力，避免把旧日志误记为新观察点已运行。
+
+### 历史设备日志（schema 5）
+
+- 文件：`open-native-1793943559724.log`
+- 来源分支：`fix/native-probe-concrete-callback-hooks`
+- Git blob：`b9b2acff5df7a1981af9cc0ccbab0f9cfb3a8a59`
+- 文件长度：532,434 bytes；1,676 行。
+- 该日志可支持此前记录的 Request / Transport 关联、`y60.b(fl4,yb3)` collect 边界和三个具体 continuation/callback 对的观察结论。
+- 该文件属于 schema 5；其中没有 `delta-dispatch-enter`、`delta-dispatch-exit` 或 `delta-dispatch-throw` 事件。因此它不能证明 `r3.c(dv1,yb3)` Delta dispatch 观察器已经运行，也不能证明 `ready → delta* → close` 的事件序列。
+
+### 当前 schema-6 源码能力
+
+- 当前 `work/local-api-protocol-port` 的 `OpenNativeCompletionProbe` 已增加 code289 专用 `r3.c(dv1,yb3)` 透明观察点。
+- 事件名读取严格限制为 `cv1.a → sha.a` 的白名单字符串；不读取 `sha.b` 数据字段，不读取消息正文。
+- 观察器在原调用前后记录事件名、返回类型或异常类型，并透传原始调用；这只是源码实现事实，不等于设备上已经产生记录。
+- 探针调度明确要求 `BuildInfo.LOCAL_API_INCLUDED == false`。因此应使用带 schema-6 探针、且不包含 Local API Gateway 的独立 Open 诊断构建采集；不能把该诊断构建描述成正式 Local API APK。
+- 当前没有从 schema-6 诊断构建取得的设备日志。下一次设备证据必须包含探针安装标记、`delta-dispatch-installed`、实际事件名序列及对应 `y60.b` collect 关联；若只出现安装记录而无事件记录，应判定为“观察点已安装但未捕获目标调用”，不能判定事件链通过。
+
+### 对 Native Adapter 的实施约束
+
+在上述 schema-6 事件日志与响应消费证据补齐前，不实现猜测性的 `cv1/sha` payload 解码、Delta reducer 或响应组装。可以继续完成不依赖宿主私有字段语义的协议边界、取消契约、会话隔离和纯 JVM 测试；任何宿主调用仍须经过官方正常 Request / Challenge / PoW / Transport 路径，Completion 保持 503 fail-closed。
+
+
+## 2026-11-07：Request 构造器与 Repository 注入的 Smali 级复核
+
+已从官方 code289 静态审计 Artifact 的 `ly1.smali`、`nn0.smali`、`mw1.smali` 逐条复核：
+
+- `nn0.<init>(Lvc3;Lzn3;Lilb;Lbd3;Ljf2;Lpi;Lau7;Lcx2;Lmj7;Lgs;Liab;)` 将第二个参数 `zn3` 保存到实例字段 `nn0.b`。这是可用于建立版本专用 Transport 实例捕获点的直接静态证据；捕获后仍需在运行时验证对象确实服务于目标会话。
+- `ly1` 的实际构造器是 Kotlin synthetic default-argument constructor：`<init>(String, Integer, String, ArrayList, boolean, boolean, String, boolean, String, String, int)`。
+- 构造器最后的 int 是 Kotlin 默认参数 mask，不是业务字段。Smali 明确显示 mask `0x40` 将 audio_id 参数置为 null；mask `0x200` 将 action 默认设为 `retry`。构造器把第十个 String 参数写入字段 `k`，该字段由 `jw3.g` 用作 `X-DS-PoW-Response` header；action 写入字段 `j`。
+- `mw1.y()` 的真实产品调用顺序为：session ID、parent message ID、prompt、附件列表、thinking、search、audio ID、preempt、model_type、action、mask `0x200`；随后调用 `zn3.o(request, null)`。因此该产品调用点已证明第二个 Long 参数传 null 是合法的正常调用方式，不必猜测其语义。
+- `mw1.y()` 仅在 parent_message_id 为空时从 `ys.k()` 取得 model_type；有 parent 时传 null。preempt 则由 `nn0.h(ys, parent_message_id)` 计算，不是固定常量。
+- `nn0.d(ys, sessionId, parentId, attachments, thinking, search, audioId, ...)` 经 `mw1` 创建请求。直接构造 `ly1` 虽然有明确签名，但若没有真实 `ys` 会话模型，就不能从当前证据推出正确的 model_type 和 preempt 值。
+
+**实现结论：** 可以确定 Transport 捕获点、Request 构造器参数顺序、默认 mask 和 `zn3.o(request, null)` 调用方式；但不能把 `model_type`、`preempt` 或 session lifecycle 填成猜测值。下一步应先确定 API session 到宿主 `ys` 状态的创建/复用策略，再实现 Request Factory；不得把随意生成的 session ID 当作已验证的宿主会话。
+
+
+## 2026-11-07：code289 Request continuation 与 Session Factory 边界复核
+
+本轮对官方 code289 Smali 继续追踪 `nn0.d`、`kw1`、`uj2`、`ik2.j0`、`ss9`、`ys` 与会话选择路径，补充以下边界：
+
+### 1. `kw1` 不是第二个“全 null 新会话调用点”
+
+- `kw1` 是 `nn0.d(...)` 的 Kotlin suspend continuation 类。
+- `nn0.d` 在收到普通 Continuation 时创建 `kw1`，并将原始调用参数保存在 continuation 字段中。
+- `kw1.y()` 恢复执行时以 null 占位参数重新进入 `nn0.d`；`nn0.d` 先识别 continuation 状态，再从 `kw1` 字段恢复原参数。
+- 因此 `kw1.y()` 中表面上的 `nn0.d(null, null, ...)` 是协程状态机恢复调用，不是产品独立发起的空 session 请求。不能据此推断新会话允许任意 null sessionId。
+- 可见的业务调用入口是 `ik2.j0(...)` 创建 `uj2`，由 `uj2.y()` 调用 `nn0.d(ys, ...)`；它携带真实 `ys` 会话对象和对应消息参数。
+
+### 2. `ss9` 与 `ys` 的构造关系
+
+- `ss9` primary constructor 接收字段 `a..h`，并将 `i`（model type）初始化为 null、`j` 初始化为 false。
+- `qs9` synthetic serializer constructor 可以按字段 mask 反序列化 `ss9` 的可选字段；`fx1` 中的直接 `new ss9` 则是基于已有 `ss9` 复制并更新计时字段，不是生成新的 chat_session_id。
+- `ys.<init>(ss9, qs)` 将 `ss9.a` 作为会话键，并从记录复制 title/model metadata、token/时间状态及 model-type state；它是将持久化会话记录装配成请求侧会话状态的一条明确路径。
+- `ys` 也存在直接的多参数构造器；`jt1` 的会话导航/选择逻辑会从 `sr7` 接口读取 `a()/b()/c()` 并构造 `ys`。该路径说明宿主允许从导航目标/选择项装配内存会话状态，但当前静态证据尚未把所有 `sr7` 实现映射为新会话创建 API，也没有证明其 `a()` 值可以由 Local API 自行生成。
+
+### 3. UUID 误判排除
+
+- `oe2` 中可见的 `UUID.randomUUID().toString()` 创建的是 `ada(elapsedRealtime, uuid)`，并作为消息/fragment 的本地标识传入后续流程；它不是 `ss9.a` 或 `ys.a` 的赋值点。
+- 其他 DEX 中出现的 UUID 调用属于不同对象/业务，不能仅凭同一 APK 中存在 UUID 生成就推断 chat_session_id 由客户端随机生成。
+
+### 4. 当前实现决策
+
+- 不把 `kw1` 的 continuation 占位 null 当作新会话协议。
+- 不把消息 fragment UUID 当作 chat_session_id。
+- 不从 `ss9` 的复制构造器推断新会话创建规则。
+- 下一步需继续沿 `ik2.j0` 的上游调用和 `ys` 直接构造器来源，确定首次用户消息时 `ys.a` 的真实生成/获取位置，以及 `ss9.i` model_type 的选择和回填链路。
+- 在此之前，不实现猜测性的 Session Factory；Completion 继续 HTTP 503 fail-closed。
+
+本节结论来自 APK DEX/Smali 静态结构；不代表已在设备上验证该会话创建链路。
+
+
+## 2026-11-07：code289 宿主新会话占位对象与空 sessionId 证据
+
+本轮继续检查完整 APK 的 `oe2`、`ik2`、`ys`、`nn0` 调用关系，发现宿主 UI 确实有一条显式的新会话占位对象路径。
+
+### 1. `oe2.j()` 创建新会话占位组件
+
+`oe2.j()` 的 Smali 直接执行：
+
+- `new ys(...)`；
+- 第一个 String 参数（`ys.a`，会话 ID）为字面量空字符串 `""`；
+- 第二个 String（标题）也为 `""`；
+- 其余会话统计字段以初始值构造；
+- 随后创建 `Lik2`（ChatSessionComponent）并返回。
+
+`oe2.j()` 构造 `Lik2` 时，向其回调参数传入一个 Kotlin function reference，引用名为 `sendMessageToNewSession`，签名字符串为：
+
+`sendMessageToNewSession(ChatSessionComponent, MessageForwardRequest, Function0)`
+
+因此，空字符串确实是宿主 UI 新会话占位对象的 session key；这不是 UUID 推测，也不是 continuation 占位参数。
+
+### 2. 首次消息事件进入该回调的证据
+
+`ik2` 处理 `kj2` 事件时：
+
+- 从 `kj2.a` 的 `xr` 读取文本与附件；
+- 从当前 `ys` 读取 `model_type`（`ys.k()`）；
+- 当 `ys.k()` 为空时，回退到 `Lik2.Z()` 的当前 model selection；
+- 读取 `kj2.b` 的 action；
+- 生成的 UUID 与 elapsedRealtime 被封装进 `ada`，作为消息/fragment 标识；
+- 构造 `Lo97`（MessageForwardRequest），再调用 `Lik2.i` 中保存的回调，参数为当前 ChatSessionComponent、请求对象和完成回调。
+
+`Lik2.i` 正是 `oe2.j()` 创建时注入的 `sendMessageToNewSession` function reference。由此可确认：宿主新会话组件将消息转交给专门的新会话回调，而不是把 fragment UUID 当作 session ID。
+
+### 3. 证据边界与实现约束
+
+- 已证实：宿主 UI 新会话占位对象的 `ys.a == ""`。
+- 已证实：新会话消息回调拿到 `Lik2` 与 `Lo97`，请求对象包含从当前会话选择状态得到的 model type；为空时回退当前组件 model selection。
+- 后续已将该 function reference 映射到静态目标 `oe2.i(oe2, Lik2, Lo97, Function0)`；其调用 `fx1.m()`，使用宿主预取队列或 `/api/v0/chat_session/create` 获取 `ss9`，装配真实 `ys`，更新 model key 并安排仓库持久化。该发现和完整链路见后续“服务端 Session Factory”章节。
+- 尚待确认：回调之后 `jj2` 消息事件进入 `ik2/uj2/nn0.d()` 的精确对象传递与时序，以及 actor 持久化完成是否先于原生请求。Local API 是否安全复用 UI 回调链仍未证明。
+
+### 4. 对 Native Session Factory 的决策
+
+目前最可靠的实现候选是复用宿主 `fx1.m()` Session Factory，并遵循 `oe2.i` 中的 model key 更新和 `fx1.l()` 持久化顺序；不要自行生成 UUID 或复制创建 HTTP。Local API 尚未完成对 `fx1` 的安全获取和 suspend 桥接。
+
+`ys.a == ""` 只证明 UI 新会话占位对象的初始键值，不证明服务端最终请求必须始终携带空字符串。Native Completion 继续 HTTP 503 fail-closed。
+
+本节结论来自 code289 APK 静态 Smali；没有声称真机运行已观察到该过程。
+
+
+## 2026-11-07：code289 新会话模型选择状态来源
+
+继续追踪 `oe2.q`、`i37.s`、`vi7` 与 `mw1.y` 后，补充 model_type 来源：
+
+1. `oe2` 初始化时通过 `i37.s(mj7)` 从模型配置列表选取 `vi7`：优先取 `vi7.e == true` 的当前选中项；若不存在，回退静态默认配置 `kj7.c`。
+2. `oe2.q` 保存的是上述选中项的 `vi7.a` 字符串 StateFlow。
+3. `oe2.j()` 创建空 ID 新会话占位对象时，将 `oe2.q` 直接传入 `ys.d`（model type StateFlow），所以新会话初始 model_type 来自当前宿主模型选择，而不是从 API 请求名推导。
+4. `ik2` 处理消息事件时优先取 `ys.k()`；若为空则回退 `Lik2.Z()` 当前模型选择，再构造 MessageForwardRequest。
+5. `mw1.y()` 构造原生 `ly1` 请求时，只有 parentMessageId 为 null 才把 `ys.k()` 放入 request 的 model_type 字段；有 parent 时传 null。这个行为与之前确认的 `nn0.d` 产品调用链一致。
+
+**实现含义：** 如果要复用宿主新会话模型语义，应读取当前宿主选中模型的 `vi7.a` / `oe2.q` 状态；不能硬编码 `default`，也不能仅凭 API 模型名 `deepseek-chat` 或 `deepseek-reasoner` 自行映射。当前静态证据证明的是宿主内部 model_type 状态来源，不证明 API model ID 与内部 model_type 的映射规则。
+
+静态 Smali 可见 `vi7` 的默认构造字段值为 `default`，且代码存在对 `expert` 值的专门分支；但这不足以推导 Local API 的外部模型映射。Completion 继续 503 fail-closed。
+
+
+### 5. 对共享 sendMessageToNewSession 回调的额外边界
+
+进一步检查 `oe2.k(Lys` 发现：恢复已有会话组件时也注入同一个 `sendMessageToNewSession` function reference。因此不能仅凭函数名就认定该回调只负责“创建新 session”；它是 ChatSessionComponent 的消息转发回调，既被新占位组件 `oe2.j()` 使用，也被已有会话组件 `oe2.k(ys` 使用。当前 R8 Smali 中未定位到该引用对应的函数体，回调内部是否区分空/非空 sessionId 仍待证实。
+
+同时，`oe2.q` 的初始化来源可进一步确定：`oe2.<init>` 调用 `i37.s(mj7)`，取返回 `vi7.a`，封装为 StateFlow 后保存到 `oe2.q`；`i37.s` 从模型配置列表优先选择 `vi7.e == true` 的项，无选中项才回退 `kj7.c`。因此新占位 `ys` 的 model_type 状态初值来自宿主当前选择模型配置的 key。它不是从 API model 字符串直接推导出来的。
+
+
+## 2026-11-07：code289 服务端 Session Factory 与预取队列已定位
+
+本轮继续沿 `oe2.i`、`fx1.m`、`mb0.F`、`ch2.b`、`rz0`、`j41`、`ft9`、`Lok2`、`ss9` 追踪，已经定位宿主的服务端会话创建实现，而不再只是 UI 空 ID 占位对象。
+
+### 1. 宿主创建流程入口与预取队列
+
+`oe2.i(oe2, Lik2, Lo97, Function0)` 是此前 function reference `sendMessageToNewSession` 对应的实际静态目标方法（签名与回调调用参数一致）。其协程 `a20` 会调用：
+
+`fx1.m(Continuation)`
+
+`fx1.m()` 先检查 `fx1.m` 持有的 `pi` 内部会话预取队列（`pi.e` 为 `ce3` / 队列管理器）：
+
+- 队列有可用 `fn8`：从队列取出已有 `ss9`，更新计时字段，装配 `ys(ss9, qs)`，清空标题，作为缓存命中返回。
+- 队列无可用项：通过 `pi.b` 的宿主 coroutine context 启动 `mb0.F()`，走服务端创建分支。
+- 两种成功分支都返回 `pt7`，其 `b` 是 `tn2(ys, cacheHit)`；`tn2.b` 用于后续 `is_cache_hit` 埋点。
+
+因此，宿主的“创建新会话”不是每次都裸调 HTTP；它优先消费预取队列，缺少缓存时才走服务端创建。
+
+### 2. 服务端创建请求与响应解析
+
+`mb0.F()` 通过 `pi.c`（`zn3`）进入 `zn3.b`（`ch2`）网络服务；`ch2.b()` 使用 `bi5` 的 serializer/request pipeline。对应 `rz0` request builder 的分支明确包含路径：
+
+`/api/v0/chat_session/create`
+
+响应包装类 `ft9` 明确声明字段：
+- `a`：biz_code；
+- `b`：biz_msg；
+- `c`：biz_data（`Lc26` JSON payload）。
+
+`mb0.F()` 取得并校验响应后，将响应交给 `j41`；`j41` 的对应分支使用 `Lok2.serializer()` 解码 `ft9.c`，取出 `Lok2.a:Lss9`，再执行：
+
+`new ys(ss9, qs)`
+
+随后将该 `ys` 包装为 `tn2(ys, false)` 并返回。真实 session ID 因而来自服务端响应中的 `ss9.a`，而不是客户端 UUID。
+
+### 3. 模型选择更新与会话持久化顺序
+
+`oe2.i` 收到 `fx1.m()` 的 `pt7` 成功结果后：
+
+1. 从 `tn2.a` 取回服务端会话 `ys)；
+2. 使用 `ys.G(Lo97.d)` 将当前消息请求选择的模型 key 写入 `ys.d)（model type StateFlow）；这一步发生在持久化之前；
+3. 记录 `chat_session_created`，其中 `chat_session_id` 取自 `ys.a)，`sse_transaction_uuid` 取自消息/fragment `ada)；
+4. 启动 `Leo2` 对应协程，调用 `fx1.l(ys`；
+5. `fx1.l(ys` 委托到 `pi.e(ys`，通过 `wn2` 投递到 `pi.g:Lix0` actor/队列更新流程；
+6. 完成 UI 回调后，再把原始 `Lo97` 请求转换为消息事件投递给当前会话组件。
+
+这给出了宿主会话初始化的实际顺序：**服务端/预取会话取得 → 当前模型 key 回填 → 会话仓库异步持久化 → 消息事件进入组件**。
+
+### 4. Native Session Factory 实现决策
+
+- 不再自行构造 `ss9` 或生成 `chat_session_id`。
+- 优先研究复用宿主 `fx1.m()` 的预取/服务端创建逻辑，并在成功后按宿主顺序更新 model type 与持久化。
+- 不直接复制 `/api/v0/chat_session/create` 请求；必须保留 `zn3/ch2/bi5` 网络栈、响应校验、认证/Challenge/PoW 与宿主错误处理。
+- 当前仍未实现 Local API 到该宿主服务的安全桥接。需要确认可稳定取得 `fx1` 实例的生命周期入口、Continuation/取消语义，以及 `fx1.l()` actor 写入完成与失败反馈。
+- `fx1.m()` 返回的缓存命中和网络创建结果需要分别测试；不能只测试无缓存分支。
+- 由于本轮只有静态 Smali 证据，尚未声称已在真机观察到该 endpoint 或会话回填。Completion 继续 HTTP 503 fail-closed。
+
+本节是 code289 APK 静态调用链结论，不代表运行时验证或 Local API 已可用。
+
+
+### 5. Local API 取得宿主 Session Factory 的候选接入点
+
+继续检查 `oe2` 构造器可确认：
+
+- `oe2` 是宿主会话 ViewModel/状态持有者（继承 `ksb`）。
+- 它通过宿主 DI 容器 `di9.c(...)` 取得 `fx1)，并保存到 final 字段 `oe2.h:Lfx1;`。
+- `oe2.j()` 和 `oe2.k(ys)` 均使用该字段构造 `Lik2`，因此 `oe2.h` 与前述 `fx1.m()/fx1.l()` 属于同一会话仓库实例。
+- `Main.startz1()` 已经拥有宿主 `hostClassLoader`，且通过 `Main.MODULE.hook(Method)` 安装透明 Hook；同一 Hook API 可对 `oe2` 构造器或 `fx1` 构造器做 after-hook 观察。
+
+**候选方案（尚未实现）：** 在 code289 Open 分支安装只读构造器 Hook，优先从 `oe2` 实例字段 `h` 捕获 `fx1`，必要时辅以 `fx1` 构造器捕获；只保存弱引用或生命周期受控引用。没有捕获到可用仓库实例时，Session Factory 应明确返回 unavailable/503，不扫描任意对象堆、不构造替代 session、不直接请求创建 endpoint。
+
+随后在后台工作线程中桥接 `fx1.m(Continuation)`，解析 `wt7/pt7/tn2` 成功/失败结果；成功后按宿主顺序更新 `ys.G(modelKey)` 并调用 `fx1.l(ys)`。但必须先验证 suspend Continuation 的结果解包、超时、取消传播和 actor 持久化时序，不能用阻塞 UI 线程或无取消能力的永久等待。
+
+该接入点目前只是从静态字段/构造器证据推导出的工程候选，未添加代码、未运行 Hook，也未验证生命周期覆盖率。
+
+
+## 2026-11-07 code289 静态深挖补充
+
+新增独立审计记录：[NATIVE_ADAPTER_CODE289_STATIC_DEEP_DIVE_2026-11-07.md](NATIVE_ADAPTER_CODE289_STATIC_DEEP_DIVE_2026-11-07.md)。
+
+本补充纠正此前将 `oe2.i()` 视为 Session Factory 的错误归类：当前 Smali 证据支持分别研究 `oe2.j/k/r`、`fx1.m()` 与 `fx1.l()`；其中 `fx1.m()` 是带预取队列快速路径和异步回退的 suspend 方法，不能仅凭该方法体断言其回退已完成服务端会话创建。新增记录同时展开 `zn3.o -> jw3.g -> y60` 与 `r3.c` 的静态边界。
+
+此文档是静态证据，不构成运行时 readiness。Native Completion 仍保持 503 fail-closed。
+
+
+## 2026-11-07：code289 Session Bootstrap 回退路径静态确认
+
+补充依据：`docs/NATIVE_ADAPTER_CODE289_STATIC_DEEP_DIVE_2026-11-07.md` 第 9 节；可复现检查脚本：`tools/audit_code289_session_fallback.py`。
+
+### 已确认的静态链
+
+```text
+fx1.m queue miss
+ -> mb0(pi)
+ -> pi.c / zn3.b / ch2.b
+ -> rz0 branch 2
+ -> /api/v0/chat_session/create
+ -> ServerResponseBizDataWrapper<ServerDefaultBizCode>
+ -> zs9.a(true)
+ -> biz_code == 0
+ -> j41 decodes ok2 / ss9
+ -> ys(ss9, ...)
+ -> tn2(ys, false) wrapped by pt7
+```
+
+- `rz0` 分支明确包含 `/api/v0/chat_session/create`，并设置 5000 ms 请求超时。请求 builder 默认 method 是 GET，该分支没有显式覆盖；`rh5.d` 随后交给 `cf5.a` 客户端管线，因此最终线上 method 仍需排除管线改写后再定论。
+- `ch2.b` 使用 `ServerResponseBizDataWrapper` 与 `ServerDefaultBizCode` 的 serializer。
+- `dt9` descriptor 明确包含 `biz_code`、`biz_msg`、`biz_data`。
+- `j41` 从 biz_data 解码 `ok2`，提取 `ss9` 并构造 `ys`。
+- 业务码非零及传输/解码异常有独立错误结果，不可把 HTTP 200 直接视为业务成功。
+- `ru7.N` 是协程上下文执行/切换层，不是该业务请求 API 本身。
+
+### 仍未证明
+
+- `rz0` 请求的 HTTP method 尚未从本段调用链确认；`z2c.V` 仅设置 `Content-Type`，不得误标为 POST。
+- `bi5.e` 的完整网络执行、认证拦截器、challenge/PoW 和公共 header 依赖尚未全部追完。
+- `ys` 后续写入、宿主当前会话绑定、`tn2` 消费者及取消清理语义尚未证明。
+- 该静态链不授权模块直接构造 `rz0/ch2` 或在外部上下文调用 `fx1.m`。
+
+本轮脚本对 code289 artifact 的 17 项断言全部通过（17/17）；这只是 Smali 静态结构验证，不是 Android 构建或真机运行验证。Gateway Completion 继续保持 HTTP 503 fail-closed。
+
+
+## 2026-11-07：code289 Ktor ChallengePlugin / PoW 网络管线静态追踪
+
+本轮直接检查 code289 APK 的 `all-smali.zip`，继续展开此前尚未完成的 `bi5.e -> rh5 -> cf5` 网络执行路径。新增证据表明，宿主请求不是简单交给裸 HTTP client：其 Ktor Client 配置包含独立的 `ChallengePlugin`，请求阶段会协调 challenge attempt，并按需处理 challenge / PoW response header。
+
+### 1. 插件注册与调用入口
+
+- `p61` 的 Ktor client 配置路径读取 `Lnq1.a` 插件实例，并通过 `gf5.a(Plugin, Configuration)` 将其注册到 client builder。
+- `nq1.<clinit>` 为插件声明名 `ChallengePlugin`，并声明 `ChallengeAttempt` 属性键。
+- `y10` 的请求执行协程调用 `nq1.a(cf5, requestBuilder, hq1, continuation, ...)`，因此 challenge 处理属于宿主原始请求管线的一部分，不是 `jw3.g` 外部的可选补丁。
+- `nq1.a` 在请求阶段读取已有的 `X-DS-PoW-Response` header，进入 `nq1.c` 的 challenge/header 处理，并通过 `hq1.a(pq1, Continuation)` 协调 challenge attempt。该方法同时持有 `AtomicReference`，用于并发请求间的 attempt 协调；其具体生命周期和失败恢复语义仍需继续逐分支审计。
+
+### 2. Challenge / PoW header 处理
+
+`nq1.c(cf5, requestBuilder, ...)` 的静态行为：
+
+- 复制原始 `ng5` request builder，而不是直接修改传入 builder。
+- 在 challenge context 对应分支中移除或设置 `X-Debug-Recaptcha-Challenge`。
+- 有 challenge response 时写入 `X-DS-Challenge-Response`。
+- 有 PoW response 时写入 `X-DS-PoW-Response`。
+- 随后继续调用 `cf5.e` 执行宿主 client pipeline，并将响应交给 `nq1.b` 解析。
+
+`jw3.g(ly1, Long)` 的 completion request 构造路径也会在 PoW response 非空时写入 `X-DS-PoW-Response`。因此 PoW header 既出现在通用 challenge plugin 的处理阶段，也出现在 completion request builder 的显式分支；不能把其中任一处孤立复制为完整认证实现。
+
+### 3. PoW 算法调用证据
+
+`df0.d(String, ms9, Continuation)` 按 `ms9.a` 中的算法标识分支。对 `DeepSeekHashV1`，Smali 通过反射方法引用指向：
+
+`com.deepseek.crypto.PowCalculator.calculateDeepSeekHashV1Pow(String, String, long): long`
+
+这证明 code289 APK 包含该算法入口及其调用适配，不代表模块可以绕过 challenge 流程自行生成可用响应。算法输入来源、challenge 生命周期、attempt 失败/重试、服务端校验和线程资源仍应按宿主完整链路验证。
+
+### 4. 更新后的静态网络调用链
+
+```text
+ly1 request DTO
+  -> zn3.o(ly1, null)
+  -> jw3.g(ly1, ...)
+       -> completion route + timeout + optional PoW header
+       -> y60 cold Flow
+  -> bi5.e(request lambda, serializer)
+  -> rh5.d(builder copy)
+  -> cf5.a(Ktor HttpClient pipeline)
+       -> ChallengePlugin (nq1)
+            -> challenge attempt (hq1 / pq1)
+            -> challenge / PoW response headers
+       -> transport execution
+  -> ef5 response decoding
+  -> y60.b(collector, Continuation)
+  -> r3.c(delta event reducer)
+```
+
+Session bootstrap 的 `ch2.b -> bi5.e` 与 completion request 的 `jw3.g -> y60` 都进入同一类 `bi5/cf5` 请求执行体系。此处“同一网络体系”是 Smali 静态结构结论；尚未证明模块能安全取得并长期持有该 client 或 plugin 实例。
+
+### 5. 对 Local API 实现的约束
+
+1. 不自行拼接 `X-DS-Challenge-Response` / `X-DS-PoW-Response`，也不复制 challenge plugin 的局部逻辑来替代宿主。
+2. 不绕过登录、Challenge、PoW、服务端业务码或官方网络拦截器；Native Adapter 必须复用宿主正常请求链路。
+3. 优先继续确认 `zn3/jw3`、`bi5/cf5` 和 `hq1` 的实例来源、生命周期、并发边界与取消传播。
+4. `y60` 仍是 cold Flow；不得在诊断观察器中额外 collect，也不得替换原始 Flow 对象。
+5. challenge plugin 的静态注册和 header 写入不等于已证明所有 challenge 分支都能成功；HTTP 状态、业务码、challenge failure、PoW failure、serializer failure 必须分别保留。
+6. 本结论只适用于当前 code289-cn APK。287 与 290 必须有各自 APK 的 descriptor 和调用链证据。
+
+### 6. 可复现审计
+
+`tools/audit_code289_session_fallback.py` 已扩展为同时检查 session fallback 与 challenge/client pipeline 的静态锚点。新增检查覆盖插件注册、请求阶段插件调用、challenge attempt 调用、challenge/PoW header 写入、completion request 的 PoW header 分支，以及 DeepSeekHashV1 算法方法引用。
+
+该脚本只检查 Smali 静态结构；它不执行 challenge、不发送网络请求、不验证账号状态或设备运行时。Native Completion 仍保持 HTTP 503 fail-closed，直至独立的运行时对象、Flow collect、DeltaCommand reducer、取消和真实 Completion 验收全部完成。

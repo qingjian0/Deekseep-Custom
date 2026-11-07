@@ -14,18 +14,19 @@ REPORT_TEST="$ROOT/module/tests/nativeprobe/ds/dsh/DeepSeek/NativeProbeReportTes
 DISCOVERY="$ROOT/module/src/ds/dsh/DeepSeek/RoiHostDiscovery.java"
 UI="$ROOT/module/src/ds/dsh/DeepSeek/DeekseepUi.java"
 GATEWAY="$ROOT/module/src/ds/dsh/DeepSeek/OpenLocalApiGateway.java"
+TOOL_BRIDGE="$ROOT/module/src/ds/dsh/DeepSeek/OpenAiToolBridge.java"
 
 REPORT_OUT="$ROOT/module/build/native-probe-report-test"
 mkdir -p "$REPORT_OUT"
 javac -source 8 -target 8 -nowarn -d "$REPORT_OUT" "$REPORT" "$REPORT_TEST"
 java -cp "$REPORT_OUT" ds.dsh.DeepSeek.NativeProbeReportTest
 
-python - "$MAIN" "$STUB" "$FACADE" "$PROBE" "$Z18" "$HOST_V271" "$CHAT" "$REPORT" "$DISCOVERY" "$UI" "$GATEWAY" <<'PY'
+python - "$MAIN" "$STUB" "$FACADE" "$PROBE" "$Z18" "$HOST_V271" "$CHAT" "$REPORT" "$DISCOVERY" "$UI" "$GATEWAY" "$TOOL_BRIDGE" <<'PY'
 import pathlib
 import re
 import sys
 
-main, stub, facade, probe, z18, host_v271, chat, report, discovery, ui, gateway = [
+main, stub, facade, probe, z18, host_v271, chat, report, discovery, ui, gateway, tool_bridge = [
     pathlib.Path(path).read_text(encoding="utf-8") for path in sys.argv[1:]
 ]
 
@@ -170,6 +171,30 @@ require(
     r'observedArgumentTypes.*?value\.getClass\(\)\.getName\(\).*?observedStack.*?getClassName\(\).*?getMethodName\(\)',
     "runtime observer records argument types and stack symbols only",
 )
+callback_hook = probe.split("private static void installCallbackObserver", 1)[1].split(
+    "private static String observedMethodDescriptor", 1
+)[0]
+continuation_hook = probe.split("private static void installContinuationObserver", 1)[1].split(
+    "private static void installCallbackObserver", 1
+)[0]
+if "callback-pre-diagnostic-failed" not in callback_hook:
+    raise SystemExit("callback observer must isolate pre-call diagnostic failures")
+if "callback-post-diagnostic-failed" not in callback_hook:
+    raise SystemExit("callback observer must isolate post-call diagnostic failures")
+if callback_hook.count("chain.proceed()") != 2:
+    raise SystemExit("callback observer must have one proceed in the disabled path and one in the observed path")
+if "value = chain.proceed();" not in callback_hook or "return value;" not in callback_hook:
+    raise SystemExit("callback observer must preserve the original successful return value")
+if "continuation-pre-diagnostic-failed" not in continuation_hook:
+    raise SystemExit("continuation observer must isolate pre-call diagnostic failures")
+if continuation_hook.count("chain.proceed()") != 2:
+    raise SystemExit("continuation observer must have one proceed in the disabled path and one in the observed path")
+if "value = chain.proceed();" not in continuation_hook or "return value;" not in continuation_hook:
+    raise SystemExit("continuation observer must preserve the original successful return value")
+if "private static void safeObserverLog(String message)" not in probe:
+    raise SystemExit("observer safe logger wrapper is missing")
+if "catch (Throwable ignored) {}" not in probe:
+    raise SystemExit("observer safe logger must isolate ordinary diagnostic failures")
 for forbidden in ("getResult().toString()", "chain.getArg(0).toString()", "Authorization", "prompt", "requestBody"):
     if forbidden in probe:
         raise SystemExit("runtime observer must not serialize sensitive request data: " + forbidden)
@@ -201,7 +226,7 @@ require(
 )
 require(
     probe,
-    r'line\(out, "report\.schema", "4"\)',
+    r'line\(out, "report\.schema", "6"\)',
     "probe report schema is versioned",
 )
 require(
@@ -383,7 +408,7 @@ require(report, r'"probe\.elapsedMs"\.equals\(key\).*?MAX_REPORT_CHARS.*?return;
 require(
     probe,
     r'hostCode271\(\) != 289.*?installObservedMethod\(loader, "jw3", "g".*?installObservedMethod\(loader, "zn3", "o"',
-    "runtime observation remains limited to the two reviewed 2.7.2/code289 candidate methods",
+    "the two Transport hooks remain the reviewed 2.7.2/code289 candidates; Delta dispatch is separately gated",
 )
 require(
     probe,
@@ -474,8 +499,24 @@ require(
     r'observedResultType\(Object value\).*?type\.getDeclaredMethods\(\).*?observedMethodDescriptor\(methods\[i\]\)',
     "runtime observer reports bounded response wrapper method signatures",
 )
+delta_name_helper = re.search(
+    r'private static String safeDeltaEventName\(Object event\)(.*?)'
+    r'(?=\n    private static String observedArgumentTypes)',
+    probe,
+    re.S,
+)
+if delta_name_helper is None:
+    raise SystemExit("whitelisted Delta event-name helper is missing")
+if delta_name_helper.group(1).count('getDeclaredField("a")') != 2:
+    raise SystemExit("Delta observer may read only cv1.a and sha.a")
+if 'if (nameValue == null) return "delta-command";' not in delta_name_helper.group(1):
+    raise SystemExit("Delta observer must identify the null-name DeltaCommand channel")
+if '"delta".equals(name)' in delta_name_helper.group(1) or '"parse_error".equals(name)' in delta_name_helper.group(1):
+    raise SystemExit("Delta observer must not whitelist event names that r3.c does not dispatch")
+if 'getDeclaredField("b")' in delta_name_helper.group(1):
+    raise SystemExit("Delta observer must never read the SSE data payload")
 if "field.get(" in probe or "fields[i].get(" in probe:
-    raise SystemExit("Runtime observer must not read request/response field values")
+    raise SystemExit("Runtime observer must not read arbitrary request/response field values")
 
 require(
     probe,
@@ -495,12 +536,50 @@ require(
 
 require(
     probe,
-    r'installCallbackObserver\(Object callback, String role\).*?while \(current != null && current != Object\.class\).*?getDeclaredMethods\(\).*?chain\.getThisObject\(\).*?System\.identityHashCode\(receiver\)',
-    "continuation callback implementations are traced across the complete class hierarchy without probe-imposed class or method caps",
+    r'OBSERVATION_R3.*?installDeltaDispatchObserver\(loader\).*?Class\.forName\("r3".*?Class\.forName\("dv1".*?Class\.forName\("yb3"',
+    "code289 Delta dispatch is observed only through the reviewed r3/dv1/yb3 boundary",
 )
 require(
     probe,
-    r'callback-enter role=.*?observedArgumentTypes\(args\).*?callback-exit role=.*?durationMs=.*?callback-throw role=.*?exception=',
+    r'installDeltaDispatchObserver\(ClassLoader loader\).*?getDeclaredMethod\("c", eventType, continuationType\).*?Main\.MODULE\.hook\(target\).*?delta-dispatch-enter.*?chain\.proceed\(\).*?delta-dispatch-exit.*?delta-dispatch-throw',
+    "r3.c is hooked transparently with one original invocation and entry/exit/throw diagnostics",
+)
+require(
+    probe,
+    r'safeDeltaEventName\(Object event\).*?getDeclaredField\("a"\).*?payloadField\.get\(event\).*?getDeclaredField\("a"\).*?nameField\.get\(payload\).*?nameValue == null.*?return "delta-command".*?"ready".*?"hint".*?"title".*?"update_session".*?"close"',
+    "Delta diagnostics expose the null-name DeltaCommand channel and only r3.c-dispatched event names through cv1.a -> sha.a",
+)
+delta_observer = re.search(
+    r'private static void installDeltaDispatchObserver\(ClassLoader loader\)(.*?)'
+    r'(?=\n    private static void installObservedMethod)',
+    probe,
+    re.S,
+)
+if delta_observer is None:
+    raise SystemExit("Delta dispatch observer method boundary is missing")
+if delta_observer.group(1).count("chain.proceed()") != 2:
+    raise SystemExit("Delta dispatch observer must pass through once when disabled and once when enabled")
+if "OBSERVATION_R3.set(false)" in delta_observer.group(1):
+    raise SystemExit("Delta observer must not retry after a hook registration may have partially succeeded")
+
+require(
+    probe,
+    r'installCallbackObserver\(Object callback, String role\).*?type\.getDeclaredMethods\(\).*?attempted >= MAX_CALLBACK_METHODS_PER_CLASS.*?parameters\.length < 1.*?parameters\.length > 2.*?chain\.getThisObject\(\).*?System\.identityHashCode\(receiver\)',
+    "callback observation is restricted to bounded one/two-argument methods declared by the concrete callback class",
+)
+callback_observer = re.search(
+    r'private static void installCallbackObserver\(Object callback, String role\)(.*?)'
+    r'(?=\n    private static String observedMethodDescriptor)',
+    probe,
+    re.S,
+)
+if callback_observer is None:
+    raise SystemExit("callback observer method boundary is missing")
+if re.search(r'while \(current != null && current != Object\.class\)', callback_observer.group(1)):
+    raise SystemExit("callback observer must not traverse callback superclasses")
+require(
+    probe,
+    r'callback-enter role=.*?observedArgumentTypes\(args\).*?callback-throw method=.*?exception=.*?callback-exit method=.*?durationMs=',
     "callback trace captures entry, completion, elapsed time, and exception class without payload values",
 )
 require(
@@ -513,12 +592,22 @@ if "callback.toString()" in probe or "receiver.toString()" in probe:
 
 require(
     probe,
-    r'line\(out, "report\.schema", "4"\).*?diagnostic\.coverage.*?diagnostic\.sensitive_data.*?diagnostic\.callback_discovery_limits.*?none-imposed-by-probe',
-    "schema 4 identifies uncapped persistent native, callback, and gateway capture",
+    r'line\(out, "report\.schema", "6"\).*?diagnostic\.coverage.*?diagnostic\.sensitive_data.*?diagnostic\.callback_hook_limits.*?concrete-class-declared-methods-1-to-2-args-nonvoid-max-12-no-superclass-traversal-sorted-by-descriptor.*?diagnostic\.callback_shape_capture.*?field-names-and-types-once-per-method-no-field-values',
+    "schema 6 declares bounded concrete-callback hook coverage, deterministic selection, and one-time object-shape capture",
 )
 require(
     probe,
-    r'CALLBACK_METHOD_INVOCATIONS.*?CALLBACK_DETAIL_EVENTS.*?observerLog\("\[OPEN_NATIVE_CALL_OBSERVER\] callback-enter.*?callback-exit.*?callback-throw',
+    r'CALLBACK_ARGUMENT_SHAPES\.putIfAbsent.*?callback-argument-shape.*?observedObjectShape\(arg0\).*?CALLBACK_RESULT_SHAPES\.putIfAbsent.*?callback-result-shape.*?observedObjectShape\(value\)',
+    "callback argument and successful result object shapes are captured once per method without reading field values",
+)
+require(
+    probe,
+    r'java\.util\.Arrays\.sort\(methods, new java\.util\.Comparator<Method>',
+    "callback method selection is deterministic before the per-class cap is applied",
+)
+require(
+    probe,
+    r'CALLBACK_METHOD_INVOCATIONS.*?CALLBACK_DETAIL_EVENTS.*?safeObserverLog\("\[OPEN_NATIVE_CALL_OBSERVER\] callback-enter.*?callback-throw.*?callback-exit',
     "every callback event is persisted; only the in-memory preview remains bounded",
 )
 require(
@@ -528,13 +617,8 @@ require(
 )
 require(
     probe,
-    r'onExplicitEnable\(ClassLoader loader\).*?resetRuntimeTrace\(\).*?private static void resetRuntimeTrace\(\).*?OBSERVATION_LOG\.setLength\(0\).*?CALLBACK_METHOD_INVOCATIONS\.set\(0\).*?API_TRACE_EVENTS\.set\(0\).*?session-start schema=4',
+    r'onExplicitEnable\(ClassLoader loader\).*?resetRuntimeTrace\(\).*?private static void resetRuntimeTrace\(\).*?OBSERVATION_LOG\.setLength\(0\).*?CALLBACK_METHOD_INVOCATIONS\.set\(0\).*?CALLBACK_ARGUMENT_SHAPES\.clear\(\).*?CALLBACK_RESULT_SHAPES\.clear\(\).*?API_TRACE_EVENTS\.set\(0\).*?session-start schema=6',
     "each explicit enable starts a clean report session without uninstalling transparent hooks",
-)
-require(
-    probe,
-    r'while \(current != null && current != Object\.class\).*?for \(Method method : methods\).*?Main\.MODULE\.hook\(target\)',
-    "callback discovery and hook installation do not impose fixed class, method, or hook-count limits",
 )
 require(
     gateway,
@@ -548,7 +632,7 @@ require(
 )
 require(
     probe,
-    r'CALLBACK_STATS.*?ConcurrentHashMap.*?stats\.record\(System\.nanoTime\(\) - started, false\).*?stats\.record\(System\.nanoTime\(\) - started, true\).*?totalMs=.*?maxMs=.*?avgUs=',
+    r'CALLBACK_STATS.*?ConcurrentHashMap.*?stats\.record\(System\.nanoTime\(\) - started, true\).*?stats\.record\(durationNanos, false\).*?totalMs=.*?maxMs=.*?avgUs=',
     "every hooked callback method retains full invocation, failure, and latency aggregates beyond detailed event samples",
 )
 require(
@@ -563,8 +647,8 @@ require(
 )
 require(
     ui,
-    r'完整采集官方客户端 Transport、全部已发现的异步回调方法与 Local API 网关阶段.*?不设回调类、方法、Hook 或事件数量上限.*?复制完整报告',
-    "the UI explains uncapped callback coverage, persistent full-event logging, and one-report export",
+    r'采集官方客户端 Transport、y60 边界符合筛选条件的回调方法及 Local API 网关阶段.*?仅 Hook 具体类自身声明的 1～2 参数非 void 方法，每类最多 12 个.*?所有事件实时追加到应用私有目录文件.*?复制完整报告（包含持久化日志）',
+    "the UI documents bounded callback selection and persistent full-event export",
 )
 require(
     probe,
@@ -595,19 +679,29 @@ require(
     "gateway identifies the exact unsupported feature without logging request values",
 )
 require(
-    gateway,
-    r'JSONArray\) \|\| \(\(JSONArray\) tools\)\.length\(\) > 0.*?"none".equals\(toolChoice\)',
-    "empty tools arrays and tool_choice none are harmless defaults",
+    tool_bridge,
+    r"parseDefinitions\(JSONArray tools, boolean responses\).*?tools == null \|\| tools\.length\(\) == 0\) return Collections\.emptyList\(\)",
+    "empty tools arrays produce an empty definition list",
+)
+require(
+    tool_bridge,
+    r"parseChoice\(Object raw, List<Definition> tools, boolean responses\).*?if \(tools\.isEmpty\(\)\).*?return new Choice\(Choice\.NONE, null, null\).*?Choice\.NONE\.equals\(value\).*?return new Choice\(value, null, null\)",
+    "empty tools and explicit tool_choice none resolve to no tool execution",
 )
 require(
     gateway,
-    r'"none".equals\(functionCall\).*?Boolean\.FALSE\.equals\(parallel\)',
-    "empty legacy function selection and parallel_tool_calls false are harmless defaults",
+    r'functionCall instanceof String && "none"\.equals\(functionCall\)',
+    "legacy function_call none is accepted as a no-op",
 )
 require(
     gateway,
-    r'!"text".equals\(format\.optString\("type", ""\)\).*?Boolean\.FALSE\.equals\(includeUsage\).*?return "stream_options\.include_usage";',
-    "text response format and include_usage false do not reject ordinary chat streaming",
+    r'parallel_tool_calls.*?instanceof Boolean.*?boolean parallelTools = body\.optBoolean\("parallel_tool_calls", true\)',
+    "parallel_tool_calls accepts explicit boolean false and defaults to true",
+)
+require(
+    gateway,
+    r'!\"text\".equals\(format\.optString\(\"type\", \"\"\)\).*?includeUsage != null.*?includeUsage != JSONObject\.NULL.*?\(!\(includeUsage instanceof Boolean\) \|\| Boolean\.TRUE\.equals\(includeUsage\)\).*?return \"stream_options\.include_usage\";',
+    "text response format is accepted; include_usage false is accepted while true and non-boolean values fail closed",
 )
 print("Native probe bounded-retry regression checks passed")
 print("Native adapter fail-closed and read-only probe source checks passed")

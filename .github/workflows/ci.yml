@@ -3,8 +3,9 @@ name: YunSeek CI
 on:
   pull_request:
     branches: [dev]
+  # Feature branches are validated by their PR event only, avoiding duplicate full CI.
   push:
-    branches: [dev, "work/**"]
+    branches: [dev]
   workflow_dispatch:
 
 permissions:

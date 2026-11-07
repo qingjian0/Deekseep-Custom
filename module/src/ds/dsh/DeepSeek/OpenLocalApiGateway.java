@@ -26,6 +26,10 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.UUID;
+import java.util.List;
+import java.util.Collections;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -51,6 +55,9 @@ final class OpenLocalApiGateway {
     private static volatile String lanBindingStatus = "未启用";
     private static volatile String lanNetworkMonitorStatus = "未注册";
     private static volatile ExecutorService clients;
+    // Registration and stop-time closure share one lifecycle lock.
+    private static final Set<Socket> activeClients = Collections.newSetFromMap(
+            new ConcurrentHashMap<Socket, Boolean>());
     private static volatile z2.Backend backend;
     private static volatile Context appContext;
     private static volatile String token;
@@ -60,6 +67,11 @@ final class OpenLocalApiGateway {
     private static volatile boolean lanEnabled;
     private static volatile ConnectivityManager networkManager;
     private static volatile ConnectivityManager.NetworkCallback networkCallback;
+    private static final int MAX_RESPONSE_STATES = 64;
+    private static final long RESPONSE_STATE_TTL_MS = 30L * 60L * 1000L;
+    private static final int MAX_RESPONSE_STATE_CHARS = 256 * 1024;
+    private static final java.util.LinkedHashMap<String, ResponseState> RESPONSE_STATES =
+            new java.util.LinkedHashMap<String, ResponseState>(16, 0.75f, true);
 
     private OpenLocalApiGateway() {}
 
@@ -108,6 +120,7 @@ final class OpenLocalApiGateway {
             RUNNING.set(false);
             unregisterLanNetworkCallback();
             closeServer();
+            closeActiveClients();
             ExecutorService pool = clients;
             clients = null;
             if (pool != null) pool.shutdownNow();
@@ -122,11 +135,13 @@ final class OpenLocalApiGateway {
         RUNNING.set(false);
         unregisterLanNetworkCallback();
         closeServer();
+        closeActiveClients();
         lanBindingStatus = lanEnabled ? "已停止" : "未启用";
         ExecutorService pool = clients;
         clients = null;
         if (pool != null) pool.shutdownNow();
         backend = null;
+        RESPONSE_STATES.clear();
         boundPort = 0;
         lastStartError = "";
     }
@@ -407,12 +422,17 @@ final class OpenLocalApiGateway {
         if (!RUNNING.get()) return "本地 API 服务尚未启动"
                 + (lastStartError.length() == 0 ? "" : "\n最近启动错误：" + lastStartError);
         return "本机地址：" + baseUrl() + "\n"
+                + "Anthropic Base URL：" + endpoint() + "\n"
                 + "聊天接口：" + endpoint() + "/v1/chat/completions\n"
+                + "Anthropic Messages：" + endpoint() + "/v1/messages\n"
                 + "本地 API Key：" + apiKey() + "\n"
                 + "可用模型：deepseek-chat、deepseek-reasoner；兼容别名：deepseek-flash\n"
                 + (lanEnabled
                         ? (boundLanAddress.length() > 0
-                                ? "局域网地址：" + lanEndpoint() + "\n" : "")
+                                ? "局域网地址：" + lanEndpoint() + "\n"
+                                        + "局域网 Anthropic Base URL：http://" + boundLanAddress
+                                                + ":" + boundPort + "\n"
+                                : "")
                                 + "局域网绑定状态：" + lanBindingStatus + "\n"
                                 + "网络变化监听：" + lanNetworkMonitorStatus + "\n"
                         : "局域网状态：未启用\n")
@@ -439,14 +459,42 @@ final class OpenLocalApiGateway {
         if (lanSocket != null) try { lanSocket.close(); } catch (Exception ignored) {}
     }
 
+    private static void closeActiveClients() {
+        synchronized (activeClients) {
+            for (Socket client : activeClients) {
+                try { client.close(); } catch (Exception ignored) {}
+            }
+            activeClients.clear();
+        }
+    }
+
+    private static boolean registerClient(Socket client) {
+        synchronized (activeClients) {
+            if (!RUNNING.get() || client == null || client.isClosed()) return false;
+            activeClients.add(client);
+            return true;
+        }
+    }
+
+    private static void closeTrackedClient(Socket client) {
+        if (client == null) return;
+        synchronized (activeClients) { activeClients.remove(client); }
+        try { client.close(); } catch (Exception ignored) {}
+    }
+
     private static void acceptLoop(ServerSocket socket) {
         while (RUNNING.get() && !socket.isClosed()) {
             try {
                 Socket client = socket.accept();
                 client.setSoTimeout(30_000);
+                // Serialize registration with stop so an accepted socket cannot escape shutdown.
+                if (!registerClient(client)) {
+                    closeTrackedClient(client);
+                    continue;
+                }
                 ExecutorService pool = clients;
                 if (pool == null) {
-                    client.close();
+                    closeTrackedClient(client);
                 } else {
                     try {
                         pool.execute(() -> handle(client));
@@ -454,8 +502,10 @@ final class OpenLocalApiGateway {
                         try {
                             OutputStream rejected = client.getOutputStream();
                             sendError(rejected, 503, "server_busy", "Too many queued requests");
-                            client.close();
-                        } catch (Exception ignored) {}
+                        } catch (Exception ignored) {
+                        } finally {
+                            closeTrackedClient(client);
+                        }
                     }
                 }
             } catch (Exception error) {
@@ -491,9 +541,17 @@ final class OpenLocalApiGateway {
                 sendError(out, 405, "method_not_allowed", "Only GET and POST are supported");
                 return;
             }
-            String supplied = bearer(request.headers.get("authorization"));
+            boolean anthropicRoute = "POST".equals(request.method)
+                    && "/v1/messages".equals(request.path);
+            String supplied = anthropicRoute
+                    ? request.headers.get("x-api-key") : bearer(request.headers.get("authorization"));
+            if (anthropicRoute && (supplied == null || supplied.length() == 0)) {
+                supplied = bearer(request.headers.get("authorization"));
+            }
             if (token == null || !constantTimeEquals(token, supplied)) {
-                sendError(out, 401, "invalid_api_key", "Invalid bearer token");
+                if (anthropicRoute) sendAnthropicError(out, 401, "authentication_error",
+                        "Invalid API key");
+                else sendError(out, 401, "invalid_api_key", "Invalid bearer token");
                 return;
             }
             OpenNativeCompletionProbe.apiTrace("http-authenticated method=" + request.method
@@ -513,6 +571,14 @@ final class OpenLocalApiGateway {
                         .put("data", new JSONArray().put(model).put(reasoner).put(flashAlias)));
                 OpenNativeCompletionProbe.apiTrace("models-list status=200 durationMs="
                         + ((System.nanoTime() - requestStartedNanos) / 1000000L));
+                return;
+            }
+            if ("POST".equals(request.method) && "/v1/responses".equals(request.path)) {
+                handleResponses(out, request);
+                return;
+            }
+            if (anthropicRoute) {
+                handleAnthropicMessages(out, request);
                 return;
             }
             if (!"POST".equals(request.method)
@@ -574,14 +640,14 @@ final class OpenLocalApiGateway {
                                 + "；当前可用模型：deepseek-chat、deepseek-reasoner（兼容别名：deepseek-flash）");
                 return;
             }
-            String prompt;
+            String conversationPrompt;
             try {
-                prompt = toPrompt(body.optJSONArray("messages"));
+                conversationPrompt = toPrompt(body.optJSONArray("messages"));
             } catch (Exception invalid) {
                 sendError(out, 400, "invalid_messages", "Messages must contain supported text roles");
                 return;
             }
-            if (prompt.length() == 0 || prompt.length() > MAX_PROMPT_CHARS) {
+            if (conversationPrompt.length() == 0 || conversationPrompt.length() > MAX_PROMPT_CHARS) {
                 sendError(out, 400, "invalid_prompt", "Prompt is empty or too large");
                 return;
             }
@@ -609,11 +675,43 @@ final class OpenLocalApiGateway {
                 }
                 maxTokens = (int) numericMaxTokens;
             }
+            JSONArray rawTools = body.optJSONArray("tools");
+            if (body.has("tools") && body.opt("tools") != JSONObject.NULL && rawTools == null) {
+                sendError(out, 400, "invalid_tools", "tools must be an array");
+                return;
+            }
+            if (body.has("parallel_tool_calls")
+                    && !(body.opt("parallel_tool_calls") instanceof Boolean)) {
+                sendError(out, 400, "invalid_parallel_tool_calls",
+                        "parallel_tool_calls must be a boolean");
+                return;
+            }
+            boolean parallelTools = body.optBoolean("parallel_tool_calls", true);
+            OpenAiToolBridge.Plan toolPlan;
+            try {
+                toolPlan = OpenAiToolBridge.chatPlan(
+                        rawTools, body.opt("tool_choice"), parallelTools);
+            } catch (z2.GatewayException invalidTools) {
+                sendError(out, invalidTools.status, invalidTools.code, invalidTools.type,
+                        invalidTools.getMessage());
+                return;
+            }
             String requestId = "api-" + UUID.randomUUID();
+            String prompt = OpenAiToolBridge.addInstructions(
+                    conversationPrompt, toolPlan, requestId);
+            if (prompt.length() > MAX_PROMPT_CHARS) {
+                sendError(out, 400, "invalid_prompt", "Prompt with tool instructions is too large");
+                return;
+            }
+            if (stream && toolPlan.active()) {
+                sendError(out, 400, "unsupported_streaming_tool_calls",
+                        "Tool calls are currently supported only with stream=false");
+                return;
+            }
             z2.CompletionRequest completion = new z2.CompletionRequest(
-                    requestId, model, "default", prompt, prompt,
+                    requestId, model, "default", conversationPrompt, prompt,
                     "deepseek-reasoner".equals(model), false, maxTokens,
-                    null, null, false);
+                    toolPlan, null, false);
             OpenNativeCompletionProbe.apiTrace("request-accepted requestId=" + requestId
                     + " requestedModel=" + requestedModel + " model=" + model
                     + " stream=" + stream + " promptChars=" + prompt.length()
@@ -629,8 +727,10 @@ final class OpenLocalApiGateway {
                         + " stage=backend-readiness status=503");
                 return;
             }
+            boolean includeUsage = body.optJSONObject("stream_options") != null
+                    && body.optJSONObject("stream_options").optBoolean("include_usage", false);
             if (stream) {
-                streamCompletion(out, current, completion, model, requestId);
+                streamCompletion(out, current, completion, model, requestId, includeUsage);
             } else {
                 z2.CompletionResult result;
                 long completionStartedNanos = System.nanoTime();
@@ -663,27 +763,746 @@ final class OpenLocalApiGateway {
                         + " textChars=" + result.text.length()
                         + " reasoningChars=" + result.reasoning.length()
                         + " finishReason=" + result.finishReason);
+                List<OpenAiToolBridge.Call> parsedToolCalls =
+                        OpenAiToolBridge.parseCalls(result.text, toolPlan);
+                if (toolPlan.active() && parsedToolCalls.isEmpty()
+                        && (toolPlan.choice.requiresCall()
+                        || OpenAiToolBridge.resemblesCallSyntax(result.text, toolPlan))) {
+                    sendError(out, 502, "invalid_tool_response",
+                            "The model did not return a valid tool call matching the request schema");
+                    return;
+                }
                 JSONObject message = new JSONObject().put("role", "assistant")
-                        .put("content", result.text);
+                        .put("content", parsedToolCalls.isEmpty()
+                                ? result.text : JSONObject.NULL);
+                if (!parsedToolCalls.isEmpty()) {
+                    JSONArray wireCalls = new JSONArray();
+                    for (OpenAiToolBridge.Call call : parsedToolCalls) {
+                        JSONObject function = new JSONObject()
+                                .put("name", call.name)
+                                .put("arguments", call.arguments);
+                        wireCalls.put(new JSONObject().put("id", call.callId)
+                                .put("type", "function").put("function", function));
+                    }
+                    message.put("tool_calls", wireCalls);
+                }
                 if ("deepseek-reasoner".equals(model) && result.reasoning.length() > 0) {
                     message.put("reasoning_content", result.reasoning);
                 }
                 JSONObject choice = new JSONObject().put("index", 0).put("message", message)
-                        .put("finish_reason", result.finishReason);
+                        .put("finish_reason", parsedToolCalls.isEmpty()
+                                ? result.finishReason : "tool_calls");
+                int promptTokens = estimateTokens(completion.prompt);
+                int completionTokens = estimateTokens(result.text)
+                        + estimateTokens(result.reasoning);
+                JSONObject usage = new JSONObject().put("prompt_tokens", promptTokens)
+                        .put("completion_tokens", completionTokens)
+                        .put("total_tokens", promptTokens + completionTokens)
+                        .put("dsh_usage_estimated", true);
                 sendJson(out, 200, new JSONObject().put("id", requestId)
                         .put("object", "chat.completion").put("created", System.currentTimeMillis()/1000)
-                        .put("model", model).put("choices", new JSONArray().put(choice)));
+                        .put("model", model).put("choices", new JSONArray().put(choice))
+                        .put("usage", usage));
             }
         } catch (Exception error) {
             Main.log("Open Local API request failed: " + error.getClass().getSimpleName());
             OpenNativeCompletionProbe.apiTrace("http-handler-failed exception="
                     + error.getClass().getName()
                     + " durationMs=" + ((System.nanoTime() - requestStartedNanos) / 1000000L));
+        } finally {
+            closeTrackedClient(socket);
         }
     }
 
+    private static void handleAnthropicMessages(OutputStream out, HttpRequest request)
+            throws Exception {
+        String version = request.headers.get("anthropic-version");
+        if (version == null || version.trim().length() == 0 || version.length() > 32) {
+            sendAnthropicError(out, 400, "invalid_request_error",
+                    "anthropic-version header is required");
+            return;
+        }
+        String contentType = request.headers.get("content-type");
+        String mediaType = contentType == null ? ""
+                : contentType.split(";", 2)[0].trim();
+        if (contentType != null && !"application/json".equalsIgnoreCase(mediaType)) {
+            sendAnthropicError(out, 415, "invalid_request_error",
+                    "Content-Type must be application/json");
+            return;
+        }
+        JSONObject body;
+        try {
+            body = new JSONObject(new String(request.body, StandardCharsets.UTF_8));
+        } catch (Exception invalid) {
+            sendAnthropicError(out, 400, "invalid_request_error",
+                    "Request body must be valid JSON");
+            return;
+        }
+        final AnthropicMessagesAdapter.Request normalized;
+        try {
+            normalized = AnthropicMessagesAdapter.parse(body);
+        } catch (z2.GatewayException invalid) {
+            sendAnthropicError(out, invalid.status, "invalid_request_error",
+                    invalid.getMessage());
+            return;
+        } catch (Exception invalid) {
+            sendAnthropicError(out, 400, "invalid_request_error",
+                    "Invalid Anthropic Messages request");
+            return;
+        }
+        String requestId = normalized.requestId;
+        z2.CompletionRequest completion = new z2.CompletionRequest(
+                requestId, normalized.model, "default", normalized.prompt, normalized.prompt,
+                normalized.reasoning, false, normalized.maxTokens,
+                normalized.toolPlan, null, false);
+        z2.Backend current = backend;
+        if (current == null || !current.isReady()) {
+            sendAnthropicError(out, 503, "api_error",
+                    current == null ? "Model backend unavailable" : current.readinessDetail());
+            return;
+        }
+        if (normalized.stream) {
+            streamAnthropicMessages(out, current, completion, normalized, requestId);
+            return;
+        }
+        long started = System.nanoTime();
+        final z2.CompletionResult result;
+        try {
+            result = current.complete(completion, null);
+        } catch (z2.GatewayException rejected) {
+            sendAnthropicError(out, rejected.status, "api_error", rejected.getMessage());
+            return;
+        } catch (Exception failure) {
+            sendAnthropicError(out, 502, "api_error", "Native model execution failed");
+            OpenNativeCompletionProbe.apiTrace("anthropic-completion-failed requestId="
+                    + requestId + " exception=" + failure.getClass().getName()
+                    + " durationMs=" + ((System.nanoTime() - started) / 1000000L));
+            return;
+        }
+        if (result == null) {
+            sendAnthropicError(out, 502, "api_error", "Native model returned no result");
+            return;
+        }
+        List<OpenAiToolBridge.Call> calls =
+                OpenAiToolBridge.parseCalls(result.text, normalized.toolPlan);
+        if (normalized.toolPlan.active() && calls.isEmpty()
+                && (normalized.toolPlan.choice.requiresCall()
+                || OpenAiToolBridge.resemblesCallSyntax(result.text, normalized.toolPlan))) {
+            sendAnthropicError(out, 502, "api_error",
+                    "The model did not return a valid tool call matching the request schema");
+            return;
+        }
+        JSONArray content = anthropicContent(result, calls);
+        String stopReason = !calls.isEmpty() ? "tool_use"
+                : "length".equals(result.finishReason) ? "max_tokens" : "end_turn";
+        JSONObject message = new JSONObject().put("id", requestId)
+                .put("type", "message").put("role", "assistant")
+                .put("model", normalized.model).put("content", content)
+                .put("stop_reason", stopReason).put("stop_sequence", JSONObject.NULL)
+                .put("usage", new JSONObject()
+                        .put("input_tokens", estimateTokens(completion.prompt))
+                        .put("output_tokens", estimateTokens(result.text))
+                        .put("dsh_usage_estimated", true));
+        // z2.Backend does not expose tokenizer counters. Return rough estimates and mark them
+        // explicitly so clients do not mistake them for exact DeepSeek tokenizer usage.
+        sendJson(out, 200, message);
+        OpenNativeCompletionProbe.apiTrace("anthropic-completion-complete requestId="
+                + requestId + " durationMs=" + ((System.nanoTime() - started) / 1000000L)
+                + " textChars=" + result.text.length()
+                + " reasoningChars=" + result.reasoning.length()
+                + " toolCalls=" + calls.size());
+    }
+
+    private static JSONArray anthropicContent(z2.CompletionResult result,
+            List<OpenAiToolBridge.Call> calls) throws Exception {
+        JSONArray content = new JSONArray();
+        if (result.text.length() > 0 && calls.isEmpty()) {
+            content.put(new JSONObject().put("type", "text").put("text", result.text));
+        }
+        for (OpenAiToolBridge.Call call : calls) {
+            JSONObject input;
+            try { input = new JSONObject(call.arguments); }
+            catch (Exception invalid) { input = new JSONObject(); }
+            content.put(new JSONObject().put("type", "tool_use")
+                    .put("id", call.callId).put("name", call.name).put("input", input));
+        }
+        if (content.length() == 0) {
+            content.put(new JSONObject().put("type", "text").put("text", ""));
+        }
+        return content;
+    }
+
+    private static void streamAnthropicMessages(OutputStream out, z2.Backend current,
+            z2.CompletionRequest completion, AnthropicMessagesAdapter.Request normalized,
+            String requestId) throws Exception {
+        writeHeaders(out, 200, "text/event-stream; charset=utf-8");
+        final AtomicBoolean disconnected = new AtomicBoolean(false);
+        final StringBuilder streamedText = new StringBuilder();
+        final int[] nextBlock = {0};
+        final int[] textBlock = {-1};
+        sendAnthropicEvent(out, "message_start", new JSONObject().put("type", "message_start")
+                .put("message", new JSONObject().put("id", requestId)
+                        .put("type", "message").put("role", "assistant")
+                        .put("model", normalized.model).put("content", new JSONArray())
+                        .put("stop_reason", JSONObject.NULL).put("stop_sequence", JSONObject.NULL)
+                        .put("usage", new JSONObject()
+                                .put("input_tokens", estimateTokens(completion.prompt))
+                                .put("output_tokens", 0).put("dsh_usage_estimated", true))));
+        sendAnthropicEvent(out, "ping", new JSONObject().put("type", "ping"));
+        z2.DeltaSink sink = new z2.DeltaSink() {
+            private boolean emitText(String delta) throws Exception {
+                if (disconnected.get() || delta == null || delta.length() == 0) return !disconnected.get();
+                if (textBlock[0] < 0) {
+                    textBlock[0] = nextBlock[0]++;
+                    sendAnthropicEvent(out, "content_block_start",
+                            new JSONObject().put("type", "content_block_start")
+                                    .put("index", textBlock[0])
+                                    .put("content_block", new JSONObject()
+                                            .put("type", "text").put("text", "")));
+                }
+                streamedText.append(delta);
+                sendAnthropicEvent(out, "content_block_delta",
+                        new JSONObject().put("type", "content_block_delta")
+                                .put("index", textBlock[0])
+                                .put("delta", new JSONObject().put("type", "text_delta")
+                                        .put("text", delta)));
+                return true;
+            }
+            @Override public boolean onText(String delta) throws Exception {
+                try { return emitText(delta); }
+                catch (Exception failure) { disconnected.set(true); return false; }
+            }
+            @Override public boolean onReasoning(String delta) { return !disconnected.get(); }
+            @Override public boolean isCancelled() { return disconnected.get(); }
+        };
+        try {
+            z2.CompletionResult result = current.complete(completion, sink);
+            if (result == null) throw new z2.GatewayException(502,
+                    "empty_upstream_response", "Native model returned no result");
+            if (disconnected.get()) return;
+            if (streamedText.length() == 0 && result.text.length() > 0) {
+                sink.onText(result.text);
+            }
+            if (textBlock[0] >= 0) {
+                sendAnthropicEvent(out, "content_block_stop",
+                        new JSONObject().put("type", "content_block_stop")
+                                .put("index", textBlock[0]));
+            }
+            String stopReason = "length".equals(result.finishReason) ? "max_tokens" : "end_turn";
+            sendAnthropicEvent(out, "message_delta",
+                    new JSONObject().put("type", "message_delta")
+                            .put("delta", new JSONObject().put("stop_reason", stopReason)
+                                    .put("stop_sequence", JSONObject.NULL))
+                            .put("usage", new JSONObject().put("output_tokens",
+                                    estimateTokens(streamedText.length() > 0
+                                            ? streamedText.toString() : result.text))
+                                    .put("dsh_usage_estimated", true)));
+            sendAnthropicEvent(out, "message_stop", new JSONObject().put("type", "message_stop"));
+        } catch (Exception failure) {
+            if (!disconnected.get()) {
+                sendAnthropicEvent(out, "error", new JSONObject().put("type", "error")
+                        .put("error", new JSONObject().put("type", "api_error")
+                                .put("message", "Model execution failed")));
+            }
+        }
+        if (!disconnected.get()) out.flush();
+    }
+
+    /**
+     * Rough protocol-compatible usage estimate only. DeepSeek's tokenizer is not exposed by
+     * z2.Backend; callers can distinguish these values through dsh_usage_estimated.
+     */
+    private static int estimateTokens(String value) {
+        if (value == null || value.length() == 0) return 0;
+        int tokens = 0;
+        int asciiRun = 0;
+        for (int offset = 0; offset < value.length();) {
+            int codePoint = value.codePointAt(offset);
+            offset += Character.charCount(codePoint);
+            if (codePoint <= 0x7f && Character.isLetterOrDigit(codePoint)) {
+                asciiRun++;
+                continue;
+            }
+            if (asciiRun > 0) {
+                tokens += (asciiRun + 3) / 4;
+                asciiRun = 0;
+            }
+            if (!Character.isWhitespace(codePoint)) tokens++;
+        }
+        if (asciiRun > 0) tokens += (asciiRun + 3) / 4;
+        return tokens;
+    }
+
+    private static void sendAnthropicEvent(OutputStream out, String event,
+            JSONObject payload) throws Exception {
+        byte[] bytes = ("event: " + event + "\ndata: " + payload.toString() + "\n\n")
+                .getBytes(StandardCharsets.UTF_8);
+        synchronized (out) { out.write(bytes); out.flush(); }
+    }
+
+    private static void sendAnthropicError(OutputStream out, int status, String type,
+            String message) throws Exception {
+        sendJson(out, status, new JSONObject().put("type", "error")
+                .put("error", new JSONObject().put("type", type == null ? "api_error" : type)
+                        .put("message", message == null ? "Request failed" : message)));
+    }
+
+    private static void handleResponses(OutputStream out, HttpRequest request)
+            throws Exception {
+        String contentType = request.headers.get("content-type");
+        String mediaType = contentType == null ? ""
+                : contentType.split(";", 2)[0].trim();
+        if (contentType != null && !"application/json".equalsIgnoreCase(mediaType)) {
+            sendError(out, 415, "unsupported_media_type",
+                    "Content-Type must be application/json");
+            return;
+        }
+        JSONObject body;
+        try {
+            body = new JSONObject(new String(request.body, StandardCharsets.UTF_8));
+        } catch (Exception invalid) {
+            sendError(out, 400, "invalid_json", "Request body must be valid JSON");
+            return;
+        }
+        String unsupported = unsupportedChatOption(body);
+        if (unsupported.length() > 0) {
+            sendError(out, 400, "unsupported_parameter",
+                    "This Responses endpoint does not support: " + unsupported);
+            return;
+        }
+        String unsupportedFeatureName = unsupportedFeature(body);
+        if (unsupportedFeatureName.length() > 0) {
+            sendError(out, 400, "unsupported_feature",
+                    "This Responses endpoint does not support: " + unsupportedFeatureName);
+            return;
+        }
+        if (body.has("previous_response_id")
+                && !(body.opt("previous_response_id") instanceof String)) {
+            sendError(out, 400, "invalid_previous_response_id",
+                    "previous_response_id must be a string");
+            return;
+        }
+        String previousId = body.optString("previous_response_id", "").trim();
+        if (previousId.length() > 128) {
+            sendError(out, 400, "invalid_previous_response_id",
+                    "previous_response_id is too long");
+            return;
+        }
+        ResponseState previousState = previousId.length() == 0
+                ? null : loadResponseState(previousId);
+        if (previousId.length() > 0 && previousState == null) {
+            sendError(out, 400, "previous_response_not_found",
+                    "previous_response_id is unknown, expired, or was cleared by a service restart");
+            return;
+        }
+        if (body.has("model") && !(body.opt("model") instanceof String)) {
+            sendError(out, 400, "invalid_model", "model must be a string");
+            return;
+        }
+        String requestedModel = body.optString("model", "deepseek-chat").trim();
+        String model = "deepseek-flash".equals(requestedModel)
+                ? "deepseek-chat" : requestedModel;
+        if (!"deepseek-chat".equals(model) && !"deepseek-reasoner".equals(model)) {
+            sendError(out, 400, "model_not_found", "Unsupported model: " + model);
+            return;
+        }
+        if (body.has("stream") && !(body.opt("stream") instanceof Boolean)) {
+            sendError(out, 400, "invalid_stream", "stream must be a boolean");
+            return;
+        }
+        boolean stream = body.optBoolean("stream", false);
+        Object rawInput = body.opt("input");
+        if (!(rawInput instanceof String) && !(rawInput instanceof JSONArray)) {
+            sendError(out, 400, "invalid_input", "input must be a string or an array");
+            return;
+        }
+        String instructions = body.optString("instructions", "").trim();
+        if (body.has("instructions") && !(body.opt("instructions") instanceof String)) {
+            sendError(out, 400, "invalid_instructions", "instructions must be a string");
+            return;
+        }
+        java.util.HashSet<String> pendingToolCallIds = previousState == null
+                ? new java.util.HashSet<String>()
+                : new java.util.HashSet<String>(previousState.pendingToolCallIds);
+        String inputPrompt;
+        try {
+            inputPrompt = responsesInputToPrompt(rawInput, pendingToolCallIds);
+        } catch (Exception invalid) {
+            sendError(out, 400, "invalid_input", "Responses input contains unsupported or invalid items");
+            return;
+        }
+        String basePrompt = previousState == null ? inputPrompt
+                : previousState.transcript + (inputPrompt.length() == 0 ? "" : "\n" + inputPrompt);
+        if (instructions.length() > 0) {
+            basePrompt = previousState == null
+                    ? "system: " + instructions + "\n" + basePrompt
+                    : basePrompt + "\nsystem: " + instructions;
+        }
+        if (basePrompt.trim().length() == 0 || basePrompt.length() > MAX_PROMPT_CHARS) {
+            sendError(out, 400, "invalid_input", "input is empty or too large");
+            return;
+        }
+        JSONObject textOptions = body.optJSONObject("text");
+        if (body.has("text") && textOptions == null) {
+            sendError(out, 400, "invalid_text_options", "text must be an object");
+            return;
+        }
+        if (textOptions != null && textOptions.has("format")
+                && textOptions.optJSONObject("format") == null) {
+            sendError(out, 400, "invalid_response_format", "text.format must be an object");
+            return;
+        }
+        JSONObject format = textOptions == null ? null : textOptions.optJSONObject("format");
+        if (format != null && !"text".equals(format.optString("type", "text"))) {
+            sendError(out, 400, "unsupported_response_format",
+                    "Only text output format is currently supported");
+            return;
+        }
+        JSONArray rawTools = body.optJSONArray("tools");
+        if (body.has("tools") && body.opt("tools") != JSONObject.NULL && rawTools == null) {
+            sendError(out, 400, "invalid_tools", "tools must be an array");
+            return;
+        }
+        if (body.has("parallel_tool_calls")
+                && !(body.opt("parallel_tool_calls") instanceof Boolean)) {
+            sendError(out, 400, "invalid_parallel_tool_calls",
+                    "parallel_tool_calls must be a boolean");
+            return;
+        }
+        boolean searchRequested = false;
+        if (rawTools != null) {
+            for (int i = 0; i < rawTools.length(); i++) {
+                JSONObject rawTool = rawTools.optJSONObject(i);
+                if (rawTool == null) {
+                    sendError(out, 400, "invalid_tool", "Every tools entry must be an object");
+                    return;
+                }
+                String type = rawTool.optString("type", "function").toLowerCase(java.util.Locale.US);
+                if (type.startsWith("web_search_") || "web_search".equals(type)) {
+                    searchRequested = true;
+                } else if (!"function".equals(type) && !"custom".equals(type)
+                        && !"namespace".equals(type) && !"shell".equals(type)
+                        && !"local_shell".equals(type) && !"apply_patch".equals(type)) {
+                    sendError(out, 400, "unsupported_tool_type",
+                            "Unsupported Responses tool type: " + type);
+                    return;
+                }
+            }
+        }
+        OpenAiToolBridge.Plan toolPlan;
+        try {
+            toolPlan = OpenAiToolBridge.responsesPlan(
+                    rawTools, body.opt("tool_choice"), body.optBoolean("parallel_tool_calls", true));
+        } catch (z2.GatewayException invalidTools) {
+            sendError(out, invalidTools.status, invalidTools.code, invalidTools.type,
+                    invalidTools.getMessage());
+            return;
+        }
+        for (OpenAiToolBridge.Definition definition : toolPlan.tools) {
+            if (!OpenAiToolBridge.FUNCTION.equals(definition.kind)
+                    && !OpenAiToolBridge.CUSTOM.equals(definition.kind)) {
+                sendError(out, 400, "unsupported_tool_type",
+                        "This Responses endpoint currently supports function and custom tools only");
+                return;
+            }
+        }
+        if (stream && toolPlan.active()) {
+            sendError(out, 400, "unsupported_streaming_tool_calls",
+                    "Responses tool calls are currently supported only with stream=false");
+            return;
+        }
+        String requestId = "resp_" + UUID.randomUUID().toString().replace("-", "");
+        String messageId = "msg_" + UUID.randomUUID().toString().replace("-", "");
+        String prompt = OpenAiToolBridge.addInstructions(basePrompt, toolPlan, requestId);
+        if (prompt.length() > MAX_PROMPT_CHARS) {
+            sendError(out, 400, "invalid_input", "input with tool instructions is too large");
+            return;
+        }
+        boolean reasoningRequested = "deepseek-reasoner".equals(model);
+        if (body.has("reasoning")) {
+            JSONObject reasoningOptions = body.optJSONObject("reasoning");
+            if (reasoningOptions == null) {
+                sendError(out, 400, "invalid_reasoning", "reasoning must be an object");
+                return;
+            }
+            java.util.Iterator<String> reasoningKeys = reasoningOptions.keys();
+            while (reasoningKeys.hasNext()) {
+                if (!"effort".equals(reasoningKeys.next())) {
+                    sendError(out, 400, "unsupported_reasoning_option",
+                            "Only reasoning.effort is currently supported");
+                    return;
+                }
+            }
+            String effort = reasoningOptions.optString("effort", "medium")
+                    .toLowerCase(java.util.Locale.US);
+            if (!"none".equals(effort) && !"minimal".equals(effort)
+                    && !"low".equals(effort) && !"medium".equals(effort)
+                    && !"high".equals(effort) && !"xhigh".equals(effort)) {
+                sendError(out, 400, "invalid_reasoning_effort",
+                        "reasoning.effort must be none, minimal, low, medium, high, or xhigh");
+                return;
+            }
+            reasoningRequested = reasoningRequested || !"none".equals(effort);
+        }
+        int maxTokens = 4096;
+        if (body.has("max_output_tokens")) {
+            Object raw = body.opt("max_output_tokens");
+            if (!(raw instanceof Number)) {
+                sendError(out, 400, "invalid_max_output_tokens",
+                        "max_output_tokens must be an integer from 1 to 8192");
+                return;
+            }
+            double value = ((Number) raw).doubleValue();
+            if (value < 1 || value > 8192 || value != Math.rint(value)) {
+                sendError(out, 400, "invalid_max_output_tokens",
+                        "max_output_tokens must be an integer from 1 to 8192");
+                return;
+            }
+            maxTokens = (int) value;
+        }
+        z2.CompletionRequest completion = new z2.CompletionRequest(
+                requestId, model, "default", basePrompt, prompt,
+                reasoningRequested, searchRequested, maxTokens,
+                toolPlan, previousId.length() == 0 ? null : previousId, true)
+                .withOutputTextFormat(format);
+        z2.Backend current = backend;
+        if (current == null || !current.isReady()) {
+            sendError(out, 503, "model_not_ready",
+                    current == null ? "Model backend unavailable" : current.readinessDetail());
+            return;
+        }
+        if (stream) {
+            streamResponsesText(out, current, completion, model, requestId, messageId, pendingToolCallIds);
+            return;
+        }
+        long started = System.nanoTime();
+        z2.CompletionResult result;
+        try {
+            result = current.complete(completion, null);
+        } catch (z2.GatewayException rejected) {
+            sendError(out, rejected.status, rejected.code, rejected.type, rejected.getMessage());
+            return;
+        } catch (Exception failure) {
+            sendError(out, 502, "upstream_error", "Native model execution failed");
+            return;
+        }
+        if (result == null) {
+            sendError(out, 502, "empty_upstream_response", "Native model returned no result");
+            return;
+        }
+        List<OpenAiToolBridge.Call> calls = OpenAiToolBridge.parseCalls(result.text, toolPlan);
+        if (toolPlan.active() && calls.isEmpty()
+                && (toolPlan.choice.requiresCall()
+                || OpenAiToolBridge.resemblesCallSyntax(result.text, toolPlan))) {
+            sendError(out, 502, "invalid_tool_response",
+                    "The model did not return a valid tool call matching the request schema");
+            return;
+        }
+        JSONArray output = new JSONArray();
+        String outputText = calls.isEmpty() ? result.text : "";
+        if (calls.isEmpty()) {
+            JSONArray content = new JSONArray().put(new JSONObject()
+                    .put("type", "output_text").put("text", result.text)
+                    .put("annotations", new JSONArray()));
+            output.put(new JSONObject().put("id", messageId).put("type", "message")
+                    .put("status", "completed").put("role", "assistant")
+                    .put("content", content));
+        } else {
+            for (OpenAiToolBridge.Call call : calls) {
+                JSONObject item;
+                if (OpenAiToolBridge.CUSTOM.equals(call.kind)) {
+                    item = new JSONObject().put("id", call.itemId)
+                            .put("type", "custom_tool_call").put("status", "completed")
+                            .put("call_id", call.callId).put("name", call.name)
+                            .put("input", call.customInput());
+                } else {
+                    item = new JSONObject().put("id", call.itemId)
+                            .put("type", "function_call").put("status", "completed")
+                            .put("call_id", call.callId).put("name", call.name)
+                            .put("arguments", call.arguments);
+                    if (call.namespace != null) item.put("namespace", call.namespace);
+                }
+                output.put(item);
+            }
+        }
+        StringBuilder savedTranscript = new StringBuilder(basePrompt);
+        java.util.HashSet<String> savedPendingCalls =
+                new java.util.HashSet<String>(pendingToolCallIds);
+        if (calls.isEmpty()) {
+            if (result.text.length() > 0) savedTranscript.append("\nassistant: ").append(result.text);
+        } else {
+            for (OpenAiToolBridge.Call call : calls) {
+                savedTranscript.append("\nassistant tool call id=").append(call.callId)
+                        .append(" name=").append(call.name)
+                        .append(" arguments=").append(call.arguments);
+                savedPendingCalls.add(call.callId);
+            }
+        }
+        rememberResponseState(requestId, savedTranscript.toString(), savedPendingCalls);
+        JSONObject response = new JSONObject().put("id", requestId)
+                .put("object", "response").put("created_at", System.currentTimeMillis() / 1000L)
+                .put("status", "completed").put("error", JSONObject.NULL)
+                .put("incomplete_details", JSONObject.NULL).put("model", model)
+                .put("output", output).put("output_text", outputText);
+        sendJson(out, 200, response);
+        OpenNativeCompletionProbe.apiTrace("responses-complete requestId=" + requestId
+                + " durationMs=" + ((System.nanoTime() - started) / 1000000L)
+                + " outputItems=" + output.length());
+    }
+
+    private static String responsesInputToPrompt(Object input,
+            java.util.Set<String> callIds) throws Exception {
+        if (input instanceof String) return "user: " + (String) input;
+        JSONArray items = (JSONArray) input;
+        StringBuilder prompt = new StringBuilder();
+        for (int i = 0; i < items.length(); i++) {
+            JSONObject item = items.optJSONObject(i);
+            if (item == null) throw new IllegalArgumentException("Invalid input item");
+            String type = item.optString("type", "message");
+            if ("message".equals(type)) {
+                String role = item.optString("role", "user");
+                if (!"system".equals(role) && !"developer".equals(role)
+                        && !"user".equals(role) && !"assistant".equals(role)) {
+                    throw new IllegalArgumentException("Invalid message role");
+                }
+                String value = messageText(item.opt("content"));
+                if (value.trim().length() == 0) {
+                    throw new IllegalArgumentException("Empty input message");
+                }
+                if (prompt.length() > 0) prompt.append("\n");
+                prompt.append(role).append(": ").append(value);
+            } else if ("function_call".equals(type) || "custom_tool_call".equals(type)) {
+                String callId = item.optString("call_id", "").trim();
+                String name = item.optString("name", "").trim();
+                String arguments = "custom_tool_call".equals(type)
+                        ? item.optString("input", "") : item.optString("arguments", "");
+                if (callId.length() == 0 || name.length() == 0) {
+                    throw new IllegalArgumentException("Invalid tool-call history");
+                }
+                if (callIds.add(callId)) {
+                    if ("function_call".equals(type)) new JSONObject(arguments);
+                    if (prompt.length() > 0) prompt.append("\n");
+                    prompt.append("assistant tool call id=").append(callId)
+                            .append(" name=").append(name).append(" arguments=").append(arguments);
+                }
+            } else if ("function_call_output".equals(type)
+                    || "custom_tool_call_output".equals(type)) {
+                String callId = item.optString("call_id", "").trim();
+                if (callId.length() == 0 || !callIds.remove(callId)) {
+                    throw new IllegalArgumentException("Unmatched tool-call output");
+                }
+                Object rawOutput = item.opt("output");
+                String value = rawOutput instanceof String ? (String) rawOutput
+                        : rawOutput == null || rawOutput == JSONObject.NULL
+                                ? "" : String.valueOf(rawOutput);
+                if (prompt.length() > 0) prompt.append("\n");
+                prompt.append("tool result for ").append(callId).append(": ").append(value);
+            } else {
+                throw new IllegalArgumentException("Unsupported Responses input item type");
+            }
+            if (prompt.length() > MAX_PROMPT_CHARS) return prompt.toString();
+        }
+        return prompt.toString();
+    }
+
+    private static void streamResponsesText(OutputStream out, z2.Backend current,
+            z2.CompletionRequest request, String model, String requestId, String messageId,
+            java.util.Set<String> pendingToolCallIds) throws Exception {
+        writeHeaders(out, 200, "text/event-stream; charset=utf-8");
+        final AtomicBoolean disconnected = new AtomicBoolean(false);
+        final StringBuilder streamed = new StringBuilder();
+        final int[] sequence = {0};
+        sendResponsesEvent(out, "response.created", ++sequence[0],
+                new JSONObject().put("response", responsesEnvelope(requestId, model,
+                        "in_progress", new JSONArray(), "")));
+        sendResponsesEvent(out, "response.in_progress", ++sequence[0],
+                new JSONObject().put("response", responsesEnvelope(requestId, model,
+                        "in_progress", new JSONArray(), "")));
+        JSONObject item = new JSONObject().put("id", messageId).put("type", "message")
+                .put("status", "in_progress").put("role", "assistant")
+                .put("content", new JSONArray());
+        sendResponsesEvent(out, "response.output_item.added", ++sequence[0],
+                new JSONObject().put("output_index", 0).put("item", item));
+        JSONObject part = new JSONObject().put("type", "output_text")
+                .put("text", "").put("annotations", new JSONArray());
+        sendResponsesEvent(out, "response.content_part.added", ++sequence[0],
+                new JSONObject().put("item_id", messageId).put("output_index", 0)
+                        .put("content_index", 0).put("part", part));
+        z2.DeltaSink sink = new z2.DeltaSink() {
+            @Override public boolean onText(String delta) throws Exception {
+                if (disconnected.get()) return false;
+                try {
+                    streamed.append(delta);
+                    sendResponsesEvent(out, "response.output_text.delta", ++sequence[0],
+                            new JSONObject().put("item_id", messageId).put("output_index", 0)
+                                    .put("content_index", 0).put("delta", delta));
+                    return true;
+                } catch (Exception failure) {
+                    disconnected.set(true);
+                    return false;
+                }
+            }
+            @Override public boolean onReasoning(String delta) { return !disconnected.get(); }
+            @Override public boolean isCancelled() { return disconnected.get(); }
+        };
+        try {
+            z2.CompletionResult result = current.complete(request, sink);
+            if (result == null) throw new z2.GatewayException(502,
+                    "empty_upstream_response", "Native model returned no result");
+            if (disconnected.get()) return;
+            String finalText = streamed.length() > 0 ? streamed.toString() : result.text;
+            sendResponsesEvent(out, "response.output_text.done", ++sequence[0],
+                    new JSONObject().put("item_id", messageId).put("output_index", 0)
+                            .put("content_index", 0).put("text", finalText));
+            JSONObject finalPart = new JSONObject().put("type", "output_text")
+                    .put("text", finalText).put("annotations", new JSONArray());
+            sendResponsesEvent(out, "response.content_part.done", ++sequence[0],
+                    new JSONObject().put("item_id", messageId).put("output_index", 0)
+                            .put("content_index", 0).put("part", finalPart));
+            JSONObject finalItem = new JSONObject().put("id", messageId).put("type", "message")
+                    .put("status", "completed").put("role", "assistant")
+                    .put("content", new JSONArray().put(finalPart));
+            sendResponsesEvent(out, "response.output_item.done", ++sequence[0],
+                    new JSONObject().put("output_index", 0).put("item", finalItem));
+            sendResponsesEvent(out, "response.completed", ++sequence[0],
+                    new JSONObject().put("response", responsesEnvelope(requestId, model,
+                            "completed", new JSONArray().put(finalItem), finalText)));
+            rememberResponseState(requestId,
+                    request.basePrompt + (finalText.length() == 0 ? "" : "\nassistant: " + finalText),
+                    pendingToolCallIds);
+        } catch (Exception failure) {
+            if (!disconnected.get()) {
+                JSONObject error = new JSONObject().put("message", "Model execution failed")
+                        .put("type", "server_error").put("code", "upstream_error");
+                sendResponsesEvent(out, "response.failed", ++sequence[0],
+                        new JSONObject().put("response", responsesEnvelope(requestId, model,
+                                "failed", new JSONArray(), "")
+                                .put("error", error)));
+            }
+        }
+        if (!disconnected.get()) out.flush();
+    }
+
+    private static JSONObject responsesEnvelope(String id, String model, String status,
+            JSONArray output, String outputText) throws Exception {
+        return new JSONObject().put("id", id).put("object", "response")
+                .put("created_at", System.currentTimeMillis() / 1000L)
+                .put("status", status).put("error", JSONObject.NULL)
+                .put("incomplete_details", JSONObject.NULL).put("model", model)
+                .put("output", output).put("output_text", outputText);
+    }
+
+    private static void sendResponsesEvent(OutputStream out, String type, int sequence,
+            JSONObject payload) throws Exception {
+        payload.put("type", type).put("sequence_number", sequence);
+        byte[] bytes = ("event: " + type + "\ndata: " + payload.toString() + "\n\n")
+                .getBytes(StandardCharsets.UTF_8);
+        synchronized (out) { out.write(bytes); out.flush(); }
+    }
+
     private static void streamCompletion(OutputStream out, z2.Backend current,
-            z2.CompletionRequest request, String model, String requestId) throws Exception {
+            z2.CompletionRequest request, String model, String requestId,
+            boolean includeUsage) throws Exception {
         writeHeaders(out, 200, "text/event-stream; charset=utf-8");
         final long streamStartedNanos = System.nanoTime();
         final AtomicBoolean disconnected = new AtomicBoolean(false);
@@ -755,8 +1574,25 @@ final class OpenLocalApiGateway {
                 JSONObject finalEvent = new JSONObject().put("id", requestId)
                         .put("object", "chat.completion.chunk").put("created", System.currentTimeMillis()/1000)
                         .put("model", model).put("choices", new JSONArray().put(choice));
-                out.write(("data: " + finalEvent.toString() + "\n\ndata: [DONE]\n\n")
+                out.write(("data: " + finalEvent.toString() + "\n\n")
                         .getBytes(StandardCharsets.UTF_8));
+                if (includeUsage) {
+                    int promptTokens = estimateTokens(request.prompt);
+                    int completionTokens = estimateTokens(result.text)
+                            + estimateTokens(result.reasoning);
+                    JSONObject usage = new JSONObject().put("prompt_tokens", promptTokens)
+                            .put("completion_tokens", completionTokens)
+                            .put("total_tokens", promptTokens + completionTokens)
+                            .put("dsh_usage_estimated", true);
+                    JSONObject usageChunk = new JSONObject().put("id", requestId)
+                            .put("object", "chat.completion.chunk")
+                            .put("created", System.currentTimeMillis() / 1000L)
+                            .put("model", model).put("choices", new JSONArray())
+                            .put("usage", usage);
+                    out.write(("data: " + usageChunk.toString() + "\n\n")
+                            .getBytes(StandardCharsets.UTF_8));
+                }
+                out.write("data: [DONE]\n\n".getBytes(StandardCharsets.UTF_8));
                 out.flush();
                 OpenNativeCompletionProbe.apiTrace("stream-complete requestId=" + requestId
                         + " events=" + eventCount.get()
@@ -795,26 +1631,75 @@ final class OpenLocalApiGateway {
     private static String toPrompt(JSONArray messages) throws Exception {
         if (messages == null || messages.length() == 0) return "";
         StringBuilder prompt = new StringBuilder();
+        java.util.HashSet<String> pendingToolCallIds = new java.util.HashSet<String>();
         for (int i = 0; i < messages.length(); i++) {
             JSONObject message = messages.optJSONObject(i);
             if (message == null) throw new IllegalArgumentException("Invalid message");
-            if (message.has("tool_calls") || message.has("function_call")
-                    || message.has("tool_call_id") || message.has("name")) {
-                throw new IllegalArgumentException(
-                        "Named messages, tool messages, and tool calls are not supported");
-            }
             String role = message.optString("role", "");
             if (!"system".equals(role) && !"developer".equals(role)
-                    && !"user".equals(role) && !"assistant".equals(role)) {
+                    && !"user".equals(role) && !"assistant".equals(role)
+                    && !"tool".equals(role)) {
                 throw new IllegalArgumentException("Unsupported message role");
             }
+            if (message.has("name")) {
+                throw new IllegalArgumentException("Named messages are not supported");
+            }
+            if ("tool".equals(role)) {
+                String callId = message.optString("tool_call_id", "").trim();
+                if (callId.length() == 0 || !pendingToolCallIds.remove(callId)) {
+                    throw new IllegalArgumentException("Tool result does not match a preceding assistant tool call");
+                }
+                String toolResult = messageText(message.opt("content"));
+                if (toolResult.trim().length() == 0) {
+                    throw new IllegalArgumentException("Tool result content is empty");
+                }
+                if (prompt.length() > 0) prompt.append("\n");
+                prompt.append("tool result for ").append(callId).append(": ").append(toolResult);
+                continue;
+            }
+            if (message.has("tool_call_id") || message.has("function_call")) {
+                throw new IllegalArgumentException("Invalid tool-call history role or legacy function_call");
+            }
             Object content = message.opt("content");
-            String text = messageText(content);
-            if (text.trim().length() == 0) {
+            String text = content == null || content == JSONObject.NULL
+                    ? "" : messageText(content);
+            JSONArray calls = message.optJSONArray("tool_calls");
+            if (message.has("tool_calls") && !"assistant".equals(role)) {
+                throw new IllegalArgumentException("Only assistant messages may contain tool_calls");
+            }
+            if (text.trim().length() == 0 && (calls == null || calls.length() == 0)) {
                 throw new IllegalArgumentException("Message content is empty");
             }
-            if (prompt.length() > 0) prompt.append("\n");
-            prompt.append(role).append(": ").append(text);
+            if (text.length() > 0) {
+                if (prompt.length() > 0) prompt.append("\n");
+                prompt.append(role).append(": ").append(text);
+            }
+            if (calls != null) {
+                if (calls.length() > 32) {
+                    throw new IllegalArgumentException("Too many historical tool calls");
+                }
+                for (int callIndex = 0; callIndex < calls.length(); callIndex++) {
+                    JSONObject call = calls.optJSONObject(callIndex);
+                    JSONObject function = call == null ? null : call.optJSONObject("function");
+                    String id = call == null ? "" : call.optString("id", "").trim();
+                    String name = function == null ? "" : function.optString("name", "").trim();
+                    Object rawArguments = function == null ? null : function.opt("arguments");
+                    if (call == null || function == null || id.length() == 0 || id.length() > 128
+                            || name.length() == 0 || name.length() > 128
+                            || !"function".equals(call.optString("type", "function"))
+                            || !(rawArguments instanceof String)
+                            || pendingToolCallIds.contains(id)) {
+                        throw new IllegalArgumentException("Invalid assistant tool-call history");
+                    }
+                    String arguments = (String) rawArguments;
+                    new JSONObject(arguments);
+                    pendingToolCallIds.add(id);
+                    if (prompt.length() > 0) prompt.append("\n");
+                    prompt.append("assistant tool call id=").append(id)
+                            .append(" name=").append(name)
+                            .append(" arguments=").append(arguments);
+                }
+            }
             if (prompt.length() > MAX_PROMPT_CHARS) return prompt.toString();
         }
         return prompt.toString();
@@ -854,17 +1739,6 @@ final class OpenLocalApiGateway {
 
     /** Returns the first actually requested unsupported feature, ignoring harmless defaults. */
     private static String unsupportedFeature(JSONObject body) {
-        Object tools = body.opt("tools");
-        if (tools != null && tools != JSONObject.NULL) {
-            if (!(tools instanceof JSONArray) || ((JSONArray) tools).length() > 0) {
-                return "tools";
-            }
-        }
-        Object toolChoice = body.opt("tool_choice");
-        if (toolChoice != null && toolChoice != JSONObject.NULL
-                && !(toolChoice instanceof String && "none".equals(toolChoice))) {
-            return "tool_choice";
-        }
         Object functions = body.opt("functions");
         if (functions != null && functions != JSONObject.NULL) {
             if (!(functions instanceof JSONArray) || ((JSONArray) functions).length() > 0) {
@@ -875,11 +1749,6 @@ final class OpenLocalApiGateway {
         if (functionCall != null && functionCall != JSONObject.NULL
                 && !(functionCall instanceof String && "none".equals(functionCall))) {
             return "function_call";
-        }
-        Object parallel = body.opt("parallel_tool_calls");
-        if (parallel != null && parallel != JSONObject.NULL
-                && !Boolean.FALSE.equals(parallel)) {
-            return "parallel_tool_calls";
         }
         Object responseFormat = body.opt("response_format");
         if (responseFormat != null && responseFormat != JSONObject.NULL) {
@@ -894,7 +1763,7 @@ final class OpenLocalApiGateway {
             if (options == null) return "stream_options";
             Object includeUsage = options.opt("include_usage");
             if (includeUsage != null && includeUsage != JSONObject.NULL
-                    && !Boolean.FALSE.equals(includeUsage)) {
+                    && (!(includeUsage instanceof Boolean) || Boolean.TRUE.equals(includeUsage))) {
                 return "stream_options.include_usage";
             }
             java.util.Iterator<String> keys = options.keys();
@@ -917,7 +1786,7 @@ final class OpenLocalApiGateway {
             JSONObject part = parts.optJSONObject(i);
             if (part == null) throw new IllegalArgumentException("Invalid message content part");
             String type = part.optString("type", "");
-            if (!"text".equals(type) && !"input_text".equals(type)) {
+            if (!"text".equals(type) && !"input_text".equals(type) && !"output_text".equals(type)) {
                 throw new IllegalArgumentException("Only text content parts are supported");
             }
             Object value = part.has("text") ? part.opt("text") : part.opt("input_text");
@@ -929,6 +1798,46 @@ final class OpenLocalApiGateway {
             if (text.length() > MAX_PROMPT_CHARS) return text.toString();
         }
         return text.toString();
+    }
+
+    private static boolean isHttpToken(String value) {
+        return value != null && value.matches("[!#$%&'*+.^_`|~0-9A-Za-z-]+");
+    }
+
+    private static boolean isHttpFieldValue(String value) {
+        if (value == null) return false;
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if ((c < 0x20 && c != '\t') || c == 0x7f) return false;
+        }
+        return true;
+    }
+
+    private static boolean isRequestTarget(String value) {
+        if (value == null || value.length() == 0) return false;
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c <= 0x20 || c >= 0x7f) return false;
+        }
+        return value.startsWith("/");
+    }
+
+    private static boolean isDecimalDigits(String value) {
+        if (value == null || value.length() == 0) return false;
+        for (int i = 0; i < value.length(); i++) {
+            if (value.charAt(i) < '0' || value.charAt(i) > '9') return false;
+        }
+        return true;
+    }
+
+    private static boolean isHexDigits(String value) {
+        if (value == null || value.length() == 0) return false;
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')
+                    || (c >= 'A' && c <= 'F'))) return false;
+        }
+        return true;
     }
 
     private static HttpRequest readRequest(InputStream in) throws Exception {
@@ -946,8 +1855,8 @@ final class OpenLocalApiGateway {
         }
         if (matched != 4) throw new IllegalArgumentException("Invalid HTTP headers");
         String[] lines = new String(header.toByteArray(), StandardCharsets.ISO_8859_1).split("\r\n");
-        String[] first = lines[0].trim().split("\\s+");
-        if (first.length != 3 || first[0].length() == 0 || first[1].length() == 0
+        String[] first = lines[0].split(" ", -1);
+        if (first.length != 3 || !isHttpToken(first[0]) || !isRequestTarget(first[1])
                 || (!"HTTP/1.0".equals(first[2]) && !"HTTP/1.1".equals(first[2]))) {
             throw new IllegalArgumentException("Invalid request line");
         }
@@ -956,29 +1865,131 @@ final class OpenLocalApiGateway {
             if (lines[i].length() == 0) continue;
             int colon=lines[i].indexOf(':');
             if(colon<=0) throw new IllegalArgumentException("Invalid HTTP header");
-            String name = lines[i].substring(0,colon).trim()
+            String name = lines[i].substring(0,colon)
                     .toLowerCase(java.util.Locale.ROOT);
-            String value = lines[i].substring(colon+1).trim();
-            if (name.length() == 0 || headers.containsKey(name)) {
+            String rawValue = lines[i].substring(colon+1);
+            if (!isHttpToken(name) || !isHttpFieldValue(rawValue) || headers.containsKey(name)) {
                 throw new IllegalArgumentException("Duplicate or empty HTTP header");
             }
-            headers.put(name, value);
+            headers.put(name, rawValue.trim());
         }
-        if (headers.containsKey("transfer-encoding")) throw new IllegalArgumentException("Chunked requests unsupported");
-        int length = Integer.parseInt(headers.getOrDefault("content-length", "0"));
-        if (length < 0 || length > MAX_BODY_BYTES) throw new IllegalArgumentException("Request too large");
-        byte[] body = new byte[length];
-        int offset=0;
-        while(offset<length) {
-            int count=in.read(body,offset,length-offset);
-            if(count<0) throw new IllegalArgumentException("Truncated request body");
-            offset+=count;
+        String transferEncoding = headers.get("transfer-encoding");
+        String contentLength = headers.get("content-length");
+        if (transferEncoding != null && contentLength != null) {
+            throw new IllegalArgumentException("Ambiguous request framing");
+        }
+        byte[] body;
+        if (transferEncoding != null) {
+            if (!"HTTP/1.1".equals(first[2])) {
+                throw new IllegalArgumentException("Transfer encoding requires HTTP/1.1");
+            }
+            if (!"chunked".equalsIgnoreCase(transferEncoding.trim())) {
+                throw new IllegalArgumentException("Unsupported transfer encoding");
+            }
+            body = readChunkedBody(in);
+        } else {
+            int length;
+            if (contentLength != null && !isDecimalDigits(contentLength)) {
+                throw new IllegalArgumentException("Invalid content length");
+            }
+            try {
+                length = Integer.parseInt(contentLength == null ? "0" : contentLength);
+            } catch (NumberFormatException invalidLength) {
+                throw new IllegalArgumentException("Invalid content length");
+            }
+            if (length < 0 || length > MAX_BODY_BYTES) {
+                throw new IllegalArgumentException("Request too large");
+            }
+            body = new byte[length];
+            int offset = 0;
+            while (offset < length) {
+                int count = in.read(body, offset, length - offset);
+                if (count < 0) throw new IllegalArgumentException("Truncated request body");
+                offset += count;
+            }
         }
         String path = first[1];
         int queryStart = path.indexOf('?');
         if (queryStart >= 0) path = path.substring(0, queryStart);
         if (!path.startsWith("/")) throw new IllegalArgumentException("Invalid request target");
         return new HttpRequest(first[0], path, headers, body);
+    }
+
+    /**
+     * Reads HTTP/1.1 chunked transfer bodies with strict CRLF framing and a hard decoded-size
+     * limit. Chunk extensions are ignored; trailers are consumed but never trusted as headers.
+     */
+    private static byte[] readChunkedBody(InputStream in) throws Exception {
+        ByteArrayOutputStream body = new ByteArrayOutputStream();
+        int trailerBytes = 0;
+        while (true) {
+            String sizeLine = readCrlfLine(in, 1024);
+            int extension = sizeLine.indexOf(';');
+            String sizeText = extension >= 0 ? sizeLine.substring(0, extension) : sizeLine;
+            if (sizeText.length() > 16 || !isHexDigits(sizeText)) {
+                throw new IllegalArgumentException("Invalid chunk size");
+            }
+            long chunkSize;
+            try {
+                chunkSize = Long.parseLong(sizeText, 16);
+            } catch (NumberFormatException invalidSize) {
+                throw new IllegalArgumentException("Invalid chunk size");
+            }
+            if (chunkSize < 0 || chunkSize > MAX_BODY_BYTES - body.size()) {
+                throw new IllegalArgumentException("Request too large");
+            }
+            if (chunkSize == 0) {
+                while (true) {
+                    String trailer = readCrlfLine(in, 4096);
+                    trailerBytes += trailer.length() + 2;
+                    if (trailerBytes > MAX_HEADER_BYTES) {
+                        throw new IllegalArgumentException("Request trailers too large");
+                    }
+                    if (trailer.length() == 0) break;
+                    int colon = trailer.indexOf(':');
+                    if (colon <= 0) throw new IllegalArgumentException("Invalid request trailer");
+                    String name = trailer.substring(0, colon)
+                            .toLowerCase(java.util.Locale.ROOT);
+                    String trailerValue = trailer.substring(colon + 1);
+                    if (!isHttpToken(name) || !isHttpFieldValue(trailerValue)) {
+                        throw new IllegalArgumentException("Invalid request trailer");
+                    }
+                    if ("content-length".equals(name) || "transfer-encoding".equals(name)
+                            || "host".equals(name) || "authorization".equals(name)) {
+                        throw new IllegalArgumentException("Forbidden request trailer");
+                    }
+                }
+                return body.toByteArray();
+            }
+            byte[] chunk = new byte[(int) chunkSize];
+            int offset = 0;
+            while (offset < chunk.length) {
+                int count = in.read(chunk, offset, chunk.length - offset);
+                if (count < 0) throw new IllegalArgumentException("Truncated chunk data");
+                offset += count;
+            }
+            body.write(chunk);
+            if (in.read() != '\r' || in.read() != '\n') {
+                throw new IllegalArgumentException("Invalid chunk terminator");
+            }
+        }
+    }
+
+    private static String readCrlfLine(InputStream in, int maxBytes) throws Exception {
+        ByteArrayOutputStream line = new ByteArrayOutputStream();
+        while (line.size() <= maxBytes) {
+            int value = in.read();
+            if (value < 0) throw new IllegalArgumentException("Truncated chunk framing");
+            if (value == '\r') {
+                if (in.read() != '\n') throw new IllegalArgumentException("Invalid chunk line ending");
+                return new String(line.toByteArray(), StandardCharsets.US_ASCII);
+            }
+            if (value == '\n' || value < 0x20 && value != '\t') {
+                throw new IllegalArgumentException("Invalid chunk line");
+            }
+            line.write(value);
+        }
+        throw new IllegalArgumentException("Chunk line too large");
     }
 
     private static String bearer(String value) {
@@ -1071,6 +2082,45 @@ final class OpenLocalApiGateway {
                 + "Cache-Control: no-cache, no-store\r\n"
                 + "Connection: close\r\n\r\n").getBytes(StandardCharsets.US_ASCII));
         out.flush();
+    }
+
+    private static synchronized ResponseState loadResponseState(String id) {
+        long now = System.currentTimeMillis();
+        java.util.Iterator<java.util.Map.Entry<String, ResponseState>> iterator =
+                RESPONSE_STATES.entrySet().iterator();
+        while (iterator.hasNext()) {
+            ResponseState state = iterator.next().getValue();
+            if (now - state.updatedAtMs > RESPONSE_STATE_TTL_MS) iterator.remove();
+        }
+        return RESPONSE_STATES.get(id);
+    }
+
+    private static synchronized void rememberResponseState(String id, String transcript,
+            java.util.Set<String> pendingToolCallIds) {
+        if (id == null || transcript == null || transcript.length() > MAX_RESPONSE_STATE_CHARS) {
+            return;
+        }
+        RESPONSE_STATES.put(id, new ResponseState(transcript, pendingToolCallIds));
+        while (RESPONSE_STATES.size() > MAX_RESPONSE_STATES) {
+            java.util.Iterator<String> iterator = RESPONSE_STATES.keySet().iterator();
+            if (!iterator.hasNext()) break;
+            iterator.next();
+            iterator.remove();
+        }
+    }
+
+    private static final class ResponseState {
+        final String transcript;
+        final java.util.HashSet<String> pendingToolCallIds;
+        final long updatedAtMs;
+
+        ResponseState(String transcript, java.util.Set<String> pendingToolCallIds) {
+            this.transcript = transcript;
+            this.pendingToolCallIds = pendingToolCallIds == null
+                    ? new java.util.HashSet<String>()
+                    : new java.util.HashSet<String>(pendingToolCallIds);
+            this.updatedAtMs = System.currentTimeMillis();
+        }
     }
 
     private static final class HttpRequest {
