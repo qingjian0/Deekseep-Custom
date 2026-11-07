@@ -16,6 +16,7 @@ public final class FeatureHookInstallRegistryRegressionTest {
         retriesPartialRegistrationWithoutDuplicateHooks();
         keepsSkippedInstallTerminal();
         allowsExplicitUninstallAndReinstall();
+        allowsCleanupOfFailedInstall();
         System.out.println("FeatureHookInstallRegistryRegressionTest OK");
     }
 
@@ -270,6 +271,33 @@ public final class FeatureHookInstallRegistryRegressionTest {
 
         check(!registry.markUninstalled("test.missing"),
                 "missing registry entry must not be uninstalled");
+    }
+
+    private static void allowsCleanupOfFailedInstall() throws Throwable {
+        FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
+        try {
+            registry.install("test.failed-cleanup", () -> {
+                throw new IllegalStateException("partial install");
+            });
+        } catch (IllegalStateException expected) {
+            // The caller must clean up any partial runtime handles before the transition.
+        }
+        check(status(registry, "test.failed-cleanup").state
+                        == FeatureHookInstallRegistry.State.FAILED,
+                "failed install remains FAILED until explicit cleanup");
+        check(!registry.markUninstalled("test.failed-cleanup"),
+                "ordinary uninstall transition must not accept a failed install");
+        check(registry.markFailedInstallCleaned("test.failed-cleanup"),
+                "verified cleanup may transition FAILED to UNINSTALLED");
+        check(status(registry, "test.failed-cleanup").state
+                        == FeatureHookInstallRegistry.State.UNINSTALLED,
+                "cleaned failed install state");
+        registry.install("test.failed-cleanup", () -> { });
+        check(status(registry, "test.failed-cleanup").state
+                        == FeatureHookInstallRegistry.State.INSTALLED,
+                "cleaned failed install may be retried");
+        check(!registry.markFailedInstallCleaned("test.failed-cleanup"),
+                "cleanup transition must not accept an installed entry");
     }
 
     private static void keepsSkippedInstallTerminal() throws Throwable {

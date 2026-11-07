@@ -1837,6 +1837,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         }
         boolean transitioned = FEATURE_HOOK_INSTALL_REGISTRY.markUninstalled(registryId);
         if (!transitioned) {
+            transitioned = FEATURE_HOOK_INSTALL_REGISTRY.markFailedInstallCleaned(registryId);
+        }
+        if (!transitioned) {
             log("ROI universal Hook group registry state did not permit uninstall: " + registryId);
             return false;
         }

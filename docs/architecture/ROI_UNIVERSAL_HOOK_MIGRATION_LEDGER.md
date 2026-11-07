@@ -319,3 +319,67 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - Tightened external dependency validation: a dependency already installed outside the current batch must exist in the active-handle map **and** have lifecycle state `ACTIVE`.
 - A retained handle in `FAILED` after an unhook failure no longer satisfies another HookSpec's dependency. This prevents dependent feature Hooks from activating on top of uncertain callback state.
 - Added a regression assertion that attempts to install a dependent Hook while its dependency handle is retained in `FAILED`; the backend must not be called.
+
+
+## R11 dependency-safe teardown and target collision guard (2026-11-07)
+
+- Individual uninstall now refuses to remove a prerequisite while any active direct dependent remains. Callers must uninstall dependents first; `uninstallAll()` traverses reverse installation order.
+- Batch target resolution maintains a set of resolved reflective `Member` values and rejects duplicate targets before any backend install call. It also checks existing active registrations during resolution, avoiding partial install followed by a late conflict.
+- Tests cover both guards and assert that backend registration counts do not increase on duplicate-target rejection.
+
+
+## R11 partial native registration quarantine (2026-11-07)
+
+- Found an adapter-level partial-success edge: HookTarget.intercept() stages a Hooker before XposedBridge.hookMethod(); some Xposed registries can publish their callback entry and then throw during native installation. In this path the universal backend returns no Handle, so the runtime cannot run its normal handle rollback.
+- Changed the adapter's per-hook activation token to start disabled and become enabled only after HookTarget.intercept() returns normally. If native registration throws after publication, the staged Hooker remains inert/pass-through; HookTarget.registrationFailure prevents unsafe retry for that Member.
+- Added a Legacy Xposed regression fixture that injects failure after callback publication, asserts the universal callback is never invoked, confirms original invocation remains exactly once, and verifies retry does not duplicate or activate the callback.
+- This quarantines an uncertain callback; it does not claim the native callback was physically removed.
+
+
+## Resolver array descriptor correctness (2026-11-07)
+
+- Replaced the partial primitive-array special cases with recursive component resolution, covering byte/char/short/float/double arrays, object arrays, and multidimensional arrays.
+- Return-type matching now uses a recursive formatter that preserves nested-class JVM binary names, which aligns Java source-style HookSpec types with reflected array types instead of comparing int[] against JVM binary name [I.
+- Added an exact-resolution regression fixture combining byte[], char[], int[][], String[][] parameters and int[] return.
+
+- Compatibility follow-up: use Class.getCanonicalName() rather than Class.getTypeName() to avoid raising the Android runtime API floor for array return types.
+
+
+## ClassLoader identity binding (2026-11-07)
+
+- The runtime previously compared HookSpec fields for idempotency but did not compare the ClassLoader object supplied on a subsequent install. A second loader could therefore be reported as already installed even though the existing Member belonged to another loader scope.
+- Active registrations now retain the exact install ClassLoader reference and reject same-ID/same-spec replay through any different loader object. Successful uninstall removes the reference with the active handle.
+- Added regression coverage using a delegating child ClassLoader to prove that a different loader object cannot silently reuse the first loader's registration.
+
+- Follow-up: array return-type formatting now recursively appends [] to Class.getName() for each component, preserving '$' in nested-class names so DEX-derived HookSpec types remain exact.
+
+
+## Dependency graph preflight tests (2026-11-07)
+
+- Added explicit coverage for a missing dependency and a two-node dependency cycle.
+- Both cases must fail before the backend receives any install call, preventing partial registration for an invalid graph.
+
+
+## Scoped logical callback removal and reinstall (2026-11-07)
+
+- Found that successful logical unhook previously only flipped an enabled flag. HookTarget retained the Hooker and its scoped-registration key for process lifetime. Since Main reuses the same stable scope ID on reinstall, the next HookTarget.intercept() could de-duplicate the new Hooker against the stale key and report success without actually re-adding it.
+- Added identity-tracked scoped registration keys and a HookTarget removal operation. The universal handle disables its callback, removes that exact Hooker from the CopyOnWriteArrayList, and releases its key. The shared native Xposed callback remains registered.
+- Universal backend now requires an affirmative interceptAndReport() result; a duplicate scoped registration is rejected rather than reported as a successful install.
+- Added adapter regression coverage for uninstall then reinstall using the same scope/group ID, verifying callback reactivation and exactly one native callback.
+
+
+## R11 final integration audit (2026-11-07)
+
+- Confirmed Main wraps ROI batch installation in a stable HookRegistrationScope keyed by the registry/group ID. Therefore successful uninstall must release that exact scoped-registration key for a same-ID reinstall; the adapter now does so.
+- Confirmed the shared HookTarget native callback remains registered once per Member, while universal logical Hookers are individually removed and can be re-added.
+- Fatal Error paths preserve the active handle before propagating. Normal exception paths preserve the handle and report failed cleanup without claiming success.
+- Added a dedicated FeatureHookInstallRegistry transition for a FAILED group after Main has explicitly retried cleanup and verified runtime activeCount()==0.
+
+
+## R11 final delivery and CI boundary (2026-11-07)
+
+- Main's stable group scope and HookTarget's scoped-registration de-duplication were traced end-to-end. Universal unhook now removes the exact Hooker and releases only its own scope key; same-ID reinstall therefore re-registers the logical callback while reusing the single shared native Member callback.
+- Legacy hook registrations do not populate the universal removable-registration identity map, preserving their established scope retry behavior without additional long-lived references.
+- `Main.uninstallRoiUniversalHookBatch` can complete cleanup for either an INSTALLED group or a FAILED install after all runtime handles have been removed. The new registry transition is distinct and callable only after Main verifies activeCount()==0.
+- Fatal errors during rollback/uninstall propagate only after the uncertain handle is retained in runtime state. Normal backend registration errors remain a failed install result, with any partially published Xposed callback quarantined disabled.
+- Per the requested execution order, full CI and Android/LSPosed device validation are postponed until the final consolidated source commit.

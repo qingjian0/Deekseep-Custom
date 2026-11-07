@@ -24,7 +24,7 @@ The backend intentionally does not call `XposedBridge.hookMethod` itself. The le
 
 ## Uninstall semantics
 
-A universal handle's `unhook()` disables its logical interceptor. The shared native Xposed callback remains registered for the process lifetime because the same callback chain may also contain unrelated legacy features. The runtime therefore guarantees logical deactivation, not native callback removal. Main.uninstallRoiUniversalHookBatch(groupId) deactivates the group's handles in reverse install order and verifies that the runtime has no remaining active handles before transitioning the shared registry entry to UNINSTALLED. A failed deactivation leaves the registry entry installed and returns false; callers must not assume the group is gone. The same stable group ID may be installed again after a successful transition. The installer and its evidence/policy sources remain bound to that group ID for the process lifetime, so changing the source contract requires a new group ID. A future physical-unhook API would require reference-counted ownership of the entire Member chain and must not remove other features' hooks.
+A universal handle's `unhook()` first disables its logical interceptor, then removes that exact Hooker from the shared HookTarget chain and releases its scoped-registration key. The shared native Xposed callback remains registered for the process lifetime because the same callback chain may also contain unrelated legacy features. The runtime therefore guarantees logical deactivation, not native callback removal. Main.uninstallRoiUniversalHookBatch(groupId) deactivates the group's handles in reverse install order and verifies that the runtime has no remaining active handles before transitioning the shared registry entry to UNINSTALLED. A failed deactivation leaves the registry entry installed and returns false; callers must not assume the group is gone. The same stable group ID may be installed again after a successful transition. The installer and its evidence/policy sources remain bound to that group ID for the process lifetime, so changing the source contract requires a new group ID. A future physical-unhook API would require reference-counted ownership of the entire Member chain and must not remove other features' hooks.
 
 ## Activation contract
 
@@ -87,3 +87,56 @@ Regression coverage verifies deterministic fingerprint generation and invalidati
 A batch rollback is not complete when `Handle.unhook()` throws. The installer now retains that handle in its active map and marks its state `FAILED`, so `activeCount()` continues to expose the unresolved native registration. A later install attempt using that ID is rejected until explicit uninstall successfully retries cleanup. A different HookSpec that depends on the failed ID is also rejected; dependency presence is insufficient unless its lifecycle state is `ACTIVE`. The group-level `uninstallAll()` path is also covered: a failed unhook remains visible in `activeCount()`, and a later cleanup attempt can finish it. This prevents a retry from silently accepting a possibly live old callback or creating a duplicate registration.
 
 Regression coverage injects a backend install failure followed by a rollback-unhook failure, verifies the uncertain handle remains tracked, verifies duplicate install is blocked, then retries explicit cleanup and proves a fresh installation can proceed. Main's group uninstall gate therefore cannot mark the registry entry uninstalled while a failed rollback handle remains.
+
+
+## R11 dependency-safe teardown and intra-batch target uniqueness
+
+- An individual Hook cannot be uninstalled while any active HookSpec directly depends on it. This prevents a live dependent callback from being left with a missing prerequisite. Group teardown remains reverse-install-order, so dependents are removed before prerequisites.
+- Resolution detects duplicate reflected `Member` targets within the pending batch before the backend is called, in addition to checking conflicts against already-active targets. Two different IDs may not publish two logical callbacks to the same Member through this installer.
+- Regression coverage verifies dependency teardown refusal while the dependent is active and duplicate-Member batch rejection without backend side effects.
+
+
+## R11 partial native registration quarantine
+
+The legacy Xposed backend now creates each universal logical callback with its activation token initially disabled. It flips the token only after HookTarget.intercept() returns successfully. Standard Xposed callback registries may publish the callback entry and then throw during native installation; in that case the runtime receives no Handle and cannot perform normal handle rollback. The staged Hooker is therefore left as a permanently disabled pass-through if publication may have partially occurred. The existing HookTarget.registrationFailure still blocks unsafe retries for that Member. This is a fail-closed quarantine, not a successful install or a recoverable native unhook.
+
+The Legacy adapter regression suite injects a failure after callback publication and verifies that the orphaned callback never invokes the universal feature callback, original behavior remains pass-through, retry remains rejected, and no duplicate native callback is registered.
+
+
+## Exact resolver array-type support
+
+Parameter resolution recursively constructs array Classes from the resolved component type, covering every primitive array, object arrays, and multidimensional arrays. Return-type matching uses a recursive type-name formatter that preserves JVM binary names for nested classes so Java source-style array names such as int[] and java.lang.String[][] match the HookSpec contract rather than JVM binary names such as [I.
+
+
+Compatibility note: Class.getCanonicalName() is used rather than Class.getTypeName() so array return-type matching does not introduce a newer Android runtime API dependency.
+
+
+## ClassLoader-scoped idempotency
+
+An active Hook ID is bound to the exact ClassLoader object supplied for its installation. Reinstalling the same HookSpec and fingerprint through a different loader object is rejected instead of being treated as an idempotent replay. The active handle retains that loader identity only for the lifetime of the registration; successful uninstall releases it.
+
+
+Nested-class array names retain the JVM binary '$' separator, matching the names produced from DEX descriptors; array formatting does not rely on Class.getCanonicalName() or a newer Android API.
+
+
+Dependency graph validation rejects both missing external prerequisites and cycles before resolving or invoking the backend. Regression tests assert zero backend registrations for either invalid graph.
+
+
+## Scoped callback release and same-group reinstall
+
+A successful universal handle teardown now disables and removes its exact logical Hooker from the shared HookTarget chain and releases the corresponding scoped-registration key. The native per-Member Xposed callback remains installed and shared. This is necessary because a stable feature scope is intentionally reused across retries and reinstalls: keeping a stale scoped-registration key would cause the next install to be silently de-duplicated even after the old logical Hooker had been disabled. Adapter tests reinstall the same group ID and same Member, verify the callback becomes active again, and assert the native callback count remains one.
+
+
+## R11 final lifecycle hardening notes
+
+- Successful logical unhook first disables the universal callback, then releases its scoped-registration key and removes the exact Hooker from the shared chain. This makes same-group reinstall possible without creating another native Xposed callback.
+- If unhook throws any Throwable, the runtime keeps the handle tracked and marks it FAILED. Error subclasses are propagated after preserving the handle; ordinary exceptions return a failed cleanup result. The install rollback path follows the same retention rule and propagates rollback Errors rather than losing state.
+- Main's group uninstall now has a separate registry transition for a FAILED installation that has been explicitly cleaned up and verified to have zero runtime handles. It does not convert arbitrary FAILED entries without that caller-side cleanup check.
+
+
+## R11 final delivery scope
+
+- Same-group reinstall reuses the stable Main HookRegistrationScope. Successful logical unhook removes the universal Hooker and its exact scoped key, allowing that same scope key to be registered again without adding a second native callback.
+- The identity map used to release scoped keys tracks only universal registrations; legacy Hookers retain their existing retry de-duplication behavior without an extra per-hook identity entry.
+- A failed registry entry can transition to UNINSTALLED only through Main's explicit cleanup path after reverse-order teardown has completed and runtime activeCount() is zero. The registry exposes this as markFailedInstallCleaned(), separate from normal uninstall of an INSTALLED group.
+- The source changes are staged for one consolidated PR commit. Full CI and device/LSPosed acceptance are intentionally deferred until the source and regression coverage are complete.

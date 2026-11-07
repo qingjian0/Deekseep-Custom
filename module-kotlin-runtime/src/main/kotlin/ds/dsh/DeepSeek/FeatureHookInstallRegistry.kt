@@ -99,6 +99,23 @@ class FeatureHookInstallRegistry {
         }
     }
 
+    /**
+     * Completes cleanup of a FAILED install after the caller has deactivated every partial
+     * runtime handle and verified that none remain. This is deliberately separate from
+     * markUninstalled(), which is reserved for a successfully INSTALLED group.
+     */
+    fun markFailedInstallCleaned(id: String?): Boolean {
+        requireId(id)
+        val entry = entries[id!!] ?: return false
+        synchronized(entry) {
+            if (entry.state != State.FAILED) return false
+            entry.state = State.UNINSTALLED
+            entry.completedAtMillis = System.currentTimeMillis()
+            entry.detail = "failed install cleaned up"
+            return true
+        }
+    }
+
     /** Records an explicit host/version gate; skipped hooks are not retried in this process. */
     fun markSkipped(id: String?, reason: String?) {
         requireId(id)

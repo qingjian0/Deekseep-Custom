@@ -55,19 +55,20 @@ public final class RoiUniversalHookRuntime {
     List<Method> found=new ArrayList<Method>();
     for(Class<?> c=owner;c!=null;c=c.getSuperclass())try{
      Method m=c.getDeclaredMethod(s.name,p);
-     if(s.returnType.isEmpty()||s.returnType.equals(m.getReturnType().getName()))found.add(m);
+     if(s.returnType.isEmpty()||s.returnType.equals(typeName(m.getReturnType())))found.add(m);
     }catch(NoSuchMethodException ignored){}
     if(found.size()!=1)throw new ResolveException(found.isEmpty()?"exact method not found":"ambiguous inherited target");
     return new Target(s,owner,found.get(0));
    }catch(ResolveException e){throw e;}catch(Throwable e){throw new ResolveException("target resolution failed: "+s.className+"#"+s.name,e);}
   }
+  private static String typeName(Class<?> type){return type.isArray()?typeName(type.getComponentType())+"[]":type.getName();}
   private static Class<?> type(String n,ClassLoader l)throws Exception{
    if("boolean".equals(n))return boolean.class;if("byte".equals(n))return byte.class;
    if("char".equals(n))return char.class;if("short".equals(n))return short.class;
    if("int".equals(n))return int.class;if("long".equals(n))return long.class;
    if("float".equals(n))return float.class;if("double".equals(n))return double.class;
    if("void".equals(n))return void.class;
-   if(n.endsWith("[]")){String b=n.substring(0,n.length()-2);if("int".equals(b))return int[].class;if("long".equals(b))return long[].class;if("boolean".equals(b))return boolean[].class;return Array.newInstance(Class.forName(b,false,l),0).getClass();}
+   if(n.endsWith("[]"))return Array.newInstance(type(n.substring(0,n.length()-2),l),0).getClass();
    return Class.forName(n,false,l);
   }
  }
@@ -85,7 +86,7 @@ public final class RoiUniversalHookRuntime {
   public final boolean success;public final String failedId,message;public final Map<String,State> states;
   Result(boolean ok,String id,String msg,Map<String,State>s){success=ok;failedId=id;message=msg;states=Collections.unmodifiableMap(new LinkedHashMap<String,State>(s));}
  }
- private static final class Active {final Target target;final Handle handle;Active(Target t,Handle h){target=t;handle=h;}}
+ private static final class Active {final Target target;final Handle handle;final ClassLoader loader;Active(Target t,Handle h,ClassLoader l){target=t;handle=h;loader=l;}}
  public static final class Installer {
   private final Resolver resolver;private final Backend backend;private final Health health;private final ActivationGate gate;
   private final Map<String,Active> active=new LinkedHashMap<String,Active>();private final Map<String,State> states=new LinkedHashMap<String,State>();
@@ -98,19 +99,19 @@ public final class RoiUniversalHookRuntime {
     if(!gate.authorized(s,loader))return result(false,s.id,"evidence resolver denied activation");}
    for(Spec s:byId.values())for(String d:s.dependencies)if(!byId.containsKey(d)&&(!active.containsKey(d)||states.get(d)!=State.ACTIVE))return result(false,s.id,"missing or unhealthy dependency "+d);
    List<Spec> ordered;try{ordered=order(byId);}catch(Exception e){return result(false,null,e.getMessage());}
-   List<Target> targets=new ArrayList<Target>();
-   try{for(Spec s:ordered){Active old=active.get(s.id);if(old!=null){if(!same(old.target.spec,s))return result(false,s.id,"id already bound to another spec");if(states.get(s.id)!=State.ACTIVE)return result(false,s.id,"existing target has unresolved lifecycle failure; uninstall before retry");continue;}targets.add(resolver.resolve(s,loader));}}
+   List<Target> targets=new ArrayList<Target>();Set<Member> batchMembers=new HashSet<Member>();
+   try{for(Spec s:ordered){Active old=active.get(s.id);if(old!=null){if(!same(old.target.spec,s))return result(false,s.id,"id already bound to another spec");if(old.loader!=loader)return result(false,s.id,"id already bound to another ClassLoader scope");if(states.get(s.id)!=State.ACTIVE)return result(false,s.id,"existing target has unresolved lifecycle failure; uninstall before retry");continue;}Target target=resolver.resolve(s,loader);if(!batchMembers.add(target.member))return result(false,s.id,"batch target conflict with another spec");for(Active a:active.values())if(a.target.member.equals(target.member))return result(false,s.id,"target conflict with "+a.target.spec.id);targets.add(target);}}
    catch(ResolveException e){return result(false,null,e.getMessage());}
    List<Active> batch=new ArrayList<Active>();String current=null;
    try{for(Target t:targets){current=t.spec.id;for(Active a:active.values())if(a.target.member.equals(t.member))throw new IllegalStateException("target conflict with "+a.target.spec.id);
     states.put(current,State.INSTALLING);Handle h=backend.install(t,t.spec.callback);if(h==null)throw new IllegalStateException("backend returned null handle");
-    Active item=new Active(t,h);batch.add(item);if(!health.verify(t,h))throw new IllegalStateException("post-install health failed");
+    Active item=new Active(t,h,loader);batch.add(item);if(!health.verify(t,h))throw new IllegalStateException("post-install health failed");
     active.put(current,item);states.put(current,State.ACTIVE);}
     return result(true,null,"installed");
-   }catch(Throwable e){for(int i=batch.size()-1;i>=0;i--){Active a=batch.get(i);try{a.handle.unhook();active.remove(a.target.spec.id);states.put(a.target.spec.id,State.ROLLED_BACK);}catch(Exception rollback){active.put(a.target.spec.id,a);states.put(a.target.spec.id,State.FAILED);}}
-    if(current!=null)states.put(current,State.FAILED);return result(false,current,e.getClass().getSimpleName()+": "+String.valueOf(e.getMessage()));}
+   }catch(Throwable e){for(int i=batch.size()-1;i>=0;i--){Active a=batch.get(i);try{a.handle.unhook();active.remove(a.target.spec.id);states.put(a.target.spec.id,State.ROLLED_BACK);}catch(Throwable rollback){active.put(a.target.spec.id,a);states.put(a.target.spec.id,State.FAILED);if(rollback instanceof Error){if(current!=null)states.put(current,State.FAILED);throw (Error)rollback;}}}
+    if(current!=null)states.put(current,State.FAILED);if(e instanceof VirtualMachineError)throw (VirtualMachineError)e;if(e instanceof ThreadDeath)throw (ThreadDeath)e;return result(false,current,e.getClass().getSimpleName()+": "+String.valueOf(e.getMessage()));}
   }
-  public synchronized boolean uninstall(String id){Active a=active.remove(id);if(a==null)return false;try{a.handle.unhook();states.put(id,State.UNINSTALLED);return true;}catch(Exception e){active.put(id,a);states.put(id,State.FAILED);return false;}}
+  public synchronized boolean uninstall(String id){Active a=active.get(id);if(a==null)return false;for(Active dependent:active.values())if(!dependent.target.spec.id.equals(id)&&dependent.target.spec.dependencies.contains(id))return false;try{a.handle.unhook();active.remove(id);states.put(id,State.UNINSTALLED);return true;}catch(Throwable e){active.put(id,a);states.put(id,State.FAILED);if(e instanceof Error)throw (Error)e;return false;}}
   public synchronized void uninstallAll(){List<String> ids=new ArrayList<String>(active.keySet());Collections.reverse(ids);for(String id:ids)uninstall(id);}
   public synchronized State state(String id){return states.get(id);}public synchronized int activeCount(){return active.size();}
   private Result result(boolean b,String id,String m){return new Result(b,id,m,states);}
