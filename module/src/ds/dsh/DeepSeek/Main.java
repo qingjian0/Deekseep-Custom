@@ -1798,7 +1798,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                                                     new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE),
                                                     candidate, constructor, hostRoot)) return false;
                                     return HookChatPipeline.INSTANCE
-                                            .hookUnknownHostChatRequest(constructor);
+                                            .hookUnknownHostChatRequest(candidate, constructor);
                                 }
                             });
                             if (featureHooks > 0) {
@@ -1867,6 +1867,17 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE));
     }
 
+    /** Revalidates the exact DEX-derived candidate and both explicit opt-in switches. */
+    static boolean isUnknownHostChatRequestHookAuthorized(
+            RoiUnknownHostChatRequestResolver.Candidate candidate,
+            Constructor<?> constructor) {
+        return !HostCompat.supportsMaintainedFeatureRuntime()
+                && RoiUnknownHostFeatureHookPolicy.allowsChatRequestPromptHook(false,
+                        new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE),
+                        new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE),
+                        candidate, constructor, hostClassLoader);
+    }
+
     /** Finalize bounded DEX discovery before authorizing any unknown-host feature adapter. */
     static void finalizeRoiUnknownHostChatRequestDiscovery() {
         Main active = roiMainInstance;
@@ -1911,7 +1922,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                             new File(ROI_UNKNOWN_HOST_HOOK_ENABLE_FILE),
                             new File(ROI_UNKNOWN_HOST_FEATURE_HOOK_ENABLE_FILE),
                             resolved, constructor, hostClassLoader)) return false;
-                    return HookChatPipeline.INSTANCE.hookUnknownHostChatRequest(constructor);
+                    return HookChatPipeline.INSTANCE.hookUnknownHostChatRequest(resolved, constructor);
                 }
             });
             if (installed > 0) {

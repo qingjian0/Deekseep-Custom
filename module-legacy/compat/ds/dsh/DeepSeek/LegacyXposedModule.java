@@ -80,6 +80,8 @@ abstract class LegacyXposedModule {
     interface HookRegistrationHandle {
         /** Removes this logical Hooker; removes the underlying Xposed callback when it is alone. */
         void unhook();
+        /** True while this logical Hooker remains in the target callback chain. */
+        boolean isActive();
     }
 
     private static final class ManagedHooker implements Hooker {
@@ -396,6 +398,11 @@ abstract class LegacyXposedModule {
                         }
                         hookers.remove(managed);
                         closed = true;
+                    }
+                }
+                @Override public boolean isActive() {
+                    synchronized (HookTarget.this) {
+                        return !closed && hookers.contains(managed);
                     }
                 }
             };
