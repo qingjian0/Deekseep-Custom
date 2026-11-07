@@ -563,7 +563,7 @@ require(
 )
 require(
     probe,
-    r'CALLBACK_METHOD_INVOCATIONS.*?CALLBACK_DETAIL_EVENTS.*?observerLog\("\[OPEN_NATIVE_CALL_OBSERVER\] callback-enter.*?callback-exit.*?callback-throw',
+    r'CALLBACK_METHOD_INVOCATIONS.*?CALLBACK_DETAIL_EVENTS.*?observerLog\("\[OPEN_NATIVE_CALL_OBSERVER\] callback-enter.*?callback-throw.*?callback-exit',
     "every callback event is persisted; only the in-memory preview remains bounded",
 )
 require(
