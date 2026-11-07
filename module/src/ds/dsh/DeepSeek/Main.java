@@ -1701,6 +1701,16 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
      * registry. Callers must provide a version-scoped adapter allowlist and evidence/policy sources;
      * absent or incomplete evidence is rejected before the Xposed backend is reached.
      */
+    /**
+     * Captures the installed host identity from PackageManager and the actual installed APK set.
+     * Call from a worker thread after an Application/Activity context is available. The channel
+     * must come from a reviewed build declaration, never from a discovery candidate or UI input.
+     */
+    static RoiHostBuildIdentity captureRoiCurrentHostIdentity(
+            Context context, ClassLoader loader, String reviewedChannel) {
+        return RoiAndroidHostIdentity.capture(context, loader, reviewedChannel);
+    }
+
     void installRoiUniversalHookBatch(
             final String groupId,
             final List<RoiUniversalHookRuntime.Spec> specs,
