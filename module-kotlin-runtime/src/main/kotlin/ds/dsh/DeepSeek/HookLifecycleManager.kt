@@ -107,7 +107,8 @@ class HookLifecycleManager {
             }
 
             val activeConflict = spec.conflicts.firstOrNull {
-                entries[it]?.state == State.ACTIVE
+                val state = entries[it]?.state
+                state == State.ACTIVE || state == State.INSTALLING
             } ?: entries.values.firstOrNull {
                 (it.state == State.ACTIVE || it.state == State.INSTALLING) &&
                     spec.id in it.spec.conflicts
