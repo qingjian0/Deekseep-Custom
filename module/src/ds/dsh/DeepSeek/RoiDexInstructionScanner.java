@@ -124,6 +124,7 @@ public final class RoiDexInstructionScanner {
                     if(!scan.isInstructionBoundary(next))throw new ScanException("fallthrough_enters_payload:"+next);
                     starts.add(next);
                 }
+            }
             if(isSwitch(i.opcode)) {
                 int payloadOffset=checkedTarget(i.offset,s32(code,i.offset+1));
                 Instruction payload=scan.at(payloadOffset);
