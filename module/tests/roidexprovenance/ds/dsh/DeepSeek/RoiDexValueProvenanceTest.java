@@ -22,7 +22,7 @@ public final class RoiDexValueProvenanceTest {
         RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(code);
         RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
         RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching);
-        RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(flow,reaching,useDef,links);
+        RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(code,null,flow,reaching,useDef,links);
         RoiDexValueProvenance.Trace trace=provenance.traceUse(5,1,1);
         yes(trace.unique);eq(0,trace.source.invokeOffset);eq(3,trace.source.resultOffset);
         eq(2,trace.instructionOffsets.length);eq(4,trace.instructionOffsets[0]);eq(3,trace.instructionOffsets[1]);
@@ -40,7 +40,7 @@ public final class RoiDexValueProvenanceTest {
         RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(code);
         RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
         RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching);
-        RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(flow,reaching,useDef,links);
+        RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(code,null,flow,reaching,useDef,links);
         RoiDexValueProvenance.Trace trace=provenance.traceUse(5,1,2);
         yes(trace.unique);eq(2,trace.source.resultWordCount);eq(0,trace.source.invokeOffset);
     }
@@ -306,7 +306,7 @@ public final class RoiDexValueProvenanceTest {
         RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(code);
         RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
         RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching);
-        RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(flow,reaching,useDef,links);
+        RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(code,null,flow,reaching,useDef,links);
         RoiDexValueProvenance.Trace trace=provenance.traceUse(10,1,1);
         yes(!trace.unique);eq("multiple_reaching_definitions",trace.rejectionReason);
     }
@@ -321,7 +321,7 @@ public final class RoiDexValueProvenanceTest {
         RoiDexRegisterFlowAnalyzer.Result flow=RoiDexRegisterFlowAnalyzer.analyze(code);
         RoiDexReachingDefinitions.Result reaching=RoiDexReachingDefinitions.analyze(flow);
         RoiDexUseDefChains.Result useDef=RoiDexUseDefChains.analyze(flow,reaching);
-        RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(flow,reaching,useDef,links);
+        RoiDexValueProvenance.Result provenance=RoiDexValueProvenance.analyze(code,null,flow,reaching,useDef,links);
         RoiDexValueProvenance.Trace trace=provenance.traceUse(5,1,1);
         yes(!trace.unique);eq("unsupported_value_definition_opcode",trace.rejectionReason);
     }
