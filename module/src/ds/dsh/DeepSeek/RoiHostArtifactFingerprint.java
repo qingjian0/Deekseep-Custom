@@ -85,9 +85,10 @@ final class RoiHostArtifactFingerprint {
         try {
             File base = canonicalFile(baseApkPath);
             if (!canonicalPaths.add(base.getPath())) return unavailable("duplicate_base_apk_path");
+            totalBytes = checkedAdd(totalBytes, base.length());
             Part basePart = hash(base, "base");
             parts.add(basePart);
-            totalBytes = checkedAdd(totalBytes, basePart.bytes);
+            if (basePart.bytes != base.length()) return unavailable("apk_changed_during_hash");
 
             String[] splits = splitApkPaths == null ? new String[0] : splitApkPaths.clone();
             if (splits.length + 1 > MAX_APK_FILES) return unavailable("apk_file_count_limit_exceeded");
@@ -105,9 +106,10 @@ final class RoiHostArtifactFingerprint {
                 }
             });
             for (File split : splitFiles) {
+                totalBytes = checkedAdd(totalBytes, split.length());
                 Part part = hash(split, "split");
+                if (part.bytes != split.length()) return unavailable("apk_changed_during_hash");
                 parts.add(part);
-                totalBytes = checkedAdd(totalBytes, part.bytes);
             }
 
             MessageDigest aggregate = sha256();
