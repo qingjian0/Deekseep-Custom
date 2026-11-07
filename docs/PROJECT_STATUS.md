@@ -719,3 +719,14 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 **本轮边界：** 只完成静态接入点定位和文档记录，没有新增模块代码，没有运行 Hook/CI/APK/真机测试。Completion 继续 503 fail-closed。
 
 本轮文档提交：`75f7dbbfc160d0ae819836de7533e319c78c7db3`。
+
+
+## 2026-11-07：code289 ChallengePlugin / PoW 管线追踪进展
+
+- 从原始 code289 APK artifact 的 `all-smali.zip` 继续追踪 `bi5.e -> rh5 -> cf5`，确认 Ktor client builder 在 `p61` 注册 `nq1` 的 `ChallengePlugin`；`y10` 请求执行路径调用该插件。
+- `nq1` 声明 `ChallengePlugin` / `ChallengeAttempt`，在请求阶段读取已有 PoW response，并通过 `hq1.a(pq1, Continuation)` 协调 challenge attempt；`nq1.c` 负责 challenge / PoW header 处理并继续调用底层 client pipeline。
+- `jw3.g` 在 PoW response 非空时写入 `X-DS-PoW-Response`；`df0.d` 的 `DeepSeekHashV1` 分支引用 `PowCalculator.calculateDeepSeekHashV1Pow(String, String, long)`。
+- 已将上述静态证据写入 [NATIVE_ADAPTER.md](NATIVE_ADAPTER.md)，并扩展 `tools/audit_code289_session_fallback.py`，覆盖 session fallback 与 ChallengePlugin / PoW 管线锚点。
+- 对该 code289 artifact 执行扩展后的完整本地静态审计：**24/24 PASS**。此结果只证明 Smali 静态锚点匹配，不证明挑战可运行、模块可获取宿主 client、Flow 可安全收集或 Completion 已成功。
+- Native Completion 继续 503 fail-closed。当前优先研究宿主 `zn3/jw3`、`bi5/cf5`、`hq1` 的实例来源、生命周期和取消语义；不复制 challenge plugin、不自行拼接认证 header。
+- 按既定计划，PR CI 与真机验证继续留到源码阶段收尾后统一执行；本轮没有触发 CI，也没有声称设备验收通过。
