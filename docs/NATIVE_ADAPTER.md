@@ -30,9 +30,8 @@ DeepSeek Hook startup
                     |        && liveQ71 != null
                     |
                     +-- Backend.complete(request, sink)
-                          -> Open edition && !LOCAL_API_INCLUDED
-                             => 503 native_adapter_unavailable
-                          -> otherwise module.executeLocalApiCompletion(...)
+                          -> module.executeLocalApiCompletion(...)
+                                -> missing Open payload => 503 engine_missing per request
                                 |
                                 +-- HookAccountLoginSecurity.executeLocalApiCompletion(...)
                                       |
@@ -369,12 +368,15 @@ collecting it, subscribe to it, invoke methods on the result, or alter the origi
    verified `ly1` Request and `zn3.o -> jw3.g -> Ly60` path. Prove Flow collection, cancellation,
    deadline propagation, session creation/reuse, PoW association, and error mapping. Do not
    subscribe a second time or infer the meaning of the `Long` argument.
-5. Keep every completion route fail-closed with HTTP 503 until code289 runtime tests prove
-   non-streaming, streaming, cancellation, error propagation, and session isolation.
+5. Keep every protocol route exposed. Until code289 runtime tests prove non-streaming, streaming,
+   cancellation, error propagation, and session isolation, report `engine_missing` (HTTP 503)
+   per request through the execution facade; do not add an edition-level readiness gate or
+   fabricate output.
 
-The Gateway remains fail-closed with HTTP 503 until a separately reviewed Open native adapter
+The Gateway keeps its protocol routes exposed. Until a separately reviewed Open native adapter
 implements and verifies Request construction, Challenge/PoW, Transport, event decoding,
-cancellation, session isolation, and error mapping.
+cancellation, session isolation, and error mapping, the execution facade reports
+`engine_missing` (HTTP 503) per request.
 
 ## 2026-11-07：code289 回调探针限域修正
 
@@ -817,7 +819,7 @@ nn0 repository request factory
 
 本补充纠正此前将 `oe2.i()` 视为 Session Factory 的错误归类：当前 Smali 证据支持分别研究 `oe2.j/k/r`、`fx1.m()` 与 `fx1.l()`；其中 `fx1.m()` 是带预取队列快速路径和异步回退的 suspend 方法，不能仅凭该方法体断言其回退已完成服务端会话创建。新增记录同时展开 `zn3.o -> jw3.g -> y60` 与 `r3.c` 的静态边界。
 
-此文档是静态证据，不构成运行时 readiness。Native Completion 仍保持 503 fail-closed。
+此文档是静态证据，不构成运行时 readiness。Native Completion 协议入口保持开放；原生引擎缺失时按请求返回 `engine_missing`（HTTP 503）。
 
 
 ## 2026-11-07：code289 Session Bootstrap 回退路径静态确认
