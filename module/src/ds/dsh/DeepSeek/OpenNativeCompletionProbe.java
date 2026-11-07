@@ -38,6 +38,10 @@ final class OpenNativeCompletionProbe {
             new java.util.concurrent.atomic.AtomicBoolean();
     private static final java.util.concurrent.ConcurrentHashMap<String, Boolean>
             OBSERVED_CALLBACK_CLASSES = new java.util.concurrent.ConcurrentHashMap<String, Boolean>();
+    private static final java.util.concurrent.ConcurrentHashMap<String, Boolean>
+            CALLBACK_ARGUMENT_SHAPES = new java.util.concurrent.ConcurrentHashMap<String, Boolean>();
+    private static final java.util.concurrent.ConcurrentHashMap<String, Boolean>
+            CALLBACK_RESULT_SHAPES = new java.util.concurrent.ConcurrentHashMap<String, Boolean>();
     private static final java.util.concurrent.atomic.AtomicLong OBSERVATION_IDS =
             new java.util.concurrent.atomic.AtomicLong();
     private static final Object OBSERVATION_LOG_LOCK = new Object();
@@ -197,13 +201,14 @@ final class OpenNativeCompletionProbe {
         int eligibleClassNames = 0;
         int classLoadFailures = 0;
         try {
-            line(out, "report.schema", "5");
+            line(out, "report.schema", "6");
             line(out, "diagnostic.coverage", "host-transport,y60-continuation,callback-implementations,local-api-gateway");
             line(out, "diagnostic.sensitive_data", "message-content,credentials,cookies,auth-headers-not-collected");
             line(out, "diagnostic.callback_detail_capture", "all-events-for-selected-methods-persisted-to-app-private-file");
             line(out, "diagnostic.callback_aggregate_coverage", "all-invocations-for-every-successfully-hooked-concrete-callback-method");
             line(out, "diagnostic.callback_discovery_limits", "callback-objects-observed-at-y60-continuation-boundary-only");
-            line(out, "diagnostic.callback_hook_limits", "concrete-class-declared-methods-1-to-2-args-nonvoid-max-12-no-superclass-traversal");
+            line(out, "diagnostic.callback_hook_limits", "concrete-class-declared-methods-1-to-2-args-nonvoid-max-12-no-superclass-traversal-sorted-by-descriptor");
+            line(out, "diagnostic.callback_shape_capture", "first-argument-and-successful-result-field-names-and-types-once-per-method-no-field-values");
             Class<?> requestType = HostCompat.load(loader, "ew0");
             line(out, "edition", BuildInfo.BUILD_EDITION);
             line(out, "host", HostCompat.diagnosticSummary());
@@ -731,6 +736,12 @@ final class OpenNativeCompletionProbe {
             OBSERVED_CALLBACK_CLASSES.remove(key);
             return;
         }
+        java.util.Arrays.sort(methods, new java.util.Comparator<Method>() {
+            @Override public int compare(Method left, Method right) {
+                return observedMethodDescriptor(left).compareTo(
+                        observedMethodDescriptor(right));
+            }
+        });
         for (Method method : methods) {
             if (attempted >= MAX_CALLBACK_METHODS_PER_CLASS) break;
             int modifiers = method.getModifiers();
@@ -768,6 +779,14 @@ final class OpenNativeCompletionProbe {
                         Object receiver = chain.getThisObject();
                         int identity = receiver == null ? 0 : System.identityHashCode(receiver);
                         List<?> args = chain.getArgs();
+                        if (CALLBACK_ARGUMENT_SHAPES.putIfAbsent(
+                                callbackMethod, Boolean.TRUE) == null) {
+                            Object arg0 = args == null || args.isEmpty() ? null : args.get(0);
+                            Object arg1 = args == null || args.size() < 2 ? null : args.get(1);
+                            observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-argument-shape method="
+                                    + callbackMethod + " arg0=" + observedObjectShape(arg0)
+                                    + " arg1=" + observedObjectShape(arg1));
+                        }
                         long started = System.nanoTime();
                         CALLBACK_METHOD_INVOCATIONS.incrementAndGet();
                         long eventNumber = CALLBACK_DETAIL_EVENTS.incrementAndGet();
@@ -782,6 +801,11 @@ final class OpenNativeCompletionProbe {
                             Object value = chain.proceed();
                             long durationNanos = System.nanoTime() - started;
                             stats.record(durationNanos, false);
+                            if (CALLBACK_RESULT_SHAPES.putIfAbsent(
+                                    callbackMethod, Boolean.TRUE) == null) {
+                                observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-result-shape method="
+                                        + callbackMethod + " result=" + observedObjectShape(value));
+                            }
                             observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-exit role="
                                     + role + " method=" + observedMethodDescriptor(target)
                                     + " receiverId=" + identity + " event=" + eventNumber
