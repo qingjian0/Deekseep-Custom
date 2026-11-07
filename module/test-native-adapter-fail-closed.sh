@@ -202,7 +202,7 @@ require(
 )
 require(
     probe,
-    r'line\(out, "report\.schema", "5"\)',
+    r'line\(out, "report\.schema", "6"\)',
     "probe report schema is versioned",
 )
 require(
@@ -516,8 +516,18 @@ if "callback.toString()" in probe or "receiver.toString()" in probe:
 
 require(
     probe,
-    r'line\(out, "report\.schema", "5"\).*?diagnostic\.coverage.*?diagnostic\.sensitive_data.*?diagnostic\.callback_hook_limits.*?concrete-class-declared-methods-1-to-2-args-nonvoid-max-12-no-superclass-traversal',
+    r'line\(out, "report\.schema", "6"\).*?diagnostic\.coverage.*?diagnostic\.sensitive_data.*?diagnostic\.callback_hook_limits.*?concrete-class-declared-methods-1-to-2-args-nonvoid-max-12-no-superclass-traversal-sorted-by-descriptor.*?diagnostic\.callback_shape_capture.*?field-names-and-types-once-per-method-no-field-values',
     "schema 5 declares bounded concrete-callback hook coverage and persistent selected-method capture",
+)
+require(
+    probe,
+    r'CALLBACK_ARGUMENT_SHAPES\.putIfAbsent.*?callback-argument-shape.*?observedObjectShape\(arg0\).*?CALLBACK_RESULT_SHAPES\.putIfAbsent.*?callback-result-shape.*?observedObjectShape\(value\)',
+    "callback argument and successful result object shapes are captured once per method without reading field values",
+)
+require(
+    probe,
+    r'java\.util\.Arrays\.sort\(methods, new java\.util\.Comparator<Method>',
+    "callback method selection is deterministic before the per-class cap is applied",
 )
 require(
     probe,
