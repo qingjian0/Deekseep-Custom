@@ -40,6 +40,7 @@ public final class RoiUniversalHookRuntimeTest {
   RoiUniversalHookRuntime.Installer uncertain=new RoiUniversalHookRuntime.Installer(r,rollbackUnhookFailure,new RoiUniversalHookRuntime.Health(){public boolean verify(RoiUniversalHookRuntime.Target t,RoiUniversalHookRuntime.Handle h){return true;}},new RoiUniversalHookRuntime.ActivationGate(){public boolean authorized(RoiUniversalHookRuntime.Spec s,ClassLoader loader){return true;}});
   ok(!uncertain.install(batch,Sample.class.getClassLoader(),"fp",a).success&&uncertain.activeCount()==1&&uncertain.state("one")==RoiUniversalHookRuntime.State.FAILED,"failed rollback must retain uncertain handle");
   ok(!uncertain.install(batch,Sample.class.getClassLoader(),"fp",a).success&&rollbackUnhookFailure.adds.get()==2,"uncertain handle must block duplicate installation");
+  ok(!uncertain.install(Collections.singletonList(two),Sample.class.getClassLoader(),"fp",a).success&&rollbackUnhookFailure.adds.get()==2,"dependent hook must reject an unresolved FAILED dependency");
   ok(uncertain.uninstall("one")&&uncertain.activeCount()==0,"explicit cleanup must retry failed rollback unhook");
   ok(uncertain.install(batch,Sample.class.getClassLoader(),"fp",a).success&&uncertain.activeCount()==2,"installation may resume after uncertain handle is cleared");
   uncertain.uninstallAll();ok(uncertain.activeCount()==0,"cleanup after recovered installation");

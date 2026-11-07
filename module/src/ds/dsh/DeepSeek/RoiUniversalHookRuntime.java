@@ -96,7 +96,7 @@ public final class RoiUniversalHookRuntime {
    for(Spec s:specs){if(s==null||byId.put(s.id,s)!=null)return result(false,s==null?null:s.id,"null or duplicate id");
     if(fp==null||!fp.equals(s.fingerprint)||adapters==null||!adapters.allows(fp,s.role))return result(false,s.id,"fingerprint/role not approved");
     if(!gate.authorized(s,loader))return result(false,s.id,"evidence resolver denied activation");}
-   for(Spec s:byId.values())for(String d:s.dependencies)if(!byId.containsKey(d)&&!active.containsKey(d))return result(false,s.id,"missing dependency "+d);
+   for(Spec s:byId.values())for(String d:s.dependencies)if(!byId.containsKey(d)&&(!active.containsKey(d)||states.get(d)!=State.ACTIVE))return result(false,s.id,"missing or unhealthy dependency "+d);
    List<Spec> ordered;try{ordered=order(byId);}catch(Exception e){return result(false,null,e.getMessage());}
    List<Target> targets=new ArrayList<Target>();
    try{for(Spec s:ordered){Active old=active.get(s.id);if(old!=null){if(!same(old.target.spec,s))return result(false,s.id,"id already bound to another spec");if(states.get(s.id)!=State.ACTIVE)return result(false,s.id,"existing target has unresolved lifecycle failure; uninstall before retry");continue;}targets.add(resolver.resolve(s,loader));}}

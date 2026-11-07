@@ -312,3 +312,10 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - An installer with an unresolved FAILED handle now rejects another install for that ID until explicit uninstall successfully retries cleanup. This avoids treating an uncertain callback as safely active or silently duplicating it.
 - Added regression coverage for injected rollback-unhook failure, retained-handle visibility, duplicate-install rejection, explicit cleanup retry, subsequent clean reinstall, and group-level `uninstallAll()` failure/retry.
 - This is runtime lifecycle hardening only. It does not add production HookSpec records or authorize feature migration.
+
+
+## R11 dependency health propagation (2026-11-07)
+
+- Tightened external dependency validation: a dependency already installed outside the current batch must exist in the active-handle map **and** have lifecycle state `ACTIVE`.
+- A retained handle in `FAILED` after an unhook failure no longer satisfies another HookSpec's dependency. This prevents dependent feature Hooks from activating on top of uncertain callback state.
+- Added a regression assertion that attempts to install a dependent Hook while its dependency handle is retained in `FAILED`; the backend must not be called.
