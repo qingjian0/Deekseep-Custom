@@ -82,6 +82,17 @@ Until that extraction is complete, the class list narrows the investigation but 
 - Main-side capture/diagnostic state for the host loader, `liveR92`, and `liveQ71`.
 - Code289 diagnostic evidence recorded in project status for the request/transport boundary: `ly1 implements wu1`, `zn3.o(wu1, Long)` enters `jw3.g(wu1, Long)`, and both return a `y60` object. The recorded evidence does not establish that the HTTP request was sent, the response arrived, or response events were decoded and collected.
 
+## SSE gateway lifecycle notes
+
+A source review of `OpenLocalApiGateway.streamCompletion(...)` confirms:
+
+- The gateway writes HTTP 200 / `text/event-stream` headers before calling `Backend.complete(...)`. Any later upstream failure must therefore be represented as an SSE error event; it cannot be converted back into an HTTP 5xx status.
+- Text and reasoning are emitted as separate delta fields. The gateway emits a final finish-reason chunk and `[DONE]` only after a non-null result and only while the client is not marked disconnected.
+- The gateway marks the sink cancelled when an SSE write throws. A disconnect during a silent upstream period is not independently detected by this method before the next attempted write.
+- `DeltaSink.onUpstreamStarted()`, `isSatisfied()`, and `publishedTextSnapshot()` are available in the shared contract but are not implemented by this gateway sink.
+
+Adapter implications: enforce `CompletionRequest.deadlineAtMs` independently of client writes; propagate cancellation into the actual upstream coroutine/job; preserve exactly-once Flow collection and cancellation; and define the semantics of `onUpstreamStarted()` before using it for first-token timing. Do not treat a successful HTTP 200 SSE header as proof that native generation started.
+
 ## Actual implementation gap
 
 The missing component is not another HTTP route. It is an Open-only implementation of the `z2.Backend` contract that does not depend on `z18`.
