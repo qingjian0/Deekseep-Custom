@@ -597,13 +597,23 @@ require(
 )
 require(
     tool_bridge,
-    r"tools == null \|\| tools\.length\(\) == 0.*?return Collections\.emptyList\(\).*?tools\.isEmpty\(\).*?Choice\.NONE\.equals\(value\).*?new Choice\(Choice\.NONE, null, null\)",
-    "empty tools arrays and tool_choice none are harmless defaults",
+    r"parseDefinitions\(JSONArray tools, boolean responses\).*?tools == null \|\| tools\.length\(\) == 0\) return Collections\.emptyList\(\)",
+    "empty tools arrays produce an empty definition list",
+)
+require(
+    tool_bridge,
+    r"parseChoice\(Object raw, List<Definition> tools, boolean responses\).*?if \(tools\.isEmpty\(\)\).*?return new Choice\(Choice\.NONE, null, null\).*?Choice\.NONE\.equals\(value\).*?return new Choice\(value, null, null\)",
+    "empty tools and explicit tool_choice none resolve to no tool execution",
 )
 require(
     gateway,
-    r'"none".equals\(functionCall\).*?Boolean\.FALSE\.equals\(parallel\)',
-    "empty legacy function selection and parallel_tool_calls false are harmless defaults",
+    r'functionCall instanceof String && "none"\.equals\(functionCall\)',
+    "legacy function_call none is accepted as a no-op",
+)
+require(
+    gateway,
+    r'parallel_tool_calls.*?instanceof Boolean.*?boolean parallelTools = body\.optBoolean\("parallel_tool_calls", true\)',
+    "parallel_tool_calls accepts explicit boolean false and defaults to true",
 )
 require(
     gateway,
