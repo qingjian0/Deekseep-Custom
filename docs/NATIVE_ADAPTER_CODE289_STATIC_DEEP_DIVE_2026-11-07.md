@@ -258,6 +258,9 @@ fx1.m(Continuation)
 - `rz0` 的 branch id 为 2；在 `rz0.y()` 对应的 packed-switch 分支中，明确构造路径 `/api/v0/chat_session/create`。
 - 同一分支设置请求超时为 `0x1388`，即 5000 ms。
 - `ng5` 构造器将 method 字段初始化为 `Lyf5.b`，而 `Lyf5.b` 的值是 `GET`；该 `rz0` 分支没有看到显式改写 method。随后 `rh5.d` 复制请求 builder 并调用 `cf5.a(Lng5, Continuation)` 进入客户端执行管线。因此当前能确认“builder 初值为 GET、该分支未显式覆盖”；最终线上 method 仍需排除客户端插件/转换器改写，不能武断标成 POST 或最终 GET。
+- `bi5.e` 先取出 `bi5.a : cf5`，执行传入的 request lambda（此处为 `rz0`）得到 `zg5`，随后进入 `bi5.l`。
+- `rz0` 构造 `rh5(ng5, cf5)` 并调用 `rh5.c`；`rh5.d` 复制 builder 后调用 `cf5.a(ng5, Continuation)`，再从 `ef5` 取回 `zg5`。
+- `bi5.l` 从 `zg5.P()` 取得 `ef5`，再调用 `ef5.a(serializer, Continuation)` 解码响应；同一处理链还提取 HTTP status、headers、URL 和错误元数据。
 - `z2c.V(Lng5, Lxa3)` 设置的是 `Content-Type` header，不是 HTTP method。
 - `dt9` serializer descriptor 明确列出 `biz_code`、`biz_msg`、`biz_data`；`us9` 对应 `ServerDefaultBizCode`。
 - `zs9.a(true)` 对业务码执行分支判断；`j41` 在成功路径从 `ft9.c`（biz_data JSON element）使用 `ok2` serializer 解码，取得 `ok2.a : ss9`。
