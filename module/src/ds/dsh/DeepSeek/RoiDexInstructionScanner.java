@@ -165,10 +165,9 @@ public final class RoiDexInstructionScanner {
                 if(p+ins.width>limit)throw new ScanException("invalid_block_extent:"+p);
                 body.add(ins);
                 p+=ins.width;
-                // A goto/return has no fallthrough. Do not promote following dead
-                // code (including alignment NOPs before payload data) to a block.
-                // Any genuinely reachable continuation is already a branch target
-                // or an explicitly supplied exception-handler leader.
+                // A goto/return has no fallthrough. A following real instruction
+                // may still begin a disconnected dead-code block; payload-alignment
+                // NOPs are excluded above and payload data is never a block.
                 if(isGoto(ins.opcode)||isTerminal(ins.opcode))break;
             }
             if(body.isEmpty())throw new ScanException("empty_basic_block:"+start);
