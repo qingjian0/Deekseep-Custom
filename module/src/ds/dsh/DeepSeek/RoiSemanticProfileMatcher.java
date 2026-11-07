@@ -117,7 +117,7 @@ final class RoiSemanticProfileMatcher {
         for (Match item : results) {
             State state;
             String reason;
-            if (item.state == State.ROLE_MISMATCH) {
+            if (item.state == State.ROLE_MISMATCH || item.state == State.CONTRADICTORY) {
                 state = item.state;
                 reason = item.reason;
             } else if (best.score < DEFAULT_MIN_SCORE) {
