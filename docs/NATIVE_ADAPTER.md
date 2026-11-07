@@ -3,7 +3,7 @@
 > 适用分支：`work/local-api`（PR #19 → `dev`；PR #16 已关闭且未合并）  
 > 当前源码快照：PR #19 当前 HEAD（以 GitHub PR 元数据为准）  
 > 当前宿主验证目标：`com.deepseek.chat` 国内版 2.7.2 / versionCode 289（287 / 290 仅保留独立兼容调查，不继承 code289 证据）  
-> 当前结论：**协议网关已扩展；schema-6 只读诊断探针源码已加入，但 null-name DeltaCommand / `ready` / `close` 运行时事件尚未取得完整证据；Open 原生 Completion Adapter 未完成，所有 Completion 路由保持 HTTP 503 fail-closed。**  
+> 当前结论：**协议网关已扩展；schema-6 只读诊断探针源码已加入，但 null-name DeltaCommand / `ready` / `close` 运行时事件尚未取得完整证据；Open 原生 Completion Adapter 未完成，所有 Completion 协议路由保持开放并进入执行门面；原生引擎缺失时按请求返回 `engine_missing`（HTTP 503），不得在 Open 版本级别提前关闭路由。**  
 > 验证安排：按工程要求，PR CI、Open APK 构建与 code289 真机验证统一留到本阶段源码工作完成后执行；此前不宣称通过。
 
 ## 1. 结论摘要
@@ -659,7 +659,7 @@ nn0 repository request factory
 - 不把消息 fragment UUID 当作 chat_session_id。
 - 不从 `ss9` 的复制构造器推断新会话创建规则。
 - 下一步需继续沿 `ik2.j0` 的上游调用和 `ys` 直接构造器来源，确定首次用户消息时 `ys.a` 的真实生成/获取位置，以及 `ss9.i` model_type 的选择和回填链路。
-- 在此之前，不实现猜测性的 Session Factory；Completion 继续 HTTP 503 fail-closed。
+- 在此之前，不实现猜测性的 Session Factory；Completion 协议路由保持开放；执行引擎缺失时按请求返回 `engine_missing`，不伪造回复。
 
 本节结论来自 APK DEX/Smali 静态结构；不代表已在设备上验证该会话创建链路。
 
