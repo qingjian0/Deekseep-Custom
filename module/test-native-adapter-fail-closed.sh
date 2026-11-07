@@ -579,8 +579,8 @@ require(
 )
 require(
     ui,
-    r'完整采集官方客户端 Transport、全部已发现的异步回调方法与 Local API 网关阶段.*?不设回调类、方法、Hook 或事件数量上限.*?复制完整报告',
-    "the UI explains uncapped callback coverage, persistent full-event logging, and one-report export",
+    r'采集官方客户端 Transport、y60 边界符合筛选条件的回调方法及 Local API 网关阶段.*?仅 Hook 具体类自身声明的 1～2 参数非 void 方法，每类最多 12 个.*?所有事件实时追加到应用私有目录文件.*?复制完整报告（包含持久化日志）',
+    "the UI documents bounded callback selection and persistent full-event export",
 )
 require(
     probe,
