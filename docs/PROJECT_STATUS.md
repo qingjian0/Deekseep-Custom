@@ -669,12 +669,12 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 
 - `oe2.j()` 创建宿主 UI 新会话占位 `ys`，其 `ys.a` session ID 明确为 `""`；随后创建 `Lik2`，注入名为 `sendMessageToNewSession` 的 function reference。
 - `ik2` 处理消息事件时构造 `Lo97` MessageForwardRequest，并将当前 ChatSessionComponent、请求和完成回调交给注入回调；消息/fragment UUID 仍与 session ID 分离。
-- 回调引用的原始函数体在当前 R8 Smali 导出中尚未定位；服务端 session 创建、真实 ID 回填、首次 `nn0.d()` 的先后关系仍未证实。
+- 后续已将该引用映射到 `oe2.i(oe2, Lik2, Lo97, Function0)`，并追到 `fx1.m()`、服务端创建与 `ss9 -> ys` 装配；详见后续 Session Factory 章节。`jj2` 事件进入 `nn0.d()` 的精确对象/时序仍待确认。
 - `oe2` 初始化时由 `i37.s(mj7)` 选择当前 `vi7`（优先 `e == true`，否则回退 `kj7.c`），将其 `a` 字符串保存在 `oe2.q`；`oe2.j()` 把该 StateFlow 传给新会话 `ys.d`。
 - `mw1.y()` 仅在 parentMessageId 为 null 时把 `ys.k()` 写入原生 Request 的 model_type；有 parent 时传 null。
 - 已证明宿主新会话初始 model_type 来自当前宿主模型选择状态；未证明外部 API model ID 到内部 model_type 的映射。
 
-**当前决策：** 已有足够静态证据确定宿主 UI 新会话占位对象的初始 sessionId 是空字符串，但仍不能据此把空 ID 作为 Local API 的最终网络请求参数。必须先定位 `sendMessageToNewSession` 实现、服务端创建和 ID 回填时序。Session Factory 暂不落地；Completion 继续 503 fail-closed。
+**当前决策：** 已定位宿主 Session Factory `fx1.m()` 与真实服务端 session ID 来源；不再需要猜测或生成 sessionId。尚需实现安全获取 `fx1`、suspend/取消桥接、actor 持久化验证和 `jj2 -> nn0.d()` 事件链对接。Completion 继续 503 fail-closed。
 
 本轮文档提交：
 - `2fd1a8be1ded6a5923e5b249982356bd34e6fdf1` — `docs/NATIVE_ADAPTER.md` 新会话占位语义。
