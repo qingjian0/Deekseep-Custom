@@ -91,7 +91,7 @@
 
 code289（DeepSeek 2.7.2 / versionCode 289）的 APK 静态证据已补齐：`ly1 implements wu1`；`zn3.o(wu1, Long)` 委托到 `jw3.g(wu1, Long)` 并返回冷 Flow `Ly60`；`r3.c(dv1, yb3)` 是 DeltaCommand 事件 reducer，`cv1(sha)` 中 `sha.a` 为事件名、`sha.b` 为数据 JSON。静态分析记录了 `SET / APPEND / BATCH` 操作及其顺序应用规则；这些结构证据不等于运行时事件和数据契约已验证。
 
-当前分支 schema-6 源码已加入 `r3.c` 透明观察点，只读取白名单事件名，不读取 `sha.b`。Smali 复核进一步确认：`sha.a == null` 才是 DeltaCommand 通道；第一个 null-name Patch 创建 root，后续 null-name Patch 更新 root；`ready` 是独立元数据事件。观察器现将 null-name 记录为 `delta-command`，而不是错误地归入 `other`；字符串 `delta` / `parse_error` 不属于 `r3.c` 已确认的分支。已归档的 1,676 行真实设备日志是 schema 5，证明 Flow collect 与部分 continuation/callback 执行，但不含 `delta-dispatch-*` 事件。schema-6 观察器尚无设备运行日志，null-name DeltaCommand、`ready`、`close` 的真实运行时序列仍未证实。诊断探针要求 `BuildInfo.LOCAL_API_INCLUDED == false`，应由独立诊断构建运行；不能把该日志说成正式 Local API APK 的运行证据。Native Adapter 仍未实现，所有 Completion 路由继续 HTTP 503。
+当前分支 schema-6 源码已加入 `r3.c` 透明观察点，只读取白名单事件名，不读取 `sha.b`。Smali 复核进一步确认：`sha.a == null` 才是 DeltaCommand 通道；第一个 null-name Patch 创建 root，后续 null-name Patch 更新 root；`ready` 是独立元数据事件。观察器现将 null-name 记录为 `delta-command`，而不是错误地归入 `other`；字符串 `delta` / `parse_error` 不属于 `r3.c` 已确认的分支。已归档的 1,676 行真实设备日志是 schema 5，证明 Flow collect 与部分 continuation/callback 执行，但不含 `delta-dispatch-*` 事件。schema-6 观察器尚无设备运行日志，null-name DeltaCommand、`ready`、`close` 的真实运行时序列仍未证实。诊断探针要求 `BuildInfo.LOCAL_API_INCLUDED == false`，应由独立诊断构建运行；不能把该日志说成正式 Local API APK 的运行证据。Native Adapter 仍未实现；所有 Completion 协议入口保持开放，原生引擎缺失时按请求返回 `engine_missing`（HTTP 503）。
 
 ### 3.5 诊断 UI
 
@@ -645,7 +645,7 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - OpenAI tool definitions and model-generated tool-call text are bridged to structured client-facing `tool_calls` / `tool_use`. This does not execute tools inside the module; Chat and Responses tool calls are currently non-streaming only.
 - Usage values are estimates, not native tokenizer counts, and are marked `dsh_usage_estimated=true`. Streaming `include_usage` accepts boolean values and emits an explicitly estimated usage chunk when requested; non-boolean values are rejected.
 - Responses `previous_response_id` state is process-local, bounded to 64 entries and a 30-minute TTL; it is not durable across service restarts.
-- **Native execution remains the release blocker.** The code289 APK static audit establishes the Request/Transport/Challenge/PoW/Flow/SSE/DeltaCommand call graph, but no Open adapter currently captures the live `nn0/zn3` host objects, collects the native Flow, applies DeltaCommand patches, or maps the final response to `CompletionResult`. Completion routes must remain fail-closed with HTTP 503 until this is implemented and validated.
+- **Native execution remains the release blocker.** The code289 APK static audit establishes the Request/Transport/Challenge/PoW/Flow/SSE/DeltaCommand call graph, but no Open adapter currently captures the live `nn0/zn3` host objects, collects the native Flow, applies DeltaCommand patches, or maps the final response to `CompletionResult`. Keep Completion protocol routes exposed; until the adapter is implemented and validated, the execution facade reports `engine_missing` (HTTP 503) per request.
 - No code289 real-device completion, cancellation, timeout, resume, or concurrent-session verification is claimed.
 
 ## 2026-11-07：code289 Session Factory 静态审计校正
@@ -658,7 +658,7 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - `oe2` 中发现的 UUID 生成用于 `ada` 消息/fragment 标识，不是 `chat_session_id` 生成证据。
 - `ys` 的直接多参数构造器存在，但其上游 `sr7` 选择/导航来源尚未完整映射，尚不能确定首次用户消息时 session ID 的创建策略。
 
-**阶段结论：** Session Factory 仍未实现；本轮没有添加猜测性的 sessionId/model_type/preempt，也没有启用 Completion。HTTP 503 fail-closed 保持。当前只完成静态证据与文档校正，不声称代码测试、CI、APK 或真机验证通过。
+**阶段结论：** Session Factory 仍未实现；本轮没有添加猜测性的 sessionId/model_type/preempt，也没有启用 Completion。协议入口保持开放；原生引擎缺失时按请求返回 `engine_missing`（HTTP 503）。当前只完成静态证据与文档校正，不声称代码测试、CI、APK 或真机验证通过。
 
 本轮文档提交：`2d57a560b62de35686ae279a54a013c6f257156d`（`docs/NATIVE_ADAPTER.md`）；PR #16 仍为 Draft，目标 `dev`，未合并。
 
@@ -674,7 +674,7 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - `mw1.y()` 仅在 parentMessageId 为 null 时把 `ys.k()` 写入原生 Request 的 model_type；有 parent 时传 null。
 - 已证明宿主新会话初始 model_type 来自当前宿主模型选择状态；未证明外部 API model ID 到内部 model_type 的映射。
 
-**当前决策：** 已定位宿主 Session Factory `fx1.m()` 与真实服务端 session ID 来源；不再需要猜测或生成 sessionId。尚需实现安全获取 `fx1`、suspend/取消桥接、actor 持久化验证和 `jj2 -> nn0.d()` 事件链对接。Completion 继续 503 fail-closed。
+**当前决策：** 已定位宿主 Session Factory `fx1.m()` 与真实服务端 session ID 来源；不再需要猜测或生成 sessionId。尚需实现安全获取 `fx1`、suspend/取消桥接、actor 持久化验证和 `jj2 -> nn0.d()` 事件链对接。Completion 协议入口保持开放；原生引擎缺失时按请求返回 `engine_missing`（HTTP 503）。
 
 本轮文档提交：
 - `2fd1a8be1ded6a5923e5b249982356bd34e6fdf1` — `docs/NATIVE_ADAPTER.md` 新会话占位语义。
@@ -701,7 +701,7 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - `fx1.m()` 成功返回 `pt7)，其中 `tn2.a` 是真实 `ys)，`tn2.b` 标记缓存命中。
 - `oe2.i` 在持久化前调用 `ys.G(Lo97.d)` 更新模型 key；随后通过 `fx1.l(ys) -> pi.e(ys) -> wn2 -> ix0` 异步写入会话仓库，最后再将消息事件交给当前组件。
 
-**阶段决策：** 已经定位到可复用的宿主 Session Factory 核心 `fx1.m()`，不再需要猜测 sessionId 生成方式。下一步不是重写创建 HTTP，而是验证模块如何稳定取得 `fx1` 实例、如何桥接 suspend Continuation 与取消/超时，以及如何确认 actor 持久化完成。缓存命中和网络创建两个分支都必须覆盖。Completion 仍 503 fail-closed。
+**阶段决策：** 已经定位到可复用的宿主 Session Factory 核心 `fx1.m()`，不再需要猜测 sessionId 生成方式。下一步不是重写创建 HTTP，而是验证模块如何稳定取得 `fx1` 实例、如何桥接 suspend Continuation 与取消/超时，以及如何确认 actor 持久化完成。缓存命中和网络创建两个分支都必须覆盖。Completion 协议入口保持开放；原生引擎缺失时按请求返回 `engine_missing`（HTTP 503）。
 
 本轮文档提交：`764683fee54228b4e7b7922043aa72f63d48d874`（`docs/NATIVE_ADAPTER.md`）。本轮未执行 CI、APK 构建或真机验证。
 
@@ -716,7 +716,7 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 捕获失败时应 fail-closed 503，不扫描任意对象堆、不生成伪 sessionId、不自行复制创建接口。
 - 后续需要在后台桥接 `fx1.m(Continuation)`，正确解析 `wt7/pt7/tn2)，更新模型 key，再按宿主顺序调用 `fx1.l(ys))。Continuation 结果、超时、取消与 actor 写入时序仍待实现和验证。
 
-**本轮边界：** 只完成静态接入点定位和文档记录，没有新增模块代码，没有运行 Hook/CI/APK/真机测试。Completion 继续 503 fail-closed。
+**本轮边界：** 只完成静态接入点定位和文档记录，没有新增模块代码，没有运行 Hook/CI/APK/真机测试。Completion 协议入口保持开放；原生引擎缺失时按请求返回 `engine_missing`（HTTP 503）。
 
 本轮文档提交：`75f7dbbfc160d0ae819836de7533e319c78c7db3`。
 
@@ -728,5 +728,5 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - `jw3.g` 在 PoW response 非空时写入 `X-DS-PoW-Response`；`df0.d` 的 `DeepSeekHashV1` 分支引用 `PowCalculator.calculateDeepSeekHashV1Pow(String, String, long)`。
 - 已将上述静态证据写入 [NATIVE_ADAPTER.md](NATIVE_ADAPTER.md)，并扩展 `tools/audit_code289_session_fallback.py`，覆盖 session fallback 与 ChallengePlugin / PoW 管线锚点。
 - 对该 code289 artifact 执行扩展后的完整本地静态审计：**24/24 PASS**。此结果只证明 Smali 静态锚点匹配，不证明挑战可运行、模块可获取宿主 client、Flow 可安全收集或 Completion 已成功。
-- Native Completion 继续 503 fail-closed。当前优先研究宿主 `zn3/jw3`、`bi5/cf5`、`hq1` 的实例来源、生命周期和取消语义；不复制 challenge plugin、不自行拼接认证 header。
+- Native Completion 协议入口保持开放；原生引擎缺失时按请求返回 `engine_missing`（HTTP 503）。当前优先研究宿主 `zn3/jw3`、`bi5/cf5`、`hq1` 的实例来源、生命周期和取消语义；不复制 challenge plugin、不自行拼接认证 header。
 - 按既定计划，PR CI 与真机验证继续留到源码阶段收尾后统一执行；本轮没有触发 CI，也没有声称设备验收通过。
