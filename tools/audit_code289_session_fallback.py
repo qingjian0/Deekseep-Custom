@@ -63,7 +63,7 @@ def main() -> int:
         "rz0 branch contains /api/v0/chat_session/create": (
             '"/api/v0/chat_session/create"' in files["rz0"]
         ),
-        "rz0 applies the POST verb marker": "Lz2c;->V(Lng5;Lxa3;)V" in files["rz0"],
+        "rz0 sets Content-Type header": "Lz2c;->V(Lng5;Lxa3;)V" in files["rz0"],
         "rz0 sets a 5000ms timeout": "const-wide/16 v8, 0x1388" in files["rz0"],
         "request builder defaults to GET": (
             "sget-object v0, Lyf5;->b:Lyf5;" in files["ng5"]
