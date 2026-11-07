@@ -42,6 +42,12 @@ No default evidence provider or automatic role policy is enabled by this change.
 Run `bash module/test-roi-universal-hook-runtime.sh` for resolver/runtime and evidence-gate cases. Run `bash module-legacy/test-adapter-regression.sh` for the 21-version Xposed API 82–102 matrix plus a concrete universal-backend test that verifies one native callback, argument/result adaptation, exactly-once original invocation and logical unhook pass-through.
 
 
+## Activation identity hardening
+
+The activation gate validates not only the candidate's fields but also its stable identity key. It recomputes `RoiCandidateIdentity.candidateId(sourceScope, className, methodName, descriptor)` and rejects a candidate if the stored `candidateId` differs. This prevents stale or forged candidate records from being accepted merely because their visible method fields happen to match the requested HookSpec.
+
+The current DexKit discovery pipeline still emits unresolved, non-approved candidates and a discovery-only policy. It does not populate a production authorization catalog. See [ROI Universal Hook Production Evidence and Feature Migration Ledger](ROI_UNIVERSAL_HOOK_MIGRATION_LEDGER.md) for the audited call chains, existing hook inventory, evidence gaps and migration gates.
+
 ## Group lifecycle API
 
 - `installRoiUniversalHookBatch(groupId, ...)` installs one stable group through `FeatureHookInstallRegistry`.
