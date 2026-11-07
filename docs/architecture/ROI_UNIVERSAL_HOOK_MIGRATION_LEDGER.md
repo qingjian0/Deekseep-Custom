@@ -160,6 +160,7 @@ All entries below are currently installed through the legacy feature pipeline. *
 - `ui.native-settings-entry`
 - `ui.settings-composable`
 - `config.attachment-guide-rollout`
+- `remote.feature-flags`
 - `config.home-welcome-rollout`
 - `config.hot-update-dialog`
 - `config.remote-hot-updates`
