@@ -73,7 +73,7 @@ public final class RoiUniversalHookRuntime {
  }
  public interface Handle { void unhook()throws Exception; }
  public interface Backend { Handle install(Target target,Callback callback)throws Exception; }
- public interface Health { boolean verify(Target target,Handle handle)throws Exception; }
+ public interface Health { boolean verify(Target target,Handle handle)throws Exception; }\n /** Mandatory authorization bridge; production implementations must delegate to RoiHookResolver. */\n public interface ActivationGate { boolean authorized(Spec spec); }
  public static final class Adapters {
   private final Map<String,Set<String>> rules=new HashMap<String,Set<String>>();
   public synchronized void approve(String fp,Set<String> roles){if(roles==null||roles.isEmpty())throw new IllegalArgumentException("roles required");rules.put(text(fp,"fingerprint"),Collections.unmodifiableSet(new HashSet<String>(roles)));}
@@ -85,14 +85,14 @@ public final class RoiUniversalHookRuntime {
  }
  private static final class Active {final Target target;final Handle handle;Active(Target t,Handle h){target=t;handle=h;}}
  public static final class Installer {
-  private final Resolver resolver;private final Backend backend;private final Health health;
+  private final Resolver resolver;private final Backend backend;private final Health health;private final ActivationGate gate;
   private final Map<String,Active> active=new LinkedHashMap<String,Active>();private final Map<String,State> states=new LinkedHashMap<String,State>();
-  public Installer(Resolver r,Backend b,Health h){resolver=Objects.requireNonNull(r);backend=Objects.requireNonNull(b);health=Objects.requireNonNull(h);}
+  public Installer(Resolver r,Backend b,Health h,ActivationGate g){resolver=Objects.requireNonNull(r);backend=Objects.requireNonNull(b);health=Objects.requireNonNull(h);gate=Objects.requireNonNull(g,"activation gate is mandatory");}
   public synchronized Result install(List<Spec> specs,ClassLoader loader,String fp,Adapters adapters){
    if(specs==null||specs.isEmpty())return result(false,null,"empty batch");
    Map<String,Spec> byId=new LinkedHashMap<String,Spec>();
    for(Spec s:specs){if(s==null||byId.put(s.id,s)!=null)return result(false,s==null?null:s.id,"null or duplicate id");
-    if(fp==null||!fp.equals(s.fingerprint)||adapters==null||!adapters.allows(fp,s.role))return result(false,s.id,"fingerprint/role not approved");}
+    if(fp==null||!fp.equals(s.fingerprint)||adapters==null||!adapters.allows(fp,s.role))return result(false,s.id,"fingerprint/role not approved");\n    if(!gate.authorized(s))return result(false,s.id,"evidence resolver denied activation");}
    for(Spec s:byId.values())for(String d:s.dependencies)if(!byId.containsKey(d)&&!active.containsKey(d))return result(false,s.id,"missing dependency "+d);
    List<Spec> ordered;try{ordered=order(byId);}catch(Exception e){return result(false,null,e.getMessage());}
    List<Target> targets=new ArrayList<Target>();
