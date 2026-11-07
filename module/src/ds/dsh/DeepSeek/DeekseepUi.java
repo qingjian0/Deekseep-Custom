@@ -3172,7 +3172,7 @@ public final class DeekseepUi {
         TextView nativeProbeTitle = sectionTitle(act, "Open 原生适配诊断（DeepSeek 2.7.x）", textColor);
         card.addView(nativeProbeTitle);
         TextView nativeProbeHelp = infoBox(act,
-                "采集官方客户端 Transport、y60 边界观察到的回调对象及 Local API 网关阶段；回调只 Hook 具体类自身声明的 1～2 参数非 void 方法，每类最多 12 个，按完整方法描述符排序且不遍历父类；每个方法只额外记录一次参数/返回对象的字段名和字段类型，不读取字段值。所有事件实时追加到应用私有目录文件；内存缓冲区只作预览。若要同时覆盖两条独立路径：先在 DeepSeek 主界面发送一条普通消息，再由 API 客户端发送一条 /v1/chat/completions 请求，最后复制完整报告（包含持久化日志）。当前 Open 原生后端尚未接通，API 请求会如实记录 readiness 状态。只记录类型、状态、长度和耗时，不记录消息正文或凭据。完整采集会持续占用磁盘并增加回调开销，测试结束后请关闭开关。",
+                "采集官方客户端 Transport、y60 边界符合筛选条件的回调方法及 Local API 网关阶段；仅 Hook 具体类自身声明的 1～2 参数非 void 方法，每类最多 12 个，按完整方法描述符排序且不遍历父类；每个方法只额外记录一次参数/返回对象的字段名和字段类型，不读取字段值。所有事件实时追加到应用私有目录文件；内存缓冲区只作预览。若要同时覆盖两条独立路径：先在 DeepSeek 主界面发送一条普通消息，再由 API 客户端发送一条 /v1/chat/completions 请求，最后复制完整报告（包含持久化日志）。当前 Open 原生后端尚未接通，API 请求会如实记录 readiness 状态。只记录类型、状态、长度和耗时，不记录消息正文或凭据。完整采集会持续占用磁盘并增加回调开销，测试结束后请关闭开关。",
                 textColor, dark);
         card.addView(nativeProbeHelp, insetParams(act, 0, 8));
         card.addView(configurableSwitchRow(act, "启用原生适配诊断探针",
