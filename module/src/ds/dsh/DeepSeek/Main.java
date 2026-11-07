@@ -1707,6 +1707,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             final ClassLoader loader,
             final String fingerprint,
             final RoiUniversalHookRuntime.Adapters adapters,
+            final RoiHostBuildIdentity currentHostIdentity,
             RoiReviewedHookEvidenceRegistry reviewedEvidence) throws Throwable {
         if (groupId == null || groupId.trim().isEmpty()) {
             throw new IllegalArgumentException("ROI universal Hook group ID is required");
@@ -1726,7 +1727,13 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                 },
                 new RoiHookResolverActivationGate(
                         java.util.Objects.requireNonNull(reviewedEvidence, "reviewed evidence catalog"),
-                        reviewedEvidence));
+                        reviewedEvidence,
+                        reviewedEvidence,
+                        new RoiHookResolverActivationGate.CurrentIdentitySource() {
+                            @Override public RoiHostBuildIdentity currentIdentity() {
+                                return currentHostIdentity;
+                            }
+                        }));
         RoiUniversalHookRuntime.Installer previous =
                 ROI_UNIVERSAL_INSTALLERS.putIfAbsent(registryId, created);
         final RoiUniversalHookRuntime.Installer installer =
