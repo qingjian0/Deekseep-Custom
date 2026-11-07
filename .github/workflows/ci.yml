@@ -51,6 +51,7 @@ jobs:
           bash -n module/test-roi-class-load-observer.sh
           bash -n module/test-roi-discovery-budget.sh
           bash -n module/test-roi-semantic-role-hints.sh
+          bash -n module/test-roi-semantic-profile-matcher.sh
           bash -n module/test-roi-functional-role-classifier.sh
           bash -n module/test-roi-class-candidate-matcher.sh
           bash -n module/test-roi-unknown-host-hook-policy.sh
@@ -78,6 +79,7 @@ jobs:
           bash module/test-roi-dex-data-reader.sh
           bash module/test-roi-dex-code-reader.sh
           bash module/test-roi-semantic-role-hints.sh
+          bash module/test-roi-semantic-profile-matcher.sh
           bash module/test-roi-functional-role-classifier.sh
           bash module/test-roi-runtime-recorder.sh
           bash module/test-roi-unknown-host-invocation-probe.sh
@@ -122,7 +124,7 @@ jobs:
               module/test-hostmap-regression.sh module/test-local-api-network-regression.sh \
               module/test-native-adapter-fail-closed.sh module/test-roi-hook-resolver.sh scripts/package-dexkit-native.sh scripts/test-dexkit-integration.sh \
               module/test-roi-dexkit-discovery.sh module/test-roi-candidate-graph.sh \
-              module/test-roi-semantic-role-hints.sh module/test-roi-functional-role-classifier.sh module/test-roi-class-candidate-matcher.sh module/test-roi-unknown-host-hook-policy.sh module/test-roi-unknown-host-invocation-probe.sh module/test-roi-unknown-host-invocation-wiring.sh module/test-roi-unknown-host-auto-probe.sh module/test-roi-unknown-host-chat-request.sh module/test-roi-unknown-host-chat-request-wiring.sh module/test-roi-runtime-recorder.sh \
+              module/test-roi-semantic-role-hints.sh module/test-roi-semantic-profile-matcher.sh module/test-roi-functional-role-classifier.sh module/test-roi-class-candidate-matcher.sh module/test-roi-unknown-host-hook-policy.sh module/test-roi-unknown-host-invocation-probe.sh module/test-roi-unknown-host-invocation-wiring.sh module/test-roi-unknown-host-auto-probe.sh module/test-roi-unknown-host-chat-request.sh module/test-roi-unknown-host-chat-request-wiring.sh module/test-roi-runtime-recorder.sh \
               module/test-roi-dex-instruction-scanner.sh module/test-roi-dex-register-flow.sh module/test-roi-candidate-identity.sh module/test-roi-class-loader-profile.sh module/test-roi-loaded-class-inspector.sh module/test-roi-class-load-observer.sh module/test-roi-functional-role-classifier.sh module/test-roi-discovery-budget.sh module/test-roi-dex-file-reader.sh module/test-roi-dex-data-reader.sh; do
             bash -n "$script"
           done
@@ -153,6 +155,7 @@ jobs:
           bash module/test-roi-dex-file-reader.sh
           bash module/test-roi-dex-instruction-scanner.sh
           bash module/test-roi-semantic-role-hints.sh
+          bash module/test-roi-semantic-profile-matcher.sh
           bash module/test-roi-functional-role-classifier.sh
           bash module/test-roi-runtime-recorder.sh
           bash module/test-roi-hook-resolver.sh
