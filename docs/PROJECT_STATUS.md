@@ -18,7 +18,7 @@
 - 既有 Java/Xposed Hook 与宿主反射边界继续保留。
 - Kotlin 承担新增 Runtime 契约、Agent 调度、确定性策略、持久化与部分 UI。
 - Local API 的 HTTP、认证、请求限制、SSE 和 LAN 监听已有实现。
-- **Open 构建的 DeepSeek 原生 Completion Adapter 尚未打通**。`GET /v1/models` 返回已配置模型清单；`POST /v1/chat/completions` 在适配器未就绪时返回 503；不能把 HTTP 路由可访问描述成模型调用成功。
+- **Open 构建的 DeepSeek 原生 Completion Adapter 尚未打通**。`GET /v1/models` 返回已配置模型清单；Open 版协议入口保持开放并进入执行门面；当前原生引擎仍未接通时，请求按实际能力返回 `engine_missing`（HTTP 503），不能把路由可访问描述成模型调用成功。
 
 ## 2. 分支与提交
 
@@ -62,9 +62,9 @@
 | 路由 | 当前状态 |
 |---|---|
 | `GET /v1/models` | 返回配置模型清单；不代表原生执行就绪 |
-| `POST /v1/chat/completions` | OpenAI Chat 请求校验、响应映射、SSE 和非流式 tool-call bridge 已实现；原生适配器未就绪时返回 503 |
-| `POST /v1/responses` | Responses 输入/输出映射、受限 `previous_response_id` 状态和 SSE 已实现；原生适配器未就绪时返回 503 |
-| `POST /v1/messages` | Anthropic Messages 请求/响应映射和 SSE 已实现；原生适配器未就绪时返回 503 |
+| `POST /v1/chat/completions` | OpenAI Chat 请求校验、响应映射、SSE 和非流式 tool-call bridge 已实现；Open 请求进入执行门面，缺少原生引擎时按请求返回 `engine_missing` |
+| `POST /v1/responses` | Responses 输入/输出映射、受限 `previous_response_id` 状态和 SSE 已实现；缺少原生引擎时按请求返回 `engine_missing` |
+| `POST /v1/messages` | Anthropic Messages 请求/响应映射和 SSE 已实现；缺少原生引擎时按请求返回 `engine_missing` |
 | `POST /v1/agent/run` | 未实现 |
 
 网络与安全边界：
@@ -120,7 +120,7 @@ Run `41649071834` 是较早阶段的绿色基线。最近可引用的完整绿�
 1. **schema-6 运行时证据**：使用不含 Local API Gateway 的独立 Open 诊断构建，在 code289 设备上取得 `r3.c` 的安装记录、事件名序列和 `y60.b` collect 关联；不读取 `sha.b`。
 2. **Native Adapter 设计/实现**：仅按已证实的 Request / Challenge / PoW / Transport / Flow 契约实施；构造器、字段和 payload 解析未证实前不得猜测。具体证据门槛见 [NATIVE_ADAPTER.md](NATIVE_ADAPTER.md)。
 3. **协议与运行时边界测试**：补齐取消、deadline、会话隔离、错误映射、SSE 终态和断连回收的独立测试。
-4. **集成回归**：审计 Gateway → Backend → Adapter → DeltaSink 全链路，确保 Adapter 未就绪时所有 Completion 入口仍为 503。
+4. **集成回归**：审计 Gateway → Backend → Adapter → DeltaSink 全链路，确保协议入口始终开放；Adapter 未就绪时由执行门面按请求返回明确的 `engine_missing`，不得在 Open 版本级别提前关闭路由。
 5. **最终验证**：源码阶段结束后统一执行 PR CI、Open APK 构建/结构检查及 code289 真机测试；分别记录证据等级，不互相替代。
 6. **交付**：记录提交 SHA、CI Run、APK 校验和、设备/宿主/LSPosed 版本及未验证范围。
 
