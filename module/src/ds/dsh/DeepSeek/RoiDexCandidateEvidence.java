@@ -16,6 +16,7 @@ import java.util.HashSet;
  * invoke host code, install hooks, or authorize runtime behavior.
  */
 public final class RoiDexCandidateEvidence {
+    private static final int MAX_SELECTED_METHODS = 480;
     private RoiDexCandidateEvidence() {}
 
     public static final class EvidenceException extends Exception {
@@ -80,7 +81,7 @@ public final class RoiDexCandidateEvidence {
             Set<String> selectedMethodDescriptors) throws EvidenceException {
         if (selectedMethodDescriptors == null)
             throw new EvidenceException("selected_method_set_required");
-        if (selectedMethodDescriptors.size() > 400)
+        if (selectedMethodDescriptors.size() > MAX_SELECTED_METHODS)
             throw new EvidenceException("selected_method_budget_exceeded");
         return analyzeInternal(dex, sourceScope, new HashSet<String>(selectedMethodDescriptors));
     }

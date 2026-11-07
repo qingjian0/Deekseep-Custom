@@ -3,14 +3,17 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CLI="$ROOT/module/src/ds/dsh/DeepSeek/RoiDexApkCli.java"
+EVIDENCE="$ROOT/module/src/ds/dsh/DeepSeek/RoiDexCandidateEvidence.java"
 
-python3 - "$CLI" <<'PY'
+python3 - "$CLI" "$EVIDENCE" <<'PY'
 from pathlib import Path
 import sys
 
 source = Path(sys.argv[1]).read_text(encoding="utf-8")
+evidence = Path(sys.argv[2]).read_text(encoding="utf-8")
 checks = {
     "bounded analysis budget remains 480": "MAX_ANALYSIS_METHODS = 480" in source,
+    "selected-method analyzer accepts the bounded 480-method budget": "MAX_SELECTED_METHODS = 480" in evidence and "selectedMethodDescriptors.size() > MAX_SELECTED_METHODS" in evidence,
     "fourth-hop reserve is explicit": "MAX_FOURTH_HOP_RESERVE = 64" in source,
     "fifth-hop reserve is explicit": "MAX_FIFTH_HOP_RESERVE = 64" in source,
     "hop three stops before consuming both later-hop reserves":
