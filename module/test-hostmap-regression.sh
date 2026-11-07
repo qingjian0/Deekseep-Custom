@@ -73,6 +73,14 @@ if limited_start < 0 or full_start < 0 or "isV271LimitedWhitelistSupported()" no
     raise SystemExit("Main must refuse the 2.7.1 whitelist when a 2.7.2 mapping is unavailable")
 if "if (!HostCompat.isV271LimitedWhitelistSupported())" not in host_v271:
     raise SystemExit("HostV271 must independently guard its code287-only fallback")
+if not re.search(r'HostCompat\.hostLabel\(\).*?full mode via HostRemap', main):
+    raise SystemExit("2.7.x full-mode diagnostics must report the detected host label, not hard-code 2.7.1")
+if not re.search(r'installBestEffortHook\("agent\.tool-log\.rounded-rect".*?hookAgentToolLogRoundedRect', main, re.S):
+    raise SystemExit("optional Agent tool-log renderer failure must not abort remaining host feature installation")
+if re.search(r'installHookStep\("agent\.tool-log\.rounded-rect"', main):
+    raise SystemExit("optional Agent tool-log renderer must not be registered as a fatal install step")
+print("2.7.x optional renderer isolation regression OK")
+
 print("HostCompat limited fallback version isolation regression OK")
 
 probe = pathlib.Path(sys.argv[1]).with_name("OpenNativeCompletionProbe.java").read_text(encoding="utf-8")
