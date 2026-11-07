@@ -156,6 +156,12 @@ public final class HostCompat {
         return googlePlay || isIntl27();
     }
 
+    /** Empty until a 2.7.5 distribution channel is independently verified. */
+    static String reviewedDistributionChannel() {
+        if (v275StaticOnly) return "";
+        return isInternationalChannel() ? "google-play" : "mainland";
+    }
+
     /**
      * Hosts that still have a maintained, verified symbol table.  Do not let a package which
      * merely shares DeepSeek's application id fall through to the old 2.2 mapping: that path
