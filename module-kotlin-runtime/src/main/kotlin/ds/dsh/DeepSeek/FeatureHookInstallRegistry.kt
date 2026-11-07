@@ -7,8 +7,8 @@ import java.util.concurrent.ConcurrentHashMap
  * Process-local state for independently installed feature-hook groups.
  *
  * The registry tracks installer execution, not reflected members. An installer should represent
- * one stable, idempotent feature boundary. FAILED/DEGRADED boundaries may be retried; INSTALLED
- * SKIPPED boundaries are terminal for the lifetime of this process. INSTALLED boundaries remain
+ * one stable, idempotent feature boundary. FAILED/DEGRADED boundaries may be retried; SKIPPED
+ * boundaries are terminal for the lifetime of this process. INSTALLED boundaries remain
  * idempotent until an explicit uninstall transition makes the same stable ID installable again.
  */
 class FeatureHookInstallRegistry {
