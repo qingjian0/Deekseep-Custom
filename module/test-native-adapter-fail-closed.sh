@@ -171,6 +171,26 @@ require(
     r'observedArgumentTypes.*?value\.getClass\(\)\.getName\(\).*?observedStack.*?getClassName\(\).*?getMethodName\(\)',
     "runtime observer records argument types and stack symbols only",
 )
+require(
+    probe,
+    r"callback-pre-diagnostic-failed.*?value = chain\\.proceed\\(\\);.*?callback-post-diagnostic-failed.*?return value;",
+    "callback diagnostics cannot block the original callback or replace its successful return value",
+)
+require(
+    probe,
+    r"continuation-pre-diagnostic-failed.*?value = chain\\.proceed\\(\\);.*?continuation-exit",
+    "continuation diagnostics cannot block the original continuation",
+)
+require(
+    probe,
+    r"catch \\(Throwable hostError\\).*?throw hostError;",
+    "host callback failures are rethrown after best-effort diagnostics",
+)
+require(
+    probe,
+    r"private static void safeObserverLog\\(String message\\).*?catch \\(Throwable ignored\\)",
+    "observer logging failures are isolated while fatal VM/control-flow errors propagate",
+)
 for forbidden in ("getResult().toString()", "chain.getArg(0).toString()", "Authorization", "prompt", "requestBody"):
     if forbidden in probe:
         raise SystemExit("runtime observer must not serialize sensitive request data: " + forbidden)
