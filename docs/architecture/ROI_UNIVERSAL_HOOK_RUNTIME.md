@@ -39,4 +39,4 @@ No default evidence provider or automatic role policy is enabled by this change.
 
 ## Test
 
-Run `bash module/test-roi-universal-hook-runtime.sh`. It covers exact method/constructor resolution, overload rejection, fingerprint fail-closed, dependency ordering, idempotency including changed-contract ID collisions, uninstall, rollback, health failure, evidence-gate identity checks and discovery-only denial.
+Run `bash module/test-roi-universal-hook-runtime.sh` for resolver/runtime and evidence-gate cases. Run `bash module-legacy/test-adapter-regression.sh` for the 21-version Xposed API 82–102 matrix plus a concrete universal-backend test that verifies one native callback, argument/result adaptation, exactly-once original invocation and logical unhook pass-through.
