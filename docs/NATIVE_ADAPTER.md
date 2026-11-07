@@ -1,7 +1,7 @@
 # DeepSeek Native Completion Adapter 调查与实施边界
 
-> 适用分支：`work/local-api-protocol-port`（PR #16 → `dev`）  
-> 当前源码快照：PR #16 当前 HEAD（以 GitHub PR 元数据为准）  
+> 适用分支：`work/local-api`（PR #19 → `dev`；PR #16 已关闭且未合并）  
+> 当前源码快照：PR #19 当前 HEAD（以 GitHub PR 元数据为准）  
 > 当前宿主验证目标：`com.deepseek.chat` 国内版 2.7.2 / versionCode 289（287 / 290 仅保留独立兼容调查，不继承 code289 证据）  
 > 当前结论：**协议网关已扩展；schema-6 只读诊断探针源码已加入，但 null-name DeltaCommand / `ready` / `close` 运行时事件尚未取得完整证据；Open 原生 Completion Adapter 未完成，所有 Completion 路由保持 HTTP 503 fail-closed。**  
 > 验证安排：按工程要求，PR CI、Open APK 构建与 code289 真机验证统一留到本阶段源码工作完成后执行；此前不宣称通过。
@@ -396,7 +396,7 @@ A missing host acknowledgement is not equivalent to a user disabling Local API. 
 
 ## Open Gateway protocol audit (supersedes 2026-11-06 snapshot)
 
-The current `work/local-api-protocol-port` implementation supersedes the older protocol snapshot below. The Open Gateway currently exposes:
+The current `work/local-api` implementation supersedes the older protocol snapshot below. The Open Gateway currently exposes:
 
 - `GET /v1/models`: configured model catalog only; this does not imply native execution readiness.
 - `POST /v1/chat/completions`: request validation, non-streaming response mapping, text/reasoning SSE, and non-streaming structured tool-call bridge.
@@ -431,7 +431,7 @@ installAllFeatureHooks failed: ClassNotFoundException ...
 - `Main.java`：将 Agent Tool Log / rounded-rect 渲染器安装改为 `installBestEffortHook()`。安装失败只标记该可选 Hook degraded，并记录明确日志，不再中断其后的独立功能 Hook。
 - `Main.java`：2.7.x full-mode 诊断行改用 `HostCompat.hostLabel()`，不再把 code289/code290 误标为 2.7.1。
 - `module/test-hostmap-regression.sh`：新增回归断言，要求该可选 Hook 必须走 best-effort 路径，并要求诊断使用实际宿主标签。
-- 提交：`6827f709`（源码）；`eef5a18e`（回归断言），均位于 `work/local-api-protocol-port`。
+- 提交：`6827f709`（源码）；`eef5a18e`（回归断言），均位于 `work/local-api`。
 
 ### 验证边界
 
@@ -478,7 +478,7 @@ schema 5 记录了 Callback 方法描述符、参数类型、返回类型、执�
 
 该修改用于让下一轮 code289 真机日志可以识别 callback 的数据对象形状，帮助定位事件包装层和响应解码边界。它不会自行解释混淆字段的业务语义，也不会把 qj3.y 直接认定为 SSE parser 或 DeltaCommand reducer。
 
-相关提交位于 work/local-api-protocol-port：4212bf84（结构采集）、20ccdc7f（session 重置）、c9a79ef4（UI）、94a75ed4 / 2465873f（回归契约）。
+相关提交位于 work/local-api：4212bf84（结构采集）、20ccdc7f（session 重置）、c9a79ef4（UI）、94a75ed4 / 2465873f（回归契约）。
 
 本次源码和回归契约已提交；尚未执行 Android 构建、脚本或设备验证，不声称 schema 6 已通过运行验证。
 
@@ -604,7 +604,7 @@ nn0 repository request factory
 
 ### 当前 schema-6 源码能力
 
-- 当前 `work/local-api-protocol-port` 的 `OpenNativeCompletionProbe` 已增加 code289 专用 `r3.c(dv1,yb3)` 透明观察点。
+- 当前 `work/local-api` 的 `OpenNativeCompletionProbe` 已增加 code289 专用 `r3.c(dv1,yb3)` 透明观察点。
 - 事件名读取严格限制为 `cv1.a → sha.a` 的白名单字符串；不读取 `sha.b` 数据字段，不读取消息正文。
 - 观察器在原调用前后记录事件名、返回类型或异常类型，并透传原始调用；这只是源码实现事实，不等于设备上已经产生记录。
 - 探针调度明确要求 `BuildInfo.LOCAL_API_INCLUDED == false`。因此应使用带 schema-6 探针、且不包含 Local API Gateway 的独立 Open 诊断构建采集；不能把该诊断构建描述成正式 Local API APK。
