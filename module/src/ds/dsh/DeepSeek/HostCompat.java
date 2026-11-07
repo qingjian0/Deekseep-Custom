@@ -156,7 +156,7 @@ public final class HostCompat {
         return googlePlay || isIntl27();
     }
 
-    /** Empty until a 2.7.5 distribution channel is independently verified. */
+    /** Only maintained host profiles may supply a reviewed ROI distribution channel. */
     static String reviewedDistributionChannel() {
         if (!supportsMaintainedFeatureRuntime()) return "";
         return isInternationalChannel() ? "google-play" : "mainland";
