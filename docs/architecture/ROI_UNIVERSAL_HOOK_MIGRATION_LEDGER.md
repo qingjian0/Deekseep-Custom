@@ -310,5 +310,5 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - Audit found that the batch rollback path removed a handle from the active map before calling `unhook()`; if `unhook()` threw, the runtime retained only a FAILED state and lost the handle reference. That could make `activeCount()` report zero and allow the outer group registry to claim uninstall completion while a native callback might remain.
 - Corrected behavior: remove the handle from active tracking only after successful unhook. On failure, preserve the handle and mark it FAILED; `activeCount()` remains nonzero.
 - An installer with an unresolved FAILED handle now rejects another install for that ID until explicit uninstall successfully retries cleanup. This avoids treating an uncertain callback as safely active or silently duplicating it.
-- Added regression coverage for injected rollback-unhook failure, retained-handle visibility, duplicate-install rejection, explicit cleanup retry and subsequent clean reinstall.
+- Added regression coverage for injected rollback-unhook failure, retained-handle visibility, duplicate-install rejection, explicit cleanup retry, subsequent clean reinstall, and group-level `uninstallAll()` failure/retry.
 - This is runtime lifecycle hardening only. It does not add production HookSpec records or authorize feature migration.

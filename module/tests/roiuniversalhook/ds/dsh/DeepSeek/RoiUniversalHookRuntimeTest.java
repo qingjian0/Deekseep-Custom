@@ -43,6 +43,12 @@ public final class RoiUniversalHookRuntimeTest {
   ok(uncertain.uninstall("one")&&uncertain.activeCount()==0,"explicit cleanup must retry failed rollback unhook");
   ok(uncertain.install(batch,Sample.class.getClassLoader(),"fp",a).success&&uncertain.activeCount()==2,"installation may resume after uncertain handle is cleared");
   uncertain.uninstallAll();ok(uncertain.activeCount()==0,"cleanup after recovered installation");
+  Fake bulkUnhookFailure=new Fake();bulkUnhookFailure.failUnhookAt=1;
+  RoiUniversalHookRuntime.Installer bulkUninstall=new RoiUniversalHookRuntime.Installer(r,bulkUnhookFailure,new RoiUniversalHookRuntime.Health(){public boolean verify(RoiUniversalHookRuntime.Target t,RoiUniversalHookRuntime.Handle h){return true;}},new RoiUniversalHookRuntime.ActivationGate(){public boolean authorized(RoiUniversalHookRuntime.Spec s,ClassLoader loader){return true;}});
+  ok(bulkUninstall.install(batch,Sample.class.getClassLoader(),"fp",a).success,"bulk uninstall fixture install");
+  bulkUninstall.uninstallAll();
+  ok(bulkUninstall.activeCount()==1&&bulkUninstall.state("two")==RoiUniversalHookRuntime.State.FAILED,"bulk uninstall failure must retain unresolved handle");
+  bulkUninstall.uninstallAll();ok(bulkUninstall.activeCount()==0,"bulk uninstall retry must clear retained handle");
   RoiUniversalHookRuntime.Installer unhealthy=new RoiUniversalHookRuntime.Installer(r,new Fake(),new RoiUniversalHookRuntime.Health(){public boolean verify(RoiUniversalHookRuntime.Target t,RoiUniversalHookRuntime.Handle h){return false;}},new RoiUniversalHookRuntime.ActivationGate(){public boolean authorized(RoiUniversalHookRuntime.Spec s,ClassLoader loader){return true;}});
   ok(!unhealthy.install(Collections.singletonList(one),Sample.class.getClassLoader(),"fp",a).success&&unhealthy.activeCount()==0,"health failure rollback");
   System.out.println("ROI universal hook runtime tests passed");
