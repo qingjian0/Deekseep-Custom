@@ -214,11 +214,23 @@ This is sufficient to plan reuse of the host's configured Ktor client/plugin sta
 - g0 is the Ktor HTTP response handler. It separates successful streaming responses from non-2xx/JSON error responses and reads x-ds-sse-heartbeat-timeout-secs (default 10 seconds).
 - ts1 is the SSE byte-channel reader/parser. It constructs sha(eventName,dataJson), then wraps it as cv1(sha).
 - r3.c(Ldv1,Continuation) is a business event reducer. It handles cv1 events and dispatches event names into typed data / patch handling.
-- ready uses ChatCompletionReadyEventData; delta uses DeltaCommand and st3(path,operation,value); other known event branches include hint, title, update_session, and close.
-- Delta commands update the response state tree through the host reducer; the resulting response model stores fragments, and the host's fragment traversal joins visible text.
+- ready uses ChatCompletionReadyEventData with exact JSON keys request_message_id, response_message_id, model_type, and request_content.
+- delta uses DeltaCommand / st3(path,operation,value). The first delta initializes the response root through doc.c0(c26); subsequent deltas are applied through doc.W(st3,null), which delegates to the host patch engine ll23.y.
+- The audited r3.c reducer explicitly handles ready, delta, hint, title, update_session, and close. It does not establish a code289 finish event branch; do not import the 2.7.3/2.7.5 event list into code289.
+- cd3 is the Kotlin coroutine sentinel enum (COROUTINE_SUSPENDED, UNDECIDED, RESUMED), not a response-finish enum. zgb is Kotlin Unit. This resolves the earlier ambiguity from the dynamic continuation log.
+- The final response model is gy; xr.B() joins the text exposed by nk0 fragments. This is evidence for visible-text extraction, but it does not yet prove a correct separation between answer text and reasoning content.
 - Tool/Search/Find/Open fragment models are present in this APK. They must not be flattened into ordinary text or silently dropped.
 
 The runtime callback observer's y60.b hook is not the parser or business event decoder. The static callgraph now distinguishes the Flow boundary, SSE parser, event wrapper, and reducer. The 21 callback classes from the runtime log are coroutine/lambda implementation classes; their method names alone are not semantic event labels.
+
+
+### Session and reducer constraints clarified from code289 DEX
+
+- The preferred request entry is the repository factory nn0.d(...), not a bare direct call to zn3.o(...). The factory owns the ys session model, parent-message validation, local user-message creation, model flags, file references and request action.
+- nn0.u(ys) checks the session ID against the host's session repository/DAO before treating it as an existing session. A synthetic ys object with a random ID is therefore not equivalent to a registered native session.
+- The repository constructor stores its zn3 transport in field b; the corresponding vc3 service is field a.
+- The Flow collector can be treated as the boundary for cv1 → sha event/data objects, but a production adapter still needs a request-scoped session lifecycle and a verified way to initialize the host session record. Do not bypass the repository factory until that lifecycle is implemented and tested.
+- The static reducer's first-delta root initialization and subsequent patch application are known. Reasoning-fragment classification, finish-reason mapping, server message ID persistence, and cancellation propagation still need explicit implementation evidence.
 
 ### Implementation consequences
 
@@ -230,7 +242,7 @@ The runtime callback observer's y60.b hook is not the parser or business event d
 6. Keep text, reasoning, finish, error, tool/search fragments and cancellation as distinct result paths.
 7. Preserve request-scoped cancellation and cleanup; cancelling the HTTP socket alone is not sufficient if the Flow coroutine remains active.
 
-The apps-side detailed report is docs/deepseek-272-native-callgraph.md on branch work/deepseek-272-static-audit. The full evidence artifact was downloaded in this pass and its nested smali archive was unpacked and inspected. Static success still does not prove runtime Hook installation or end-to-end Local API generation.
+The verified semantic profile is vendored at docs/evidence/deepseek-2.7.2-code289-semantic-profile.json; the apps-side detailed report is docs/deepseek-272-native-callgraph.md on branch work/deepseek-272-static-audit. The full evidence artifact was downloaded in this pass and its nested smali archive was unpacked and inspected. Static success still does not prove runtime Hook installation or end-to-end Local API generation.
 
 ## Open API dispatch policy update
 
