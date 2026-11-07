@@ -197,8 +197,8 @@ class HookLifecycleManager {
                 it.state == State.ACTIVE && id in it.spec.dependencies
             }
             if (dependent != null) {
-                entry.detail = "required_by_active_target:${dependent.spec.id}"
-                return entry.snapshot()
+                return Status(id, entry.state, entry.attempts, entry.spec.required,
+                    "required_by_active_target:${dependent.spec.id}")
             }
             handle = entry.handle ?: run {
                 entry.state = State.FAILED
