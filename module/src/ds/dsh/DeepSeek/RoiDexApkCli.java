@@ -1,10 +1,10 @@
 package ds.dsh.DeepSeek;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -41,9 +41,9 @@ public final class RoiDexApkCli {
             System.err.println("usage: RoiDexApkCli <classes.dex> <report.json> [dex-directory]");
             System.exit(2);
         }
-        Path dexPath = Paths.get(args[0]);
-        Path reportPath = Paths.get(args[1]);
-        byte[] bytes = Files.readAllBytes(dexPath);
+        File dexPath = new File(args[0]);
+        File reportPath = new File(args[1]);
+        byte[] bytes = readFile(dexPath);
         RoiDexFileReader.DexFile dex = RoiDexFileReader.read(bytes);
 
         Map<String, Set<String>> selected = new LinkedHashMap<String, Set<String>>();
@@ -134,7 +134,7 @@ public final class RoiDexApkCli {
             }
         }
 
-        String scope = dexPath.getFileName().toString();
+        String scope = dexPath.getName();
         Set<String> expandedMethods = new LinkedHashSet<String>(selected.keySet());
         Set<String> directCalleeMethods = new LinkedHashSet<String>();
         Map<String, Integer> directCalleePriority = new LinkedHashMap<String, Integer>();
@@ -285,22 +285,27 @@ public final class RoiDexApkCli {
         List<RoiDexFileReader.DexFile> crossDexFiles = new ArrayList<RoiDexFileReader.DexFile>();
         List<String> crossDexScopes = new ArrayList<String>();
         if (args.length == 3) {
-            Path dexDirectory = Paths.get(args[2]);
-            List<Path> otherDexPaths = new ArrayList<Path>();
-            try (DirectoryStream<Path> stream = Files.newDirectoryStream(dexDirectory, "classes*.dex")) {
-                for (Path candidate : stream) {
-                    if (!candidate.getFileName().toString().equals(scope)) otherDexPaths.add(candidate);
+            File dexDirectory = new File(args[2]);
+            File[] listedDexFiles = dexDirectory.listFiles();
+            List<File> otherDexPaths = new ArrayList<File>();
+            if (listedDexFiles != null) {
+                for (File candidate : listedDexFiles) {
+                    String name = candidate.getName();
+                    if (candidate.isFile() && name.startsWith("classes")
+                            && name.endsWith(".dex") && !name.equals(scope)) {
+                        otherDexPaths.add(candidate);
+                    }
                 }
             }
-            Collections.sort(otherDexPaths, new Comparator<Path>() {
-                @Override public int compare(Path left, Path right) {
-                    return left.getFileName().toString().compareTo(right.getFileName().toString());
+            Collections.sort(otherDexPaths, new Comparator<File>() {
+                @Override public int compare(File left, File right) {
+                    return left.getName().compareTo(right.getName());
                 }
             });
-            for (Path otherPath : otherDexPaths) {
+            for (File otherPath : otherDexPaths) {
                 RoiDexFileReader.DexFile otherDex =
-                        RoiDexFileReader.read(Files.readAllBytes(otherPath));
-                String otherScope = otherPath.getFileName().toString();
+                        RoiDexFileReader.read(readFile(otherPath));
+                String otherScope = otherPath.getName();
                 crossDexFiles.add(otherDex);
                 crossDexScopes.add(otherScope);
                 for (RoiDexFileReader.ResolvedMethod method : otherDex.definedMethods) {
@@ -470,13 +475,35 @@ public final class RoiDexApkCli {
         }
         if (!allEvidenceMethods.isEmpty()) out.append("\n  ");
         out.append("]\n}\n");
-        Files.createDirectories(reportPath.toAbsolutePath().getParent());
-        Files.write(reportPath, out.toString().getBytes("UTF-8"));
+        File reportParent = reportPath.getAbsoluteFile().getParentFile();
+        if (reportParent != null && !reportParent.isDirectory() && !reportParent.mkdirs()
+                && !reportParent.isDirectory()) {
+            throw new IOException("report_directory_create_failed:" + reportParent);
+        }
+        FileOutputStream reportOutput = new FileOutputStream(reportPath);
+        try {
+            reportOutput.write(out.toString().getBytes("UTF-8"));
+        } finally {
+            reportOutput.close();
+        }
         System.out.println("DEX ROI candidate scan: " + scope
                 + " candidates=" + allEvidenceMethods.size()
                 + " analyzed=" + (evidence.analyzedMethods + crossDexAnalyzed)
                 + " failures=" + (evidence.analysisFailures + crossDexFailures)
                 + " hookAuthorization=false");
+    }
+
+    private static byte[] readFile(File file) throws IOException {
+        FileInputStream input = new FileInputStream(file);
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try {
+            byte[] buffer = new byte[8192];
+            int count;
+            while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+            return output.toByteArray();
+        } finally {
+            try { input.close(); } finally { output.close(); }
+        }
     }
 
     private static void addCandidate(Map<String, Set<String>> selected,
