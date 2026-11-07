@@ -1,7 +1,7 @@
 # DeepSeek Native Completion Adapter 调查与实施边界
 
 > 适用分支：`work/local-api-protocol-port`（PR #16 → `dev`）  
-> 当前源码快照：`d4b497b5dd429a85422d9daa0c7b9236a7afb2f7`（2026-11-07）  
+> 当前源码快照：`cd1ffbffcfa2b2158a14101d5b7ae075d5200304`（2026-11-07）  
 > 当前宿主验证目标：`com.deepseek.chat` 国内版 2.7.2 / versionCode 289（287 / 290 仅保留独立兼容调查，不继承 code289 证据）  
 > 当前结论：**协议网关已扩展；schema-6 只读诊断探针源码已加入，但 `ready → delta* → close` 运行时事件尚未取得完整证据；Open 原生 Completion Adapter 未完成，所有 Completion 路由保持 HTTP 503 fail-closed。**  
 > 验证安排：按工程要求，PR CI、Open APK 构建与 code289 真机验证统一留到本阶段源码工作完成后执行；此前不宣称通过。
