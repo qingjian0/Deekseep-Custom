@@ -369,6 +369,14 @@ implements and verifies Request construction, Challenge/PoW, Transport, event de
 cancellation, session isolation, and error mapping.
 
 
+## 2026-11-07：code289 回调探针限域修正
+
+- 依据 2026-11-06 五份真实设备日志，Transport 与 `y60.b(fl4, yb3)` 边界已经确认；日志还显示沿回调父类链安装观察器会引入大量无关调用（例如 `zb3.t()`）和同步写盘开销。
+- 当前 Local API 工作分支将回调观察范围收窄到 `y60` continuation 实际传入的具体回调类，仅检查该类自身声明的实例方法；排除 static、abstract、bridge、synthetic、0 参数、超过 2 参数及 void 方法；每个具体回调类最多尝试 12 个方法，不遍历父类。
+- 选中方法仍完整记录 entry/exit/throw 与类型、线程、耗时，保留逐方法聚合计数；Hook 始终只执行原方法一次。探针关闭后立即透传。
+- 报告 schema 更新为 5，显式声明覆盖边界。该修正只降低无关 Hook 和诊断开销，不代表响应 DTO / 事件语义或 Native Adapter 已完成。
+
+
 ## Xiaomi MIUI / HyperOS background retention
 
 The foreground keeper runs in the module package `ds.dsh.DeepSeek`, while the hooked gateway runs in `com.deepseek.chat`. Battery optimization must therefore be checked and configured for both packages independently. MIUI / HyperOS users should allow autostart for both apps, set both battery policies to unrestricted, lock both in Recents, and keep the module's foreground-service notification category enabled. OEM menu names vary. The UI now shows a device-specific guide and marks a missing host heartbeat as a keepalive failure after 15 seconds instead of waiting forever. This is not a substitute for on-device validation.
