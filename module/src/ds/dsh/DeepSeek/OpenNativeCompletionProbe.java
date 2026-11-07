@@ -669,184 +669,48 @@ final class OpenNativeCompletionProbe {
                 @Override public Object intercept(LegacyXposedModule.Chain chain)
                         throws Throwable {
                     if (!Main.isOpenNativeCompletionProbeEnabled()) return chain.proceed();
-                    List<?> args = chain.getArgs();
-                    Object first = args != null && args.size() > 0 ? args.get(0) : null;
-                    Object second = args != null && args.size() > 1 ? args.get(1) : null;
-                    observerLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-enter method="
-                            + observedMethodDescriptor(target)
-                            + " thread=" + Thread.currentThread().getName()
-                            + "#" + Thread.currentThread().getId()
-                            + " callback0Id=" + (first == null ? 0
-                                    : System.identityHashCode(first))
-                            + " callback1Id=" + (second == null ? 0
-                                    : System.identityHashCode(second))
-                            + " args=" + observedArgumentTypes(args)
-                            + " arg0Shape=" + observedObjectShape(first)
-                            + " arg1Shape=" + observedObjectShape(second)
-                            + " stack=" + observedStack());
-                    installCallbackObserver(first, "callback-0");
-                    installCallbackObserver(second, "callback-1");
                     try {
-                        Object value = chain.proceed();
-                        observerLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-exit method="
+                        List<?> args = chain.getArgs();
+                        Object first = args != null && args.size() > 0 ? args.get(0) : null;
+                        Object second = args != null && args.size() > 1 ? args.get(1) : null;
+                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-enter method="
+                                + observedMethodDescriptor(target)
+                                + " thread=" + Thread.currentThread().getName()
+                                + "#" + Thread.currentThread().getId()
+                                + " callback0Id=" + (first == null ? 0 : System.identityHashCode(first))
+                                + " callback1Id=" + (second == null ? 0 : System.identityHashCode(second))
+                                + " args=" + observedArgumentTypes(args)
+                                + " arg0Shape=" + observedObjectShape(first)
+                                + " arg1Shape=" + observedObjectShape(second)
+                                + " stack=" + observedStack());
+                        installCallbackObserver(first, "callback-0");
+                        installCallbackObserver(second, "callback-1");
+                    } catch (VirtualMachineError fatal) {
+                        throw fatal;
+                    } catch (ThreadDeath fatal) {
+                        throw fatal;
+                    } catch (Throwable diagnosticError) {
+                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-pre-diagnostic-failed exception="
+                                + diagnosticError.getClass().getName());
+                    }
+                    final Object value;
+                    try {
+                        value = chain.proceed();
+                    } catch (Throwable hostError) {
+                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-throw exception="
+                                + hostError.getClass().getName());
+                        throw hostError;
+                    }
+                    try {
+                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-exit method="
                                 + observedMethodDescriptor(target)
                                 + " result=" + observedResultType(value));
-                        return value;
-                    } catch (Throwable error) {
-                        observerLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-throw method="
-                                + observedMethodDescriptor(target)
-                                + " exception=" + error.getClass().getName());
-                        throw error;
-                    }
-                }
-            });
-            observerLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-installed method="
-                    + observedMethodDescriptor(target));
-        } catch (VirtualMachineError fatal) {
-            throw fatal;
-        } catch (ThreadDeath fatal) {
-            throw fatal;
-        } catch (Throwable error) {
-            OBSERVATION_Y60.set(false);
-            observerLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-install-failed exception="
-                    + error.getClass().getName());
-        }
-    }
-
-    /**
-     * Observe concrete callback objects supplied to y60.b. Methods are hooked on the exact
-     * callback implementation class (and a short superclass chain), never on global framework
-     * interfaces. Identity hashes correlate these events with continuation-enter without
-     * retaining callback instances or reading callback/payload fields.
-     */
-    private static void installCallbackObserver(Object callback, String role) {
-        if (callback == null || !Main.isOpenNativeCompletionProbeEnabled()) return;
-        Class<?> type = callback.getClass();
-        String key = type.getName();
-        if (OBSERVED_CALLBACK_CLASSES.putIfAbsent(key, Boolean.TRUE) != null) return;
-        int installed = 0;
-        int attempted = 0;
-        // Only inspect methods declared by the concrete callback implementation.
-        // Parent classes may be shared by unrelated host objects; hooking them caused
-        // thousands of unrelated events (for example zb3.t()) in real-device captures.
-        Method[] methods;
-        try {
-            methods = type.getDeclaredMethods();
-        } catch (LinkageError | SecurityException error) {
-            observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-methods-unavailable class="
-                    + type.getName() + " exception=" + error.getClass().getName());
-            OBSERVED_CALLBACK_CLASSES.remove(key);
-            return;
-        }
-        java.util.Arrays.sort(methods, new java.util.Comparator<Method>() {
-            @Override public int compare(Method left, Method right) {
-                return observedMethodDescriptor(left).compareTo(
-                        observedMethodDescriptor(right));
-            }
-        });
-        for (Method method : methods) {
-            if (attempted >= MAX_CALLBACK_METHODS_PER_CLASS) break;
-            int modifiers = method.getModifiers();
-            String name = method.getName();
-            Class<?>[] parameters;
-            try {
-                parameters = method.getParameterTypes();
-            } catch (LinkageError | RuntimeException error) {
-                observerLog("[OPEN_NATIVE_CALL_OBSERVER] callback-method-metadata-unavailable class="
-                        + type.getName() + " exception=" + error.getClass().getName());
-                continue;
-            }
-            if (Modifier.isStatic(modifiers) || Modifier.isAbstract(modifiers)
-                    || "toString".equals(name) || "hashCode".equals(name)
-                    || "equals".equals(name) || method.isBridge() || method.isSynthetic()
-                    || parameters.length < 1 || parameters.length > 2
-                    || method.getReturnType() == Void.TYPE) {
-                continue;
-            }
-            attempted++;
-            final Method target = method;
-            try {
-                Main.MODULE.hook(target).intercept(new LegacyXposedModule.Hooker() {
-                    @Override public Object intercept(LegacyXposedModule.Chain chain)
-                            throws Throwable {
-                        if (!Main.isOpenNativeCompletionProbeEnabled()) return chain.proceed();
-                        final long started = System.nanoTime();
-                        String methodValue = "method-descriptor-unavailable";
-                        CallbackStats statsValue = null;
-                        int identityValue = 0;
-                        long eventValue = 0L;
-                        try {
-                            methodValue = observedMethodDescriptor(target);
-                            CallbackStats existingStats = CALLBACK_STATS.get(methodValue);
-                            if (existingStats == null) {
-                                CallbackStats created = new CallbackStats();
-                                CallbackStats previous = CALLBACK_STATS.putIfAbsent(methodValue, created);
-                                existingStats = previous == null ? created : previous;
-                            }
-                            statsValue = existingStats;
-                            Object receiver = chain.getThisObject();
-                            identityValue = receiver == null ? 0 : System.identityHashCode(receiver);
-                            List<?> args = chain.getArgs();
-                            if (CALLBACK_ARGUMENT_SHAPES.putIfAbsent(methodValue, Boolean.TRUE) == null) {
-                                Object arg0 = args == null || args.isEmpty() ? null : args.get(0);
-                                Object arg1 = args == null || args.size() < 2 ? null : args.get(1);
-                                safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] callback-argument-shape method="
-                                        + methodValue + " arg0=" + observedObjectShape(arg0)
-                                        + " arg1=" + observedObjectShape(arg1));
-                            }
-                            CALLBACK_METHOD_INVOCATIONS.incrementAndGet();
-                            eventValue = CALLBACK_DETAIL_EVENTS.incrementAndGet();
-                            safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] callback-enter role=" + role
-                                    + " method=" + methodValue + " receiverId=" + identityValue
-                                    + " event=" + eventValue + " args=" + observedArgumentTypes(args)
-                                    + " stack=" + observedStack());
-                        } catch (VirtualMachineError fatal) {
-                            throw fatal;
-                        } catch (ThreadDeath fatal) {
-                            throw fatal;
-                        } catch (Throwable diagnosticError) {
-                            safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] callback-pre-diagnostic-failed exception="
-                                    + diagnosticError.getClass().getName());
-                        }
-                        final String callbackMethod = methodValue;
-                        final CallbackStats stats = statsValue;
-                        final int identity = identityValue;
-                        final long eventNumber = eventValue;
-                        final Object value;
-                        try {
-                            value = chain.proceed();
-                        } catch (Throwable hostError) {
-                            try {
-                                if (stats != null) stats.record(System.nanoTime() - started, true);
-                                safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] callback-throw method="
-                                        + callbackMethod + " exception=" + hostError.getClass().getName());
-                            } catch (VirtualMachineError fatal) {
-                                throw fatal;
-                            } catch (ThreadDeath fatal) {
-                                throw fatal;
-                            } catch (Throwable ignored) {}
-                            throw hostError;
-                        }
-                        try {
-                            long durationNanos = System.nanoTime() - started;
-                            if (stats != null) stats.record(durationNanos, false);
-                            if (CALLBACK_RESULT_SHAPES.putIfAbsent(callbackMethod, Boolean.TRUE) == null) {
-                                safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] callback-result-shape method="
-                                        + callbackMethod + " result=" + observedObjectShape(value));
-                            }
-                            safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] callback-exit method="
-                                    + callbackMethod + " receiverId=" + identity
-                                    + " event=" + eventNumber + " durationMs="
-                                    + (durationNanos / 1000000L) + " result=" + observedResultType(value));
-                        } catch (VirtualMachineError fatal) {
-                            throw fatal;
-                        } catch (ThreadDeath fatal) {
-                            throw fatal;
-                        } catch (Throwable diagnosticError) {
-                            safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] callback-post-diagnostic-failed exception="
-                                    + diagnosticError.getClass().getName());
-                        }
-                        return value;
+                    } catch (VirtualMachineError fatal) {
+                        throw fatal;
+                    } catch (ThreadDeath fatal) {
+                        throw fatal;
+                    } catch (Throwable ignored) {}
+                    return value;
                     }
                 });
                 installed++;
