@@ -10,7 +10,8 @@ public final class RoiHookResolverActivationGateTest {
     }
 
     private static RoiHookResolver.Candidate candidate(
-            String fingerprint, String role, String owner, String method, String descriptor) {
+            String fingerprint, String role, String owner, String method, String descriptor,
+            String sourceScope) {
         RoiHookResolver.Evidence[] evidence = new RoiHookResolver.Evidence[] {
                 evidence(RoiHookResolver.EvidenceKind.HOST_IDENTITY),
                 evidence(RoiHookResolver.EvidenceKind.DEX_FINGERPRINT),
@@ -22,7 +23,8 @@ public final class RoiHookResolverActivationGateTest {
                 evidence(RoiHookResolver.EvidenceKind.LIFECYCLE_CONTRACT)
         };
         return new RoiHookResolver.Candidate(fingerprint, role, owner, method, descriptor,
-                false, true, Collections.singleton(fingerprint), Arrays.asList(evidence));
+                sourceScope, "test-candidate", false, true,
+                Collections.singleton(fingerprint), Arrays.asList(evidence));
     }
 
     private static RoiHookResolver.Evidence evidence(RoiHookResolver.EvidenceKind kind) {
@@ -41,9 +43,12 @@ public final class RoiHookResolverActivationGateTest {
     }
 
     public static void main(String[] args) {
+        final ClassLoader exactLoader = RoiHookResolverActivationGateTest.class.getClassLoader();
+        final String exactScope = RoiCandidateIdentity.forClassLoader(exactLoader);
         final RoiHookResolver.Candidate approved = candidate("fp-289", "request",
                 "com.deepseek.Request", "build",
-                "Lcom/deepseek/Request;->build(Ljava/lang/String;I)Ljava/lang/Object;");
+                "Lcom/deepseek/Request;->build(Ljava/lang/String;I)Ljava/lang/Object;",
+                exactScope);
         RoiHookResolverActivationGate gate = new RoiHookResolverActivationGate(
                 ignored -> approved,
                 ignored -> new RoiHookResolver.Policy(true,
@@ -51,32 +56,36 @@ public final class RoiHookResolverActivationGateTest {
 
         RoiUniversalHookRuntime.Spec exact = spec("request.build", "fp-289", "request",
                 "com.deepseek.Request", "build", "java.lang.Object", "java.lang.String", "int");
-        check(gate.authorized(exact), "fully corroborated exact identity should authorize");
+        check(gate.authorized(exact, exactLoader),
+                "fully corroborated exact identity and classloader should authorize");
+        ClassLoader otherLoader = new ClassLoader(exactLoader) {};
+        check(!gate.authorized(exact, otherLoader),
+                "evidence from another classloader must fail closed");
 
         check(!gate.authorized(spec("wrong-fingerprint", "fp-other", "request",
-                "com.deepseek.Request", "build", "java.lang.Object", "java.lang.String", "int")),
+                "com.deepseek.Request", "build", "java.lang.Object", "java.lang.String", "int"), exactLoader),
                 "fingerprint mismatch must fail closed");
         check(!gate.authorized(spec("wrong-role", "fp-289", "response",
-                "com.deepseek.Request", "build", "java.lang.Object", "java.lang.String", "int")),
+                "com.deepseek.Request", "build", "java.lang.Object", "java.lang.String", "int"), exactLoader),
                 "role mismatch must fail closed");
         check(!gate.authorized(spec("wrong-class", "fp-289", "request",
-                "com.deepseek.Other", "build", "java.lang.Object", "java.lang.String", "int")),
+                "com.deepseek.Other", "build", "java.lang.Object", "java.lang.String", "int"), exactLoader),
                 "class mismatch must fail closed");
         check(!gate.authorized(spec("wrong-params", "fp-289", "request",
-                "com.deepseek.Request", "build", "java.lang.Object", "long", "int")),
+                "com.deepseek.Request", "build", "java.lang.Object", "long", "int"), exactLoader),
                 "parameter descriptor mismatch must fail closed");
         check(!gate.authorized(spec("wrong-return", "fp-289", "request",
-                "com.deepseek.Request", "build", "java.lang.String", "java.lang.String", "int")),
+                "com.deepseek.Request", "build", "java.lang.String", "java.lang.String", "int"), exactLoader),
                 "return descriptor mismatch must fail closed");
 
         RoiHookResolverActivationGate missing = new RoiHookResolverActivationGate(
                 ignored -> null, ignored -> new RoiHookResolver.Policy(true,
                 Collections.singleton("request"), 0.45, 0.82));
-        check(!missing.authorized(exact), "missing evidence must fail closed");
+        check(!missing.authorized(exact, exactLoader), "missing evidence must fail closed");
 
         RoiHookResolverActivationGate disabled = new RoiHookResolverActivationGate(
                 ignored -> approved, ignored -> RoiHookResolver.Policy.discoveryOnly());
-        check(!disabled.authorized(exact), "discovery-only policy must not activate");
+        check(!disabled.authorized(exact, exactLoader), "discovery-only policy must not activate");
 
         System.out.println("ROI resolver activation gate tests passed");
     }
