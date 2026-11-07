@@ -75,7 +75,7 @@ public final class RoiUniversalHookRuntime {
  public interface Backend { Handle install(Target target,Callback callback)throws Exception; }
  public interface Health { boolean verify(Target target,Handle handle)throws Exception; }
  /** Mandatory authorization bridge; production implementations must delegate to RoiHookResolver. */
- public interface ActivationGate { boolean authorized(Spec spec); }
+ public interface ActivationGate { boolean authorized(Spec spec,ClassLoader loader); }
  public static final class Adapters {
   private final Map<String,Set<String>> rules=new HashMap<String,Set<String>>();
   public synchronized void approve(String fp,Set<String> roles){if(roles==null||roles.isEmpty())throw new IllegalArgumentException("roles required");rules.put(text(fp,"fingerprint"),Collections.unmodifiableSet(new HashSet<String>(roles)));}
@@ -95,7 +95,7 @@ public final class RoiUniversalHookRuntime {
    Map<String,Spec> byId=new LinkedHashMap<String,Spec>();
    for(Spec s:specs){if(s==null||byId.put(s.id,s)!=null)return result(false,s==null?null:s.id,"null or duplicate id");
     if(fp==null||!fp.equals(s.fingerprint)||adapters==null||!adapters.allows(fp,s.role))return result(false,s.id,"fingerprint/role not approved");
-    if(!gate.authorized(s))return result(false,s.id,"evidence resolver denied activation");}
+    if(!gate.authorized(s,loader))return result(false,s.id,"evidence resolver denied activation");}
    for(Spec s:byId.values())for(String d:s.dependencies)if(!byId.containsKey(d)&&!active.containsKey(d))return result(false,s.id,"missing dependency "+d);
    List<Spec> ordered;try{ordered=order(byId);}catch(Exception e){return result(false,null,e.getMessage());}
    List<Target> targets=new ArrayList<Target>();
