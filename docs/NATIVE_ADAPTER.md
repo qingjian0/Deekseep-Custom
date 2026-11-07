@@ -430,11 +430,17 @@ installAllFeatureHooks failed: ClassNotFoundException ...
 
 此修复仅隔离可选 UI Hook 的安装失败，不会自动接通 Native Completion。Local API 仍必须在 Request Factory、Challenge/PoW、真实 Transport、响应事件解码、取消/超时和 Session 隔离全部具备证据并通过验证前保持 HTTP 503 fail-closed。
 
-### code289 APK 静态证据资产边界
+### code289 APK 静态证据资产边界（已更正，2026-11-07）
 
-`qingjian0/apps` 的 2026-11-07 双版本审计工作流 `42339059934` 所发布的 artifacts 名称为 `deepseek-audit-273`、`deepseek-audit-275` 和 `deepseek-273-275-comparison`；没有 code289 / 2.7.2 APK 静态审计 artifact。该仓库 README 中的 code289 结论属于动态日志证据，不能据此声称已经完成 code289 DEX 静态还原。
+此前“没有 code289 / 2.7.2 APK 静态审计 artifact”的判断只覆盖了 apps 仓库的双版本审计工作流 `42339059934`（2.7.3 / 2.7.5），没有覆盖后续静态审计分支。该结论已由以下独立证据更正：
 
-后续若继续仅凭现有证据推进，应先取得 code289 APK 或 schema-5 新设备日志。不得把 2.7.3 / 2.7.5 的混淆符号映射到 code289。
+- apps workflow：`42342447740`，分支 `work/deepseek-272-static-audit`，artifact：`deepseek-272-static-evidence`。
+- APK：`deepseek-2-7-2.apk`；Manifest：package `com.deepseek.chat`、versionName `2.7.2`、versionCode `289`。
+- APK SHA-256：`3c2fe31c73575400b9d59e46dde05daa2ef06491498ebfef658801e99eca1aff`；大小 22,205,160 bytes。
+- DEX：3 个；Smali classes：15,365；method declarations：72,258；候选类 23/23 命中、117 个候选方法、3,369 个候选调用点。
+- JADX 退出码 3、346 条诊断；关键调用链以 APK DEX/Smali 和 Serializer descriptor 为准。
+
+因此 code289 的静态 Request / Challenge / Transport / Flow / SSE / Delta reducer 链路已有直接 APK 证据。该证据只证明静态结构，不代表模块已经运行时 collect Flow，也不代表 Native Adapter 或真机 Completion 已完成。不得把 2.7.3 / 2.7.5 的混淆符号映射到 code289。
 
 
 ## 2026-11-07：code289 Callback 结构诊断 schema 6
@@ -531,6 +537,20 @@ nn0 repository request factory
 - st3(path, operation, value) 经 doc.W 交给 l23 patch engine；已确认操作包含 SET、APPEND、BATCH。
 - 初始 DeltaCommand 的 value 建立 zca root；zca.response 映射到 gy；gy 的 fragments 由 xr.B() 拼接可见文本。
 - delta 的 data 不能直接当作文本。需要应用 patch，再从 response.fragments 提取 RESPONSE / THINK / tool/search 等不同 fragment。
+
+#### code289 DeltaCommand 的实际 Patch 规则（Smali 已确认）
+
+- `r3.c(Ldv1, Lyb3)` 收到 `cv1(sha)` 后，以 `sha.a` 作为 event name、`sha.b` 作为 data JSON。event name 为空时，data 按 `st3` Serializer 解码为 DeltaCommand；`st3` 的 JSON 成员名确认为 `p`、`o`、`v`，分别对应 path、operation、value。
+- `ready` 事件负责建立初始 `zca` response root；后续 delta 才进入 `doc.W(st3, gv1)`。无效事件会走 `InvalidEvent`，Patch 返回失败会走 `InvalidDelta`，不能静默吞掉。
+- `doc.W` 保存 path / operation 上下文：初始 path 为空字符串、operation 为 `SET`；命令字段为 null 时沿用上一次上下文。它随后调用 `l23.y`。
+- `l23.y` 按 `/` 拆分 path，逐段调用 `s13.c` 定位父节点，再对末段执行操作：`SET` 调用目标节点的 `l(path, value, context)`；`APPEND` 调用 `m(value, path)`。
+- `BATCH` 先定位 path 指向的节点，再把 value 解码为 `List<st3>`，按列表顺序递归应用；子命令缺少 path / operation 时继承当前 BATCH 的 path / operation。子命令不是并行应用。
+- `zca.c("response")` 返回 `gy`；`gy.c("fragments")` 返回 `Ley1`；`Ley1.c(index)` 支持有效范围内的负索引。
+- 对 `gy.fragments`：`SET` 会解码列表并替换现有 fragments；`APPEND` 会解码列表并追加。对文本 fragment（例如实现 `d54` / `nk0` 的 `v44`）：`SET content` 替换当前文本，`APPEND content` 将新文本拼接到已有文本后面；`APPEND references` 追加引用列表。
+- `nk0.k()` 返回 fragment 类型，`nk0.f()` 返回该 fragment 的当前文本；`xr.B()` 遍历 fragments，只拼接实现 `nk0` 的 fragment 文本。它不是对 SSE data 字符串做简单提取。
+- `gy` 还单独处理 `accumulated_token_usage`、`conversation_mode`、`ban_regenerate`、`incomplete_message`、`thinking_enabled`、`status`、`has_pending_fragment`、`search_enabled`、`quasi_status`、`search_triggered` 和 `extra_search_providers` 等根字段；不能把所有 patch 都简化为 fragments 文本。
+
+**实现约束：** Open Adapter 若自行实现 reducer，必须保留 path/op 上下文、BATCH 顺序、数组索引语义、SET/APPEND 差异和未知字段处理；若复用宿主 reducer，则必须先证明其根状态和 collector 生命周期可安全隔离。仅凭静态证据不能声称任一方案已运行。
 
 ### 对 Local API 的实现决策
 
