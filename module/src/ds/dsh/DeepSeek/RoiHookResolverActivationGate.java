@@ -42,7 +42,7 @@ final class RoiHookResolverActivationGate implements RoiUniversalHookRuntime.Act
         }
     }
 
-    private static boolean matches(
+    static boolean matches(
             RoiUniversalHookRuntime.Spec spec, RoiHookResolver.Candidate candidate,
             String expectedScope) {
         if (candidate == null || expectedScope == null || expectedScope.length() == 0
