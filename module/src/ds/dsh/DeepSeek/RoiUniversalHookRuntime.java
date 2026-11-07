@@ -73,7 +73,9 @@ public final class RoiUniversalHookRuntime {
  }
  public interface Handle { void unhook()throws Exception; }
  public interface Backend { Handle install(Target target,Callback callback)throws Exception; }
- public interface Health { boolean verify(Target target,Handle handle)throws Exception; }\n /** Mandatory authorization bridge; production implementations must delegate to RoiHookResolver. */\n public interface ActivationGate { boolean authorized(Spec spec); }
+ public interface Health { boolean verify(Target target,Handle handle)throws Exception; }
+ /** Mandatory authorization bridge; production implementations must delegate to RoiHookResolver. */
+ public interface ActivationGate { boolean authorized(Spec spec); }
  public static final class Adapters {
   private final Map<String,Set<String>> rules=new HashMap<String,Set<String>>();
   public synchronized void approve(String fp,Set<String> roles){if(roles==null||roles.isEmpty())throw new IllegalArgumentException("roles required");rules.put(text(fp,"fingerprint"),Collections.unmodifiableSet(new HashSet<String>(roles)));}
@@ -92,7 +94,8 @@ public final class RoiUniversalHookRuntime {
    if(specs==null||specs.isEmpty())return result(false,null,"empty batch");
    Map<String,Spec> byId=new LinkedHashMap<String,Spec>();
    for(Spec s:specs){if(s==null||byId.put(s.id,s)!=null)return result(false,s==null?null:s.id,"null or duplicate id");
-    if(fp==null||!fp.equals(s.fingerprint)||adapters==null||!adapters.allows(fp,s.role))return result(false,s.id,"fingerprint/role not approved");\n    if(!gate.authorized(s))return result(false,s.id,"evidence resolver denied activation");}
+    if(fp==null||!fp.equals(s.fingerprint)||adapters==null||!adapters.allows(fp,s.role))return result(false,s.id,"fingerprint/role not approved");
+    if(!gate.authorized(s))return result(false,s.id,"evidence resolver denied activation");}
    for(Spec s:byId.values())for(String d:s.dependencies)if(!byId.containsKey(d)&&!active.containsKey(d))return result(false,s.id,"missing dependency "+d);
    List<Spec> ordered;try{ordered=order(byId);}catch(Exception e){return result(false,null,e.getMessage());}
    List<Target> targets=new ArrayList<Target>();
@@ -113,7 +116,6 @@ public final class RoiUniversalHookRuntime {
   private Result result(boolean b,String id,String m){return new Result(b,id,m,states);}
   private static boolean same(Spec a,Spec b){return a.kind==b.kind&&a.className.equals(b.className)&&a.name.equals(b.name)&&a.params.equals(b.params)&&a.fingerprint.equals(b.fingerprint)&&a.role.equals(b.role);}
   private static List<Spec> order(Map<String,Spec> specs){List<Spec> out=new ArrayList<Spec>();Set<String>done=new HashSet<String>();while(out.size()<specs.size()){Spec next=null;for(Spec candidate:specs.values()){if(done.contains(candidate.id))continue;boolean ready=true;for(String dep:candidate.dependencies)if(specs.containsKey(dep)&&!done.contains(dep)){ready=false;break;}if(ready&&(next==null||candidate.priority<next.priority))next=candidate;}if(next==null)throw new IllegalArgumentException("dependency cycle");out.add(next);done.add(next.id);}return out;}
-  private static void visit(String id,Map<String,Spec>m,Set<String>v,Set<String>d,List<Spec>o){if(d.contains(id))return;if(!v.add(id))throw new IllegalArgumentException("dependency cycle");Spec s=m.get(id);if(s!=null)for(String dep:s.dependencies)if(m.containsKey(dep))visit(dep,m,v,d,o);v.remove(id);d.add(id);if(s!=null)o.add(s);}
  }
  private static String text(String s,String field){if(s==null||s.trim().isEmpty())throw new IllegalArgumentException(field+" required");return s.trim();}
 }
