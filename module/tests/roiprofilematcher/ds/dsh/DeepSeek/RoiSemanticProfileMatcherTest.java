@@ -51,7 +51,7 @@ public final class RoiSemanticProfileMatcherTest {
                 Collections.singletonList("I"),
                 Collections.singletonList("run()V"),
                 Collections.<String>emptyList(),
-                Collections.singletonList("unrelated_marker"),
+                Collections.<String>emptyList(),
                 Collections.<String, String>emptyMap());
         RoiSemanticProfileMatcher.Match weak = RoiSemanticProfileMatcher.rank(
                 source, Collections.singletonList(unrelated)).get(0);
