@@ -593,6 +593,11 @@ require(
 )
 require(
     gateway,
+    r'"后端状态："\s*\+\s*\(backend == null \? "不可用".*?"Open"\.equals\(BuildInfo\.BUILD_EDITION\).*?backend\.readinessDetail\(\)',
+    "Open connection info distinguishes API exposure from native execution readiness",
+)
+require(
+    gateway,
     r'JSONArray\) \|\| \(\(JSONArray\) tools\)\.length\(\) > 0.*?"none".equals\(toolChoice\)',
     "empty tools arrays and tool_choice none are harmless defaults",
 )
