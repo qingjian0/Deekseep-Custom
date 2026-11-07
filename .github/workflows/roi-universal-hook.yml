@@ -7,6 +7,9 @@ on:
       - "module/src/ds/dsh/DeepSeek/RoiHookResolverActivationGate.java"
       - "module/src/ds/dsh/DeepSeek/Main.java"
       - "module-legacy/compat/ds/dsh/DeepSeek/LegacyXposedModule.java"
+      - "module-legacy/test-adapter-regression.sh"
+      - "module-legacy/tests/**"
+      - "module-legacy/src/de/robv/android/xposed/**"
       - "module/tests/roiuniversalhook/**"
       - "module/tests/roiresolveractivationgate/**"
       - "module/test-roi-universal-hook-runtime.sh"
@@ -38,3 +41,5 @@ jobs:
         run: bash -n module/test-roi-universal-hook-runtime.sh
       - name: Run isolated universal Hook tests
         run: bash module/test-roi-universal-hook-runtime.sh
+      - name: Run legacy Xposed adapter regression matrix
+        run: bash module-legacy/test-adapter-regression.sh
