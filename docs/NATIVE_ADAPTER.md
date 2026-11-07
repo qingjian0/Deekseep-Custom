@@ -627,3 +627,38 @@ nn0 repository request factory
 - `nn0.d(ys, sessionId, parentId, attachments, thinking, search, audioId, ...)` 经 `mw1` 创建请求。直接构造 `ly1` 虽然有明确签名，但若没有真实 `ys` 会话模型，就不能从当前证据推出正确的 model_type 和 preempt 值。
 
 **实现结论：** 可以确定 Transport 捕获点、Request 构造器参数顺序、默认 mask 和 `zn3.o(request, null)` 调用方式；但不能把 `model_type`、`preempt` 或 session lifecycle 填成猜测值。下一步应先确定 API session 到宿主 `ys` 状态的创建/复用策略，再实现 Request Factory；不得把随意生成的 session ID 当作已验证的宿主会话。
+
+
+## 2026-11-07：code289 Request continuation 与 Session Factory 边界复核
+
+本轮对官方 code289 Smali 继续追踪 `nn0.d`、`kw1`、`uj2`、`ik2.j0`、`ss9`、`ys` 与会话选择路径，补充以下边界：
+
+### 1. `kw1` 不是第二个“全 null 新会话调用点”
+
+- `kw1` 是 `nn0.d(...)` 的 Kotlin suspend continuation 类。
+- `nn0.d` 在收到普通 Continuation 时创建 `kw1`，并将原始调用参数保存在 continuation 字段中。
+- `kw1.y()` 恢复执行时以 null 占位参数重新进入 `nn0.d`；`nn0.d` 先识别 continuation 状态，再从 `kw1` 字段恢复原参数。
+- 因此 `kw1.y()` 中表面上的 `nn0.d(null, null, ...)` 是协程状态机恢复调用，不是产品独立发起的空 session 请求。不能据此推断新会话允许任意 null sessionId。
+- 可见的业务调用入口是 `ik2.j0(...)` 创建 `uj2`，由 `uj2.y()` 调用 `nn0.d(ys, ...)`；它携带真实 `ys` 会话对象和对应消息参数。
+
+### 2. `ss9` 与 `ys` 的构造关系
+
+- `ss9` primary constructor 接收字段 `a..h`，并将 `i`（model type）初始化为 null、`j` 初始化为 false。
+- `qs9` synthetic serializer constructor 可以按字段 mask 反序列化 `ss9` 的可选字段；`fx1` 中的直接 `new ss9` 则是基于已有 `ss9` 复制并更新计时字段，不是生成新的 chat_session_id。
+- `ys.<init>(ss9, qs)` 将 `ss9.a` 作为会话键，并从记录复制 title/model metadata、token/时间状态及 model-type state；它是将持久化会话记录装配成请求侧会话状态的一条明确路径。
+- `ys` 也存在直接的多参数构造器；`jt1` 的会话导航/选择逻辑会从 `sr7` 接口读取 `a()/b()/c()` 并构造 `ys`。该路径说明宿主允许从导航目标/选择项装配内存会话状态，但当前静态证据尚未把所有 `sr7` 实现映射为新会话创建 API，也没有证明其 `a()` 值可以由 Local API 自行生成。
+
+### 3. UUID 误判排除
+
+- `oe2` 中可见的 `UUID.randomUUID().toString()` 创建的是 `ada(elapsedRealtime, uuid)`，并作为消息/fragment 的本地标识传入后续流程；它不是 `ss9.a` 或 `ys.a` 的赋值点。
+- 其他 DEX 中出现的 UUID 调用属于不同对象/业务，不能仅凭同一 APK 中存在 UUID 生成就推断 chat_session_id 由客户端随机生成。
+
+### 4. 当前实现决策
+
+- 不把 `kw1` 的 continuation 占位 null 当作新会话协议。
+- 不把消息 fragment UUID 当作 chat_session_id。
+- 不从 `ss9` 的复制构造器推断新会话创建规则。
+- 下一步需继续沿 `ik2.j0` 的上游调用和 `ys` 直接构造器来源，确定首次用户消息时 `ys.a` 的真实生成/获取位置，以及 `ss9.i` model_type 的选择和回填链路。
+- 在此之前，不实现猜测性的 Session Factory；Completion 继续 HTTP 503 fail-closed。
+
+本节结论来自 APK DEX/Smali 静态结构；不代表已在设备上验证该会话创建链路。
