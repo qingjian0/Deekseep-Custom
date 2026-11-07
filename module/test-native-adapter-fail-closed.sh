@@ -32,7 +32,7 @@ main, stub, facade, probe, z18, host_v271, chat, report, discovery, ui, gateway,
 
 def require(source, pattern, label):
     if not re.search(pattern, source, re.S):
-        raise SystemExit("Missing native adapter fail-closed contract: " + label)
+        raise SystemExit("Missing native adapter boundary contract: " + label)
 
 require(
     stub,
@@ -46,14 +46,17 @@ require(
 )
 require(
     main,
-    r"@Override\s+public boolean isReady\(\)\s*\{\s*return BuildInfo\.LOCAL_API_INCLUDED\s*&&",
-    "Backend readiness requires the native adapter build flag",
+    r'@Override\s+public boolean isReady\(\).*?if \("Open"\.equals\(BuildInfo\.BUILD_EDITION\) && !BuildInfo\.LOCAL_API_INCLUDED\)\s*\{\s*return true;\s*\}.*?return BuildInfo\.LOCAL_API_INCLUDED',
+    "Open HTTP surface remains available when the native adapter is absent",
 )
 require(
     main,
-    r"@Override\s+public boolean isReady\(\)\s*\{\s*return BuildInfo\.LOCAL_API_INCLUDED\s*&&\s*hostClassLoader != null && liveR92 != null && liveQ71 != null",
-    "Backend readiness does not accept missing legacy transport or PoW objects",
+    r'@Override\s+public z2\.CompletionResult complete\(.*?Main module = MODULE;.*?return module\.executeLocalApiCompletion\(request, sink\);',
+    "Open requests reach the execution facade for per-request capability reporting",
 )
+if 'native_adapter_unavailable' in main:
+    raise SystemExit("The edition-level Open native_adapter_unavailable gate must not return")
+
 require(
     main,
     r'if \(!HostCompat\.isV271\(\)\) installBestEffortHook\("network\.payload-capture"',
@@ -75,11 +78,6 @@ require(
     chat,
     r"void installPowManagerCapture\(ClassLoader cl\)",
     "legacy q71 capture entry point remains identifiable for a future version-specific adapter",
-)
-require(
-    main,
-    r'if \(!BuildInfo\.LOCAL_API_INCLUDED && "Open"\.equals\(BuildInfo\.BUILD_EDITION\)\)\s*\{\s*throw new z2\.GatewayException\(503, "native_adapter_unavailable"',
-    "Open completion requests fail with HTTP 503",
 )
 require(
     facade,
@@ -704,5 +702,5 @@ require(
     "text response format is accepted; include_usage false is accepted while true and non-boolean values fail closed",
 )
 print("Native probe bounded-retry regression checks passed")
-print("Native adapter fail-closed and read-only probe source checks passed")
+print("Native adapter boundary and read-only probe source checks passed")
 PY
