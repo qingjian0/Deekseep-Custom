@@ -42,6 +42,11 @@ def main() -> int:
                 "rz0": source("smali/rz0.smali"),
                 "zs9": source("smali/zs9.smali"),
                 "j41": source("smali/j41.smali"),
+                "p61": source("smali/p61.smali"),
+                "nq1": source("smali/nq1.smali"),
+                "y10": source("smali/y10.smali"),
+                "jw3": source("smali/jw3.smali"),
+                "df0": source("smali/df0.smali"),
             }
     except (OSError, zipfile.BadZipFile, KeyError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
@@ -103,6 +108,39 @@ def main() -> int:
         "mb0 has an explicit business-error result path": (
             "Ltt7;-><init>(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)V"
             in files["mb0"]
+        ),
+        "p61 registers the host ChallengePlugin in the Ktor client builder": (
+            "Lnq1;->a:Lww2;" in files["p61"]
+            and "Lgf5;->a(Lpf5;Lhy4;)V" in files["p61"]
+        ),
+        "nq1 declares ChallengePlugin and ChallengeAttempt metadata": (
+            '"ChallengePlugin"' in files["nq1"]
+            and '"ChallengeAttempt"' in files["nq1"]
+        ),
+        "y10 enters the host challenge plugin during request execution": (
+            "Lnq1;->a(Lcf5;Lng5;Lhq1;Lvy4;Ljava/lang/String;Ljava/util/concurrent/atomic/AtomicReference;Lzb3;)Ljava/lang/Object;"
+            in files["y10"]
+        ),
+        "nq1 coordinates challenge attempts and PoW response processing": (
+            '"X-DS-PoW-Response"' in files["nq1"]
+            and "Lnq1;->c(Lcf5;Lng5;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lzb3;)Ljava/lang/Object;" in files["nq1"]
+            and "Lhq1;->a(Lpq1;Lzb3;)Ljava/lang/Object;" in files["nq1"]
+        ),
+        "nq1 challenge request builder handles challenge and PoW headers": all(
+            header in files["nq1"] for header in (
+                '"X-Debug-Recaptcha-Challenge"',
+                '"X-DS-Challenge-Response"',
+                '"X-DS-PoW-Response"',
+            )
+        ),
+        "jw3 completion builder writes the PoW response header": (
+            '"X-DS-PoW-Response"' in files["jw3"]
+            and "Lp17;->B(Lxf5;Ljava/lang/String;Ljava/lang/Object;)V" in files["jw3"]
+        ),
+        "df0 references the DeepSeekHashV1 PoW implementation": (
+            '"DeepSeekHashV1"' in files["df0"]
+            and '"calculateDeepSeekHashV1Pow"' in files["df0"]
+            and '"calculateDeepSeekHashV1Pow(Ljava/lang/String;Ljava/lang/String;J)J"' in files["df0"]
         ),
     }
 
