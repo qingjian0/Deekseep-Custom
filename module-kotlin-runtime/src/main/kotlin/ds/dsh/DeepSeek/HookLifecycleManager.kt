@@ -85,7 +85,8 @@ class HookLifecycleManager {
                     "hook target ID is already registered with a different specification: ${spec.id}"
                 }
                 if (existing.state == State.ACTIVE || existing.state == State.SKIPPED ||
-                    existing.state == State.INSTALLING || existing.state == State.UNINSTALLING) {
+                    existing.state == State.INSTALLING || existing.state == State.UNINSTALLING ||
+                    (existing.state == State.FAILED && existing.handle != null)) {
                     return existing.snapshot()
                 }
             }
@@ -154,14 +155,27 @@ class HookLifecycleManager {
                 entry.snapshot()
             }.also { return it }
         } catch (failure: Throwable) {
-            synchronized(coordination) {
-                entry.handle = null
+            var rollbackFailure: Throwable? = null
+            if (handle != null) {
+                try {
+                    handle.uninstall()
+                } catch (rollback: Throwable) {
+                    rollbackFailure = rollback
+                    failure.addSuppressed(rollback)
+                }
+            }
+            val result = synchronized(coordination) {
+                if (rollbackFailure == null) entry.handle = null else entry.handle = handle
                 entry.state = State.FAILED
-                entry.detail = describe(failure)
+                entry.detail = if (rollbackFailure == null) describe(failure)
+                    else "install_or_verification_failed_rollback_failed:${describe(rollbackFailure)}"
+                entry.snapshot()
             }
             if (failure is VirtualMachineError) throw failure
             if (failure is ThreadDeath) throw failure
-            return entry.snapshot()
+            if (rollbackFailure is VirtualMachineError) throw rollbackFailure
+            if (rollbackFailure is ThreadDeath) throw rollbackFailure
+            return result
         }
     }
 
@@ -173,10 +187,18 @@ class HookLifecycleManager {
         synchronized(coordination) {
             entry = entries[id] ?: return Status(id, State.NEW, 0, true, "target_not_registered")
             if (entry.state == State.ROLLED_BACK || entry.state == State.SKIPPED ||
-                entry.state == State.NEW || entry.state == State.FAILED) {
+                entry.state == State.NEW) {
                 return entry.snapshot()
             }
-            if (entry.state != State.ACTIVE) return entry.snapshot()
+            if (entry.state == State.FAILED && entry.handle == null) return entry.snapshot()
+            if (entry.state != State.ACTIVE && entry.state != State.FAILED) return entry.snapshot()
+            val dependent = entries.values.firstOrNull {
+                it.state == State.ACTIVE && id in it.spec.dependencies
+            }
+            if (dependent != null) {
+                entry.detail = "required_by_active_target:${dependent.spec.id}"
+                return entry.snapshot()
+            }
             handle = entry.handle ?: run {
                 entry.state = State.FAILED
                 entry.detail = "active_target_missing_unhook_handle"
