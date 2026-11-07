@@ -241,3 +241,12 @@ Do not migrate Local API account/credential routing in this ROI PR. It is intent
 - `bash module-legacy/test-adapter-regression.sh`
 
 These commands are the intended local/JVM regression suite. They do not replace Android/Xposed device acceptance.
+
+
+## Installed host artifact identity (2026-11-07 follow-up)
+
+- `RoiHostArtifactFingerprint` computes a content-based SHA-256 for the base APK and each declared split APK. The aggregate digest binds the base digest and every split name, digest, and byte length; split input ordering is normalized.
+- Hashing runs inside the existing background DexKit discovery worker, not synchronously in `handleLoadPackage`. The digest is bounded to 16 APK files, 512 MiB per file, and 1 GiB total. Missing, unreadable, duplicate, changed-during-read, or over-limit artifacts produce an unavailable status and never a partial identity.
+- The discovery report exposes only digest metadata and failure reason; it does not expose absolute APK paths.
+- This is an evidence/diagnostic primitive only. It is **not yet wired into `RoiReviewedHookEvidenceRegistry` or the activation gate**, and it does not grant authorization. The reviewed registry remains empty until independently reviewed, exact APK-set digests and host symbol evidence exist for each supported channel/version.
+- The SHA-256 value identifies bytes, not publisher authenticity. APK signing-certificate verification and PackageManager version metadata remain separate evidence requirements before production authorization.
