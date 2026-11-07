@@ -183,7 +183,20 @@ public final class RoiDexSerializerMapperTest {
                         "(Ljava/lang/String;Ljava/lang/String;)V"),
                 twoElements(),provenance);
         yes(!result.complete);
-        yes(hasRejection(result,"decoder_receiver_identity_mismatch"));
+        RoiDexValueProvenance.ReceiverTrace firstReceiver=provenance.traceReceiverUse(1,0);
+        RoiDexValueProvenance.ReceiverTrace secondReceiver=provenance.traceReceiverUse(6,0);
+        if(!firstReceiver.unique||!secondReceiver.unique
+                ||firstReceiver.identity.equals(secondReceiver.identity)) {
+            throw new AssertionError("decoder receiver fixture invalid: first="
+                    +firstReceiver.rejectionReason+":"+firstReceiver.identity+" second="
+                    +secondReceiver.rejectionReason+":"+secondReceiver.identity);
+        }
+        if(!hasRejection(result,"decoder_receiver_identity_mismatch")) {
+            StringBuilder reasons=new StringBuilder();
+            for(RoiDexSerializerMapper.Rejected item:result.rejected)
+                reasons.append(item.reason).append(';');
+            throw new AssertionError("decoder receiver mismatch not rejected; reasons="+reasons);
+        }
     }
 
     static void incompleteElementCoverageRejected()throws Exception {
