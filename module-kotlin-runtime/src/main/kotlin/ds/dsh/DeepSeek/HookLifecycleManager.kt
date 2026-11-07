@@ -137,7 +137,7 @@ class HookLifecycleManager {
                 } catch (failure: Throwable) {
                     failure
                 }
-                synchronized(coordination) {
+                val result = synchronized(coordination) {
                     entry.handle = if (rollbackFailure == null) null else handle
                     entry.state = if (rollbackFailure == null) State.ROLLED_BACK else State.FAILED
                     entry.detail = if (rollbackFailure == null) {
@@ -145,10 +145,11 @@ class HookLifecycleManager {
                     } else {
                         "verification_failed_and_rollback_failed:${describe(rollbackFailure)}"
                     }
+                    entry.snapshot()
                 }
                 if (rollbackFailure is VirtualMachineError) throw rollbackFailure
                 if (rollbackFailure is ThreadDeath) throw rollbackFailure
-                return entry.snapshot()
+                return result
             }
 
             synchronized(coordination) {
@@ -163,7 +164,7 @@ class HookLifecycleManager {
                     handle.uninstall()
                 } catch (rollback: Throwable) {
                     rollbackFailure = rollback
-                    failure.addSuppressed(rollback)
+                    if (rollback !== failure) failure.addSuppressed(rollback)
                 }
             }
             val result = synchronized(coordination) {
