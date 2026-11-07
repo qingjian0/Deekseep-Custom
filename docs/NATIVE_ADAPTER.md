@@ -586,3 +586,29 @@ nn0 repository request factory
 - 事件日志只读取 `cv1.a -> sha.a) 的白名单事件名：`ready`、`parse_error`、`delta`、`hint`、`title`、`update_session)、`close`；未知名称统一记录为 `other`。绝不读取 `sha.b) 数据 JSON。
 - Hook 在禁用时直接透传；启用时原方法只执行一次，保留原始返回值和异常。诊断读取/日志异常不替代宿主执行。Hook 注册尝试一旦开始即保持去重标记，避免框架部分注册后重试造成重复拦截。
 - 该观察点只用于补齐真机证据，不构成 Native Adapter。当前仍未证明真实 `ready -> delta* -> close` 事件序列，也未证明 Local API 能驱动模型执行。
+
+
+## 2026-11-07：schema-5 设备日志与 schema-6 Delta 探针证据隔离
+
+本节固定区分历史设备证据与当前源码能力，避免把旧日志误记为新观察点已运行。
+
+### 历史设备日志（schema 5）
+
+- 文件：`open-native-1793943559724.log`
+- 来源分支：`fix/native-probe-concrete-callback-hooks`
+- Git blob：`b9b2acff5df7a1981af9cc0ccbab0f9cfb3a8a59`
+- 文件长度：532,434 bytes；1,676 行。
+- 该日志可支持此前记录的 Request / Transport 关联、`y60.b(fl4,yb3)` collect 边界和三个具体 continuation/callback 对的观察结论。
+- 该文件属于 schema 5；其中没有 `delta-dispatch-enter`、`delta-dispatch-exit` 或 `delta-dispatch-throw` 事件。因此它不能证明 `r3.c(dv1,yb3)` Delta dispatch 观察器已经运行，也不能证明 `ready → delta* → close` 的事件序列。
+
+### 当前 schema-6 源码能力
+
+- 当前 `work/local-api-protocol-port` 的 `OpenNativeCompletionProbe` 已增加 code289 专用 `r3.c(dv1,yb3)` 透明观察点。
+- 事件名读取严格限制为 `cv1.a → sha.a` 的白名单字符串；不读取 `sha.b` 数据字段，不读取消息正文。
+- 观察器在原调用前后记录事件名、返回类型或异常类型，并透传原始调用；这只是源码实现事实，不等于设备上已经产生记录。
+- 探针调度明确要求 `BuildInfo.LOCAL_API_INCLUDED == false`。因此应使用带 schema-6 探针、且不包含 Local API Gateway 的独立 Open 诊断构建采集；不能把该诊断构建描述成正式 Local API APK。
+- 当前没有从 schema-6 诊断构建取得的设备日志。下一次设备证据必须包含探针安装标记、`delta-dispatch-installed`、实际事件名序列及对应 `y60.b` collect 关联；若只出现安装记录而无事件记录，应判定为“观察点已安装但未捕获目标调用”，不能判定事件链通过。
+
+### 对 Native Adapter 的实施约束
+
+在上述 schema-6 事件日志与响应消费证据补齐前，不实现猜测性的 `cv1/sha` payload 解码、Delta reducer 或响应组装。可以继续完成不依赖宿主私有字段语义的协议边界、取消契约、会话隔离和纯 JVM 测试；任何宿主调用仍须经过官方正常 Request / Challenge / PoW / Transport 路径，Completion 保持 503 fail-closed。
