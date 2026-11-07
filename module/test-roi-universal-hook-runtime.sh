@@ -7,6 +7,7 @@ javac -source 8 -target 8 -nowarn -d "$OUT" \
   "$ROOT/module/src/ds/dsh/DeepSeek/RoiUniversalHookRuntime.java" \
   "$ROOT/module/src/ds/dsh/DeepSeek/RoiHookResolver.java" \
   "$ROOT/module/src/ds/dsh/DeepSeek/RoiMethodShape.java" \
+  "$ROOT/module/src/ds/dsh/DeepSeek/RoiCandidateIdentity.java" \
   "$ROOT/module/src/ds/dsh/DeepSeek/RoiHookResolverActivationGate.java" \
   "$ROOT/module/tests/roiuniversalhook/ds/dsh/DeepSeek/RoiUniversalHookRuntimeTest.java" \
   "$ROOT/module/tests/roiresolveractivationgate/ds/dsh/DeepSeek/RoiHookResolverActivationGateTest.java"
