@@ -14,15 +14,19 @@ import java.util.Map;
  */
 final class RoiReviewedHookEvidenceRegistry
         implements RoiHookResolverActivationGate.EvidenceSource,
-                   RoiHookResolverActivationGate.PolicySource {
+                   RoiHookResolverActivationGate.PolicySource,
+                   RoiHookResolverActivationGate.ReviewedIdentitySource {
 
     private static final class Entry {
         final RoiHookResolver.Candidate candidate;
         final RoiHookResolver.Policy policy;
+        final RoiHostBuildIdentity hostIdentity;
 
-        Entry(RoiHookResolver.Candidate candidate, RoiHookResolver.Policy policy) {
+        Entry(RoiHookResolver.Candidate candidate, RoiHookResolver.Policy policy,
+              RoiHostBuildIdentity hostIdentity) {
             this.candidate = candidate;
             this.policy = policy;
+            this.hostIdentity = hostIdentity;
         }
     }
 
@@ -45,6 +49,11 @@ final class RoiReviewedHookEvidenceRegistry
         return entry == null ? null : entry.policy;
     }
 
+    @Override public RoiHostBuildIdentity reviewedIdentity(RoiUniversalHookRuntime.Spec spec) {
+        Entry entry = spec == null ? null : entries.get(specKey(spec));
+        return entry == null ? null : entry.hostIdentity;
+    }
+
     int size() { return entries.size(); }
 
     static final class Builder {
@@ -58,10 +67,17 @@ final class RoiReviewedHookEvidenceRegistry
         synchronized Builder addReviewed(
                 RoiUniversalHookRuntime.Spec spec,
                 RoiHookResolver.Candidate candidate,
-                RoiHookResolver.Policy policy) {
+                RoiHookResolver.Policy policy,
+                RoiHostBuildIdentity hostIdentity) {
             if (built) throw new IllegalStateException("reviewed evidence catalog already built");
-            if (spec == null || candidate == null || policy == null) {
-                throw new IllegalArgumentException("spec, candidate and policy are required");
+            if (spec == null || candidate == null || policy == null || hostIdentity == null) {
+                throw new IllegalArgumentException("spec, candidate, policy and host identity are required");
+            }
+            if (!hostIdentity.isComplete()) {
+                throw new IllegalArgumentException("reviewed host build identity is incomplete");
+            }
+            if (!hostIdentity.classLoaderScope.equals(candidate.sourceScope)) {
+                throw new IllegalArgumentException("host identity ClassLoader scope does not match candidate");
             }
             if (!RoiHookResolverActivationGate.matches(
                     spec, candidate, candidate.sourceScope)) {
@@ -76,7 +92,7 @@ final class RoiReviewedHookEvidenceRegistry
             if (entries.containsKey(key)) {
                 throw new IllegalArgumentException("duplicate reviewed HookSpec identity");
             }
-            entries.put(key, new Entry(candidate, policy));
+            entries.put(key, new Entry(candidate, policy, hostIdentity));
             return this;
         }
 
