@@ -158,7 +158,7 @@ public final class HostCompat {
 
     /** Empty until a 2.7.5 distribution channel is independently verified. */
     static String reviewedDistributionChannel() {
-        if (v275StaticOnly) return "";
+        if (!supportsMaintainedFeatureRuntime()) return "";
         return isInternationalChannel() ? "google-play" : "mainland";
     }
 
