@@ -612,3 +612,17 @@ nn0 repository request factory
 ### 对 Native Adapter 的实施约束
 
 在上述 schema-6 事件日志与响应消费证据补齐前，不实现猜测性的 `cv1/sha` payload 解码、Delta reducer 或响应组装。可以继续完成不依赖宿主私有字段语义的协议边界、取消契约、会话隔离和纯 JVM 测试；任何宿主调用仍须经过官方正常 Request / Challenge / PoW / Transport 路径，Completion 保持 503 fail-closed。
+
+
+## 2026-11-07：Request 构造器与 Repository 注入的 Smali 级复核
+
+已从官方 code289 静态审计 Artifact 的 `ly1.smali`、`nn0.smali`、`mw1.smali` 逐条复核：
+
+- `nn0.<init>(Lvc3;Lzn3;Lilb;Lbd3;Ljf2;Lpi;Lau7;Lcx2;Lmj7;Lgs;Liab;)` 将第二个参数 `zn3` 保存到实例字段 `nn0.b`。这是可用于建立版本专用 Transport 实例捕获点的直接静态证据；捕获后仍需在运行时验证对象确实服务于目标会话。
+- `ly1` 的实际构造器是 Kotlin synthetic default-argument constructor：`<init>(String, Integer, String, ArrayList, boolean, boolean, String, boolean, String, String, int)`。
+- 构造器最后的 int 是 Kotlin 默认参数 mask，不是业务字段。Smali 明确显示 mask `0x40` 将 audio_id 参数置为 null；mask `0x200` 将 action 默认设为 `retry`。构造器把第十个 String 参数写入字段 `k`，该字段由 `jw3.g` 用作 `X-DS-PoW-Response` header；action 写入字段 `j`。
+- `mw1.y()` 的真实产品调用顺序为：session ID、parent message ID、prompt、附件列表、thinking、search、audio ID、preempt、model_type、action、mask `0x200`；随后调用 `zn3.o(request, null)`。因此该产品调用点已证明第二个 Long 参数传 null 是合法的正常调用方式，不必猜测其语义。
+- `mw1.y()` 仅在 parent_message_id 为空时从 `ys.k()` 取得 model_type；有 parent 时传 null。preempt 则由 `nn0.h(ys, parent_message_id)` 计算，不是固定常量。
+- `nn0.d(ys, sessionId, parentId, attachments, thinking, search, audioId, ...)` 经 `mw1` 创建请求。直接构造 `ly1` 虽然有明确签名，但若没有真实 `ys` 会话模型，就不能从当前证据推出正确的 model_type 和 preempt 值。
+
+**实现结论：** 可以确定 Transport 捕获点、Request 构造器参数顺序、默认 mask 和 `zn3.o(request, null)` 调用方式；但不能把 `model_type`、`preempt` 或 session lifecycle 填成猜测值。下一步应先确定 API session 到宿主 `ys` 状态的创建/复用策略，再实现 Request Factory；不得把随意生成的 session ID 当作已验证的宿主会话。
