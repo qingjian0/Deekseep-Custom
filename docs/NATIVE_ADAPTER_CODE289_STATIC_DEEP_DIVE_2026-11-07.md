@@ -128,3 +128,93 @@ r3.c(Ldv1;Lyb3;)Ljava/lang/Object;
 - https://kotlinlang.org/docs/coroutines-basics.html
 
 这些是模块桥接设计原则，不代表已经验证宿主协程可被任意外部 Job 取消。
+
+
+## 8. Request Factory 补充：`nn0.d -> mw1 -> ly1 -> zn3.o`
+
+本轮继续沿 code289 的 Smali 向上追踪，已找到比单独检查 `ly1` 更完整的请求构造入口：
+
+### 8.1 `nn0.d` 创建 suspend lambda
+
+签名：
+
+```smali
+nn0.d(
+  Lys,
+  String,
+  Integer,
+  List,
+  boolean,
+  boolean,
+  String,
+  ada,
+  nr2,
+  Continuation
+): Object
+```
+
+该方法是 Kotlin suspend 状态机。方法体在请求构造阶段创建 `mw1`，将当前 `nn0`、`ys`、Integer、List、多个 String 和 boolean 参数捕获到该 lambda 对象中。不要将其解释成可同步调用的 DTO 构造器。
+
+### 8.2 `mw1` 将捕获参数整理为 `ly1`
+
+`mw1` 构造器保存：
+
+| 字段 | 声明类型 |
+|---|---|
+| `f` | `nn0` |
+| `g` | `ys` |
+| `h` | `Integer` |
+| `i` | `List` |
+| `j` | `String` |
+| `k` | `String` |
+| `l` | `boolean` |
+| `m` | `boolean` |
+| `n` | `String` |
+| `e` | lambda 执行时收到的 String |
+
+`mw1.y(Object)` 随后：
+
+1. 从捕获的 `ys` 和 Integer 调用 `nn0.h(ys, Integer)`，取得一个布尔条件；
+2. 从 `nn0.b` 取得 `zn3`；
+3. 将 List 转换为 ArrayList；
+4. 读取 `ys.k()`；
+5. 依据 Integer 是否为空决定一个传给 DTO 的 String 参数是否置空；
+6. 使用捕获的字段构造 `ly1`；
+7. 调用 `zn3.o(ly1, null)`；
+8. 返回 `y60`。
+
+因此可确认一条直接的请求构造链：
+
+```text
+nn0.d(ys, ...)
+  -> new mw1(nn0, ys, ...)
+      -> mw1.y(...)
+          -> new ly1(...)
+          -> zn3.o(ly1, null)
+              -> jw3.g(ly1, null)
+                  -> y60
+```
+
+### 8.3 请求 DTO 的字段写入顺序
+
+`ly1` 主构造器签名：
+
+```smali
+ly1(
+  String, Integer, String, ArrayList,
+  boolean, boolean, String, boolean,
+  String, String, int
+)
+```
+
+构造器将前十个业务参数写入字段 `a..k`（其中字段 `j` 在构造器内写入默认值；synthetic mask 用于默认参数处理）。当前可确认的是参数类型、捕获来源和传递顺序；尚不能仅凭短字段名把所有 String/boolean 解释成 prompt、parent id、附件开关或联网开关。字段语义必须结合 serializer `ly1` 的 descriptor/element 名称与调用者参数来源逐一确认。
+
+### 8.4 当前可以实施的离线工作
+
+- 为 `nn0.d` 的参数签名和 `mw1` 捕获字段建立静态 schema；
+- 为 `mw1.y` 到 `ly1` 的参数位置映射建立单测；
+- 对 `Integer == null` 与非 null 两条路径分别做请求模型测试；
+- 对 `List -> ArrayList`、默认参数 mask、可选 String 的 null 语义做回归；
+- 校验 `zn3.o` 接收的对象必须是 code289 的 `ly1`。
+
+不应在没有运行时生命周期证据时直接调用宿主 `nn0.d` 或 `mw1.y`；它们依赖宿主内部对象、协程上下文和网络/挑战状态。
