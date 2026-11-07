@@ -629,3 +629,14 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 已确认 DeltaCommand p/o/v patch、SET/APPEND/BATCH、zca.response → gy.fragments；不能将 SSE data 直接当文本。
 - 完整报告见 apps/docs/deepseek-272-native-callgraph.md；本文件已同步详细证据。
 - 当前只完成静态链路还原；尚未在模块中完成 zn3 capture、Flow collect、Delta patch、CompletionResult 和真机验证。Native Adapter 不标记完成。
+
+
+## 2026-11-07 Local API protocol integration update
+
+- Active integration branch: `work/local-api-protocol-port`; review PR: [#16](https://github.com/qingjian0/Deekseep-Custom/pull/16), targeting `dev`. `main` remains untouched.
+- OpenAI Chat Completions, OpenAI Responses, and Anthropic Messages now have protocol/request normalization and response/SSE mapping in the Gateway. The Anthropic route is `POST /v1/messages`.
+- OpenAI tool definitions and model-generated tool-call text are bridged to structured client-facing `tool_calls` / `tool_use`. This does not execute tools inside the module; Chat and Responses tool calls are currently non-streaming only.
+- Usage values are estimates, not native tokenizer counts, and are marked `dsh_usage_estimated=true`. Streaming `include_usage` accepts boolean values and emits an explicitly estimated usage chunk when requested; non-boolean values are rejected.
+- Responses `previous_response_id` state is process-local, bounded to 64 entries and a 30-minute TTL; it is not durable across service restarts.
+- **Native execution remains the release blocker.** The code289 APK static audit establishes the Request/Transport/Challenge/PoW/Flow/SSE/DeltaCommand call graph, but no Open adapter currently captures the live `nn0/zn3` host objects, collects the native Flow, applies DeltaCommand patches, or maps the final response to `CompletionResult`. Completion routes must remain fail-closed with HTTP 503 until this is implemented and validated.
+- No code289 real-device completion, cancellation, timeout, resume, or concurrent-session verification is claimed.
