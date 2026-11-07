@@ -13,15 +13,30 @@ final class RoiHookResolverActivationGate implements RoiUniversalHookRuntime.Act
         RoiHookResolver.Policy policy(RoiUniversalHookRuntime.Spec spec);
     }
 
+    interface ReviewedIdentitySource {
+        RoiHostBuildIdentity reviewedIdentity(RoiUniversalHookRuntime.Spec spec);
+    }
+
+    interface CurrentIdentitySource {
+        RoiHostBuildIdentity currentIdentity();
+    }
+
     private final EvidenceSource evidenceSource;
     private final PolicySource policySource;
+    private final ReviewedIdentitySource reviewedIdentitySource;
+    private final CurrentIdentitySource currentIdentitySource;
 
-    RoiHookResolverActivationGate(EvidenceSource evidenceSource, PolicySource policySource) {
-        if (evidenceSource == null || policySource == null) {
-            throw new IllegalArgumentException("evidence and policy sources are required");
+    RoiHookResolverActivationGate(EvidenceSource evidenceSource, PolicySource policySource,
+            ReviewedIdentitySource reviewedIdentitySource,
+            CurrentIdentitySource currentIdentitySource) {
+        if (evidenceSource == null || policySource == null
+                || reviewedIdentitySource == null || currentIdentitySource == null) {
+            throw new IllegalArgumentException("evidence, policy and host identity sources are required");
         }
         this.evidenceSource = evidenceSource;
         this.policySource = policySource;
+        this.reviewedIdentitySource = reviewedIdentitySource;
+        this.currentIdentitySource = currentIdentitySource;
     }
 
     @Override public boolean authorized(
@@ -31,7 +46,12 @@ final class RoiHookResolverActivationGate implements RoiUniversalHookRuntime.Act
             String expectedScope = RoiCandidateIdentity.forClassLoader(loader);
             RoiHookResolver.Candidate candidate = evidenceSource.find(spec);
             RoiHookResolver.Policy policy = policySource.policy(spec);
-            if (!matches(spec, candidate, expectedScope) || policy == null) return false;
+            RoiHostBuildIdentity reviewedIdentity = reviewedIdentitySource.reviewedIdentity(spec);
+            RoiHostBuildIdentity currentIdentity = currentIdentitySource.currentIdentity();
+            if (!matches(spec, candidate, expectedScope) || policy == null
+                    || reviewedIdentity == null || currentIdentity == null
+                    || !reviewedIdentity.matches(currentIdentity)
+                    || !expectedScope.equals(currentIdentity.classLoaderScope)) return false;
             return RoiHookResolver.resolve(candidate, policy).activationAuthorized;
         } catch (VirtualMachineError fatal) {
             throw fatal;
