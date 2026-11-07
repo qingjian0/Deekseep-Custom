@@ -22,7 +22,82 @@ public final class LegacyXposedModuleRegressionTest {
         for (int api = 82; api <= 102; api++) {
             runApiContract(api);
         }
+        runUniversalBackendAdapterTest();
         System.out.println("Legacy Xposed API 82-102 matrix OK (21 versions)");
+    }
+
+    
+    private static void runUniversalBackendAdapterTest() throws Throwable {
+        XposedBridge.resetTestState();
+        final Method method = Target.class.getDeclaredMethod("join", String.class, String.class);
+        method.setAccessible(true);
+        XposedBridge.originalMethodInvokerForTest = new XposedBridge.OriginalMethodInvoker() {
+            @Override public Object invoke(Member member, Object receiver, Object[] args)
+                    throws Throwable {
+                return ((Method) member).invoke(receiver, args);
+            }
+        };
+
+        Module module = new Module();
+        RoiUniversalHookRuntime.Callback callback = new RoiUniversalHookRuntime.Callback() {
+            @Override public void before(RoiUniversalHookRuntime.Invocation invocation) {
+                invocation.args[0] = "hooked";
+            }
+            @Override public void after(RoiUniversalHookRuntime.Invocation invocation) {
+                invocation.result = invocation.result + ":after";
+            }
+        };
+        RoiUniversalHookRuntime.Spec spec = RoiUniversalHookRuntime.Spec.builder("legacy.backend.join")
+                .role("test").className(Target.class.getName()).method("join")
+                .params("java.lang.String", "java.lang.String")
+                .returns("java.lang.String").fingerprint("test-fingerprint")
+                .callback(callback).build();
+        RoiUniversalHookRuntime.Adapters adapters = new RoiUniversalHookRuntime.Adapters();
+        adapters.approve("test-fingerprint", java.util.Collections.singleton("test"));
+        RoiUniversalHookRuntime.Installer installer = new RoiUniversalHookRuntime.Installer(
+                new RoiUniversalHookRuntime.Resolver(), module.universalHookBackend(),
+                new RoiUniversalHookRuntime.Health() {
+                    @Override public boolean verify(RoiUniversalHookRuntime.Target target,
+                                                    RoiUniversalHookRuntime.Handle handle) {
+                        return target != null && handle != null;
+                    }
+                },
+                new RoiUniversalHookRuntime.ActivationGate() {
+                    @Override public boolean authorized(RoiUniversalHookRuntime.Spec value) {
+                        return true;
+                    }
+                });
+        RoiUniversalHookRuntime.Result installed = installer.install(
+                java.util.Collections.singletonList(spec), Target.class.getClassLoader(),
+                "test-fingerprint", adapters);
+        check(installed.success, "universal backend failed to register through HookTarget: "
+                + installed.message);
+        check(XposedBridge.hookCountForTest == 1,
+                "universal backend registered a competing native callback");
+
+        Target target = new Target();
+        XC_MethodHook.MethodHookParam param = new XC_MethodHook.MethodHookParam();
+        param.method = method;
+        param.thisObject = target;
+        param.args = new Object[] {"before", "right"};
+        XposedBridge.callbackForTest.dispatchBeforeForTest(param);
+        check("hooked:right:after".equals(param.getResult()),
+                "universal callback argument/result contract changed: " + param.getResult());
+        check(target.joinCalls == 1, "universal backend must invoke original exactly once");
+
+        check(installer.uninstall("legacy.backend.join"),
+                "logical unhook should disable the universal interceptor");
+        XC_MethodHook.MethodHookParam afterUnhook = new XC_MethodHook.MethodHookParam();
+        afterUnhook.method = method;
+        afterUnhook.thisObject = target;
+        afterUnhook.args = new Object[] {"safe", "original"};
+        XposedBridge.callbackForTest.dispatchBeforeForTest(afterUnhook);
+        check("safe:original".equals(afterUnhook.getResult()),
+                "disabled logical interceptor must pass through the shared callback chain");
+        check(target.joinCalls == 2, "disabled interceptor must still invoke original exactly once");
+        check(XposedBridge.hookCountForTest == 1,
+                "logical unhook must not remove or duplicate the shared native callback");
+        XposedBridge.resetTestState();
     }
 
     private static void runApiContract(int api) throws Throwable {
