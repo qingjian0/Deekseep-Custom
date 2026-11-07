@@ -546,8 +546,8 @@ require(
 )
 require(
     probe,
-    r'safeDeltaEventName\(Object event\).*?getDeclaredField\("a"\).*?payloadField\.get\(event\).*?getDeclaredField\("a"\).*?nameField\.get\(payload\).*?"ready".*?"parse_error".*?"delta".*?"hint".*?"title".*?"update_session".*?"close"',
-    "Delta diagnostics expose only allowlisted event names through cv1.a -> sha.a",
+    r'safeDeltaEventName\(Object event\).*?getDeclaredField\("a"\).*?payloadField\.get\(event\).*?getDeclaredField\("a"\).*?nameField\.get\(payload\).*?nameValue == null.*?return "delta-command".*?"ready".*?"hint".*?"title".*?"update_session".*?"close"',
+    "Delta diagnostics expose the null-name DeltaCommand channel and only r3.c-dispatched event names through cv1.a -> sha.a",
 )
 delta_observer = re.search(
     r'private static void installDeltaDispatchObserver\(ClassLoader loader\)(.*?)'
