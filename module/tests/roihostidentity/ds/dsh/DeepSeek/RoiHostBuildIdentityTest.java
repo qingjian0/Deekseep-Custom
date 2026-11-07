@@ -30,27 +30,27 @@ public final class RoiHostBuildIdentityTest {
 
         ClassLoader loader = RoiHostBuildIdentityTest.class.getClassLoader();
         String scope = RoiCandidateIdentity.forClassLoader(loader);
-        RoiHostBuildIdentity baseline = identity("com.deepseek.chat", 2890207L,
+        RoiHostBuildIdentity baseline = identity("com.deepseek.chat", 42L,
                 "2.7.2", "mainland", repeat('b'), repeat('c'), scope);
         check(baseline.isComplete(), "complete target identity should pass");
-        check(!identity("com.example.fake", 2890207L, "2.7.2", "mainland",
+        check(!identity("com.example.fake", 42L, "2.7.2", "mainland",
                 repeat('b'), repeat('c'), scope).isComplete(), "wrong package must fail closed");
         check(!identity("com.deepseek.chat", 0L, "2.7.2", "mainland",
                 repeat('b'), repeat('c'), scope).isComplete(), "zero version code must fail closed");
-        check(!identity("com.deepseek.chat", 2890207L, "", "mainland",
+        check(!identity("com.deepseek.chat", 42L, "", "mainland",
                 repeat('b'), repeat('c'), scope).isComplete(), "missing version name must fail closed");
-        check(!identity("com.deepseek.chat", 2890207L, "2.7.2", "",
+        check(!identity("com.deepseek.chat", 42L, "2.7.2", "",
                 repeat('b'), repeat('c'), scope).isComplete(), "missing channel must fail closed");
-        check(!identity("com.deepseek.chat", 2890207L, "2.7.2", "mainland",
+        check(!identity("com.deepseek.chat", 42L, "2.7.2", "mainland",
                 "not-a-digest", repeat('c'), scope).isComplete(), "malformed APK digest must fail closed");
-        check(!identity("com.deepseek.chat", 2890207L, "2.7.2", "mainland",
+        check(!identity("com.deepseek.chat", 42L, "2.7.2", "mainland",
                 repeat('b'), "not-a-digest", scope).isComplete(), "malformed signer digest must fail closed");
 
-        RoiHostBuildIdentity otherLoader = identity("com.deepseek.chat", 2890207L,
+        RoiHostBuildIdentity otherLoader = identity("com.deepseek.chat", 42L,
                 "2.7.2", "mainland", repeat('b'), repeat('c'),
                 RoiCandidateIdentity.forClassLoader(new ClassLoader(loader) {}));
         check(!baseline.matches(otherLoader), "ClassLoader scope mismatch must fail closed");
-        RoiHostBuildIdentity otherSigner = identity("com.deepseek.chat", 2890207L,
+        RoiHostBuildIdentity otherSigner = identity("com.deepseek.chat", 42L,
                 "2.7.2", "mainland", repeat('b'), repeat('d'), scope);
         check(!baseline.matches(otherSigner), "signer mismatch must fail closed");
         System.out.println("ROI host build identity tests passed");

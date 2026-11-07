@@ -270,3 +270,10 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - The current lifecycle caller obtains `mainland` / `google-play` from `HostCompat.isInternationalChannel()`. This is a source-controlled adapter classification based on maintained host markers, not a separately signed distribution manifest.
 - The classification is only one field in the reviewed build tuple. It cannot authorize a Hook: activation still requires exact PackageManager version metadata, base/split APK content digest, signer-certificate digest, candidate descriptor, and ClassLoader scope to match a source-reviewed catalog record.
 - Do not describe this selector as cryptographic channel proof. If a future adapter requires stronger store-channel provenance, add a separately verified installer/store evidence source rather than trusting this label.
+
+
+## Version-code namespace distinction
+
+- `HostCompat.hostCode271()` values (287 / 289 / 290) are internal adapter/mapping identifiers. They are **not** the Android package's `PackageInfo.versionCode`.
+- The identity capture always records the real `PackageInfo.getLongVersionCode()` value and the actual base-manifest `versionName`. Do not infer one from the other or copy the adapter code into the identity tuple.
+- Host identity JVM fixtures now use synthetic version codes (42/43) so tests do not accidentally present an adapter identifier as a real APK version code. Actual release values must come from PackageManager on the installed target.

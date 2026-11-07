@@ -45,7 +45,7 @@ public final class RoiHookResolverActivationGateTest {
         String artifactDigest = repeat(artifact);
         RoiHostArtifactFingerprint.Result result = new RoiHostArtifactFingerprint.Result(
                 true, repeat('a'), artifactDigest, 2, 2048L, "none");
-        return RoiHostBuildIdentity.create("com.deepseek.chat", 2890207L, versionName,
+        return RoiHostBuildIdentity.create("com.deepseek.chat", 42L, versionName,
                 channel, result, repeat(signer), RoiCandidateIdentity.forClassLoader(loader));
     }
 
@@ -73,7 +73,7 @@ public final class RoiHookResolverActivationGateTest {
                 "com.deepseek.Request", "build",
                 "Lcom/deepseek/Request;->build(Ljava/lang/String;I)Ljava/lang/Object;",
                 exactScope);
-        final RoiHostBuildIdentity reviewedIdentity = identity(exactLoader, 'b', 'c', "2.7.2", "cn");
+        final RoiHostBuildIdentity reviewedIdentity = identity(exactLoader, 'b', 'c', "2.7.2", "mainland");
         final RoiHookResolver.Policy policy = new RoiHookResolver.Policy(true,
                 Collections.singleton("request"), 0.45, 0.82);
         RoiHookResolverActivationGate gate = gate(
@@ -89,24 +89,24 @@ public final class RoiHookResolverActivationGateTest {
                 "evidence from another classloader must fail closed");
 
         check(!gate(approved, exactLoader, reviewedIdentity,
-                identity(exactLoader, 'd', 'c', "2.7.2", "cn"), policy).authorized(exact, exactLoader),
+                identity(exactLoader, 'd', 'c', "2.7.2", "mainland"), policy).authorized(exact, exactLoader),
                 "APK set digest mismatch must fail closed");
         check(!gate(approved, exactLoader, reviewedIdentity,
-                identity(exactLoader, 'b', 'd', "2.7.2", "cn"), policy).authorized(exact, exactLoader),
+                identity(exactLoader, 'b', 'd', "2.7.2", "mainland"), policy).authorized(exact, exactLoader),
                 "signing certificate digest mismatch must fail closed");
         check(!gate(approved, exactLoader, reviewedIdentity,
-                identity(exactLoader, 'b', 'c', "2.7.3", "cn"), policy).authorized(exact, exactLoader),
+                identity(exactLoader, 'b', 'c', "2.7.3", "mainland"), policy).authorized(exact, exactLoader),
                 "version name mismatch must fail closed");
         RoiHostArtifactFingerprint.Result sameArtifacts = new RoiHostArtifactFingerprint.Result(
                 true, repeat('a'), repeat('b'), 2, 2048L, "none");
         RoiHostBuildIdentity wrongVersionCode = RoiHostBuildIdentity.create(
-                "com.deepseek.chat", 2890208L, "2.7.2", "cn",
+                "com.deepseek.chat", 43L, "2.7.2", "mainland",
                 sameArtifacts, repeat('c'), exactScope);
         check(!gate(approved, exactLoader, reviewedIdentity, wrongVersionCode, policy)
                         .authorized(exact, exactLoader),
                 "version code mismatch must fail closed");
         RoiHostBuildIdentity wrongPackage = RoiHostBuildIdentity.create(
-                "com.example.fake", 2890207L, "2.7.2", "cn",
+                "com.example.fake", 42L, "2.7.2", "mainland",
                 sameArtifacts, repeat('c'), exactScope);
         check(!wrongPackage.isComplete(),
                 "a package identity other than the exact DeepSeek host must be incomplete");

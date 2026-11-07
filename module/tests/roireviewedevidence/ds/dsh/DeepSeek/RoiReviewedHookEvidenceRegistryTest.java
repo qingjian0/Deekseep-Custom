@@ -35,8 +35,8 @@ public final class RoiReviewedHookEvidenceRegistryTest {
     private static RoiHostBuildIdentity identity(ClassLoader loader, String artifact, String signer) {
         RoiHostArtifactFingerprint.Result result = new RoiHostArtifactFingerprint.Result(
                 true, repeat('a'), artifact, 2, 2048L, "none");
-        return RoiHostBuildIdentity.create("com.deepseek.chat", 2890207L, "2.7.2",
-                "cn", result, signer, RoiCandidateIdentity.forClassLoader(loader));
+        return RoiHostBuildIdentity.create("com.deepseek.chat", 42L, "2.7.2",
+                "mainland", result, signer, RoiCandidateIdentity.forClassLoader(loader));
     }
 
     private static RoiHookResolver.Policy policy(String role) {
@@ -129,7 +129,7 @@ public final class RoiReviewedHookEvidenceRegistryTest {
         boolean rejectedIncomplete = false;
         try {
             RoiHostBuildIdentity incomplete = RoiHostBuildIdentity.create(
-                    "com.deepseek.chat", 2890207L, "2.7.2", "cn",
+                    "com.deepseek.chat", 42L, "2.7.2", "mainland",
                     new RoiHostArtifactFingerprint.Result(false, "", "", 0, 0L, "missing"),
                     repeat('c'), RoiCandidateIdentity.forClassLoader(loader));
             RoiReviewedHookEvidenceRegistry.builder()
