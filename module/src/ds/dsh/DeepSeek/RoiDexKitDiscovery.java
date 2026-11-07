@@ -150,6 +150,11 @@ final class RoiDexKitDiscovery {
                 MAX_TOTAL_CANDIDATES_PER_SCAN,
                 System.nanoTime() + SCAN_BUDGET_NANOS);
         append(out, "scan.apkPathsIncluded=" + includeApkPaths);
+        if (includeApkPaths) {
+            append(out, RoiHostArtifactFingerprint.inspect(apkPath, splitApkPaths).toReport());
+        } else {
+            append(out, "artifactIdentity.status=not_recomputed_runtime_rescan");
+        }
         append(out, "scan.budget.maxQueries=" + MAX_TOTAL_QUERIES_PER_SCAN);
         append(out, "scan.budget.maxCandidates=" + MAX_TOTAL_CANDIDATES_PER_SCAN);
         append(out, "scan.budget.softDeadlineMs=" + (SCAN_BUDGET_NANOS / 1_000_000L));
@@ -814,6 +819,9 @@ final class RoiDexKitDiscovery {
         int otherScopeEvidenceEntries = 0;
         int exactScopeCoverageObserved = 0;
         int exactScopeCoverageUnsupportedSuspend = 0;
+        int exactScopeCoverageUnsupportedCollectorType = 0;
+        int exactScopeCoverageUnsupportedNonSuspendCollector = 0;
+        int exactScopeCoverageUnsupportedParserCorrelation = 0;
         int otherScopeCoverageEntries = 0;
         boolean orderedRequestTransportResponse = false;
         boolean orderedParsedResponse = false;
@@ -850,6 +858,12 @@ final class RoiDexKitDiscovery {
                         exactScopeCoverageObserved++;
                     } else if (item.status == RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_SUSPEND_COLLECTOR) {
                         exactScopeCoverageUnsupportedSuspend++;
+                    } else if (item.status == RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_COLLECTOR_TYPE) {
+                        exactScopeCoverageUnsupportedCollectorType++;
+                    } else if (item.status == RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_NON_SUSPEND_COLLECTOR) {
+                        exactScopeCoverageUnsupportedNonSuspendCollector++;
+                    } else if (item.status == RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_RESPONSE_PARSER_CORRELATION) {
+                        exactScopeCoverageUnsupportedParserCorrelation++;
                     }
                 }
             }
@@ -858,6 +872,9 @@ final class RoiDexKitDiscovery {
         append(out, prefix + ".runtimeEvidence.otherClassLoaderScopeEvidenceEntries=" + otherScopeEvidenceEntries);
         append(out, prefix + ".runtimeEvidence.exactScopeCoverage.responseObserved=" + exactScopeCoverageObserved);
         append(out, prefix + ".runtimeEvidence.exactScopeCoverage.unsupportedSuspendCollector=" + exactScopeCoverageUnsupportedSuspend);
+        append(out, prefix + ".runtimeEvidence.exactScopeCoverage.unsupportedCollectorType=" + exactScopeCoverageUnsupportedCollectorType);
+        append(out, prefix + ".runtimeEvidence.exactScopeCoverage.unsupportedNonSuspendCollector=" + exactScopeCoverageUnsupportedNonSuspendCollector);
+        append(out, prefix + ".runtimeEvidence.exactScopeCoverage.unsupportedResponseParserCorrelation=" + exactScopeCoverageUnsupportedParserCorrelation);
         append(out, prefix + ".runtimeEvidence.otherClassLoaderScopeCoverageEntries=" + otherScopeCoverageEntries);
         append(out, prefix + ".runtimeEvidence.phaseCounts=requestBuilt:" + requestBuilt
                 + ",transportEntered:" + transportEntered + ",responseReceived:" + responseReceived

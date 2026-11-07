@@ -119,6 +119,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     private static final String TAG = "DSPROBE";
     private static volatile Main roiMainInstance;
+    private static volatile RoiHostBuildIdentity currentRoiHostIdentity;
+    private static final AtomicBoolean ROI_HOST_IDENTITY_CAPTURE_IN_PROGRESS =
+            new AtomicBoolean(false);
 
     private static final String ROI_CLASS_LOAD_OBSERVATION_ENABLE_FILE =
             "/data/data/com.deepseek.chat/files/deekseep_roi_class_load_observation_enabled";
@@ -1693,6 +1696,156 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         });
     }
 
+    private final ConcurrentHashMap<String, RoiUniversalHookRuntime.Installer>
+            ROI_UNIVERSAL_INSTALLERS = new ConcurrentHashMap<String, RoiUniversalHookRuntime.Installer>();
+
+    /**
+     * Installs an evidence-authorized universal Hook batch under the existing feature lifecycle
+     * registry. Callers must provide a version-scoped adapter allowlist and evidence/policy sources;
+     * absent or incomplete evidence is rejected before the Xposed backend is reached.
+     */
+    /**
+     * Captures the installed host identity from PackageManager and the actual installed APK set.
+     * Call from a worker thread after an Application/Activity context is available. The channel
+     * must come from the maintained HostCompat adapter selector, never from DexKit discovery or
+     * UI input. This classification is not itself authorization; the reviewed identity must match
+     * the installed APK and signer digests at the activation gate.
+     */
+    static RoiHostBuildIdentity captureRoiCurrentHostIdentity(
+            Context context, ClassLoader loader, String reviewedChannel) {
+        return RoiAndroidHostIdentity.capture(context, loader, reviewedChannel);
+    }
+
+    private void scheduleRoiHostIdentityCapture(Activity activity, ClassLoader loader) {
+        if (activity == null || loader == null) return;
+        RoiHostBuildIdentity current = currentRoiHostIdentity;
+        String loaderScope = RoiCandidateIdentity.forClassLoader(loader);
+        if (current != null && current.isComplete()
+                && loaderScope.equals(current.classLoaderScope)) return;
+        if (!ROI_HOST_IDENTITY_CAPTURE_IN_PROGRESS.compareAndSet(false, true)) return;
+
+        final Context appContext;
+        try {
+            appContext = activity.getApplicationContext();
+        } catch (Throwable unavailable) {
+            ROI_HOST_IDENTITY_CAPTURE_IN_PROGRESS.set(false);
+            return;
+        }
+        if (appContext == null) {
+            ROI_HOST_IDENTITY_CAPTURE_IN_PROGRESS.set(false);
+            return;
+        }
+        Thread worker = new Thread(() -> {
+            try {
+                // This is the maintained source-controlled adapter selector, not DexKit inference.
+                // Its label is only one identity field; APK and signer digests remain mandatory.
+                String channel = HostCompat.reviewedDistributionChannel();
+                RoiHostBuildIdentity captured =
+                        captureRoiCurrentHostIdentity(appContext, loader, channel);
+                currentRoiHostIdentity = captured;
+                if (captured == null) {
+                    log("ROI host identity capture unavailable; Universal Hook activation remains closed");
+                } else {
+                    log("ROI host identity captured package=" + captured.packageName
+                            + " version=" + captured.versionName
+                            + " versionCode=" + captured.versionCode
+                            + " channel=" + captured.channel
+                            + " splitCountAndDigest=verified");
+                }
+            } catch (VirtualMachineError fatal) {
+                throw fatal;
+            } catch (ThreadDeath fatal) {
+                throw fatal;
+            } catch (Throwable error) {
+                currentRoiHostIdentity = null;
+                log("ROI host identity capture failed=" + error.getClass().getName());
+            } finally {
+                ROI_HOST_IDENTITY_CAPTURE_IN_PROGRESS.set(false);
+            }
+        }, "roi-host-identity-capture");
+        worker.setDaemon(true);
+        try {
+            worker.start();
+        } catch (RuntimeException | Error failure) {
+            ROI_HOST_IDENTITY_CAPTURE_IN_PROGRESS.set(false);
+            currentRoiHostIdentity = null;
+            log("ROI host identity worker could not start");
+        }
+    }
+
+    void installRoiUniversalHookBatch(
+            final String groupId,
+            final List<RoiUniversalHookRuntime.Spec> specs,
+            final ClassLoader loader,
+            final String fingerprint,
+            final RoiUniversalHookRuntime.Adapters adapters,
+            RoiReviewedHookEvidenceRegistry reviewedEvidence) throws Throwable {
+        if (groupId == null || groupId.trim().isEmpty()) {
+            throw new IllegalArgumentException("ROI universal Hook group ID is required");
+        }
+        final String registryId = "roi.universal." + groupId.trim();
+        RoiUniversalHookRuntime.Installer created = new RoiUniversalHookRuntime.Installer(
+                new RoiUniversalHookRuntime.Resolver(),
+                universalHookBackend(),
+                new RoiUniversalHookRuntime.Health() {
+                    @Override public boolean verify(
+                            RoiUniversalHookRuntime.Target target,
+                            RoiUniversalHookRuntime.Handle handle) {
+                        // Confirms successful registration with the shared Xposed callback chain.
+                        // Behavioral correctness still requires host/device validation.
+                        return target != null && handle != null;
+                    }
+                },
+                new RoiHookResolverActivationGate(
+                        java.util.Objects.requireNonNull(reviewedEvidence, "reviewed evidence catalog"),
+                        reviewedEvidence,
+                        reviewedEvidence,
+                        new RoiHookResolverActivationGate.CurrentIdentitySource() {
+                            @Override public RoiHostBuildIdentity currentIdentity() {
+                                return currentRoiHostIdentity;
+                            }
+                        }));
+        RoiUniversalHookRuntime.Installer previous =
+                ROI_UNIVERSAL_INSTALLERS.putIfAbsent(registryId, created);
+        final RoiUniversalHookRuntime.Installer installer =
+                previous == null ? created : previous;
+
+        installHookStep(registryId, () -> {
+            RoiUniversalHookRuntime.Result result =
+                    installer.install(specs, loader, fingerprint, adapters);
+            if (!result.success) {
+                throw new IllegalStateException("ROI universal Hook batch rejected: "
+                        + result.failedId + " " + result.message);
+            }
+        });
+    }
+
+    /**
+     * Logically uninstalls one universal Hook group. The shared native Xposed callback remains
+     * installed by design; only this group's interceptors are disabled. A group can be installed
+     * again with the same stable ID after every owned handle has been deactivated successfully.
+     */
+    boolean uninstallRoiUniversalHookBatch(String groupId) {
+        if (groupId == null || groupId.trim().isEmpty()) return false;
+        final String registryId = "roi.universal." + groupId.trim();
+        RoiUniversalHookRuntime.Installer installer = ROI_UNIVERSAL_INSTALLERS.get(registryId);
+        if (installer == null) return false;
+        installer.uninstallAll();
+        if (installer.activeCount() != 0) {
+            log("ROI universal Hook group uninstall incomplete: " + registryId);
+            return false;
+        }
+        boolean transitioned = FEATURE_HOOK_INSTALL_REGISTRY.markUninstalled(registryId);
+        if (!transitioned) {
+            transitioned = FEATURE_HOOK_INSTALL_REGISTRY.markFailedInstallCleaned(registryId);
+        }
+        if (!transitioned) {
+            log("ROI universal Hook group registry state did not permit uninstall: " + registryId);
+            return false;
+        }
+        return true;
+    }
+
     void installBestEffortHook(String id, FeatureHookInstallRegistry.Installer installer,
             String logPrefix) {
         try {
@@ -2439,6 +2592,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         try {
             curAct = new WeakReference<>(act);
             hostApplicationContext = act.getApplicationContext();
+            scheduleRoiHostIdentityCapture(act, cl);
             if (!isDeepSeekMainActivity(act)) return;
 
             // 模块使用凭证门禁：未通过认证前不注入任何功能
