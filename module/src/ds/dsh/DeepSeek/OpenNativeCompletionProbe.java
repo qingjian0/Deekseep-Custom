@@ -125,11 +125,13 @@ final class OpenNativeCompletionProbe {
         CALLBACK_METHOD_INVOCATIONS.set(0);
         CALLBACK_DETAIL_EVENTS.set(0);
         CALLBACK_STATS.clear();
+        CALLBACK_ARGUMENT_SHAPES.clear();
+        CALLBACK_RESULT_SHAPES.clear();
         API_TRACE_EVENTS.set(0);
         OBSERVATION_IDS.set(0L);
         SESSION_STARTED_AT_MS = System.currentTimeMillis();
         SESSION_LOG_FILE = createSessionLogFile(SESSION_STARTED_AT_MS);
-        observerLog("[OPEN_NATIVE_CALL_OBSERVER] session-start schema=4 epochMs="
+        observerLog("[OPEN_NATIVE_CALL_OBSERVER] session-start schema=6 epochMs="
                 + SESSION_STARTED_AT_MS);
     }
 
