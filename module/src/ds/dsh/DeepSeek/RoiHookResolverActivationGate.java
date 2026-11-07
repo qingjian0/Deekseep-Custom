@@ -24,12 +24,14 @@ final class RoiHookResolverActivationGate implements RoiUniversalHookRuntime.Act
         this.policySource = policySource;
     }
 
-    @Override public boolean authorized(RoiUniversalHookRuntime.Spec spec) {
-        if (spec == null) return false;
+    @Override public boolean authorized(
+            RoiUniversalHookRuntime.Spec spec, ClassLoader loader) {
+        if (spec == null || loader == null) return false;
         try {
+            String expectedScope = RoiCandidateIdentity.forClassLoader(loader);
             RoiHookResolver.Candidate candidate = evidenceSource.find(spec);
             RoiHookResolver.Policy policy = policySource.policy(spec);
-            if (!matches(spec, candidate) || policy == null) return false;
+            if (!matches(spec, candidate, expectedScope) || policy == null) return false;
             return RoiHookResolver.resolve(candidate, policy).activationAuthorized;
         } catch (VirtualMachineError fatal) {
             throw fatal;
@@ -41,8 +43,10 @@ final class RoiHookResolverActivationGate implements RoiUniversalHookRuntime.Act
     }
 
     private static boolean matches(
-            RoiUniversalHookRuntime.Spec spec, RoiHookResolver.Candidate candidate) {
-        if (candidate == null
+            RoiUniversalHookRuntime.Spec spec, RoiHookResolver.Candidate candidate,
+            String expectedScope) {
+        if (candidate == null || expectedScope == null || expectedScope.length() == 0
+                || !expectedScope.equals(candidate.sourceScope)
                 || !spec.fingerprint.equals(candidate.hostFingerprint)
                 || !spec.role.equals(candidate.role)
                 || !spec.className.equals(candidate.className)
