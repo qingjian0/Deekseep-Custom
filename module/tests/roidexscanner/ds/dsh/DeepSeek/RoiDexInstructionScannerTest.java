@@ -2,7 +2,8 @@ package ds.dsh.DeepSeek;
 
 public final class RoiDexInstructionScannerTest {
     public static void main(String[] args)throws Exception {
-        widths(); payloads(); branches(); cfg(); cfgPayloads(); payloadCfg(); malformed();
+        widths(); payloads(); branches(); cfg(); cfgPayloads(); payloadCfg();
+        unreachableNopBeforePayload(); preserveUnreachableCodeAfterTerminators(); malformed();
         System.out.println("RoiDexInstructionScannerTest: PASS");
     }
     static void widths()throws Exception {
@@ -71,6 +72,48 @@ public final class RoiDexInstructionScannerTest {
                 RoiDexInstructionScanner.buildControlFlowGraph(switchCode);
         eq(3,sw.blocks.length);
         yes(sw.edges.length>=3);
+    }
+    static void unreachableNopBeforePayload()throws Exception {
+        // goto reaches the switch at code unit 8. The NOP at 1 only aligns the
+        // packed-switch payload at 2; the payload is referenced by that switch.
+        // Neither the NOP nor payload is reachable by fallthrough from the goto.
+        short[] code={(short)0x0828,(short)0x0000,(short)0x0100,1,0,0,3,0,
+                (short)0x002b,(short)0xfffa,(short)0xffff,(short)0x000e};
+        RoiDexInstructionScanner.ControlFlowGraph g=
+                RoiDexInstructionScanner.buildControlFlowGraph(code);
+        eq(3,g.blocks.length);
+        eq(0,g.blocks[0].startOffset);eq(1,g.blocks[0].endOffset);
+        eq(8,g.blocks[1].startOffset);eq(11,g.blocks[2].startOffset);
+        yes("GOTO".equals(g.edges[0].kind));
+
+        // If an exception handler or explicit control-flow entry targets the
+        // alignment NOP, it is reachable and must still fail closed.
+        try {
+            RoiDexInstructionScanner.buildControlFlowGraph(code,new int[]{1});
+        } catch(RoiDexInstructionScanner.ScanException expected) {
+            return;
+        }
+        throw new AssertionError("expected reachable alignment NOP to be rejected");
+    }
+    static void preserveUnreachableCodeAfterTerminators()throws Exception {
+        // The dead const/4 + return after goto remains a disconnected block;
+        // the explicit goto target remains a separate reachable block.
+        short[] afterGoto={(short)0x0029,4,(short)0x0012,(short)0x000e,(short)0x000e};
+        RoiDexInstructionScanner.ControlFlowGraph g=
+                RoiDexInstructionScanner.buildControlFlowGraph(afterGoto);
+        eq(3,g.blocks.length);
+        eq(0,g.blocks[0].startOffset);eq(2,g.blocks[0].endOffset);
+        eq(2,g.blocks[1].startOffset);eq(4,g.blocks[1].endOffset);
+        eq(4,g.blocks[2].startOffset);
+        eq(1,g.edges.length);eq(2,g.edges[0].toBlock);
+
+        // A return has no fallthrough, but subsequent real code is retained
+        // for analysis and must not acquire an edge from the return block.
+        short[] afterReturn={(short)0x000e,(short)0x0012,(short)0x000e};
+        RoiDexInstructionScanner.ControlFlowGraph r=
+                RoiDexInstructionScanner.buildControlFlowGraph(afterReturn);
+        eq(2,r.blocks.length);eq(0,r.edges.length);
+        eq(1,r.blocks[1].startOffset);eq(3,r.blocks[1].endOffset);
     }
     static void malformed()throws Exception {
         bad(new short[]{(short)0x0073});
