@@ -43,7 +43,7 @@ grep -q 'findSuspendingEmit(collectorType)' "$OBSERVER"
 grep -q 'UNSUPPORTED_SUSPEND_COLLECTOR' "$OBSERVER"
 grep -q 'recordCoverage(' "$OBSERVER"
 grep -q 'snapshotCoverage()' "$OBSERVER"
-grep -q 'Preserve collector identity' "$OBSERVER"
+grep -q 'Never replace the host collector' "$OBSERVER"
 # SSE event construction and session-message replacement are not request-correlated parser evidence.
 if grep -q 'Phase.RESPONSE_PARSED' "$CHAT"; then
   echo "Uncorrelated RESPONSE_PARSED event must not be emitted from HookChatPipeline" >&2
@@ -66,7 +66,7 @@ grep -q 'testDisabledCoverageIsNotReported' "$ROOT/module/tests/roiruntime/ds/ds
 # Runtime evidence must be bound to the exact process-local class-loader scope.
 grep -q 'RoiCandidateIdentity.forClassLoader(constructor.getDeclaringClass().getClassLoader())' "$OBSERVER"
 grep -q 'RoiCandidateIdentity.forClassLoader(method.getDeclaringClass().getClassLoader())' "$OBSERVER"
-grep -q 'RoiCandidateIdentity.forClassLoader(emitMethod.getDeclaringClass().getClassLoader())' "$OBSERVER"
+grep -q 'RoiCandidateIdentity.forClassLoader(collectMethod.getDeclaringClass().getClassLoader())' "$OBSERVER"
 grep -q 'candidateSourceScope.equals(item.sourceScope)' "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexKitDiscovery.java"
 grep -q 'builtScope.equals(event.sourceScope)' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
 grep -q 'transportScope.equals(event.sourceScope)' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
