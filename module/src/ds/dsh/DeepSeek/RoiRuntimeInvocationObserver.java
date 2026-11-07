@@ -149,11 +149,10 @@ final class RoiRuntimeInvocationObserver {
     }
 
     static Object wrapFlowCollector(final Object flow, final Object collector,
-                                    Class<?> collectorType) {
+                                    Class<?> collectorType, Method collectMethod) {
         try {
             RoiRuntimeInvocationRecorder active = recorder;
-            if (flow == null || collector == null || collectorType == null
-                    || !collectorType.isInterface() || !collectorType.isInstance(collector)
+            if (flow == null || collectMethod == null
                     || active == null || !activeEnabled(active)) return collector;
             final String key;
             synchronized (FLOW_REQUEST_KEYS) {
@@ -161,6 +160,14 @@ final class RoiRuntimeInvocationObserver {
                 key = FLOW_REQUEST_KEYS.get(flow);
             }
             if (key == null) return collector;
+            // Record unsupported collector shapes at the actual host collect boundary. This is
+            // diagnostic coverage only; never substitute a collector or alter host execution.
+            if (collector == null || collectorType == null
+                    || !collectorType.isInterface() || !collectorType.isInstance(collector)) {
+                recordCoverage(collectMethod,
+                        RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_COLLECTOR_TYPE);
+                return collector;
+            }
             // Kotlin FlowCollector.emit is a suspend method. Preserve collector identity and
             // record the exact unsupported capability instead of silently losing coverage.
             Method suspendingEmit = findSuspendingEmit(collectorType);
