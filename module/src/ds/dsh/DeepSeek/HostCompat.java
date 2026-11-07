@@ -167,7 +167,7 @@ public final class HostCompat {
     }
 
     static String diagnosticSummary() {
-        return "channel=" + (isInternationalChannel() ? "google-play" : "mainland")
+        return "channel=" + (v275StaticOnly ? "unknown" : isInternationalChannel() ? "google-play" : "mainland")
                 + "\ngeneration=" + (v275StaticOnly ? "2.7.5/code295 (static-only; hooks disabled)" : v271 ? (HostRemap.active() ? hostLabel() + " (2.4.1 map, " + HostRemap.classCount() + " classes)" : hostLabel() + " (limited)") : v250 ? "2.5.0" : v241 ? "2.4.1" : v236 ? "2.3.6"
                 : v234 ? "2.3.4" : v230 ? "2.3.0" : "2.2.x")
                 + "\nlegacyUnit=" + (legacyUnitUsesTi8 ? "ti8" : "ui8");
