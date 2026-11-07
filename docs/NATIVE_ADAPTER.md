@@ -3,7 +3,7 @@
 > 适用分支：`work/local-api-protocol-port`（PR #16 → `dev`）  
 > 当前源码快照：PR #16 当前 HEAD（以 GitHub PR 元数据为准）  
 > 当前宿主验证目标：`com.deepseek.chat` 国内版 2.7.2 / versionCode 289（287 / 290 仅保留独立兼容调查，不继承 code289 证据）  
-> 当前结论：**协议网关已扩展；schema-6 只读诊断探针源码已加入，但 `ready → delta* → close` 运行时事件尚未取得完整证据；Open 原生 Completion Adapter 未完成，所有 Completion 路由保持 HTTP 503 fail-closed。**  
+> 当前结论：**协议网关已扩展；schema-6 只读诊断探针源码已加入，但 null-name DeltaCommand / `ready` / `close` 运行时事件尚未取得完整证据；Open 原生 Completion Adapter 未完成，所有 Completion 路由保持 HTTP 503 fail-closed。**  
 > 验证安排：按工程要求，PR CI、Open APK 构建与 code289 真机验证统一留到本阶段源码工作完成后执行；此前不宣称通过。
 
 ## 1. 结论摘要
@@ -542,15 +542,16 @@ nn0 repository request factory
 ### Delta / Response 语义
 
 - SSE 的 sha.a 为 event name，sha.b 为 data JSON。
-- 无 event name 的流数据由 r3.c 按 DeltaCommand 处理；DeltaCommand 数据含 p/o/v 三个成员，对应 path / operation / value。
-- st3(path, operation, value) 经 doc.W 交给 l23 patch engine；已确认操作包含 SET、APPEND、BATCH。
-- 初始 DeltaCommand 的 value 建立 zca root；zca.response 映射到 gy；gy 的 fragments 由 xr.B() 拼接可见文本。
+- 当 `sha.a == null`（没有 SSE event name）时，`r3.c` 将 `sha.b` 按 DeltaCommand 解码；其 `p/o/v` 三个成员分别对应 path / operation / value。
+- 第一个 null-name DeltaCommand 通过 `doc.c0()` 建立 `zca` root；后续 null-name DeltaCommand 通过 `doc.W()` 交给 `l23` patch engine。已确认操作包含 SET、APPEND、BATCH。
+- `ready` 是独立的 `ChatCompletionReadyEventData` 元数据事件，不负责创建 `zca` root；`hint`、`title`、`update_session`、`close` 也有各自分支。`r3.c` 没有名为 `delta` 或 `parse_error` 的字符串事件分支，不能把它们当成 DeltaCommand 的事件名。
+- `zca.response` 映射到 `gy`；`gy` 的 fragments 由 `xr.B()` 拼接可见文本。
 - delta 的 data 不能直接当作文本。需要应用 patch，再从 response.fragments 提取 RESPONSE / THINK / tool/search 等不同 fragment。
 
 #### code289 DeltaCommand 的实际 Patch 规则（Smali 已确认）
 
-- `r3.c(Ldv1, Lyb3)` 收到 `cv1(sha)` 后，以 `sha.a` 作为 event name、`sha.b` 作为 data JSON。event name 为空时，data 按 `st3` Serializer 解码为 DeltaCommand；`st3` 的 JSON 成员名确认为 `p`、`o`、`v`，分别对应 path、operation、value。
-- `ready` 事件负责建立初始 `zca` response root；后续 delta 才进入 `doc.W(st3, gv1)`。无效事件会走 `InvalidEvent`，Patch 返回失败会走 `InvalidDelta`，不能静默吞掉。
+- `r3.c(Ldv1, Lyb3)` 收到 `cv1(sha)` 后，以 `sha.a` 作为 event name、`sha.b` 作为 data JSON。只有当 `sha.a == null` 时，data 才按 `st3` Serializer 解码为 DeltaCommand；`st3` 的 JSON 成员名确认为 `p`、`o`、`v`，分别对应 path、operation、value。
+- 第一个 null-name DeltaCommand 建立初始 `zca` response root；后续 null-name DeltaCommand 进入 `doc.W(st3, gv1)`。`ready` 另行解码为 `uu1` ReadyData。无效事件会走 `InvalidEvent`，Patch 返回失败会走 `InvalidDelta`，不能静默吞掉。
 - `doc.W` 保存 path / operation 上下文：初始 path 为空字符串、operation 为 `SET`；命令字段为 null 时沿用上一次上下文。它随后调用 `l23.y`。
 - `l23.y` 按 `/` 拆分 path，逐段调用 `s13.c` 定位父节点，再对末段执行操作：`SET` 调用目标节点的 `l(path, value, context)`；`APPEND` 调用 `m(value, path)`。
 - `BATCH` 先定位 path 指向的节点，再把 value 解码为 `List<st3>`，按列表顺序递归应用；子命令缺少 path / operation 时继承当前 BATCH 的 path / operation。子命令不是并行应用。
@@ -583,9 +584,9 @@ nn0 repository request factory
 ## 2026-11-07：code289 Delta dispatch 观察点
 
 - 新增 code289-only `r3.c(dv1, yb3)` 透明 Hook，直接观察静态调用图中的 DeltaCommand reducer，不再仅凭 `y60.b` 的返回值推断事件已被消费。
-- 事件日志只读取 `cv1.a -> sha.a) 的白名单事件名：`ready`、`parse_error`、`delta`、`hint`、`title`、`update_session)、`close`；未知名称统一记录为 `other`。绝不读取 `sha.b) 数据 JSON。
+- 事件日志只读取 `cv1.a -> sha.a`：null event name 记录为 `delta-command`；白名单字符串仅包括 `ready`、`hint`、`title`、`update_session`、`close`；其他字符串记录为 `other`。不读取 `sha.b` 数据 JSON。
 - Hook 在禁用时直接透传；启用时原方法只执行一次，保留原始返回值和异常。诊断读取/日志异常不替代宿主执行。Hook 注册尝试一旦开始即保持去重标记，避免框架部分注册后重试造成重复拦截。
-- 该观察点只用于补齐真机证据，不构成 Native Adapter。当前仍未证明真实 `ready -> delta* -> close` 事件序列，也未证明 Local API 能驱动模型执行。
+- 该观察点只用于补齐真机证据，不构成 Native Adapter。当前仍未证明真实 null-name DeltaCommand、`ready` 与 `close` 的运行时事件序列，也未证明 Local API 能驱动模型执行。
 
 
 ## 2026-11-07：schema-5 设备日志与 schema-6 Delta 探针证据隔离
