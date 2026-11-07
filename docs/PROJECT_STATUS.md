@@ -597,3 +597,13 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 
 
 - 完整报告导出补充：复制诊断报告时会从应用私有 session log 读取全部文件内容并附入剪贴板文本；UI 说明已改为完整无数量上限采集，并明确磁盘增长和同步落盘开销。若日志文件创建/写入失败，状态会显示 `callbackPersistentLog=unavailable`，不得把内存预览误称为完整日志。
+
+
+### 2026-11-07：Local API 聚焦 2.7.2/code289
+
+- 暂停 2.7.5 相关适配工作；当前 Native Adapter 目标固定为中国大陆版 DeepSeek 2.7.2 / versionCode 289。
+- 复核此前真实设备日志：`ly1 implements wu1` 经 `zn3.o(wu1, Long)` 嵌套进入 `jw3.g(wu1, Long)`，同一 Request 实例跨越两层并返回 `y60 implements el4`；`y60.b(fl4, yb3)` 已观察到真实回调对象。
+- 从旧日志确认父类链 Hook 会产生大量无关事件；在 API 工作分支移植 schema 5 诊断修正：仅观察 continuation 实际传入的具体回调类，只 Hook 其自身声明的 1～2 参数非 void 方法，每类最多 12 个，不遍历父类。
+- 同步更新 UI 说明、`test-native-adapter-fail-closed.sh` 源码契约断言和 `docs/NATIVE_ADAPTER.md` 的实机证据及下一步计划。
+- 最新相关提交：`79f30cef`（探针范围修正）、`986a543e`（UI）、`d5dee1ce` / `2c5c1fbd` / `8818a200` / `f146f6f3`（回归保护）、`f8a389fa`（证据文档）。
+- 尚未获得本轮修改的 CI / Android build 结果；没有生成或发布新 APK。
