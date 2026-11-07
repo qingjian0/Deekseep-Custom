@@ -25,7 +25,12 @@ public final class RoiUniversalHookRuntimeTest {
   ok(i.install(batch,Sample.class.getClassLoader(),"fp",a).success&&f.adds.get()==2,"idempotency");
   RoiUniversalHookRuntime.Spec collision=RoiUniversalHookRuntime.Spec.builder("one").role("chat").className(Sample.class.getName()).method("convert").params("int").returns("void").fingerprint("fp").callback(cb()).build();
   ok(!i.install(Collections.singletonList(collision),Sample.class.getClassLoader(),"fp",a).success&&f.adds.get()==2,"same id with changed return contract must be rejected");
-  ok(i.uninstall("two")&&i.uninstall("one")&&i.activeCount()==0&&f.removes.get()==2,"uninstall");
+  i.uninstallAll();
+  ok(i.activeCount()==0&&f.removes.get()==2,"group uninstallAll");
+  ok(i.install(batch,Sample.class.getClassLoader(),"fp",a).success
+      &&i.activeCount()==2&&f.adds.get()==4,"reinstall after group uninstall");
+  i.uninstallAll();
+  ok(i.activeCount()==0&&f.removes.get()==4,"second group uninstall");
   Fake fail=new Fake();fail.failAt=2;RoiUniversalHookRuntime.Installer rollback=new RoiUniversalHookRuntime.Installer(r,fail,new RoiUniversalHookRuntime.Health(){public boolean verify(RoiUniversalHookRuntime.Target t,RoiUniversalHookRuntime.Handle h){return true;}},new RoiUniversalHookRuntime.ActivationGate(){public boolean authorized(RoiUniversalHookRuntime.Spec s){return true;}});
   ok(!rollback.install(batch,Sample.class.getClassLoader(),"fp",a).success&&rollback.activeCount()==0&&fail.removes.get()==1,"reverse rollback");
   RoiUniversalHookRuntime.Installer unhealthy=new RoiUniversalHookRuntime.Installer(r,new Fake(),new RoiUniversalHookRuntime.Health(){public boolean verify(RoiUniversalHookRuntime.Target t,RoiUniversalHookRuntime.Handle h){return false;}},new RoiUniversalHookRuntime.ActivationGate(){public boolean authorized(RoiUniversalHookRuntime.Spec s){return true;}});
