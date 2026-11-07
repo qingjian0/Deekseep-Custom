@@ -97,7 +97,7 @@ Adapter implications: enforce `CompletionRequest.deadlineAtMs` independently of 
 
 A follow-up source inspection of `OpenNativeCompletionProbe.java` confirms that the current diagnostic implementation is materially more complete than a class-name-only inventory:
 
-- The probe installs pass-through observers on the verified `zn3.o(ew0, Long)` / `jw3.g(ew0, Long)` transport boundaries only after explicit diagnostic enablement. The original host call is still executed exactly once through `chain.proceed()`.
+- The probe installs pass-through observers on the verified `zn3.o(wu1, Long)` / `jw3.g(wu1, Long)` transport boundaries only after explicit diagnostic enablement. The original host call is still executed exactly once through `chain.proceed()`.
 - When a transport call returns, the probe attempts to install a pass-through observer on the uniquely selected `y60.b(..., ...)` continuation method. Ambiguous or unavailable method resolution is logged and is not guessed.
 - At the continuation boundary it records callback argument identities, argument runtime types, shallow field-name/type shapes, thread identity, and stack. It then hooks concrete callback implementation methods on the runtime class and its superclass chain.
 - For each hooked callback invocation it records the full method descriptor, receiver identity, event sequence number, thread, argument runtime types, stack, exit/throw outcome, duration, and exception class. Aggregate per-method invocation/failure/timing counters are also emitted.
