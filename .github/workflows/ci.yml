@@ -80,7 +80,6 @@ jobs:
           bash module/test-roi-dex-code-reader.sh
           bash module/test-roi-semantic-role-hints.sh
           bash module/test-roi-semantic-profile-matcher.sh
-          bash module/test-roi-semantic-profile-matcher.sh
           bash module/test-roi-functional-role-classifier.sh
           bash module/test-roi-runtime-recorder.sh
           bash module/test-roi-unknown-host-invocation-probe.sh
@@ -156,7 +155,6 @@ jobs:
           bash module/test-roi-dex-file-reader.sh
           bash module/test-roi-dex-instruction-scanner.sh
           bash module/test-roi-semantic-role-hints.sh
-          bash module/test-roi-semantic-profile-matcher.sh
           bash module/test-roi-semantic-profile-matcher.sh
           bash module/test-roi-functional-role-classifier.sh
           bash module/test-roi-runtime-recorder.sh
