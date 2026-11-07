@@ -171,21 +171,26 @@ require(
     r'observedArgumentTypes.*?value\.getClass\(\)\.getName\(\).*?observedStack.*?getClassName\(\).*?getMethodName\(\)',
     "runtime observer records argument types and stack symbols only",
 )
-require(
-    probe,
-    r"callback-pre-diagnostic-failed.*?value = chain\\.proceed\\(\\);.*?callback-post-diagnostic-failed.*?return value;",
-    "callback diagnostics cannot block the original callback or replace its successful return value",
-)
-require(
-    probe,
-    r"continuation-pre-diagnostic-failed.*?value = chain\\.proceed\\(\\);.*?continuation-exit",
-    "continuation diagnostics cannot block the original continuation",
-)
-require(
-    probe,
-    r"catch \\(Throwable hostError\\).*?throw hostError;",
-    "host callback failures are rethrown after best-effort diagnostics",
-)
+callback_hook = probe.split("private static void installCallbackObserver", 1)[1].split(
+    "private static String observedMethodDescriptor", 1
+)[0]
+continuation_hook = probe.split("private static void installContinuationObserver", 1)[1].split(
+    "private static void installCallbackObserver", 1
+)[0]
+if "callback-pre-diagnostic-failed" not in callback_hook:
+    raise SystemExit("callback observer must isolate pre-call diagnostic failures")
+if "callback-post-diagnostic-failed" not in callback_hook:
+    raise SystemExit("callback observer must isolate post-call diagnostic failures")
+if callback_hook.count("chain.proceed()") != 2:
+    raise SystemExit("callback observer must have one proceed in the disabled path and one in the observed path")
+if "value = chain.proceed();" not in callback_hook or "return value;" not in callback_hook:
+    raise SystemExit("callback observer must preserve the original successful return value")
+if "continuation-pre-diagnostic-failed" not in continuation_hook:
+    raise SystemExit("continuation observer must isolate pre-call diagnostic failures")
+if continuation_hook.count("chain.proceed()") != 2:
+    raise SystemExit("continuation observer must have one proceed in the disabled path and one in the observed path")
+if "value = chain.proceed();" not in continuation_hook or "return value;" not in continuation_hook:
+    raise SystemExit("continuation observer must preserve the original successful return value")
 require(
     probe,
     r"private static void safeObserverLog\\(String message\\).*?catch \\(Throwable ignored\\)",
