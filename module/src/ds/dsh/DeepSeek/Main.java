@@ -1739,7 +1739,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             try {
                 // This is the maintained source-controlled adapter selector, not DexKit inference.
                 // Its label is only one identity field; APK and signer digests remain mandatory.
-                String channel = HostCompat.isInternationalChannel() ? "google-play" : "mainland";
+                String channel = HostCompat.reviewedDistributionChannel();
                 RoiHostBuildIdentity captured =
                         captureRoiCurrentHostIdentity(appContext, loader, channel);
                 currentRoiHostIdentity = captured;
