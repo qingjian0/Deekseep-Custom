@@ -32,6 +32,7 @@ def main() -> int:
                 "fx1": source("smali/fx1.smali"),
                 "mb0": source("smali/mb0.smali"),
                 "ch2": source("smali/ch2.smali"),
+                "bi5": source("smali/bi5.smali"),
                 "ft9": source("smali/ft9.smali"),
                 "dt9": source("smali/dt9.smali"),
                 "us9": source("smali/us9.smali"),
@@ -71,6 +72,11 @@ def main() -> int:
         ),
         "rh5 delegates the built request to cf5 client": (
             "Lcf5;->a(Lng5;Lzb3;)Ljava/lang/Object;" in files["rh5"]
+        ),
+        "bi5 executes request lambda then response decoder": (
+            "Lvy4;->q(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;" in files["bi5"]
+            and "Lbi5;->l(Lzg5;Lfdb;Lzb3;)Ljava/lang/Object;" in files["bi5"]
+            and "Lef5;->a(Lfdb;Lzb3;)Ljava/lang/Object;" in files["bi5"]
         ),
         "biz wrapper descriptor names biz_code/msg/data": all(
             f'"{name}"' in files["dt9"] for name in ("biz_code", "biz_msg", "biz_data")
