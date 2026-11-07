@@ -111,6 +111,68 @@ The requested raw session log is not needed to discover whether the probe *can* 
 
 The capture itself has a diagnostic cost: each event is synchronously flushed to disk and also forwarded to the module log. Keep the probe explicitly user-enabled and do not leave it running as a normal production hot path.
 
+## Recovered code289 evidence from the apps archive
+
+The earlier statement that the raw code289 log was unavailable is superseded. The user's evidence repository `qingjian0/apps` contains the full source log and a focused evidence archive:
+
+- `deekseep_vision.log`: blob `dd7b52291befe7052db8c6f7632e39f033e079de`, 6,440,972 bytes, 19,747 lines.
+- `deepseek-sse-hook-evidence.zip`: blob `2764d640be7252c02d4f3527018e6bdd91992765`, 329,086 bytes.
+- `deepseek-2-7-2.apk`: 22,205,160 bytes.
+- `apps/README.md`: blob `49e566eef32ae0b6c89411523a9b9444ca60bff3`, contains the evidence inventory and cross-check statistics.
+
+The complete log blob was retrieved and parsed directly. It is a code289-cn / DeepSeek 2.7.2 runtime capture, timestamp range 02:37:11.549–02:38:55.863. It records four request constructions, four `zn3.o` dispatch entries, four `jw3.g` low-level entries, and 129 `y60.b(fl4,yb3)` continuation entries (87 exits, 42 throws). The four transport dispatches receive `ly1` and pass the same request object through `zn3.o(wu1,Long)` → `jw3.g(wu1,Long)` → `y60`.
+
+### Callback implementation and method evidence
+
+The log confirms 21 concrete callback implementation classes and 35 distinct hooked method descriptors. Roles are observer argument positions, not semantic event names.
+
+| Role | Concrete classes |
+|---|---|
+| callback-0 | `cr9`, `ec0`, `r3`, `b5`, `qa`, `s5`, `kr1`, `k13`, `hm4` |
+| callback-1 | `k41`, `mm4`, `il5`, `qj3`, `x0`, `f0`, `g0`, `je2`, `ir1`, `pg1`, `d0`, `jm4` |
+
+Highest-volume methods (enter + exit + throw records):
+
+| Method descriptor | Records | Enters | Exits | Throws |
+|---|---:|---:|---:|---:|
+| `qj3.y(Object)->Object` | 5,692 | 2,846 | 2,075 | 771 |
+| `qa.a(Object,yb3)->Object` | 2,136 | 1,068 | 1,068 | 0 |
+| `qj3.w(yb3,Object)->yb3` | 1,858 | 929 | 929 | 0 |
+| `qj3.q(Object,Object)->Object` | 1,836 | 918 | 918 | 0 |
+| `k13.a(Object,yb3)->Object` | 1,150 | 575 | 575 | 0 |
+| `cr9.a(Object,yb3)->Object` | 1,132 | 566 | 566 | 0 |
+| `qa.d(n88,yb3)->Object` | 660 | 330 | 330 | 0 |
+| `s5.a(Object,yb3)->Object` | 556 | 278 | 278 | 0 |
+| `hm4.a(Object,yb3)->Object` | 458 | 229 | 226 | 3 |
+| `b5.a(Object,yb3)->Object` | 450 | 225 | 225 | 0 |
+
+Additional callback-1 exception counts: `pg1.y(Object)` 72, `x0.y(Object)` 39, `f0.y(Object)` 35, `il5.y(Object)` 15, `ir1.y(Object)` 5, and a small remainder across other methods. Across all callbacks, 9,578 enters close exactly with 8,634 exits and 944 throws. Exception types are obfuscated (`e06`, `us4`, `ck7`, `zt2`, `o`); they are not mapped to HTTP or business errors.
+
+### Continuation return evidence
+
+- `y60.b` returned `cd3` 71 times and `zgb` 16 times; it threw `us4` 39 times and `o` 3 times.
+- The observed `cd3` method inventory contains `valueOf(String)` and `values()` and its four fields are self-typed / enum-array-shaped. This is strong structural evidence that `cd3` is an enum, but the log does not expose its enum constant names or meanings.
+- `zgb` has only a self-typed field and `toString()` in the observed inventory. Do not assign it a success/error/completion meaning from this shape.
+- The most frequent continuation pair is `qa` + `f0` (49 entries). Other observed pairs include `ec0` + `mm4` (8), `k13` + `pg1` (5), `cr9` + `k41` (4), and `s5` + `g0` (4).
+- Callback-1 exceptions are concentrated in `qj3.y`; 771 of 944 callback throws (81.7%). This is a reverse-engineering priority, not proof that `qj3.y` is the root cause.
+
+### Critical evidence boundary
+
+The code289 log contains no `OPEN_NATIVE_API_TRACE` records and no gateway request IDs. It proves the official app's chat transport/callback behavior for four requests, but it does not prove that a request initiated through the module's Open Local API reaches that same chain. It also logs callback argument types and object shapes, not their values. Therefore it does not yet map callback calls to text/reasoning/error/finish payloads or establish a safe collector/decoder contract.
+
+The user's apps repository also contains a focused ZIP evidence package and the exact code289 APK. The README has been used as an evidence index; the ZIP has not yet been unpacked and individually source-audited in this pass. Next static work should extract the archive's class/method evidence, then inspect the corresponding code289 DEX methods for callback constructors, field writes, enum constants, and call sites. Keep the 2.7.2 mapping isolated from 2.7.5.
+
+## Open API dispatch policy update
+
+The Open edition no longer rejects the entire completion route at the edition-level backend gate:
+
+- `Main.startz1()` now reports the Open backend as dispatchable so `/v1/chat/completions` reaches the execution facade.
+- The early `native_adapter_unavailable` throw has been removed from `Backend.complete()`.
+- The existing execution facade is still payload-backed and will report `engine_missing` if the `z18` engine is absent. This is now a per-request execution result, not an API-wide preflight block.
+- Closed/protected readiness behavior is unchanged.
+
+This change exposes the route as requested; it does not claim that the native Open adapter or end-to-end generation is implemented.
+
 ## Actual implementation gap
 
 The missing component is not another HTTP route. It is an Open-only implementation of the `z2.Backend` contract that does not depend on `z18`.
