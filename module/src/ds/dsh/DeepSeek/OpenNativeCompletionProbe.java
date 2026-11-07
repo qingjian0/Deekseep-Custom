@@ -18,9 +18,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Read-only runtime inventory for the Open native completion adapter.
  *
- * This deliberately does not invoke host methods, construct requests, or read field values.
- * It records only class/member signatures so the adapter can be implemented against the
- * actual installed DeepSeek build instead of guessing obfuscated constructor layouts.
+ * This deliberately does not invoke host methods or construct requests. It does not read
+ * request/response payload values; the only value exception is the allowlisted code289 SSE
+ * event name (cv1.a -> sha.a). The event data field sha.b is never read.
  */
 final class OpenNativeCompletionProbe {
     private static final AtomicBoolean SCHEDULED = new AtomicBoolean();
@@ -35,6 +35,8 @@ final class OpenNativeCompletionProbe {
     private static final java.util.concurrent.atomic.AtomicBoolean OBSERVATION_ZN3 =
             new java.util.concurrent.atomic.AtomicBoolean();
     private static final java.util.concurrent.atomic.AtomicBoolean OBSERVATION_Y60 =
+            new java.util.concurrent.atomic.AtomicBoolean();
+    private static final java.util.concurrent.atomic.AtomicBoolean OBSERVATION_R3 =
             new java.util.concurrent.atomic.AtomicBoolean();
     private static final java.util.concurrent.ConcurrentHashMap<String, Boolean>
             OBSERVED_CALLBACK_CLASSES = new java.util.concurrent.ConcurrentHashMap<String, Boolean>();
@@ -106,7 +108,7 @@ final class OpenNativeCompletionProbe {
             observerLog("[OPEN_NATIVE_CALL_OBSERVER] session-start loader=unavailable");
             return;
         }
-        if (!OBSERVATION_JW3.get() || !OBSERVATION_ZN3.get()) {
+        if (!OBSERVATION_JW3.get() || !OBSERVATION_ZN3.get() || !OBSERVATION_R3.get()) {
             REPORTED.set(false);
             ATTEMPTS.set(0);
         }
@@ -204,7 +206,7 @@ final class OpenNativeCompletionProbe {
         int classLoadFailures = 0;
         try {
             line(out, "report.schema", "6");
-            line(out, "diagnostic.coverage", "host-transport,y60-continuation,callback-implementations,local-api-gateway");
+            line(out, "diagnostic.coverage", "host-transport,y60-continuation,callback-implementations,delta-dispatch,local-api-gateway");
             line(out, "diagnostic.sensitive_data", "message-content,credentials,cookies,auth-headers-not-collected");
             line(out, "diagnostic.callback_detail_capture", "all-events-for-selected-methods-persisted-to-app-private-file");
             line(out, "diagnostic.callback_aggregate_coverage", "all-invocations-for-every-successfully-hooked-concrete-callback-method");
@@ -472,12 +474,80 @@ final class OpenNativeCompletionProbe {
                     OBSERVATION_JW3, "transport-low-level");
             installObservedMethod(loader, "zn3", "o", requestMarker,
                     OBSERVATION_ZN3, "transport-dispatch");
+            installDeltaDispatchObserver(loader);
         } catch (VirtualMachineError fatal) {
             throw fatal;
         } catch (ThreadDeath fatal) {
             throw fatal;
         } catch (Throwable error) {
             observerLog("[OPEN_NATIVE_CALL_OBSERVER] setup failed: "
+                    + error.getClass().getName());
+        }
+    }
+
+    /**
+     * Observe the code289 DeltaCommand dispatch boundary. Only the whitelisted SSE event name
+     * is read; the sha.b data payload is never accessed or logged.
+     */
+    private static void installDeltaDispatchObserver(ClassLoader loader) {
+        if (OBSERVATION_R3.get() || loader == null || Main.MODULE == null) return;
+        try {
+            Class<?> owner = Class.forName("r3", false, loader);
+            Class<?> eventType = Class.forName("dv1", false, loader);
+            Class<?> continuationType = Class.forName("yb3", false, loader);
+            final Method target = owner.getDeclaredMethod("c", eventType, continuationType);
+            if (target.getReturnType() != Object.class
+                    || Modifier.isStatic(target.getModifiers())) {
+                observerLog("[OPEN_NATIVE_CALL_OBSERVER] delta-dispatch signature-unavailable");
+                return;
+            }
+            if (!OBSERVATION_R3.compareAndSet(false, true)) return;
+            Main.MODULE.hook(target).intercept(new LegacyXposedModule.Hooker() {
+                @Override public Object intercept(LegacyXposedModule.Chain chain)
+                        throws Throwable {
+                    if (!Main.isOpenNativeCompletionProbeEnabled()) return chain.proceed();
+                    final long started = System.nanoTime();
+                    String eventClass = "null";
+                    String eventName = "unavailable";
+                    try {
+                        List<?> args = chain.getArgs();
+                        Object event = args != null && !args.isEmpty() ? args.get(0) : null;
+                        eventClass = event == null ? "null" : event.getClass().getName();
+                        eventName = safeDeltaEventName(event);
+                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] delta-dispatch-enter"
+                                + " eventClass=" + eventClass + " eventName=" + eventName);
+                    } catch (VirtualMachineError fatal) {
+                        throw fatal;
+                    } catch (ThreadDeath fatal) {
+                        throw fatal;
+                    } catch (Throwable diagnosticError) {
+                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] delta-dispatch-pre-diagnostic-failed"
+                                + " exception=" + diagnosticError.getClass().getName());
+                    }
+                    try {
+                        Object value = chain.proceed();
+                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] delta-dispatch-exit"
+                                + " eventClass=" + eventClass + " eventName=" + eventName
+                                + " durationMs=" + ((System.nanoTime() - started) / 1_000_000L)
+                                + " result=" + observedResultType(value));
+                        return value;
+                    } catch (Throwable hostError) {
+                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] delta-dispatch-throw"
+                                + " eventClass=" + eventClass + " eventName=" + eventName
+                                + " exception=" + hostError.getClass().getName());
+                        throw hostError;
+                    }
+                }
+            });
+            observerLog("[OPEN_NATIVE_CALL_OBSERVER] delta-dispatch-installed method="
+                    + observedMethodDescriptor(target));
+        } catch (VirtualMachineError fatal) {
+            throw fatal;
+        } catch (ThreadDeath fatal) {
+            throw fatal;
+        } catch (Throwable error) {
+            OBSERVATION_R3.set(false);
+            safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] delta-dispatch-install-failed exception="
                     + error.getClass().getName());
         }
     }
@@ -727,10 +797,9 @@ final class OpenNativeCompletionProbe {
     }
 
     /**
-     * Observe concrete callback objects supplied to y60.b. Methods are hooked on the exact
-     * callback implementation class (and a short superclass chain), never on global framework
-     * interfaces. Identity hashes correlate these events with continuation-enter without
-     * retaining callback instances or reading callback/payload fields.
+     * Observe concrete callback objects supplied to y60.b. Methods are hooked only on the exact
+     * callback implementation class, never on superclasses or global framework interfaces.
+     * Identity hashes correlate events without retaining callback instances or reading payload fields.
      */
     private static void installCallbackObserver(Object callback, String role) {
         if (callback == null || !Main.isOpenNativeCompletionProbeEnabled()) return;
@@ -893,6 +962,38 @@ final class OpenNativeCompletionProbe {
         } catch (Throwable ignored) {
             // Metadata diagnostics must never prevent the original host method from running.
             return "method-descriptor-unavailable";
+        }
+    }
+
+    /**
+     * Read only the code289 SSE event-name field. Never read sha.b (event data).
+     */
+    private static String safeDeltaEventName(Object event) {
+        if (event == null || !"cv1".equals(event.getClass().getName())) return "non-cv1";
+        try {
+            Field payloadField = event.getClass().getDeclaredField("a");
+            payloadField.setAccessible(true);
+            Object payload = payloadField.get(event);
+            if (payload == null || !"sha".equals(payload.getClass().getName())) {
+                return "unavailable";
+            }
+            Field nameField = payload.getClass().getDeclaredField("a");
+            nameField.setAccessible(true);
+            Object nameValue = nameField.get(payload);
+            if (!(nameValue instanceof String)) return "unavailable";
+            String name = (String) nameValue;
+            if ("ready".equals(name) || "parse_error".equals(name) || "delta".equals(name)
+                    || "hint".equals(name) || "title".equals(name)
+                    || "update_session".equals(name) || "close".equals(name)) {
+                return name;
+            }
+            return "other";
+        } catch (VirtualMachineError fatal) {
+            throw fatal;
+        } catch (ThreadDeath fatal) {
+            throw fatal;
+        } catch (Throwable ignored) {
+            return "unavailable";
         }
     }
 

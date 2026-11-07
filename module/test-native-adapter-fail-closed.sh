@@ -408,7 +408,7 @@ require(report, r'"probe\.elapsedMs"\.equals\(key\).*?MAX_REPORT_CHARS.*?return;
 require(
     probe,
     r'hostCode271\(\) != 289.*?installObservedMethod\(loader, "jw3", "g".*?installObservedMethod\(loader, "zn3", "o"',
-    "runtime observation remains limited to the two reviewed 2.7.2/code289 candidate methods",
+    "the two Transport hooks remain the reviewed 2.7.2/code289 candidates; Delta dispatch is separately gated",
 )
 require(
     probe,
@@ -499,8 +499,20 @@ require(
     r'observedResultType\(Object value\).*?type\.getDeclaredMethods\(\).*?observedMethodDescriptor\(methods\[i\]\)',
     "runtime observer reports bounded response wrapper method signatures",
 )
+delta_name_helper = re.search(
+    r'private static String safeDeltaEventName\(Object event\)(.*?)'
+    r'(?=\n    private static String observedArgumentTypes)',
+    probe,
+    re.S,
+)
+if delta_name_helper is None:
+    raise SystemExit("whitelisted Delta event-name helper is missing")
+if delta_name_helper.group(1).count('getDeclaredField("a")') != 2:
+    raise SystemExit("Delta observer may read only cv1.a and sha.a")
+if 'getDeclaredField("b")' in delta_name_helper.group(1):
+    raise SystemExit("Delta observer must never read the SSE data payload")
 if "field.get(" in probe or "fields[i].get(" in probe:
-    raise SystemExit("Runtime observer must not read request/response field values")
+    raise SystemExit("Runtime observer must not read arbitrary request/response field values")
 
 require(
     probe,
@@ -517,6 +529,32 @@ require(
     r'OBSERVATION_Y60.*?continuation-installed method=.*?continuation-install-failed',
     "continuation observer installation is one-shot and reports bounded installation status",
 )
+
+require(
+    probe,
+    r'OBSERVATION_R3.*?installDeltaDispatchObserver\(loader\).*?Class\.forName\("r3".*?Class\.forName\("dv1".*?Class\.forName\("yb3"',
+    "code289 Delta dispatch is observed only through the reviewed r3/dv1/yb3 boundary",
+)
+require(
+    probe,
+    r'installDeltaDispatchObserver\(ClassLoader loader\).*?getDeclaredMethod\("c", eventType, continuationType\).*?Main\.MODULE\.hook\(target\).*?delta-dispatch-enter.*?chain\.proceed\(\).*?delta-dispatch-exit.*?delta-dispatch-throw',
+    "r3.c is hooked transparently with one original invocation and entry/exit/throw diagnostics",
+)
+require(
+    probe,
+    r'safeDeltaEventName\(Object event\).*?getDeclaredField\("a"\).*?payloadField\.get\(event\).*?getDeclaredField\("a"\).*?nameField\.get\(payload\).*?"ready".*?"parse_error".*?"delta".*?"hint".*?"title".*?"update_session".*?"close"',
+    "Delta diagnostics expose only allowlisted event names through cv1.a -> sha.a",
+)
+delta_observer = re.search(
+    r'private static void installDeltaDispatchObserver\(ClassLoader loader\)(.*?)'
+    r'(?=\n    private static void installObservedMethod)',
+    probe,
+    re.S,
+)
+if delta_observer is None:
+    raise SystemExit("Delta dispatch observer method boundary is missing")
+if delta_observer.group(1).count("chain.proceed()") != 2:
+    raise SystemExit("Delta dispatch observer must pass through once when disabled and once when enabled")
 
 require(
     probe,
