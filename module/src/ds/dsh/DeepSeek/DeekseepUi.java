@@ -3172,11 +3172,11 @@ public final class DeekseepUi {
         TextView nativeProbeTitle = sectionTitle(act, "Open 原生适配诊断（DeepSeek 2.7.x）", textColor);
         card.addView(nativeProbeTitle);
         TextView nativeProbeHelp = infoBox(act,
-                "完整采集官方客户端 Transport、全部已发现的异步回调方法与 Local API 网关阶段，不设回调类、方法、Hook 或事件数量上限。所有事件实时追加到应用私有目录文件；内存缓冲区只作预览。若要同时覆盖两条独立路径：先在 DeepSeek 主界面发送一条普通消息，再由 API 客户端发送一条 /v1/chat/completions 请求，最后复制完整报告（包含持久化日志）。当前 Open 原生后端尚未接通，API 请求会如实记录 readiness 状态。只记录类型、状态、长度和耗时，不记录消息正文或凭据。完整采集会持续占用磁盘并增加回调开销，测试结束后请关闭开关。",
+                "采集官方客户端 Transport、y60 边界符合筛选条件的回调方法及 Local API 网关阶段；仅 Hook 具体类自身声明的 1～2 参数非 void 方法，每类最多 12 个，按完整方法描述符排序且不遍历父类；每个方法只额外记录一次参数/返回对象的字段名和字段类型，不读取字段值。所有事件实时追加到应用私有目录文件；内存缓冲区只作预览。若要同时覆盖两条独立路径：先在 DeepSeek 主界面发送一条普通消息，再由 API 客户端发送一条 /v1/chat/completions 请求，最后复制完整报告（包含持久化日志）。当前 Open 原生后端尚未接通，API 请求会如实记录 readiness 状态。只记录类型、状态、长度和耗时，不记录消息正文或凭据。完整采集会持续占用磁盘并增加回调开销，测试结束后请关闭开关。",
                 textColor, dark);
         card.addView(nativeProbeHelp, insetParams(act, 0, 8));
         card.addView(configurableSwitchRow(act, "启用原生适配诊断探针",
-                "默认关闭。开启后仅对国内版 DeepSeek 2.7.2（code289）启用完整只读追踪；发现的回调类、方法及调用事件不设数量上限，完整日志写入应用私有文件。关闭后观察器立即透传。",
+                "默认关闭。开启后仅对国内版 DeepSeek 2.7.2（code289）启用完整只读追踪；仅追踪 y60 边界实际传入的回调对象；每个具体类最多 Hook 12 个自身声明的 1～2 参数方法，按描述符排序，不 Hook 父类方法；每个方法仅记录一次参数/返回对象字段名和类型，不读取字段值。选中方法的事件完整写入应用私有文件。关闭后观察器立即透传。",
                 Main.isOpenNativeCompletionProbeEnabled(), textColor, subColor, dark,
                 new CompoundButton.OnCheckedChangeListener() {
                     private boolean reverting;
@@ -3408,7 +3408,7 @@ public final class DeekseepUi {
             }
         });
         if ("Open".equals(BuildInfo.BUILD_EDITION)) {
-            protocolValue.setText(UiLanguage.text(act, "OpenAI（仅 Chat Completions）", "OpenAI (Chat Completions only)"));
+            protocolValue.setText(UiLanguage.text(act, "OpenAI + Anthropic Messages（固定）", "OpenAI + Anthropic Messages (fixed)"));
             protocolValue.setClickable(false);
             protocolValue.setAlpha(0.72f);
         } else {
@@ -3526,14 +3526,19 @@ public final class DeekseepUi {
     private static String localApiProtocolDescription() {
         if ("Open".equals(BuildInfo.BUILD_EDITION)) {
             return UiLanguage.text(
-                    "Open 版当前仅提供基础 OpenAI Chat Completions HTTP 接入层："
-                    + "GET /v1/models、POST /v1/chat/completions；Base URL 以 /v1 结尾。"
+                    "Open 版提供 OpenAI Chat Completions、Responses 与 Anthropic Messages："
+                    + "POST /v1/chat/completions、POST /v1/responses、POST /v1/messages。"
+                    + "OpenAI Base URL 使用 /v1；Anthropic Base URL 使用根地址（不附加 /v1）。"
                     + "注意：DeepSeek 原生 Completion Adapter 尚未接通，聊天请求当前返回 503。"
-                    + "Responses API、Anthropic Messages、工具调用和多模态尚未实现。",
-                    "The Open build currently exposes only the basic OpenAI Chat Completions HTTP layer: "
-                    + "GET /v1/models and POST /v1/chat/completions with a /v1 base URL. "
-                    + "The native DeepSeek completion adapter is not connected, so chat requests return 503. "
-                    + "Responses, Anthropic Messages, tools, and multimodal input are not implemented.");
+                    + "OpenAI 非流式工具调用与 Anthropic 非流式 tool_use/tool_result 均由客户端执行工具。"
+                    + "工具调用流式输出暂不支持；Responses 支持文本 JSON/SSE 与非流式函数工具回传；previous_response_id 使用最多64条、30分钟的内存状态（服务重启清空）。"
+                    + "Anthropic 支持文本 JSON/SSE 与非流式 tool_use/tool_result；thinking 签名、图片输入、count_tokens 和精确 usage 统计尚未实现。",
+                    "The Open build exposes OpenAI Chat Completions, Responses, and Anthropic Messages at /v1/chat/completions, /v1/responses, and /v1/messages. "
+                    + "Use a /v1 base URL for OpenAI and the root URL (without /v1) for Anthropic. "
+                    + "The native DeepSeek completion adapter is not connected, so generation requests currently return 503. "
+                    + "Non-streaming OpenAI tool calls and Anthropic tool_use/tool_result are returned for client-side execution. "
+                    + "Tool-call streaming is unavailable. Responses supports text JSON/SSE and non-streaming function handoff; previous_response_id is bounded in memory (64 entries/30 minutes; cleared on restart). "
+                    + "Anthropic supports text JSON/SSE and non-streaming tool_use/tool_result; thinking signatures, images, count_tokens, and exact usage accounting are not implemented.");
         }
         if (z2.PROTOCOL_ANTHROPIC.equals(Main.localApiProtocol())) {
             return "Anthropic 格式已选中。base URL 使用页面显示的本机或局域网根地址（不附加 /v1），"
@@ -3551,13 +3556,15 @@ public final class DeekseepUi {
                     "Open 版当前可用模型名称：deepseek-chat、deepseek-reasoner。"
                     + "GET /v1/models 可用于检查网关和读取模型列表。"
                     + "POST /v1/chat/completions 的原生执行适配器尚未接通，当前会返回 503。"
-                    + "Responses、Anthropic、Agent 工具调用、图片输入和 usage 统计尚未实现；"
-                    + "请勿把当前 Open 版配置为可工作的 Codex / Claude Code 后端。",
+                    + "非流式 Chat Completions 与 Responses 可将模型工具调用回传给客户端，客户端负责执行并提交 tool 结果；"
+                    + "Responses 的 previous_response_id 使用短期内存状态（最多64条、30分钟，重启清空）；Anthropic Messages 已支持文本 JSON/SSE 与非流式 tool_use/tool_result；thinking 签名尚未实现。"
+                    + "工具流式输出、图片输入、count_tokens 和精确 usage 统计尚未实现。"
+                    + "请勿把当前 Open 版配置为可工作的 Codex / Claude Code 后端，原生适配器仍未接通。",
                     "Configured Open model IDs: deepseek-chat and deepseek-reasoner. "
-                    + "GET /v1/models checks the gateway and lists configured models. "
-                    + "The native execution adapter for POST /v1/chat/completions is not connected and returns 503. "
-                    + "Responses, Anthropic, Agent tools, image input, and usage accounting are unavailable. "
-                    + "Do not configure this Open build as a working Codex or Claude Code backend.");
+                    + "Non-streaming Chat Completions and Responses can return parsed tool calls for client-side execution and tool-result continuation. "
+                    + "Responses uses short-lived in-memory previous_response_id state (64 entries/30 minutes; cleared on restart). Anthropic Messages supports text JSON/SSE and non-streaming tool_use/tool_result; thinking signatures are not implemented. "
+                    + "Tool-call streaming, images, count_tokens, and exact usage accounting are unavailable. "
+                    + "The native execution adapter is still disconnected; do not configure this Open build as a working Codex or Claude Code backend.");
         }
         String modelHelp = isClosedV236OrV241Feature() && !Main.isLocalApiLegacyModelRouteEnabled()
                 ? "模型名使用 deepseek-flash。"

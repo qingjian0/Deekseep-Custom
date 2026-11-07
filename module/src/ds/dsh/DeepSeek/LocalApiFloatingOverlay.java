@@ -245,11 +245,11 @@ final class LocalApiFloatingOverlay {
             LinearLayout protocolRow = settingRow(
                     UiLanguage.text(app, "API 格式", "API format"),
                     UiLanguage.text(app,
-                            "OpenAI Chat Completions（固定；Responses / Anthropic 暂不可用）",
-                            "OpenAI Chat Completions only; Responses and Anthropic are unavailable"),
+                            "OpenAI + Anthropic Messages（固定；Responses 也可用)",
+                            "OpenAI Chat / Responses + Anthropic Messages"),
                     ink, secondary);
             protocolValue = actionText(
-                    UiLanguage.text(app, "OpenAI（固定）", "OpenAI (fixed)"),
+                    UiLanguage.text(app, "OpenAI + Anthropic（固定）", "OpenAI + Anthropic (fixed)"),
                     ink, inset, line);
             protocolValue.setClickable(false);
             protocolValue.setAlpha(.72f);
@@ -421,7 +421,7 @@ final class LocalApiFloatingOverlay {
             serviceSwitch.setChecked(z21.apiEnabled());
             if (httpsSwitch != null) httpsSwitch.setChecked(z21.httpsEnabled());
             protocolValue.setText("Open".equals(BuildInfo.BUILD_EDITION)
-                    ? UiLanguage.text(app, "OpenAI（固定）", "OpenAI (fixed)")
+                    ? UiLanguage.text(app, "OpenAI + Anthropic（固定）", "OpenAI + Anthropic (fixed)")
                     : ("anthropic".equals(z21.protocolValue()) ? "Anthropic  ›" : "OpenAI  ›"));
             if (!keyInput.hasFocus()) keyInput.setText(z21.apiKeyValue());
             int configuredPort = z21.hasV241PortDetails()

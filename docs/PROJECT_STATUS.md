@@ -2,9 +2,10 @@
 
  > 项目名称：ROI  
  > 状态日期：2026-11-08  
-> 适用分支：`dev`  
-> 最近一次历史完整 CI 成功：`c0cec5256e84917781b10591f4268c13a49ab42d`；Run `41836377762`（历史记录，不代表当前 HEAD）  
-> R2.5.3 当前代码已提交至 `dev`；以分支最新 HEAD 为准。最新 GitHub Actions 检查仍在排队，尚无完成结果  
+  > 当前工作分支：`dev`（唯一日常开发基线）  
+  > Local API 来源：历史分支 `work/local-api` / PR #19；本次按功能范围选择性移植到 `dev`，不导入无关历史提交  
+ > 最近一次历史完整 CI：`cd2742b42a3cb7de2a25c15274500f77666c17e1`；Run `42355705172`（历史结果，不代表本次移植后的 HEAD）  
+> `main` 未修改，未执行合并；本文件记录开发分支，不代表公开 Release 已包含这些改动。
 > 宿主：官方 DeepSeek Android `com.deepseek.chat`  
 > 宿主版本目标：国内版 2.7.1（versionCode 287）、国内版 2.7.2（289）、Google Play / 国际版 2.7.2（290）
 
@@ -17,16 +18,16 @@
 - 既有 Java/Xposed Hook 与宿主反射边界继续保留。
 - Kotlin 承担新增 Runtime 契约、Agent 调度、确定性策略、持久化与部分 UI。
 - Local API 的 HTTP、认证、请求限制、SSE 和 LAN 监听已有实现。
-- **Open 构建的 DeepSeek 原生 Completion Adapter 尚未打通**。`GET /v1/models` 返回已配置模型清单；`POST /v1/chat/completions` 在适配器未就绪时返回 503；不能把 HTTP 路由可访问描述成模型调用成功。
+- **Open 构建的 DeepSeek 原生 Completion Adapter 尚未打通**。`GET /v1/models` 返回已配置模型清单；Open 版协议入口保持开放并进入执行门面；当前原生引擎仍未接通时，请求按实际能力返回 `engine_missing`（HTTP 503），不能把路由可访问描述成模型调用成功。
 
 ## 2. 分支与提交
 
 | 项目 | 当前值 |
 |---|---|
 | 工作分支 | `dev`（唯一日常开发基线） |
-| 最近一次 Runtime 观察修复 | R2.5.3 sourceScope 精确归属（见当前 HEAD） |
+| 最近一次 Runtime 观察源码修复 | code289 `r3.c(dv1, yb3)` Delta 事件观察点；仅记录白名单事件名，不读 `sha.b`。当前仅有源码实现，尚无该观察点的设备运行日志 |
 | 最近一次 ROI 扫描预算实现 | `cca035d6b319a5ed0ab897bee6b1fb2a3c36589b` |
-| 最近一次历史完整 CI | [Run `41836377762`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41836377762) — success；R2.5.3 CI pending |
+| 最近一次已完成完整 CI | [Run `42355705172`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42355705172) — success（commit `cd2742b`）；后续 HEAD 仍需独立验证 |
 | Kotlin 架构基线 | `refactor/kotlin-hook-architecture`（历史基线） |
 | 与架构基线关系 | 不作为当前 `dev` 的实时 ahead/behind 指标 |
 | 主干策略 | `dev` 为唯一日常开发分支；`main` 仅作稳定分支；不从旧工作分支整体合并或覆盖 `dev` |
@@ -35,12 +36,12 @@
 
 ## 2.1 分支治理决策（2026-11-08）
 
-- 用户已明确指定 `dev` 为唯一主开发基线；后续 Local API、ROI、通用 Hook 和文档工作均直接以最新 `dev` 为起点。
-- `main` 仅作为稳定分支，未经明确要求不合并、不重置、不强推。
-- `work/local-api` 和 PR #19 是历史隔离工作线，不再作为后续开发入口。该分支相对当前 `dev` 已发生分叉（本次比较：分支自身领先 145 个提交、落后 19 个提交），PR #19 当前不可合并；禁止直接整体合并或将其 HEAD 覆盖到 `dev`。
-- 该分支上的 Local API 代码和文档只作为待审计来源。需要的能力必须逐文件/逐提交审查后，按当前 `dev` 架构选择性移植；移植后在 `dev` 上执行完整回归和 CI。
-- ROI 与 Local API 在同一 `dev` 基线内按模块/目录和测试入口隔离，不得让 Local API 修改破坏 ROI Hook 工作流或抢占其专属 CI。
-- 不设置任何定时监控任务；状态只在用户主动要求继续或检查时读取。
+- `dev` 是唯一日常开发基线；Local API、ROI、通用 Hook 与文档工作均以最新 `dev` 为起点。
+- `main` 仅作稳定分支，未经明确要求不合并、不重置、不强推。
+- `work/local-api` 与 PR #19 仅作为 Local API 历史来源；本次只移植协议网关、适配器、诊断、回归测试及相关文档，不将其历史提交整体并入开发历史。
+- 保留 `dev` 原有 `.github/workflows/ci.yml`；Local API 不修改 ROI 的 CI 触发规则，不与 ROI 工作流争抢专属 CI。
+- Local API 与 ROI 在同一 `dev` 基线内按模块、测试入口及工作内容隔离。
+- 不设置定时监控任务；状态只在用户主动要求时检查。
 
 ## 3. 模块状态
 
@@ -70,8 +71,9 @@
 | 路由 | 当前状态 |
 |---|---|
 | `GET /v1/models` | 返回配置模型清单；不代表原生执行就绪 |
-| `POST /v1/chat/completions` | HTTP/JSON/SSE 路由已实现；原生适配器未就绪时返回 503 |
-| `POST /v1/responses` | 未实现 |
+| `POST /v1/chat/completions` | OpenAI Chat 请求校验、响应映射、SSE 和非流式 tool-call bridge 已实现；Open 请求进入执行门面，缺少原生引擎时按请求返回 `engine_missing` |
+| `POST /v1/responses` | Responses 输入/输出映射、受限 `previous_response_id` 状态和 SSE 已实现；缺少原生引擎时按请求返回 `engine_missing` |
+| `POST /v1/messages` | Anthropic Messages 请求/响应映射和 SSE 已实现；缺少原生引擎时按请求返回 `engine_missing` |
 | `POST /v1/agent/run` | 未实现 |
 
 网络与安全边界：
@@ -96,6 +98,10 @@
 
 下一阶段必须追踪官方客户端的请求构造、PoW 管理、网络 Transport、Flow/SSE 事件、响应消费、会话上下文、取消与超时，找出可在 Open 版合法实现的最小原生调用边界。
 
+code289（DeepSeek 2.7.2 / versionCode 289）的 APK 静态证据已补齐：`ly1 implements wu1`；`zn3.o(wu1, Long)` 委托到 `jw3.g(wu1, Long)` 并返回冷 Flow `Ly60`；`r3.c(dv1, yb3)` 是 DeltaCommand 事件 reducer，`cv1(sha)` 中 `sha.a` 为事件名、`sha.b` 为数据 JSON。静态分析记录了 `SET / APPEND / BATCH` 操作及其顺序应用规则；这些结构证据不等于运行时事件和数据契约已验证。
+
+当前分支 schema-6 源码已加入 `r3.c` 透明观察点，只读取白名单事件名，不读取 `sha.b`。Smali 复核进一步确认：`sha.a == null` 才是 DeltaCommand 通道；第一个 null-name Patch 创建 root，后续 null-name Patch 更新 root；`ready` 是独立元数据事件。观察器现将 null-name 记录为 `delta-command`，而不是错误地归入 `other`；字符串 `delta` / `parse_error` 不属于 `r3.c` 已确认的分支。已归档的 1,676 行真实设备日志是 schema 5，证明 Flow collect 与部分 continuation/callback 执行，但不含 `delta-dispatch-*` 事件。schema-6 观察器尚无设备运行日志，null-name DeltaCommand、`ready`、`close` 的真实运行时序列仍未证实。诊断探针要求 `BuildInfo.LOCAL_API_INCLUDED == false`，应由独立诊断构建运行；不能把该日志说成正式 Local API APK 的运行证据。Native Adapter 仍未实现；所有 Completion 协议入口保持开放，原生引擎缺失时按请求返回 `engine_missing`（HTTP 503）。
+
 ### 3.5 诊断 UI
 
 2026-11-06 修复：观察器的 setup / enter / exit / throw 日志此前有路径直接写外部日志，未进入复制缓冲区。现已统一经 `observerLog()` 写入有界缓冲区并镜像外部日志；回归脚本增加约束，防止观察事件绕过缓冲区。提交：`fa86b091`；对应回归断言：`87118b3c`（同时断言观察器区域不得直接调用 `Main.extLog()`）。
@@ -113,18 +119,19 @@ Open 原生 Completion 诊断位于 DeepSeek 模块设置的“工程”→“�
 |---|---|---|---|
 | [41647101079](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41647101079) | `4f80b5a` | Failure | Android Open build and lint 成功；Regression 因两条新 Toast 文案缺少精确译文失败 |
 | [41648546478](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41648546478) | `c87ce1b` | Cancelled | 后续同分支提交触发并发取消 |
+| [42355705172](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42355705172) | `cd2742b` | Success | ROI Fast Audit、Regression tests、Android Open build/Lint、APK 结构/对齐/签名检查全部通过；Open APK 与 Lint artifact 已上传 |
 | [41649071834](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41649071834) | `c34d8ba` | Success | Regression tests 与 Android Open build and lint 均成功；Open APK 结构、对齐和 CI 临时签名检查通过 |
 
-Run `41649071834` 是较早阶段的绿色基线。最新完整绿色 CI 为 [Run `41836377762`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41836377762)，对应 `dev` 提交 `c0cec525`，Regression、ROI fast audit、Android Open build/Lint 均通过。该 Run 验证的是 JVM/脚本回归和 Open Android 构建，不是宿主真机 Completion。
+Run `41649071834` 是较早阶段的绿色基线。最近可引用的完整绿色 CI 为 [Run `42355705172`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42355705172)，对应历史提交 `cd2742b`；它不是当前 PR #16 HEAD 的验证结果。更早的 [Run `41836377762`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/41836377762) 对应历史 `dev` 提交 `c0cec525`。两者都只证明各自提交上的 JVM/脚本回归与 Open Android 构建，不是宿主真机 Completion。当前 PR #19 的 CI 按用户要求留到源码阶段收尾后执行。
 
 ## 5. 下一批任务顺序
 
-1. **R2 运行时证据**：在 code289 真机上验证 `zn3.o` 与 `jw3.g` 是否出现真实嵌套调用，以及同一请求对象是否透传；只记录结构元数据，不读取请求字段。
-2. **Native Adapter 证据调查**：见 [NATIVE_ADAPTER.md](NATIVE_ADAPTER.md)，继续核验 287/289/290 的请求、PoW、Transport、Flow 和响应消费。
-3. **Native Adapter 调查**：围绕 287/289/290 的官方请求链路建立符号、调用顺序、线程与生命周期证据；优先只读诊断和可验证的窄边界。
-4. **Agent Core 验收**：补充故障注入、恢复、幂等、权限确认和执行器集成测试。
-5. **构建矩阵**：Open、Legacy、Universal 分别验证；再分别记录模拟环境与真机结果。
-6. **交付**：提交 SHA、CI Run、构建产物、校验和及未验证范围分开记录。
+1. **schema-6 运行时证据**：使用不含 Local API Gateway 的独立 Open 诊断构建，在 code289 设备上取得 `r3.c` 的安装记录、事件名序列和 `y60.b` collect 关联；不读取 `sha.b`。
+2. **Native Adapter 设计/实现**：仅按已证实的 Request / Challenge / PoW / Transport / Flow 契约实施；构造器、字段和 payload 解析未证实前不得猜测。具体证据门槛见 [NATIVE_ADAPTER.md](NATIVE_ADAPTER.md)。
+3. **协议与运行时边界测试**：补齐取消、deadline、会话隔离、错误映射、SSE 终态和断连回收的独立测试。
+4. **集成回归**：审计 Gateway → Backend → Adapter → DeltaSink 全链路，确保协议入口始终开放；Adapter 未就绪时由执行门面按请求返回明确的 `engine_missing`，不得在 Open 版本级别提前关闭路由。
+5. **最终验证**：源码阶段结束后统一执行 PR CI、Open APK 构建/结构检查及 code289 真机测试；分别记录证据等级，不互相替代。
+6. **交付**：记录提交 SHA、CI Run、APK 校验和、设备/宿主/LSPosed 版本及未验证范围。
 
 ## 6. 验证口径
 
@@ -606,3 +613,129 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 
 
 - 完整报告导出补充：复制诊断报告时会从应用私有 session log 读取全部文件内容并附入剪贴板文本；UI 说明已改为完整无数量上限采集，并明确磁盘增长和同步落盘开销。若日志文件创建/写入失败，状态会显示 `callbackPersistentLog=unavailable`，不得把内存预览误称为完整日志。
+
+
+### 2026-11-07：Local API 聚焦 2.7.2/code289
+
+- 暂停 2.7.5 相关适配工作；当前 Native Adapter 目标固定为中国大陆版 DeepSeek 2.7.2 / versionCode 289。
+- 复核此前真实设备日志：`ly1 implements wu1` 经 `zn3.o(wu1, Long)` 嵌套进入 `jw3.g(wu1, Long)`，同一 Request 实例跨越两层并返回 `y60 implements el4`；`y60.b(fl4, yb3)` 已观察到真实回调对象。
+- 从旧日志确认父类链 Hook 会产生大量无关事件；在 API 工作分支移植 schema 5 诊断修正：仅观察 continuation 实际传入的具体回调类，只 Hook 其自身声明的 1～2 参数非 void 方法，每类最多 12 个，不遍历父类。
+- 同步更新 UI 说明、`test-native-adapter-fail-closed.sh` 源码契约断言和 `docs/NATIVE_ADAPTER.md` 的实机证据及下一步计划。
+- 最新相关提交：`79f30cef`（探针范围修正）、`986a543e`（UI）、`d5dee1ce` / `2c5c1fbd` / `8818a200` / `f146f6f3`（回归保护）、`f8a389fa`（证据文档）。
+- 尚未获得本轮修改的 CI / Android build 结果；没有生成或发布新 APK。
+
+### 2026-11-07：code289 Callback 结构诊断 schema 6
+
+- Callback 方法先按完整描述符排序，再应用每类最多 12 个方法的上限，保证选择结果可复现。
+- 每个方法首次调用时记录参数对象结构；首次正常返回时记录返回对象结构。仅记录对象类名、字段名和字段类型，不读取字段值。
+- 参数/返回结构按方法签名去重；新 session 清理结构去重状态，但不清除已安装 Hook 注册状态，避免重复 Hook。
+- schema 升级到 6，UI、test-native-adapter-fail-closed.sh 和 docs/NATIVE_ADAPTER.md 同步更新。
+- 提交：4212bf84、20ccdc7f、c9a79ef4、94a75ed4、2465873f。
+- 目的：下一次 code289 真机采集时，进一步区分 callback 的事件 envelope、消息片段和协程包装对象，为响应解码定位提供结构证据。
+- 尚未运行 Android build / 回归脚本 / 真机验证；不宣称 schema 6 已通过验证。
+
+
+### 2026-11-07：code289 APK 静态证据已补齐
+
+- 更正此前只检查 apps/main 后得出的“缺少 code289 APK”结论：在 apps/work/deepseek-272-static-audit 找到 deepseek-2-7-2.apk，Manifest 确认 com.deepseek.chat 2.7.2 / versionCode 289。
+- SHA-256：3c2fe31c73575400b9d59e46dde05daa2ef06491498ebfef658801e99eca1aff。
+- 3 DEX / 15,365 classes / 72,258 methods；动态候选类 23/23 匹配，117 候选方法，3,369 调用点；apps audit run 42342447740 成功。
+- 已确认 Request/Transport：nn0 → mw1 → ly1 → zn3.o → jw3.g → Ly60 Flow → bi5 Ktor → g0 response → ts1 SSE parser → s5 event wrapper → r3.c business decoder。
+- 已确认 Challenge/PoW：ut1(target_path) → ms9 challenge → df0/bf0 → PowCalculator/librscrypto → gf0 solution → nq1 ChallengePlugin headers/retry。
+- 已确认 DeltaCommand p/o/v patch、SET/APPEND/BATCH、zca.response → gy.fragments；不能将 SSE data 直接当文本。
+- 完整报告见 apps/docs/deepseek-272-native-callgraph.md；本文件已同步详细证据。
+- 当前只完成静态链路还原；尚未在模块中完成 zn3 capture、Flow collect、Delta patch、CompletionResult 和真机验证。Native Adapter 不标记完成。
+
+
+## 2026-11-07 Local API protocol integration update
+
+- Active integration branch: `work/local-api`; review PR: [#16](https://github.com/qingjian0/Deekseep-Custom/pull/16), targeting `dev`. `main` remains untouched.
+- OpenAI Chat Completions, OpenAI Responses, and Anthropic Messages now have protocol/request normalization and response/SSE mapping in the Gateway. The Anthropic route is `POST /v1/messages`.
+- OpenAI tool definitions and model-generated tool-call text are bridged to structured client-facing `tool_calls` / `tool_use`. This does not execute tools inside the module; Chat and Responses tool calls are currently non-streaming only.
+- Usage values are estimates, not native tokenizer counts, and are marked `dsh_usage_estimated=true`. Streaming `include_usage` accepts boolean values and emits an explicitly estimated usage chunk when requested; non-boolean values are rejected.
+- Responses `previous_response_id` state is process-local, bounded to 64 entries and a 30-minute TTL; it is not durable across service restarts.
+- **Native execution remains the release blocker.** The code289 APK static audit establishes the Request/Transport/Challenge/PoW/Flow/SSE/DeltaCommand call graph, but no Open adapter currently captures the live `nn0/zn3` host objects, collects the native Flow, applies DeltaCommand patches, or maps the final response to `CompletionResult`. Keep Completion protocol routes exposed; until the adapter is implemented and validated, the execution facade reports `engine_missing` (HTTP 503) per request.
+- No code289 real-device completion, cancellation, timeout, resume, or concurrent-session verification is claimed.
+
+## 2026-11-07：code289 Session Factory 静态审计校正
+
+本轮继续追踪 code289 会话状态与原生请求调用点，已将以下校正同步到 `docs/NATIVE_ADAPTER.md`：
+
+- `kw1` 是 `nn0.d` 的 Kotlin suspend continuation；其 `y()` 以 null 占位参数重入后由 `nn0.d` 恢复保存的参数，不能作为独立的空 session 请求证据。
+- 业务发送入口由 `ik2.j0(...)` 创建 `uj2`，并携带真实 `ys` 会话状态进入 `nn0.d`。
+- `ys(ss9, qs)` 是从持久化/服务端 `ss9` 记录装配会话状态的明确路径；`fx1` 对 `ss9` 的直接构造是复制既有记录。
+- `oe2` 中发现的 UUID 生成用于 `ada` 消息/fragment 标识，不是 `chat_session_id` 生成证据。
+- `ys` 的直接多参数构造器存在，但其上游 `sr7` 选择/导航来源尚未完整映射，尚不能确定首次用户消息时 session ID 的创建策略。
+
+**阶段结论：** Session Factory 仍未实现；本轮没有添加猜测性的 sessionId/model_type/preempt，也没有启用 Completion。协议入口保持开放；原生引擎缺失时按请求返回 `engine_missing`（HTTP 503）。当前只完成静态证据与文档校正，不声称代码测试、CI、APK 或真机验证通过。
+
+本轮文档提交：`2d57a560b62de35686ae279a54a013c6f257156d`（`docs/NATIVE_ADAPTER.md`）；PR #16 仍为 Draft，目标 `dev`，未合并。
+
+
+## 2026-11-07：空 sessionId 与宿主 model_type 来源复核
+
+本轮新增 code289 静态证据（详见 `docs/NATIVE_ADAPTER.md`）：
+
+- `oe2.j()` 创建宿主 UI 新会话占位 `ys`，其 `ys.a` session ID 明确为 `""`；随后创建 `Lik2`，注入名为 `sendMessageToNewSession` 的 function reference。
+- `ik2` 处理消息事件时构造 `Lo97` MessageForwardRequest，并将当前 ChatSessionComponent、请求和完成回调交给注入回调；消息/fragment UUID 仍与 session ID 分离。
+- 后续已将该引用映射到 `oe2.i(oe2, Lik2, Lo97, Function0)`，并追到 `fx1.m()`、服务端创建与 `ss9 -> ys` 装配；详见后续 Session Factory 章节。`jj2` 事件进入 `nn0.d()` 的精确对象/时序仍待确认。
+- `oe2` 初始化时由 `i37.s(mj7)` 选择当前 `vi7`（优先 `e == true`，否则回退 `kj7.c`），将其 `a` 字符串保存在 `oe2.q`；`oe2.j()` 把该 StateFlow 传给新会话 `ys.d`。
+- `mw1.y()` 仅在 parentMessageId 为 null 时把 `ys.k()` 写入原生 Request 的 model_type；有 parent 时传 null。
+- 已证明宿主新会话初始 model_type 来自当前宿主模型选择状态；未证明外部 API model ID 到内部 model_type 的映射。
+
+**当前决策：** 已定位宿主 Session Factory `fx1.m()` 与真实服务端 session ID 来源；不再需要猜测或生成 sessionId。尚需实现安全获取 `fx1`、suspend/取消桥接、actor 持久化验证和 `jj2 -> nn0.d()` 事件链对接。Completion 协议入口保持开放；原生引擎缺失时按请求返回 `engine_missing`（HTTP 503）。
+
+本轮文档提交：
+- `2fd1a8be1ded6a5923e5b249982356bd34e6fdf1` — `docs/NATIVE_ADAPTER.md` 新会话占位语义。
+- `566e3784494dab63da09daa5372f102015322662` — `docs/NATIVE_ADAPTER.md` model_type 状态来源。
+
+
+## 2026-11-07：共享消息转发回调边界
+
+补充校正：`oe2.k(ys)` 为已有会话构造 `Lik2` 时也注入相同的 `sendMessageToNewSession` function reference。因此不能按函数名推断该回调只处理新会话创建；它是会话组件的消息转发回调，内部如何区分空/非空 sessionId 尚未定位。详见 `docs/NATIVE_ADAPTER.md`。
+
+静态 Smali 检查已对以下 8 项事实逐项通过：新会话占位对象空 ID、回调引用及签名、`kj2` 事件回调分发、模型选中项选择、默认配置回退、`oe2.q` 的配置 key 来源、`mw1` 从 `ys.k()` 取 model_type、parent 非空时将 model_type 置 null。该检查仅验证静态 APK 证据，不是模块回归测试或运行时验证。
+
+本轮最新文档提交：`bd7372e3bb9e3e2590f3a054b13ce0d76c7d4917`。
+
+
+## 2026-11-07：服务端 Session Factory 调用链已定位
+
+本轮从 `oe2.i` 继续向下追踪，已在 code289 Smali 中定位宿主会话创建与持久化路径（完整证据见 `docs/NATIVE_ADAPTER.md`）：
+
+- `oe2.i` 是注入给 `Lik2` 的 `sendMessageToNewSession` function reference 对应的实际静态目标，签名为 `(oe2, Lik2, Lo97, Function0)`。
+- `oe2.i` 调用 `fx1.m()`；该方法优先从 `pi.e` 管理的会话预取队列取出可用 `ss9)，否则走服务端创建分支。
+- 服务端分支经 `pi.c -> zn3.b -> ch2.b -> bi5`，`rz0` 请求构造器明确包含 `/api/v0/chat_session/create`。
+- `ft9` 是 ServerResponseBizDataWrapper，`a/b/c` 对应 biz_code/biz_msg/biz_data；`j41` 从 `ft9.c` 解码 `Lok2)，取 `Lok2.a:ss9`，再创建 `ys(ss9, qs)`。
+- `fx1.m()` 成功返回 `pt7)，其中 `tn2.a` 是真实 `ys)，`tn2.b` 标记缓存命中。
+- `oe2.i` 在持久化前调用 `ys.G(Lo97.d)` 更新模型 key；随后通过 `fx1.l(ys) -> pi.e(ys) -> wn2 -> ix0` 异步写入会话仓库，最后再将消息事件交给当前组件。
+
+**阶段决策：** 已经定位到可复用的宿主 Session Factory 核心 `fx1.m()`，不再需要猜测 sessionId 生成方式。下一步不是重写创建 HTTP，而是验证模块如何稳定取得 `fx1` 实例、如何桥接 suspend Continuation 与取消/超时，以及如何确认 actor 持久化完成。缓存命中和网络创建两个分支都必须覆盖。Completion 协议入口保持开放；原生引擎缺失时按请求返回 `engine_missing`（HTTP 503）。
+
+本轮文档提交：`764683fee54228b4e7b7922043aa72f63d48d874`（`docs/NATIVE_ADAPTER.md`）。本轮未执行 CI、APK 构建或真机验证。
+
+
+## 2026-11-07：fx1 Session Factory 接入点已定位
+
+补充完成宿主对象获取路径审计：
+
+- `oe2` 会话 ViewModel 构造器通过宿主 DI 容器取得 `fx1)，保存在 final 字段 `oe2.h:Lfx1;`。
+- `oe2.j()` / `oe2.k(ys)` 都通过该 `fx1` 实例构造会话组件。
+- Local API 当前已有 `Main.startz1()` 和 `Main.MODULE.hook(...)` 透明 Hook 入口；因此 code289 Open 分支可考虑通过 `oe2` 构造器 after-hook 读取 `h)，或辅以 `fx1` 构造器 after-hook，捕获宿主真实 Session Factory 实例。
+- 捕获失败时应 fail-closed 503，不扫描任意对象堆、不生成伪 sessionId、不自行复制创建接口。
+- 后续需要在后台桥接 `fx1.m(Continuation)`，正确解析 `wt7/pt7/tn2)，更新模型 key，再按宿主顺序调用 `fx1.l(ys))。Continuation 结果、超时、取消与 actor 写入时序仍待实现和验证。
+
+**本轮边界：** 只完成静态接入点定位和文档记录，没有新增模块代码，没有运行 Hook/CI/APK/真机测试。Completion 协议入口保持开放；原生引擎缺失时按请求返回 `engine_missing`（HTTP 503）。
+
+本轮文档提交：`75f7dbbfc160d0ae819836de7533e319c78c7db3`。
+
+
+## 2026-11-07：code289 ChallengePlugin / PoW 管线追踪进展
+
+- 从原始 code289 APK artifact 的 `all-smali.zip` 继续追踪 `bi5.e -> rh5 -> cf5`，确认 Ktor client builder 在 `p61` 注册 `nq1` 的 `ChallengePlugin`；`y10` 请求执行路径调用该插件。
+- `nq1` 声明 `ChallengePlugin` / `ChallengeAttempt`，在请求阶段读取已有 PoW response，并通过 `hq1.a(pq1, Continuation)` 协调 challenge attempt；`nq1.c` 负责 challenge / PoW header 处理并继续调用底层 client pipeline。
+- `jw3.g` 在 PoW response 非空时写入 `X-DS-PoW-Response`；`df0.d` 的 `DeepSeekHashV1` 分支引用 `PowCalculator.calculateDeepSeekHashV1Pow(String, String, long)`。
+- 已将上述静态证据写入 [NATIVE_ADAPTER.md](NATIVE_ADAPTER.md)，并扩展 `tools/audit_code289_session_fallback.py`，覆盖 session fallback 与 ChallengePlugin / PoW 管线锚点。
+- 对该 code289 artifact 执行扩展后的完整本地静态审计：**24/24 PASS**。此结果只证明 Smali 静态锚点匹配，不证明挑战可运行、模块可获取宿主 client、Flow 可安全收集或 Completion 已成功。
+- Native Completion 协议入口保持开放；原生引擎缺失时按请求返回 `engine_missing`（HTTP 503）。当前优先研究宿主 `zn3/jw3`、`bi5/cf5`、`hq1` 的实例来源、生命周期和取消语义；不复制 challenge plugin、不自行拼接认证 header。
+- 按既定计划，PR CI 与真机验证继续留到源码阶段收尾后统一执行；本轮没有触发 CI，也没有声称设备验收通过。
