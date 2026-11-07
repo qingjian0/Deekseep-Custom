@@ -5,6 +5,8 @@ on:
     paths:
       - "module/src/ds/dsh/DeepSeek/RoiUniversalHookRuntime.java"
       - "module/src/ds/dsh/DeepSeek/RoiHookResolverActivationGate.java"
+      - "module/src/ds/dsh/DeepSeek/RoiHostArtifactFingerprint.java"
+      - "module/tests/roiartifact/**"
       - "module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationObserver.java"
       - "module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
       - "module/src/ds/dsh/DeepSeek/HookAttachmentPipeline.java"
@@ -27,6 +29,8 @@ on:
     branches: [dev]
     paths:
       - "module/src/ds/dsh/DeepSeek/RoiUniversalHookRuntime.java"
+      - "module/src/ds/dsh/DeepSeek/RoiHostArtifactFingerprint.java"
+      - "module/tests/roiartifact/**"
       - "module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationObserver.java"
       - "module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
       - "module/src/ds/dsh/DeepSeek/HookAttachmentPipeline.java"
