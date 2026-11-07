@@ -617,3 +617,15 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 提交：4212bf84、20ccdc7f、c9a79ef4、94a75ed4、2465873f。
 - 目的：下一次 code289 真机采集时，进一步区分 callback 的事件 envelope、消息片段和协程包装对象，为响应解码定位提供结构证据。
 - 尚未运行 Android build / 回归脚本 / 真机验证；不宣称 schema 6 已通过验证。
+
+
+### 2026-11-07：code289 APK 静态证据已补齐
+
+- 更正此前只检查 apps/main 后得出的“缺少 code289 APK”结论：在 apps/work/deepseek-272-static-audit 找到 deepseek-2-7-2.apk，Manifest 确认 com.deepseek.chat 2.7.2 / versionCode 289。
+- SHA-256：3c2fe31c73575400b9d59e46dde05daa2ef06491498ebfef658801e99eca1aff。
+- 3 DEX / 15,365 classes / 72,258 methods；动态候选类 23/23 匹配，117 候选方法，3,369 调用点；apps audit run 42342447740 成功。
+- 已确认 Request/Transport：nn0 → mw1 → ly1 → zn3.o → jw3.g → Ly60 Flow → bi5 Ktor → g0 response → ts1 SSE parser → s5 event wrapper → r3.c business decoder。
+- 已确认 Challenge/PoW：ut1(target_path) → ms9 challenge → df0/bf0 → PowCalculator/librscrypto → gf0 solution → nq1 ChallengePlugin headers/retry。
+- 已确认 DeltaCommand p/o/v patch、SET/APPEND/BATCH、zca.response → gy.fragments；不能将 SSE data 直接当文本。
+- 完整报告见 apps/docs/deepseek-272-native-callgraph.md；本文件已同步详细证据。
+- 当前只完成静态链路还原；尚未在模块中完成 zn3 capture、Flow collect、Delta patch、CompletionResult 和真机验证。Native Adapter 不标记完成。
