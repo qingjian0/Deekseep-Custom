@@ -262,14 +262,17 @@ public final class RoiRuntimeInvocationRecorderTest {
         check(r.recordCoverage(HOST, "loader:process-1:HostLoader", "LFlow;->emit(Lkotlin/coroutines/Continuation;)Ljava/lang/Object;",
                 RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_SUSPEND_COLLECTOR, 100),
                 "unsupported suspend coverage rejected");
-        check(r.recordCoverage(HOST, "loader:process-1:HostLoader", "LFlow;->emit()V",
-                RoiRuntimeInvocationRecorder.CoverageStatus.RESPONSE_OBSERVED, 101),
-                "observed coverage rejected");
+        check(r.recordCoverage(HOST, "loader:process-1:HostLoader", "LParser;->rebuild(Ljava/lang/Object;)Lmv;",
+                RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_RESPONSE_PARSER_CORRELATION, 101),
+                "uncorrelated parser coverage rejected");
         List<RoiRuntimeInvocationRecorder.CoverageSnapshot> items = r.snapshotCoverage(101);
         check(items.size() == 2, "coverage diagnostics missing");
         check(items.get(0).status
                 == RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_SUSPEND_COLLECTOR,
                 "unsupported suspend status lost");
+        check(items.get(1).status
+                == RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_RESPONSE_PARSER_CORRELATION,
+                "uncorrelated parser status lost");
         for (Field field : RoiRuntimeInvocationRecorder.CoverageSnapshot.class.getDeclaredFields()) {
             check(!field.getName().toLowerCase(java.util.Locale.ROOT).contains("requestkey"),
                     "coverage diagnostics expose request key");
