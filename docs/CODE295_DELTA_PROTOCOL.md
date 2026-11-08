@@ -177,3 +177,18 @@ The evidence was recovered from the 2.7.5 JADX source bundle, including:
 `NativeV275RuntimeProbe` is now installed only through the existing explicit native-diagnostics opt-in and only when `HostCompat.isV275StaticOnly()` identifies the 2.7.5 static profile. It passively observes exact declared boundaries for `nw3.e`, `r3.c`, `pv1.a`, `pv1.e`, and `iv1.c`. The observer records argument/result class names and exception classes only; it does not read fields, serialize payloads, invoke host methods independently, or modify arguments/results. It is transparent when the opt-in switch is off.
 
 This is instrumentation preparation, not runtime evidence. The probe still needs to be run on a device with the matching 2.7.5 mainland APK. Its output must be checked for exact signatures, real Flow lifecycle and event ordering before any execution adapter is enabled.
+
+
+### 10.1 Exact observer descriptors
+
+The runtime observer's declared signatures are pinned to the 2.7.5 candidate-method index:
+
+| Boundary | Descriptor |
+|---|---|
+| Request Flow | `nw3.e(Lyu1;Ljava/lang/Long;)Lb70;` |
+| Delta dispatch | `r3.c(Lfv1;Ldc3;)Ljava/lang/Object;` |
+| SSE event adapter | `pv1.a(Lpv1;Lbia;Lec3;)Ljava/lang/Object;` |
+| Delta application | `pv1.e(Lpv1;ILwt3;Lec3;)Ljava/lang/Object;` |
+| Lifecycle | `iv1.c(Lfda;)V` |
+
+At runtime, reflection additionally verifies return type and static/instance shape before registering each hook. A mismatch is logged as unavailable and is not hooked. The source-only CI check pins the exact descriptor arguments so an accidental signature drift is caught before device testing.
