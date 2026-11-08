@@ -133,7 +133,7 @@ final class OpenNativeCompletionProbe {
         }
     }
 
-    private static void associateContinuationWithObservation(
+    private static void associateObjectWithObservation(
             Object continuation, Object flow) {
         if (continuation == null || flow == null) return;
         synchronized (FLOW_TRACE_IDS) {
@@ -854,7 +854,8 @@ final class OpenNativeCompletionProbe {
                         Object second = args != null && args.size() > 1 ? args.get(1) : null;
                         Object flow = chain.getThisObject();
                         Long flowTraceId = observationIdForObject(flow);
-                        associateContinuationWithObservation(second, flow);
+                        associateObjectWithObservation(first, flow);
+                        associateObjectWithObservation(second, flow);
                         safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-enter method="
                                 + observedMethodDescriptor(target)
                                 + " flowTraceId=" + (flowTraceId == null ? "unlinked" : flowTraceId)
@@ -972,6 +973,7 @@ final class OpenNativeCompletionProbe {
                         String methodValue = "method-descriptor-unavailable";
                         CallbackStats statsValue = null;
                         int identityValue = 0;
+                        Long traceIdValue = null;
                         long eventValue = 0L;
                         try {
                             methodValue = observedMethodDescriptor(target);
@@ -984,6 +986,7 @@ final class OpenNativeCompletionProbe {
                             statsValue = existingStats;
                             Object receiver = chain.getThisObject();
                             identityValue = receiver == null ? 0 : System.identityHashCode(receiver);
+                            traceIdValue = observationIdForObject(receiver);
                             List<?> args = chain.getArgs();
                             if (CALLBACK_ARGUMENT_SHAPES.putIfAbsent(methodValue, Boolean.TRUE) == null) {
                                 Object arg0 = args == null || args.isEmpty() ? null : args.get(0);
@@ -996,6 +999,7 @@ final class OpenNativeCompletionProbe {
                             eventValue = CALLBACK_DETAIL_EVENTS.incrementAndGet();
                             safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] callback-enter role=" + role
                                     + " method=" + methodValue + " receiverId=" + identityValue
+                                    + " flowTraceId=" + (traceIdValue == null ? "unlinked" : traceIdValue)
                                     + " event=" + eventValue + " args=" + observedArgumentTypes(args)
                                     + " stack=" + observedStack());
                         } catch (VirtualMachineError fatal) {
@@ -1009,6 +1013,7 @@ final class OpenNativeCompletionProbe {
                         final String callbackMethod = methodValue;
                         final CallbackStats stats = statsValue;
                         final int identity = identityValue;
+                        final Long callbackTraceId = traceIdValue;
                         final long eventNumber = eventValue;
                         final Object value;
                         try {
@@ -1017,7 +1022,9 @@ final class OpenNativeCompletionProbe {
                             try {
                                 if (stats != null) stats.record(System.nanoTime() - started, true);
                                 safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] callback-throw method="
-                                        + callbackMethod + " exception=" + hostError.getClass().getName());
+                                        + callbackMethod + " receiverId=" + identity
+                                        + " flowTraceId=" + (callbackTraceId == null ? "unlinked" : callbackTraceId)
+                                        + " exception=" + hostError.getClass().getName());
                             } catch (VirtualMachineError fatal) {
                                 throw fatal;
                             } catch (ThreadDeath fatal) {
@@ -1034,6 +1041,7 @@ final class OpenNativeCompletionProbe {
                             }
                             safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] callback-exit method="
                                     + callbackMethod + " receiverId=" + identity
+                                    + " flowTraceId=" + (callbackTraceId == null ? "unlinked" : callbackTraceId)
                                     + " event=" + eventNumber + " durationMs="
                                     + (durationNanos / 1000000L) + " result=" + observedResultType(value));
                         } catch (VirtualMachineError fatal) {
