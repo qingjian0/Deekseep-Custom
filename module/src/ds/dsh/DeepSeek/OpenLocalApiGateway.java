@@ -722,7 +722,9 @@ final class OpenLocalApiGateway {
             OpenNativeCompletionProbe.apiTrace("backend-readiness requestId=" + requestId
                     + " ready=" + ready);
             if (!ready) {
-                sendError(out, 503, "model_not_ready",
+                sendError(out, 503,
+                        current == null ? "model_not_ready" : current.readinessCode(),
+                        "server_error",
                         current == null ? "Model backend unavailable" : current.readinessDetail());
                 OpenNativeCompletionProbe.apiTrace("request-rejected requestId=" + requestId
                         + " stage=backend-readiness status=503");
