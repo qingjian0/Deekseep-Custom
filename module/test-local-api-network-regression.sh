@@ -239,6 +239,12 @@ if "if (!pendingToolIds.isEmpty())" not in anthropic or "Every tool_use must hav
     raise SystemExit("Anthropic history must reject tool_use blocks without matching tool_result blocks")
 if '"/v1/responses".equals(request.path)' not in source or "handleResponses(out, request)" not in source:
     raise SystemExit("Responses endpoint is not registered")
+if "Object rawCallId = item.opt(\"call_id\");" not in source or "Object rawName = item.opt(\"name\");" not in source:
+    raise SystemExit("Responses tool-call history must reject non-string IDs and names")
+if "if (!callIds.add(callId))" not in source or "Duplicate tool-call id" not in source:
+    raise SystemExit("Responses tool-call history must reject duplicate call IDs")
+if "rawArguments instanceof String" not in source:
+    raise SystemExit("Responses tool-call arguments must be strings")
 if '"/v1/messages".equals(request.path)' not in source or "handleAnthropicMessages(out, request)" not in source:
     raise SystemExit("Anthropic Messages endpoint is not registered")
 if 'throw new z2.GatewayException(503, "engine_missing"' not in security:

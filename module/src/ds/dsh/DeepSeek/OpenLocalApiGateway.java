@@ -1372,19 +1372,27 @@ final class OpenLocalApiGateway {
                 if (prompt.length() > 0) prompt.append("\n");
                 prompt.append(role).append(": ").append(value);
             } else if ("function_call".equals(type) || "custom_tool_call".equals(type)) {
-                String callId = item.optString("call_id", "").trim();
-                String name = item.optString("name", "").trim();
-                String arguments = "custom_tool_call".equals(type)
-                        ? item.optString("input", "") : item.optString("arguments", "");
+                Object rawCallId = item.opt("call_id");
+                Object rawName = item.opt("name");
+                Object rawArguments = "custom_tool_call".equals(type)
+                        ? item.opt("input") : item.opt("arguments");
+                if (!(rawCallId instanceof String) || !(rawName instanceof String)
+                        || !(rawArguments instanceof String)) {
+                    throw new IllegalArgumentException("Tool-call id, name, and arguments must be strings");
+                }
+                String callId = ((String) rawCallId).trim();
+                String name = ((String) rawName).trim();
+                String arguments = (String) rawArguments;
                 if (callId.length() == 0 || name.length() == 0) {
                     throw new IllegalArgumentException("Invalid tool-call history");
                 }
-                if (callIds.add(callId)) {
-                    if ("function_call".equals(type)) new JSONObject(arguments);
-                    if (prompt.length() > 0) prompt.append("\n");
-                    prompt.append("assistant tool call id=").append(callId)
-                            .append(" name=").append(name).append(" arguments=").append(arguments);
+                if (!callIds.add(callId)) {
+                    throw new IllegalArgumentException("Duplicate tool-call id");
                 }
+                if ("function_call".equals(type)) new JSONObject(arguments);
+                if (prompt.length() > 0) prompt.append("\n");
+                prompt.append("assistant tool call id=").append(callId)
+                        .append(" name=").append(name).append(" arguments=").append(arguments);
             } else if ("function_call_output".equals(type)
                     || "custom_tool_call_output".equals(type)) {
                 String callId = item.optString("call_id", "").trim();
