@@ -34,6 +34,11 @@ A second-pass audit found that `inspectAddElementCall` returned immediately afte
 
 This change is source-reviewed only. The serializer test suite, CI, APK build, emulator, and physical-device checks remain deferred to the final validation phase.
 
+
+### Lifecycle conflict-domain integrity (PR #14, 2026-11-08)
+
+A further lifecycle audit found that conflict checks previously treated only ACTIVE and INSTALLING targets as occupying a conflict domain. A target remains potentially attached while its unhook callback is running, and a FAILED target with a retained handle has not proven detachment. Conflict checks now reserve the domain for ACTIVE, INSTALLING, UNINSTALLING, and FAILED-with-handle states in both declared conflict directions. Regression tests cover a latch-controlled unhook race and a failed rollback retaining the handle. Tests remain unexecuted until the final validation phase.
+
 ## 2. Actual call chains
 
 ### 2.1 Existing feature-hook path
