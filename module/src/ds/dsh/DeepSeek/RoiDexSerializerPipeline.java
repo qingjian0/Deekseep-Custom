@@ -211,6 +211,10 @@ public final class RoiDexSerializerPipeline {
         }
         // Do not return as soon as a registration call is found: a later unresolved invoke
         // could itself be another registration call and invalidate uniqueness.
+        return registrationCandidateScanResult(incomplete,registrationFound);
+    }
+
+    static int registrationCandidateScanResult(boolean incomplete,boolean registrationFound) {
         return incomplete?-1:(registrationFound?1:0);
     }
 
