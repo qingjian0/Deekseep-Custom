@@ -864,8 +864,10 @@ final class OpenNativeCompletionProbe {
                                 + " arg0Shape=" + observedObjectShape(first)
                                 + " arg1Shape=" + observedObjectShape(second)
                                 + " stack=" + observedStack());
+                        // The Continuation implementation is shared by unrelated coroutine
+                        // paths (network, session and challenge work). Keep its identity link for
+                        // r3.c correlation, but never hook its generic methods.
                         installCallbackObserver(first, "callback-0");
-                        installCallbackObserver(second, "callback-1");
                     } catch (VirtualMachineError fatal) {
                         throw fatal;
                     } catch (ThreadDeath fatal) {
