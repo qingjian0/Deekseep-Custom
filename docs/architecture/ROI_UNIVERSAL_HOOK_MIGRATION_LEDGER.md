@@ -414,3 +414,12 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - `HookLifecycleManager.uninstall(id)` now returns explicit transient details when the target is `INSTALLING` or `UNINSTALLING` (`install_in_progress` / `uninstall_in_progress`). The in-flight entry is not mutated by the rejected uninstall request.
 - Regression test source added for uninstall-during-install and reverse-direction conflict declarations.
 - This is source/test-code work only. The lifecycle test suite, CI, APK build, emulator, and physical-device validation remain intentionally deferred to the final validation stage.
+
+
+## Lifecycle retryability correction (2026-11-08)
+
+- Static audit found that `HookLifecycleManager.install()` treated every `SKIPPED` entry as terminal. A target skipped because a dependency was not yet active or because a conflicting target still occupied its conflict domain could never be retried after that condition cleared.
+- Corrected the existing-entry guard: only `disabled_by_policy` remains terminal for the same immutable spec. Dependency/conflict skips re-enter preflight on a later install call.
+- Added regression tests for retry after dependency activation and after conflicting-target uninstall.
+- Source commit: `13b9d31e0d2fbd4bc0b7e368fa5d9d65ca42b585`; test commit: `acc8f3d52446f31a5bf350f249a3f1db9c10d624`.
+- PR #14 head has no CI run yet. The current ROI workflow is not configured to trigger on `work/generic-hook-lifecycle-dev`; no test, build, emulator, or device validation is claimed.
