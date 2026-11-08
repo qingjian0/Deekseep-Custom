@@ -1251,8 +1251,14 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     param.appInfo == null ? null : param.appInfo.sourceDir,
                     param.appInfo == null ? null : param.appInfo.splitSourceDirs);
             // Unknown/unmaintained hosts still need an honest activation signal. Register only
-            // an Activity lifecycle observer: no feature hooks, symbol adapters, or UI patches.
+            // an Activity lifecycle observer: no feature hooks or host-obfuscated UI patches.
+            // The generic launcher entry is independent of host symbols and is safe to attach to
+            // the stable MainActivity class name; this gives code295 a usable menu without
+            // pretending that any version-specific feature Hook has been adapted.
+            Looper unknownHostLooper = Looper.getMainLooper();
+            if (unknownHostLooper != null) main = new Handler(unknownHostLooper);
             installUnknownHostActivationReporter();
+            installUnknownHostMenuFallback();
             // Unknown-host switches never fall through to legacy feature hooks. The separate
             // feature switch can authorize only the serializer-verified chat prompt adapter.
             return;
@@ -7743,6 +7749,69 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     }
                 } catch (Throwable error) {
                     log("unknown-host activation observer failed: "
+                            + safeThrowableMessage(error));
+                }
+            }
+        });
+    }
+
+    /**
+     * Shows the generic module entry on the stable DeepSeek MainActivity for unknown hosts.
+     * This is not a host feature Hook: it uses Application lifecycle callbacks and the existing
+     * in-process entry view only. Host-specific Compose/settings adapters remain disabled.
+     */
+    private static final AtomicBoolean UNKNOWN_HOST_MENU_FALLBACK_INSTALLED =
+            new AtomicBoolean(false);
+
+    private void installUnknownHostMenuFallback() {
+        if (!UNKNOWN_HOST_MENU_FALLBACK_INSTALLED.compareAndSet(false, true)) return;
+        Handler handler = main;
+        if (handler == null) {
+            UNKNOWN_HOST_MENU_FALLBACK_INSTALLED.set(false);
+            log("unknown-host menu fallback unavailable: main Handler missing");
+            return;
+        }
+        handler.post(new Runnable() {
+            @Override public void run() {
+                try {
+                    Application app = (Application) Class.forName("android.app.ActivityThread")
+                            .getMethod("currentApplication").invoke(null);
+                    if (app == null) {
+                        UNKNOWN_HOST_MENU_FALLBACK_INSTALLED.set(false);
+                        log("unknown-host menu fallback deferred: Application not ready");
+                        return;
+                    }
+                    app.registerActivityLifecycleCallbacks(
+                            new Application.ActivityLifecycleCallbacks() {
+                        @Override public void onActivityCreated(Activity activity, Bundle state) {}
+                        @Override public void onActivityStarted(Activity activity) {}
+                        @Override public void onActivityResumed(Activity activity) {
+                            if (!isDeepSeekMainActivity(activity)) return;
+                            Main module = MODULE;
+                            if (module == null || module.main == null) return;
+                            module.curAct = new WeakReference<>(activity);
+                            module.main.post(new Runnable() {
+                                @Override public void run() {
+                                    module.showButton();
+                                }
+                            });
+                        }
+                        @Override public void onActivityPaused(Activity activity) {}
+                        @Override public void onActivityStopped(Activity activity) {}
+                        @Override public void onActivitySaveInstanceState(
+                                Activity activity, Bundle state) {}
+                        @Override public void onActivityDestroyed(Activity activity) {
+                            Main module = MODULE;
+                            if (module != null && module.curAct.get() == activity) {
+                                module.hideButton();
+                                module.curAct = new WeakReference<>(null);
+                            }
+                        }
+                    });
+                    log("unknown-host generic menu fallback registered");
+                } catch (Throwable error) {
+                    UNKNOWN_HOST_MENU_FALLBACK_INSTALLED.set(false);
+                    log("unknown-host menu fallback registration failed: "
                             + safeThrowableMessage(error));
                 }
             }
