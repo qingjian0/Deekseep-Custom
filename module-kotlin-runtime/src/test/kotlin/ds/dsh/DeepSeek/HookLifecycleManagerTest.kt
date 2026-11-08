@@ -331,6 +331,29 @@ class HookLifecycleManagerTest {
         assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("transport").state)
     }
 
+
+    @Test
+    fun mutableConflictSetCannotRemoveRegisteredConflict() {
+        val manager = HookLifecycleManager()
+        val conflicts = mutableSetOf("transport.v2")
+        val first = manager.install(
+            HookLifecycleManager.Spec("transport.v1", conflicts = conflicts),
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        )
+        assertEquals(HookLifecycleManager.State.ACTIVE, first.state)
+
+        conflicts.clear()
+        val second = manager.install(
+            HookLifecycleManager.Spec("transport.v2"),
+            HookLifecycleManager.Installer { error("snapshotted conflict must block install") },
+            HookLifecycleManager.Verifier { true }
+        )
+        assertEquals(HookLifecycleManager.State.SKIPPED, second.state)
+        assertEquals("conflicts_with_active_target:transport.v1", second.detail)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("transport.v1").state)
+    }
+
     @Test
     fun disabledTargetIsSkippedWithoutCallingInstaller() {
         val manager = HookLifecycleManager()
