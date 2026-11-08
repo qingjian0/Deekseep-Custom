@@ -484,3 +484,7 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - normalizedExternalCalls() intentionally excludes obfuscated owners because they are not stable cross-version anchors. A profile containing only such calls could otherwise normalize to an empty set and receive misleading similarity credit.
 - ClassProfile.valid() now rejects obfuscated owners in external-call evidence rather than silently accepting evidence that will later be discarded. Added regression coverage for an obfuscated owner with an otherwise valid method descriptor.
 - Production commit: 9dfb3ac9f186912093d4676c0f3a180c4ae08941; test commit: 00e500332fd48fcb51f2cb1cc4a58cfa229d8c82. CI pending.
+## Semantic matcher baseline verification (2026-11-08)
+
+- ROI run #224 completed successfully on semantic branch commit 3b9b970cf9346b75061caf83c4f5da4054f8c4bf. The semantic profile matcher step passed together with lifecycle, runtime recorder, feature install registry, isolated universal Hook, and legacy adapter regression steps.
+- This run predates the subsequent structural-evidence validation changes (e9d9f9e5 / f0482b0e / 9dfb3ac9 / 00e50033). Those latest changes are being verified separately in runs #230/#231; do not treat #224 as verification of those later commits.
