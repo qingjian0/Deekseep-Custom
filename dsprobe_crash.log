@@ -1,0 +1,24 @@
+06:12:35.135  UNCAUGHT thread=main
+java.lang.RuntimeException: android.os.TransactionTooLargeException: data parcel size 1095388 bytes
+	at android.content.ClipboardManager.setPrimaryClip(ClipboardManager.java:195)
+	at ds.dsh.DeepSeek.DeekseepUi$109.onClick(r8-map-id-b7f23bd9f4711a6531478d42d4f6374e9606a89a3d2dcb9cdda883422722669c:44)
+	at android.view.View.performClick(View.java:8521)
+	at android.view.View.performClickInternal(View.java:8492)
+	at android.view.View.-$$Nest$mperformClickInternal(View.java:0)
+	at android.view.View$PerformClick.run(View.java:34472)
+	at android.os.Handler.handleCallback(Handler.java:1129)
+	at android.os.Handler.dispatchMessageImpl(Handler.java:139)
+	at android.os.Handler.dispatchMessage(Handler.java:129)
+	at android.os.Looper.loopOnce(Looper.java:315)
+	at android.os.Looper.loop(Looper.java:419)
+	at android.app.ActivityThread.main(ActivityThread.java:10840)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:598)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1150)
+Caused by: android.os.TransactionTooLargeException: data parcel size 1095388 bytes
+	at android.os.BinderProxy.transactNative(Native Method)
+	at android.os.BinderProxy.transact(BinderProxy.java:769)
+	at android.content.IClipboard$Stub$Proxy.setPrimaryClip(IClipboard.java:451)
+	at android.content.ClipboardManager.setPrimaryClip(ClipboardManager.java:188)
+	... 14 more
+
