@@ -851,6 +851,11 @@ final class OpenLocalApiGateway {
             return;
         }
         String requestId = normalized.requestId;
+        if (normalized.stream && normalized.toolPlan.active()) {
+            sendAnthropicError(out, 400, "invalid_request_error",
+                    "Streaming tool_use is not implemented yet; use stream=false");
+            return;
+        }
         z2.CompletionRequest completion = new z2.CompletionRequest(
                 requestId, normalized.model, "default", normalized.prompt, normalized.prompt,
                 normalized.reasoning, false, normalized.maxTokens,
@@ -1260,6 +1265,11 @@ final class OpenLocalApiGateway {
                 return;
             }
             maxTokens = (int) value;
+        }
+        if (stream && toolPlan.active()) {
+            sendError(out, 400, "unsupported_streaming_tool_calls",
+                    "Responses streaming tool calls are not implemented yet; use stream=false");
+            return;
         }
         z2.CompletionRequest completion = new z2.CompletionRequest(
                 requestId, model, "default", basePrompt, prompt,

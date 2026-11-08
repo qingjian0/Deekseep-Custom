@@ -275,6 +275,10 @@ if 'Object rawCallId = item.opt("call_id");' not in source or "Tool-call output 
     raise SystemExit("Responses tool-call output IDs must be validated as strings")
 if '"/v1/messages".equals(request.path)' not in source or "handleAnthropicMessages(out, request)" not in source:
     raise SystemExit("Anthropic Messages endpoint is not registered")
+if 'Responses streaming tool calls are not implemented yet; use stream=false' not in source:
+    raise SystemExit("Responses streaming must reject tool calls until structured tool events are implemented")
+if 'Streaming tool_use is not implemented yet; use stream=false' not in source:
+    raise SystemExit("Anthropic streaming must reject tool_use until structured tool events are implemented")
 if 'throw new z2.GatewayException(503, "engine_missing"' not in security:
     raise SystemExit("Open native completion must report engine_missing when the execution payload is absent")
 if 'native_adapter_unavailable' in security:
