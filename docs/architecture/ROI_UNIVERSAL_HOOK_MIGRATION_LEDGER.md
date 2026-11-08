@@ -423,3 +423,11 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - Added regression tests for retry after dependency activation and after conflicting-target uninstall.
 - Source commit: `13b9d31e0d2fbd4bc0b7e368fa5d9d65ca42b585`; test commit: `acc8f3d52446f31a5bf350f249a3f1db9c10d624`.
 - PR #14 head has no CI run yet. The current ROI workflow is not configured to trigger on `work/generic-hook-lifecycle-dev`; no test, build, emulator, or device validation is claimed.
+
+
+## Lifecycle retryability audit correction (2026-11-08)
+
+- Correction to the immediately preceding retryability note: control-flow inspection showed dependency-not-active and conflict-blocked returns occur before `Entry` creation. Those transient `SKIPPED` statuses are therefore not persisted and are naturally re-evaluated on the next install call.
+- The proposed production guard change was reverted; no production behavior change remains from that hypothesis.
+- The two retry-after-condition-clears tests remain as regression coverage. Their execution is still pending.
+- Revert commit: `109b8bc52d5c8714e75ff4b5f8d6519995124341`. The prior ledger paragraph claiming a confirmed lifecycle liveness defect is superseded by this correction.
