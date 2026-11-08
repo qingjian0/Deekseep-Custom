@@ -291,7 +291,7 @@ final class RoiSemanticProfileMatcher {
         int close = value.indexOf(')', open + 1);
         if (open <= 0 || close < open || close == value.length() - 1) return "";
         String name = value.substring(0, open);
-        if (name.trim().isEmpty() || name.indexOf('(') >= 0 || name.indexOf(')') >= 0) return "";
+        if (!isMethodName(name)) return "";
         String arguments = value.substring(open + 1, close);
         String returns = value.substring(close + 1);
         if (!validTypeSequence(arguments) || !validReturnType(returns)) return "";
@@ -326,6 +326,30 @@ final class RoiSemanticProfileMatcher {
         return isReferenceType(descriptor);
     }
 
+    private static boolean isInternalClassName(String name) {
+        if (name == null || name.isEmpty() || name.charAt(0) == '/'
+                || name.charAt(name.length() - 1) == '/' || name.contains("//")) return false;
+        for (int i = 0; i < name.length(); i++) {
+            char value = name.charAt(i);
+            if (value == '.' || value == '[' || value == ';' || value == '\\'
+                    || Character.isWhitespace(value)) return false;
+        }
+        return true;
+    }
+
+    private static boolean isMethodName(String name) {
+        if (name == null || name.isEmpty() || name.contains("->")) return false;
+        if (name.indexOf('<') >= 0 || name.indexOf('>') >= 0) {
+            return "<init>".equals(name) || "<clinit>".equals(name);
+        }
+        for (int i = 0; i < name.length(); i++) {
+            char value = name.charAt(i);
+            if (value == '.' || value == ';' || value == '[' || value == '/'
+                    || Character.isWhitespace(value)) return false;
+        }
+        return true;
+    }
+
     private static boolean isFieldEvidence(String field) {
         String value = clean(field);
         Matcher matcher = FIELD.matcher(value);
@@ -353,7 +377,7 @@ final class RoiSemanticProfileMatcher {
             int end = value.indexOf(';', index);
             if (end <= index + 1) return -1;
             String name = value.substring(index + 1, end);
-            if (name.indexOf('.') >= 0 || name.indexOf('[') >= 0) return -1;
+            if (!isInternalClassName(name)) return -1;
             return end + 1;
         }
         if ("BCDFIJSZ".indexOf(kind) >= 0) return index + 1;
