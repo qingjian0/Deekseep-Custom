@@ -495,3 +495,8 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - Additional static audit found descriptor-name syntax was still permissive: malformed internal class names and whitespace-containing method names could pass the shape parser. Added `isInternalClassName()` and `isMethodName()` checks and tests. A follow-up aligned the checks with JVM/DEX unqualified-name delimiter rules instead of rejecting whitespace categorically; the regression fixture now uses a forbidden slash in a method name.
 - Descriptor-name production commit: 77532bdb5798445f48ca6b471191c8ecec70a477; tests: 5bd1da1f1b5303308a2e44e1c94445c6853298ee. ROI runs #236/#237/#238 are pending/in progress; no pass is claimed for this latest hardening yet.
 - Follow-up commits: `a32c2abcd0050cfabfaecbb00e3411803d48c609` (production rule precision) and `a326dcce1ee386d307ad3deb0d7751f3aaec5769` (test fixture). Latest runs #244/#245/#246 are pending/queued; no pass claimed for these final commits.
+
+## Latest parallel verification checkpoint (2026-11-08)
+
+- Semantic descriptor-name validation commit `77532bdb5798445f48ca6b471191c8ecec70a477` passed ROI runs #236 and #237; the semantic matcher step and all enabled regression steps passed. The subsequent precision commits `a32c2abcd0050cfabfaecbb00e3411803d48c609` / `a326dcce1ee386d307ad3deb0d7751f3aaec5769` are still awaiting their dedicated runs #244/#245/#246.
+- Lifecycle callback lock-boundary regression commit `6424012328e811beb10da4878bbd3e55acc3072d` passed the `Run Kotlin lifecycle manager tests` step in ROI run #242. Remaining runtime regression steps in that run were still running at this checkpoint; run #243 is queued.
