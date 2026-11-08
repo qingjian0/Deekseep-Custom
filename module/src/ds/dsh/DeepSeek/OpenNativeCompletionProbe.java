@@ -315,7 +315,9 @@ final class OpenNativeCompletionProbe {
             line(out, "diagnostic.callback_discovery_limits", "collector-callback-objects-observed-at-y60-boundary-only; continuation-identity-only-never-method-hooked");
             line(out, "diagnostic.callback_hook_limits", "collector-concrete-class-declared-methods-1-to-2-args-nonvoid-max-12-no-superclass-traversal-sorted-by-descriptor");
             line(out, "diagnostic.callback_shape_capture", "first-argument-and-successful-result-field-names-and-types-once-per-method-no-field-values");
-            Class<?> requestType = HostCompat.load(loader, "ew0");
+            Class<?> requestType = HostCompat.isV275StaticOnly()
+                    ? Class.forName("yu1", false, loader)
+                    : HostCompat.load(loader, "ew0");
             line(out, "edition", BuildInfo.BUILD_EDITION);
             line(out, "host", HostCompat.diagnosticSummary());
             appendLoaderChain(out, loader);
