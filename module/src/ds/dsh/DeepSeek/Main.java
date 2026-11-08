@@ -524,7 +524,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     private static final AtomicBoolean TEXT_WAVE_HOOKS_INSTALLED = new AtomicBoolean(false);
 
-    private static final AtomicBoolean AGENT_RENDER_HOOKS_INSTALLED = new AtomicBoolean(false);
+    private static final AtomicBoolean AGENT_RENDER_HOOKS_ATTEMPTED = new AtomicBoolean(false);
 
     private static final AtomicBoolean APPEARANCE_HOOKS_INSTALLED = new AtomicBoolean(false);
 
@@ -1867,6 +1867,22 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         return true;
     }
 
+    private void installOptionalAgentRenderHook(
+            String id, FeatureHookInstallRegistry.Installer installer) {
+        try {
+            installer.install();
+            log("optional Agent render hook installed: " + id);
+        } catch (VirtualMachineError fatal) {
+            throw fatal;
+        } catch (ThreadDeath fatal) {
+            throw fatal;
+        } catch (Throwable error) {
+            // Agent render adapters are independent optional features. A stale code257
+            // symbol must not prevent later render boundaries from being attempted.
+            log("optional Agent render hook unavailable [" + id + "]: "
+                    + safeThrowableMessage(error));
+        }
+    }
     void installBestEffortHook(String id, FeatureHookInstallRegistry.Installer installer,
             String logPrefix) {
         try {
@@ -2176,7 +2192,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         if (HostCompat.isV271Full()) {
             // Hand-verified 2.7.1 settings entry (gt0.Q page_show) as a guaranteed module entry;
             // the translated 2.4.1 settings hooks below are best effort on top of it.
-            log("installAllFeatureHooks: 2.7.1 full mode via HostRemap classes=" + HostRemap.classCount());
+            log("installAllFeatureHooks: " + HostCompat.hostLabel() + " full mode via HostRemap classes=" + HostRemap.classCount());
             installBestEffortHook("host.v271.settings-entry", () -> HostV271.installSettingsEntry(hookLoader),
                     "2.7.1 settings entry failed: ");
         }
@@ -4581,7 +4597,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     private static boolean setLocalApiFloatingWindowEnabledV241(
             Context context, boolean enabled) {
-        return persistAndDispatchFloatingWindow(context, enabled, "code257");
+        return persistAndDispatchFloatingWindow(context, enabled, "2.7.x full-map");
     }
 
     private static boolean persistAndDispatchFloatingWindow(
@@ -7584,7 +7600,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     private static boolean requestLocalApiFloatingWindowV241(
             Context context, boolean enabled) {
-        return requestLocalApiFloatingWindowExact(context, enabled, "code257");
+        return requestLocalApiFloatingWindowExact(context, enabled, "2.7.x full-map");
     }
 
     private static boolean requestLocalApiFloatingWindowExact(
@@ -7905,28 +7921,36 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
         if (AgentToolConfig.enabledFast() || isDualChatEnabled()) {
             installBestEffortHook("optional.agent.render-pipeline", () -> {
-                if (!AGENT_RENDER_HOOKS_INSTALLED.compareAndSet(false, true)) return;
-                try {
-                    HookAgentPipeline.INSTANCE.hookHeartbeatToolResponses(cl);
-                    HookAgentPipeline.INSTANCE.hookHeartbeatPatchDispatcher(cl);
-                    HookAgentPipeline.INSTANCE.hookTrackedHeartbeatStateWrites(cl);
-                    HookAgentPipeline.INSTANCE.hookHeartbeatFragmentRenderBoundary(cl);
-                    HookAgentPipeline.INSTANCE.hookHeartbeatMarkdownInputBoundary(cl);
-                    HookAgentPipeline.INSTANCE.hookHeartbeatNativeMarkdownParser(cl);
-                    HookAgentPipeline.INSTANCE.hookAgentToolLogRoundedRect(cl);
-                    HookAttachmentPipeline.INSTANCE.hookNativeModelFileCards(cl);
-                    HookAgentPipeline.INSTANCE.hookHeartbeatToolStatusStyle(
-                            cl, HostCompat.name("i68"), HostCompat.name("h78"));
-                    HookAgentPipeline.INSTANCE.hookHeartbeatToolStatusBasicText(
-                            cl, HostCompat.isV241() ? "ox1" : HostCompat.name("yg8"),
-                            HostCompat.isV241() ? "e" : HostCompat.method("yg8", "b"),
-                            HostCompat.name("h78"));
-                    HookAttachmentPipeline.INSTANCE.hookModelFileLinks();
-                } catch (Throwable error) {
-                    AGENT_RENDER_HOOKS_INSTALLED.set(false);
-                    throw error;
-                }
-            }, "Agent render hook installation failed: ");
+                if (!AGENT_RENDER_HOOKS_ATTEMPTED.compareAndSet(false, true)) return;
+                // Attempt every optional render boundary independently. A missing
+                // code257/code289 symbol degrades only that feature, not later adapters.
+                installOptionalAgentRenderHook("heartbeat.responses",
+                        () -> HookAgentPipeline.INSTANCE.hookHeartbeatToolResponses(cl));
+                installOptionalAgentRenderHook("heartbeat.patch-dispatcher",
+                        () -> HookAgentPipeline.INSTANCE.hookHeartbeatPatchDispatcher(cl));
+                installOptionalAgentRenderHook("heartbeat.state-writes",
+                        () -> HookAgentPipeline.INSTANCE.hookTrackedHeartbeatStateWrites(cl));
+                installOptionalAgentRenderHook("heartbeat.fragment-render",
+                        () -> HookAgentPipeline.INSTANCE.hookHeartbeatFragmentRenderBoundary(cl));
+                installOptionalAgentRenderHook("heartbeat.markdown-input",
+                        () -> HookAgentPipeline.INSTANCE.hookHeartbeatMarkdownInputBoundary(cl));
+                installOptionalAgentRenderHook("heartbeat.native-markdown-parser",
+                        () -> HookAgentPipeline.INSTANCE.hookHeartbeatNativeMarkdownParser(cl));
+                installOptionalAgentRenderHook("agent.tool-log-rounded-rect",
+                        () -> HookAgentPipeline.INSTANCE.hookAgentToolLogRoundedRect(cl));
+                installOptionalAgentRenderHook("attachment.model-file-cards",
+                        () -> HookAttachmentPipeline.INSTANCE.hookNativeModelFileCards(cl));
+                installOptionalAgentRenderHook("agent.tool-status-style",
+                        () -> HookAgentPipeline.INSTANCE.hookHeartbeatToolStatusStyle(
+                                cl, HostCompat.name("i68"), HostCompat.name("h78")));
+                installOptionalAgentRenderHook("agent.tool-status-basic-text",
+                        () -> HookAgentPipeline.INSTANCE.hookHeartbeatToolStatusBasicText(
+                                cl, HostCompat.isV241() ? "ox1" : HostCompat.name("yg8"),
+                                HostCompat.isV241() ? "e" : HostCompat.method("yg8", "b"),
+                                HostCompat.name("h78")));
+                installOptionalAgentRenderHook("attachment.model-file-links",
+                        () -> HookAttachmentPipeline.INSTANCE.hookModelFileLinks());
+            }, "Agent render pipeline initialization failed: ");
         }
 
         if (ChatAppearance.hasEnabledRuntimeEffects() || InputGlassStyle.anyEnabled()) {
