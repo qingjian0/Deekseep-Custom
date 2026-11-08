@@ -56,7 +56,7 @@ public final class RoiSemanticProfileMatcherTest {
                 Collections.singletonList("run()V"),
                 Collections.<String>emptyList(),
                 Collections.<String>emptyList(),
-                Collections.<String, String>emptyMap());
+                Collections.singletonMap("transport.dispatch", "run()V"));
         RoiSemanticProfileMatcher.Match weak = RoiSemanticProfileMatcher.rank(
                 source, Collections.singletonList(unrelated)).get(0);
         equal(RoiSemanticProfileMatcher.State.LOW_CONFIDENCE, weak.state, "weak match rejected");
@@ -66,7 +66,7 @@ public final class RoiSemanticProfileMatcherTest {
                 Collections.<String>emptyList(), Collections.<String>emptyList(),
                 Collections.singletonList("dispatch(Lreq;Ljava/lang/Long;)Lresp;"),
                 Collections.<String>emptyList(), Collections.<String>emptyList(),
-                Collections.<String, String>emptyMap());
+                Collections.singletonMap("request.build", "dispatch(Lreq;Ljava/lang/Long;)Lresp;"));
         RoiSemanticProfileMatcher.Match mismatch = RoiSemanticProfileMatcher.rank(
                 source, Collections.singletonList(wrongRole)).get(0);
         equal(RoiSemanticProfileMatcher.State.ROLE_MISMATCH, mismatch.state, "role mismatch rejected");
