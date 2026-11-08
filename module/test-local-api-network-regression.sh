@@ -249,6 +249,8 @@ if 'basePrompt = "system: " + instructions' not in source:
     raise SystemExit("Responses instructions must remain system context before prior transcript")
 if 'Responses input exceeds the prompt size limit' not in source or 'Message content exceeds the prompt size limit' not in source:
     raise SystemExit("Oversized Responses content must be rejected, never silently truncated")
+if 'Input item type must be a string' not in source or 'Message role must be a string' not in source or 'Content part type must be a string' not in source:
+    raise SystemExit("Responses item, role, and content-part types must be validated without coercion")
 if 'Object rawCallId = item.opt("call_id");' not in source or "Tool-call output id must be a string" not in source:
     raise SystemExit("Responses tool-call output IDs must be validated as strings")
 if '"/v1/messages".equals(request.path)' not in source or "handleAnthropicMessages(out, request)" not in source:

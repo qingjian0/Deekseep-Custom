@@ -1359,9 +1359,17 @@ final class OpenLocalApiGateway {
         for (int i = 0; i < items.length(); i++) {
             JSONObject item = items.optJSONObject(i);
             if (item == null) throw new IllegalArgumentException("Invalid input item");
-            String type = item.optString("type", "message");
+            Object rawType = item.opt("type");
+            if (rawType != null && !(rawType instanceof String)) {
+                throw new IllegalArgumentException("Input item type must be a string");
+            }
+            String type = rawType == null ? "message" : (String) rawType;
             if ("message".equals(type)) {
-                String role = item.optString("role", "user");
+                Object rawRole = item.opt("role");
+                if (rawRole != null && !(rawRole instanceof String)) {
+                    throw new IllegalArgumentException("Message role must be a string");
+                }
+                String role = rawRole == null ? "user" : (String) rawRole;
                 if (!"system".equals(role) && !"developer".equals(role)
                         && !"user".equals(role) && !"assistant".equals(role)) {
                     throw new IllegalArgumentException("Invalid message role");
@@ -1800,7 +1808,11 @@ final class OpenLocalApiGateway {
         for (int i = 0; i < parts.length(); i++) {
             JSONObject part = parts.optJSONObject(i);
             if (part == null) throw new IllegalArgumentException("Invalid message content part");
-            String type = part.optString("type", "");
+            Object rawType = part.opt("type");
+            if (!(rawType instanceof String)) {
+                throw new IllegalArgumentException("Content part type must be a string");
+            }
+            String type = (String) rawType;
             if (!"text".equals(type) && !"input_text".equals(type) && !"output_text".equals(type)) {
                 throw new IllegalArgumentException("Only text content parts are supported");
             }
