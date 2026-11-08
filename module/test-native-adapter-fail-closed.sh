@@ -138,6 +138,11 @@ require(
 )
 require(
     probe,
+    r'installCode295PowObserver\(loader\).*?Class\.forName\("of2", false, loader\).*?Class\.forName\("ts9", false, loader\).*?Class\.forName\("ec3", false, loader\).*?getDeclaredMethod\("k".*?code295 pow',
+    "code295 observes the exact audited PoW algorithm boundary without reading challenge values",
+)
+require(
+    probe,
     r'HostCompat\.isV275StaticOnly\(\)\s*\?\s*Class\.forName\("yu1", false, loader\)\s*:\s*HostCompat\.load\(loader, "ew0"\)',
     "code295 inventory must not resolve the legacy 2.2 request symbol",
 )
