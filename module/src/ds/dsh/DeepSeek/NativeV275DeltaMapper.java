@@ -59,18 +59,21 @@ final class NativeV275DeltaMapper {
         if (state == null || command == null) return rejected("state and command are required");
         String beforeText = aggregate(state, TYPE_RESPONSE);
         String beforeReasoning = aggregate(state, TYPE_THINK);
+        State working = copyState(state);
         try {
             if (command.isInitialSnapshot()) {
-                loadSnapshot(state, command.value);
+                loadSnapshot(working, command.value);
             } else {
-                applyCommand(state, "", command, 0);
+                applyCommand(working, "", command, 0);
             }
-            String text = aggregate(state, TYPE_RESPONSE);
-            String reasoning = aggregate(state, TYPE_THINK);
+            String text = aggregate(working, TYPE_RESPONSE);
+            String reasoning = aggregate(working, TYPE_THINK);
+            state.fragments.clear();
+            state.fragments.addAll(copyFragments(working.fragments));
             return new Result(true, text, reasoning,
                     !beforeText.equals(text), !beforeReasoning.equals(reasoning), null);
         } catch (IllegalArgumentException error) {
-            return rejected(error.getMessage());
+            return new Result(false, beforeText, beforeReasoning, false, false, error.getMessage());
         }
     }
 
@@ -78,7 +81,8 @@ final class NativeV275DeltaMapper {
         Map<?, ?> root = requireMap(raw, "initial snapshot must be an object");
         Object response = root.get("response");
         Map<?, ?> message = requireMap(response, "snapshot response must be an object");
-        Object rawFragments = message.get("fragments");
+        Object rawFragments = message.containsKey("fragments")
+                ? message.get("fragments") : Collections.emptyList();
         List<Fragment> parsed = parseFragments(rawFragments, "snapshot response.fragments");
         state.fragments.clear();
         state.fragments.addAll(parsed);
@@ -174,6 +178,18 @@ final class NativeV275DeltaMapper {
         int index = raw < 0 ? size + raw : raw;
         if (index < 0 || index >= size) throw new IllegalArgumentException("fragment index out of range");
         return index;
+    }
+
+    private static State copyState(State source) {
+        State copy = new State();
+        copy.fragments.addAll(copyFragments(source.fragments));
+        return copy;
+    }
+
+    private static List<Fragment> copyFragments(List<Fragment> source) {
+        List<Fragment> copy = new ArrayList<Fragment>(source.size());
+        for (Fragment fragment : source) copy.add(new Fragment(fragment.type, fragment.content));
+        return copy;
     }
 
     private static String aggregate(State state, String type) {
