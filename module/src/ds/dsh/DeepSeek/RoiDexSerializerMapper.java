@@ -210,8 +210,27 @@ public final class RoiDexSerializerMapper {
                     elementIndex=indexTrace.constantValue;
                 } else if(indexTrace.unique&&indexTrace.sourceInvoke!=null
                         &&"decodeElementIndex".equals(indexTrace.sourceInvoke.methodName)) {
+                    RoiDexInvokeResultLinker.Link indexSource=indexTrace.sourceInvoke;
+                    if(indexSource.isStaticInvoke) {
+                        rejected.add(new Rejected(instruction.offset,parameter,
+                                "dynamic_element_index_decoder_receiver_not_instance"));
+                        constructorComplete=false;continue;
+                    }
+                    RoiDexValueProvenance.ReceiverTrace indexReceiver=
+                            provenance.traceReceiverUse(indexSource.invokeOffset,0);
+                    if(!indexReceiver.unique) {
+                        rejected.add(new Rejected(instruction.offset,parameter,
+                                "dynamic_element_index_decoder_receiver_unresolved:"
+                                        +indexReceiver.rejectionReason));
+                        constructorComplete=false;continue;
+                    }
+                    if(!receiver.identity.equals(indexReceiver.identity)) {
+                        rejected.add(new Rejected(instruction.offset,parameter,
+                                "dynamic_element_index_decoder_receiver_mismatch"));
+                        constructorComplete=false;continue;
+                    }
                     Integer switchKey=resolveSwitchCase(graph,code,provenance,
-                            indexTrace.sourceInvoke,decodeLink.invokeOffset,blockAt,resolver);
+                            indexSource,decodeLink.invokeOffset,blockAt,resolver);
                     if(switchKey==null) {
                         rejected.add(new Rejected(instruction.offset,parameter,
                                 "dynamic_element_index_switch_mapping_ambiguous"));
