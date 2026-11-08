@@ -48,7 +48,7 @@ DeepSeek Hook startup
 
 `module/src/ds/dsh/DeepSeek/Main.java` 的 Backend 实现：
 
-- Open edition 的 `isReady()` 返回 true，以便 HTTP 协议路由保持开放；这不代表原生模型执行能力就绪。
+- Open edition 的 `isReady()` 当前返回 false（原生执行能力尚未就绪）。`OpenLocalApiGateway` 不再把该状态作为 Completion 请求的前置拒绝条件：只记录 readiness，再调用 `Backend.complete()`，由执行门面按请求返回 `engine_missing`。`/v1/models` 仍可独立查询；这不代表原生模型执行能力就绪。
 - Open 的 `readinessDetail()` 明确说明 API 路由已开放，原生执行能力按请求检测。
 - `complete()` 不再按 Open edition 预先拒绝；请求直接进入 `module.executeLocalApiCompletion()`。
 - Open stub 缺少 `z18` payload 时，执行门面按请求返回 HTTP 503 / `engine_missing`。
@@ -1052,3 +1052,62 @@ Important evidence boundary:
 - The executable regression script `module/test-native-json-patch-reducer.sh` is added to the CI Regression job. It compiles against the Android platform `org.json` implementation and tests nested object/array edits, escaped JSON Pointer tokens, copy/move/test, immutability, and atomic failure.
 
 This is an independently testable state-tree primitive, not a completed code289 wire decoder or Native Adapter. Integration is gated on an evidence-backed translation of every host operation, path convention, batch ordering rule, and value representation, followed by code289 device verification.
+
+
+## 2026-11-08 — dev readiness dispatch correction and runtime evidence audit
+
+### Gateway dispatch correction
+
+A source audit found that `OpenLocalApiGateway` still returned HTTP 503 directly when `backend.isReady()` was false. This contradicted the intended Open dispatch contract: the request did not reach `HookAccountLoginSecurity.executeLocalApiCompletion()`, so the payload resolver could not produce the authoritative per-request `engine_missing` result.
+
+The correction is committed directly to `dev`:
+
+- `03ae70e2ca8bc86438c270c84b2353115f26230b` — remove readiness preflight rejection; keep readiness as diagnostic telemetry and dispatch to `Backend.complete()`.
+- `88c317b10858c212de19b0d8bed30976a45d0ffe` — add regression assertions requiring both streaming and non-streaming paths to enter `Backend.complete()`.
+
+Current behavior:
+
+1. Missing Backend object still returns HTTP 503 `model_not_ready`.
+2. A non-ready but present Backend is traced and still receives the Completion call.
+3. Non-streaming Open requests reach `HookAccountLoginSecurity.executeLocalApiCompletion()`; the Open `z14` stub returns no payload class, so the facade returns HTTP 503 `engine_missing`.
+4. Streaming requests enter `streamCompletion()`; because HTTP SSE headers are committed before native execution, an execution failure is represented as an SSE error event rather than changing the already-sent HTTP status. The error code remains `engine_missing`.
+5. This is a dispatch-boundary correction only. It does not implement a native engine.
+
+### Existing code289 runtime log re-check
+
+The committed `open-native-1793943559724.log` was re-read from `dev` (1,676 lines, approximately 532 KB):
+
+- One root `zn3.o(wu1, Long)` dispatch was observed.
+- The same `ly1` Request object entered nested `jw3.g(wu1, Long)`; both returned the same observed `y60` Flow-like object.
+- `y60.b(fl4, yb3)` was entered on a coroutine worker thread.
+- Three continuation callback pairs were observed: `cr9/k41`, `ec0/mm4`, and `s5/g0`.
+- The capture contains 1,656 callback-related lines, dominated by inherited `zb3.t()` callback construction/inspection traffic.
+- It contains **no** `OPEN_NATIVE_API_TRACE` lines and no gateway request ID. It is evidence for the official host UI request path only; it does not prove that Local API requests reach the same native path.
+- The log is schema 4 and predates the current schema-7 `r3.c(dv1, Continuation)` event-name observer. It therefore contains no captured `delta-dispatch-enter/exit` records.
+
+### Current evidence matrix
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Gateway request parsing/auth | Existing Open gateway implementation and regression suite | Implemented |
+| Backend dispatch when not ready | New source path and regression assertion | Source corrected; CI pending |
+| Open execution facade | Resolves protected payload class via `z14` | Present, but Open stub returns null |
+| code289 Request DTO | `nn0.d -> mw1.y -> ly1` static call chain plus runtime `zn3.o` observation | Strong partial evidence |
+| code289 Transport | `zn3.o -> jw3.g -> y60`; same Request identity observed | Strong evidence for official UI path |
+| Flow/event decoding | Static `y60.b -> SSE parser -> sha/cv1 -> r3.c -> reducer` chain | Static evidence; runtime event capture pending |
+| Session bootstrap | `fx1.m` fallback to `/api/v0/chat_session/create` and `ys` construction | Static evidence; external invocation safety unverified |
+| Challenge/PoW | Existing code289 static references and legacy 2.7.x capture gap | Not ready for adapter integration |
+| Gateway-to-native correlation | No captured Local API request ID linked to host Request/Flow | Not proven |
+| Response projection | Fragment/reducer state is structured; `gy.B()` is not a complete response projection | Not implemented |
+| Cancellation / lifecycle | Host suspend/Flow semantics not verified from module-originated request | Not implemented |
+| End-to-end Open generation | No verified Open native engine | Not implemented; keep fail-closed |
+
+### Next implementation order
+
+1. Re-run the current schema-7 opt-in probe on code289 and make one Local API Completion request plus one ordinary UI request in separate capture sessions. The required evidence is a gateway request ID correlated to the exact Request identity, returned Flow identity, `y60.b` continuation, and `r3.c` event names. Do not collect prompt, response data, credentials, or SSE payload bodies.
+2. Confirm the code289 ChallengePlugin/PoW dependency and the real host account/session context at the `nn0.d -> mw1 -> ly1` boundary. Do not invoke `nn0.d` or `fx1.m` from an arbitrary worker until lifecycle and coroutine context are proven.
+3. Map reducer state to typed Answer / Reasoning / Tool / Search / other fragment models. Do not use `gy.B()` as the whole answer; do not map `close` alone to OpenAI finish.
+4. Implement a code289-only adapter behind the stable `z2.Backend` contract, with exactly-once request invocation, request-scoped session isolation, cancellation propagation, deadlines, and cleanup.
+5. Run pure JVM regressions, Android Open build, source audit excluding Closed payload references, then code289 device acceptance for non-stream, SSE, failure, timeout, and disconnect.
+
+Until those gates pass, no successful native Completion is claimed. The route must remain exposed, and the execution facade must continue to fail closed with `engine_missing`.
