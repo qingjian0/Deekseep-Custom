@@ -458,3 +458,8 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - Updated the ambiguous-role test to assert that duplicate normalized prototypes invalidate the profile and produce no candidates. This preserves the strict production invariant rather than weakening validation.
 - Semantic test correction commit: 99c460b1c9c5cebf585676b13c60442586275861. Dedicated rerun #202 and duplicate push-triggered run #203 are pending/in progress; no passing result is claimed yet.
 - YunSeek CI runs #2060-#2062 were independently triggered by the repository's existing work/** rule. They are not ROI-specific test evidence and may include Local API checks.
+## Semantic fixture follow-up (2026-11-08)
+
+- The first semantic test correction exposed a second stale fixture in testDetachedMethodRoleEvidenceIsNotMatchable(): its method name differed, but its normalized prototype intentionally matched because semantic matching ignores obfuscated method names.
+- Corrected that fixture to use a genuinely different parameter descriptor (Integer instead of Long), so it now tests detached structural evidence rather than a harmless method rename.
+- Follow-up test commit: 6ee8d72c1aaaad95e38506f7e74b9e9ea0490e4b. Dedicated rerun #208 is queued; semantic suite remains unverified until that run completes.
