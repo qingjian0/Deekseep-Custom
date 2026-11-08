@@ -508,3 +508,10 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - Added workflow-level concurrency keyed by PR head branch (or push branch) with `cancel-in-progress: true`. A push and its corresponding pull-request event now share one concurrency group; newer commits supersede stale runs on the same branch rather than accumulating duplicate queued jobs.
 - Workflow commit on `work/roi-hook`: `a5911f23344f93c6d232963a2dba811fcf7c3f4e`; synchronized without merge/rebase to Lifecycle `1e904e0b33c1aadb64856a7adaab1d6b96af7931`, Semantic `4c032601dc8046e4711da603bfe490f11c094581`, and Serializer `a4e2b376e479cba0b3cdc2a55ed49777e92eab1a`.
 - This changes only ROI workflow scheduling; the shared YunSeek CI workflow and Local API workflow were not modified.
+
+## Feature registry callback lock-boundary correction (2026-11-08)
+
+- Static audit found `FeatureHookInstallRegistry.install()` held the per-entry monitor while executing the injected installer callback. A callback that waits for a worker which queries `snapshot()`/status could deadlock because the observer needs the same entry monitor.
+- Refactored install to reserve the ID as `INSTALLING` under lock, execute the installer outside the monitor, then commit `INSTALLED`/`FAILED` under lock. Duplicate callers still see `INSTALLING` and cannot execute a second installer. `markSkipped()` and `markDegraded()` now leave an in-progress install unchanged, preventing callback-time state overwrite.
+- Added cross-thread snapshot probes to both the active registry regression runner and the broader regression test source.
+- Production commit: `9db59c7ba14da45e7e84c993d859c7f37d89ea33`; active-runner test commit: `559f93e749333a2b1c64cfc1a03fd3b1247316f8`; additional test-source commit: `63033ecaa9034a1d7770f6c9db82851723f94091`. Dedicated ROI CI pending.
