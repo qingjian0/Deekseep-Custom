@@ -1165,19 +1165,19 @@ PoW 静态链包含 `nw3.c`、`of2`、`oq1`、`PowCalculator JNI` 与 `librscryp
 **交付判定：** 2.7.5 APK 身份与静态调用链已有证据；本轮已加入 code295 请求路由的被动运行时观察器；尚无 2.7.5 真机运行轨迹，也没有 code295 原生 Completion 的端到端结果。不可标记为“2.7.5 已适配完成”。
 
 
-### 2.7.5 SSE dispatcher 被动观察器（2026-11-08）
+### 2.7.5 DeltaCommand dispatcher 被动观察器（2026-11-08）
 
 本轮在 code295 的 `nw3.e(yu1, Long) -> b70` 请求路由观察器后，增加第二个精确描述符观察点：
 
-- Owner：`pv1`
+- Owner：`r3`
 - Method：`a`
-- Descriptor：`(pv1, bia, ec3) -> Object`
+- Descriptor：`(r3, fv1, dc3) -> Object`
 - 要求目标方法为 static；若运行时反射结果不满足精确签名，则不安装。
 - 只记录方法描述符、参数类型、Continuation 关联 ID、返回类型、耗时和异常类型。
 - 不读取或序列化 SSE event payload，不修改参数、返回值或宿主状态。
-- 该点是独立 DEX 静态审计中的 SSE dispatch 候选，尚未在 2.7.5 真机确认，因此日志必须以实际 `installed` / `signature-unavailable` 结果为准。
+- 该点是独立 DEX 静态审计中的 DeltaCommand dispatch 候选，尚未在 2.7.5 真机确认，因此日志必须以实际 `installed` / `signature-unavailable` 结果为准。
 
-这使 2.7.5 opt-in trace 至少覆盖 Request route 与 SSE dispatch 两个静态边界；不能据此声称 b70 Flow collector、原始 SSE parser `vs1.z` 或完整 Delta reducer 已在设备上被观察到。下一步需通过 2.7.5 真机日志建立 `nw3.e` 返回的 b70 与 `pv1.a` 调用之间的对象/Continuation 关联，并确认事件终态、取消和恢复路径。
+这使 2.7.5 opt-in trace 至少覆盖 Request route 与 DeltaCommand dispatch 两个静态边界；不能据此声称 b70 Flow collector、原始 SSE parser `vs1.z` 或完整 Delta reducer 已在设备上被观察到。下一步需通过 2.7.5 真机日志建立 `nw3.e` 返回的 b70 与 `r3.c` 调用之间的对象/Continuation 关联，并确认事件终态、取消和恢复路径。
 
 
 ### 2.7.5 PoW 算法边界被动观察器（2026-11-08）
@@ -1189,4 +1189,7 @@ PoW 静态链包含 `nw3.c`、`of2`、`oq1`、`PowCalculator JNI` 与 `librscryp
 - 不读取 challenge、salt、difficulty、nonce、PoW solution 或任何 header 值；不参与计算、不缓存、不注入。
 - 这是 PoW 算法选择/处理边界的静态候选观察，不等于 PoW 已实现或已验证。
 
-目前 code295 的 opt-in observer 计划覆盖三处独立边界：`nw3.e(yu1, Long) -> b70` 请求路由、`of2.k(ts9, ec3) -> Object` PoW、`pv1.a(pv1, bia, ec3) -> Object` SSE dispatch。三处是否真实安装及是否被官方请求调用，必须以 2.7.5 设备日志为准。仍未实现 RequestFactory、SessionBridge、ChallengeProvider、EventDecoder 或 Gateway completion adapter。
+目前 code295 的 opt-in observer 计划覆盖三处独立边界：`nw3.e(yu1, Long) -> b70` 请求路由、`of2.k(ts9, ec3) -> Object` PoW、`r3.c(fv1, dc3) -> Object` DeltaCommand dispatch。三处是否真实安装及是否被官方请求调用，必须以 2.7.5 设备日志为准。仍未实现 RequestFactory、SessionBridge、ChallengeProvider、EventDecoder 或 Gateway completion adapter。
+
+
+**静态证据纠偏：** 候选方法表中的 `pv1.a` 曾被粗略标记为 `sse_dispatch`，但更高置信度的 smali 调用链明确给出 `vs1.z → bia → t5.a → ev1 → r3.c(fv1, dc3) → DeltaCommand`。因此代码已改为观察 `r3.c(fv1, dc3)`，不再 Hook `pv1.a`；`pv1` 仅保留为上游 Flow 收集/适配相关类，不将其误称为最终 DeltaCommand dispatcher。
