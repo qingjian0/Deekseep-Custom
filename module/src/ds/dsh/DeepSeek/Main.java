@@ -7735,7 +7735,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                     try {
                         FileWriter writer = new FileWriter(LOADED_MARK_EXT, false);
                         writer.write(TS.format(new Date()) + "  loaded into "
-                                + TARGET + " (unknown-host; feature hooks gated)\\n");
+                                + TARGET + " (unknown-host; feature hooks gated)\n");
                         writer.close();
                     } catch (Throwable markerError) {
                         log("unknown-host loaded marker unavailable: "
