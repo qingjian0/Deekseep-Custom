@@ -106,9 +106,15 @@ final class NativeV275DeltaMapper {
     }
 
     private static void applyPath(State state, String path, String operation, Object value) {
-        String[] parts = path.split("/", -1);
-        int offset = parts.length > 0 && parts[0].length() == 0 ? 1 : 0;
-        int count = parts.length - offset;
+        String[] rawParts = path.split("/", -1);
+        List<String> normalized = new ArrayList<String>();
+        for (String part : rawParts) {
+            // Host x13.c("") returns the current node, so empty path segments are no-ops.
+            if (part.length() > 0) normalized.add(part);
+        }
+        String[] parts = normalized.toArray(new String[normalized.size()]);
+        int offset = 0;
+        int count = parts.length;
         if (count == 2 && "response".equals(parts[offset])
                 && "fragments".equals(parts[offset + 1])) {
             List<Fragment> incoming = parseFragments(value, "delta fragments");
