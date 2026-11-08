@@ -500,3 +500,5 @@ These commands are the intended local/JVM regression suite. They do not replace 
 
 - Semantic descriptor-name validation commit `77532bdb5798445f48ca6b471191c8ecec70a477` passed ROI runs #236 and #237; the semantic matcher step and all enabled regression steps passed. The subsequent precision commits `a32c2abcd0050cfabfaecbb00e3411803d48c609` / `a326dcce1ee386d307ad3deb0d7751f3aaec5769` are still awaiting their dedicated runs #244/#245/#246.
 - Lifecycle callback lock-boundary regression commit `6424012328e811beb10da4878bbd3e55acc3072d` passed the `Run Kotlin lifecycle manager tests` step in ROI run #242. Remaining runtime regression steps in that run were still running at this checkpoint; run #243 is queued.
+
+- Lifecycle run #242 completed successfully after the callback lock-boundary test passed. Runtime invocation recorder, feature install registry, isolated Universal Hook, and legacy adapter regression steps also passed in the same run. The duplicate run #243 was still in progress at this checkpoint.
