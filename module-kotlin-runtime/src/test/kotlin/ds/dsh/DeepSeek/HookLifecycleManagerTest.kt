@@ -90,6 +90,66 @@ class HookLifecycleManagerTest {
     }
 
     @Test
+    fun dependencySkippedTargetCanRetryAfterDependencyBecomesActive() {
+        val manager = HookLifecycleManager()
+        val dependent = HookLifecycleManager.Spec(
+            id = "chat.stream",
+            dependencies = setOf("chat.transport")
+        )
+        val first = manager.install(
+            dependent,
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        )
+        assertEquals(HookLifecycleManager.State.SKIPPED, first.state)
+        assertEquals("dependency_not_active:chat.transport", first.detail)
+
+        assertEquals(
+            HookLifecycleManager.State.ACTIVE,
+            manager.install(
+                HookLifecycleManager.Spec("chat.transport"),
+                HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+                HookLifecycleManager.Verifier { true }
+            ).state
+        )
+        val retried = manager.install(
+            dependent,
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        )
+        assertEquals(HookLifecycleManager.State.ACTIVE, retried.state)
+    }
+
+    @Test
+    fun conflictSkippedTargetCanRetryAfterConflictingTargetIsUninstalled() {
+        val manager = HookLifecycleManager()
+        assertEquals(
+            HookLifecycleManager.State.ACTIVE,
+            manager.install(
+                HookLifecycleManager.Spec("transport.v1", conflicts = setOf("transport.v2")),
+                HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+                HookLifecycleManager.Verifier { true }
+            ).state
+        )
+        val spec = HookLifecycleManager.Spec("transport.v2")
+        val first = manager.install(
+            spec,
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        )
+        assertEquals(HookLifecycleManager.State.SKIPPED, first.state)
+        assertEquals("conflicts_with_active_target:transport.v1", first.detail)
+
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("transport.v1").state)
+        val retried = manager.install(
+            spec,
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        )
+        assertEquals(HookLifecycleManager.State.ACTIVE, retried.state)
+    }
+
+    @Test
     fun conflictingActiveTargetBlocksInstall() {
         val manager = HookLifecycleManager()
         manager.install(
