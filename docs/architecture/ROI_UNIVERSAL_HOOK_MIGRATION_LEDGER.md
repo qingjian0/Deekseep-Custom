@@ -502,3 +502,9 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - Lifecycle callback lock-boundary regression commit `6424012328e811beb10da4878bbd3e55acc3072d` passed the `Run Kotlin lifecycle manager tests` step in ROI run #242. Remaining runtime regression steps in that run were still running at this checkpoint; run #243 is queued.
 
 - Lifecycle run #242 completed successfully after the callback lock-boundary test passed. Runtime invocation recorder, feature install registry, isolated Universal Hook, and legacy adapter regression steps also passed in the same run. The duplicate run #243 was still in progress at this checkpoint.
+
+## ROI CI duplicate-run suppression (2026-11-08)
+
+- Added workflow-level concurrency keyed by PR head branch (or push branch) with `cancel-in-progress: true`. A push and its corresponding pull-request event now share one concurrency group; newer commits supersede stale runs on the same branch rather than accumulating duplicate queued jobs.
+- Workflow commit on `work/roi-hook`: `a5911f23344f93c6d232963a2dba811fcf7c3f4e`; synchronized without merge/rebase to Lifecycle `1e904e0b33c1aadb64856a7adaab1d6b96af7931`, Semantic `4c032601dc8046e4711da603bfe490f11c094581`, and Serializer `a4e2b376e479cba0b3cdc2a55ed49777e92eab1a`.
+- This changes only ROI workflow scheduling; the shared YunSeek CI workflow and Local API workflow were not modified.
