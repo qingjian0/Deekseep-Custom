@@ -91,6 +91,18 @@ The unknown-version gate and feature-Hook gate are cumulative for unknown-host f
 
 The dev implementation now includes independent host-private marker persistence, three separate settings controls, a live gate-status explanation, runtime checks at the unknown-host dispatcher/probe/feature adapter entry points, and an eight-combination policy test. Turning diagnostic or feature switches OFF causes already-installed wrappers to pass through when their callback next runs. Full Android build, CI execution, and real-device verification remain separate acceptance steps.
 
+## Unknown-host activation reporting
+
+Unknown/unmaintained host versions return early from the maintained feature bootstrap. That early return must not suppress the module's process-activation signal.
+
+- Before returning from the isolated unknown-host branch, register a read-only `Application.ActivityLifecycleCallbacks` observer.
+- On Activity resume, report the target-process heartbeat through the existing authenticated activation provider / explicit-component fallback.
+- The observer may write the existing loaded marker for diagnostics.
+- It must not install feature Hooks, symbol adapters, UI patches, or enable any unknown-host gate.
+- The launcher may therefore report that the module was injected/observed in the target process while continuing to label functional compatibility as unverified.
+
+This is deliberately a process-presence signal, not proof that Native Completion or any feature Hook works.
+
 ## Consequences
 
 - Deliberate unknown-version compatibility attempts become possible without making unknown versions implicitly trusted.
