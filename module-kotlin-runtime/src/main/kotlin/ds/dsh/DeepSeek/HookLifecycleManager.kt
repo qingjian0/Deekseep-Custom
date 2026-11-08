@@ -123,8 +123,8 @@ class HookLifecycleManager {
                     stableSpec.id in it.spec.conflicts
             }?.spec?.id
             if (activeConflict != null) {
-                return Status(spec.id, State.SKIPPED, existing?.attempts ?: 0,
-                    spec.required, "conflicts_with_active_target:$activeConflict")
+                return Status(stableSpec.id, State.SKIPPED, existing?.attempts ?: 0,
+                    stableSpec.required, "conflicts_with_active_target:$activeConflict")
             }
 
             entry = existing ?: Entry(stableSpec).also { entries[stableSpec.id] = it }
