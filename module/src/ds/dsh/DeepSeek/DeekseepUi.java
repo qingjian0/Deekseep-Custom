@@ -3223,11 +3223,6 @@ public final class DeekseepUi {
                             : UiLanguage.text(act, "原生适配诊断已复制",
                                     "Native adapter diagnostics copied");
                     Toast.makeText(act, copyMessage, Toast.LENGTH_SHORT).show();
-                } else {
-                    Toast.makeText(act,
-                            UiLanguage.text(act, "复制失败，请使用保存成文件",
-                                    "Copy failed; use Save to file"),
-                            Toast.LENGTH_LONG).show();
                 }
             }
         });
@@ -3439,18 +3434,20 @@ public final class DeekseepUi {
             public void onClick(View v) {
                 String baseUrl = z2.PROTOCOL_ANTHROPIC.equals(Main.localApiProtocol())
                         ? Main.localApiRootEndpoint() : Main.localApiCopyEndpoint();
-                copyText(act, "API URL", baseUrl);
-                feedback.setText(UiLanguage.dynamic(act, "URL 已复制"));
-                Toast.makeText(act, UiLanguage.dynamic(act, "URL 已复制"),
-                        Toast.LENGTH_SHORT).show();
+                if (copyText(act, "API URL", baseUrl)) {
+                    feedback.setText(UiLanguage.dynamic(act, "URL 已复制"));
+                    Toast.makeText(act, UiLanguage.dynamic(act, "URL 已复制"),
+                            Toast.LENGTH_SHORT).show();
+                }
             }
         });
         copyKey.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                copyText(act, "API Key", Main.localApiKey());
-                feedback.setText(UiLanguage.dynamic(act, "API Key 已复制"));
-                Toast.makeText(act, UiLanguage.dynamic(act, "API Key 已复制"),
-                        Toast.LENGTH_SHORT).show();
+                if (copyText(act, "API Key", Main.localApiKey())) {
+                    feedback.setText(UiLanguage.dynamic(act, "API Key 已复制"));
+                    Toast.makeText(act, UiLanguage.dynamic(act, "API Key 已复制"),
+                            Toast.LENGTH_SHORT).show();
+                }
             }
         });
         copyLan.setOnClickListener(new View.OnClickListener() {
@@ -3465,10 +3462,11 @@ public final class DeekseepUi {
                             Toast.LENGTH_SHORT).show();
                     return;
                 }
-                copyText(act, "LAN API URL", lan);
-                feedback.setText(UiLanguage.dynamic(act, "局域网地址已复制"));
-                Toast.makeText(act, UiLanguage.dynamic(act, "局域网地址已复制"),
-                        Toast.LENGTH_SHORT).show();
+                if (copyText(act, "LAN API URL", lan)) {
+                    feedback.setText(UiLanguage.dynamic(act, "局域网地址已复制"));
+                    Toast.makeText(act, UiLanguage.dynamic(act, "局域网地址已复制"),
+                            Toast.LENGTH_SHORT).show();
+                }
             }
         });
         saveKey.setOnClickListener(new View.OnClickListener() {
@@ -4092,17 +4090,24 @@ public final class DeekseepUi {
             android.content.ClipboardManager clipboard =
                     (android.content.ClipboardManager)
                             context.getSystemService(Context.CLIPBOARD_SERVICE);
-            if (clipboard == null) return false;
+            if (clipboard == null) {
+                showCopyFailure(context);
+                return false;
+            }
             clipboard.setPrimaryClip(
                     android.content.ClipData.newPlainText(label, safeValue));
             return true;
         } catch (Throwable failure) {
-            android.widget.Toast.makeText(context,
-                    UiLanguage.text(context, "复制失败，请使用保存成文件",
-                            "Copy failed; use Save to file"),
-                    android.widget.Toast.LENGTH_LONG).show();
+            showCopyFailure(context);
             return false;
         }
+    }
+
+    private static void showCopyFailure(Context context) {
+        android.widget.Toast.makeText(context,
+                UiLanguage.text(context, "复制失败，请使用保存成文件",
+                        "Copy failed; use Save to file"),
+                android.widget.Toast.LENGTH_LONG).show();
     }
 
     /** 手工绘制的 API 连接面板，不使用 AlertDialog 或系统确认弹窗。 */
