@@ -579,8 +579,9 @@ final class OpenNativeCompletionProbe {
             // This is diagnostic-only: it does not enable feature hooks or execute completions.
             if (HostCompat.isV275StaticOnly()) {
                 Class<?> requestMarker = Class.forName("yu1", false, loader);
+                Class<?> flowType = Class.forName("b70", false, loader);
                 if (!requestMarker.isInterface()) return;
-                installObservedMethod(loader, "nw3", "e", requestMarker,
+                installObservedMethod(loader, "nw3", "e", requestMarker, flowType,
                         OBSERVATION_275_NW3, "transport-dispatch");
                 installCode295DeltaDispatchObserver(loader);
                 installCode295PowObserver(loader);
@@ -593,9 +594,9 @@ final class OpenNativeCompletionProbe {
             Class<?> requestType = Class.forName("ly1", false, loader);
             Class<?> requestMarker = Class.forName("wu1", false, loader);
             if (!requestMarker.isAssignableFrom(requestType)) return;
-            installObservedMethod(loader, "jw3", "g", requestMarker,
+            installObservedMethod(loader, "jw3", "g", requestMarker, null,
                     OBSERVATION_JW3, "transport-low-level");
-            installObservedMethod(loader, "zn3", "o", requestMarker,
+            installObservedMethod(loader, "zn3", "o", requestMarker, null,
                     OBSERVATION_ZN3, "transport-dispatch");
             installDeltaDispatchObserver(loader);
         } catch (VirtualMachineError fatal) {
@@ -857,7 +858,7 @@ final class OpenNativeCompletionProbe {
     }
 
     private static void installObservedMethod(ClassLoader loader, String ownerName,
-            String methodName, Class<?> requestMarker,
+            String methodName, Class<?> requestMarker, Class<?> expectedReturnType,
             java.util.concurrent.atomic.AtomicBoolean installed, String role) {
         if (installed.get()) return;
         try {
@@ -868,6 +869,8 @@ final class OpenNativeCompletionProbe {
                 if (methodName.equals(method.getName()) && parameters.length == 2
                         && parameters[0] == requestMarker
                         && parameters[1] == Long.class
+                        && (expectedReturnType == null
+                                || method.getReturnType() == expectedReturnType)
                         && !method.getReturnType().isPrimitive()
                         && method.getReturnType() != Void.TYPE) {
                     if (selected != null) {
