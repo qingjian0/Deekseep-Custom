@@ -15,7 +15,7 @@ checks = {
     "continuation enter exit and throw retain the same trace ID": (
         "continuation-enter method=" in source
         and "continuation-throw flowTraceId=" in source
-        and "continuation-exit method=" in source
+        and "continuation-return method=" in source
         and source.count('flowTraceId == null ? "unlinked" : flowTraceId') >= 3
     ),
     "Continuation is identity-linked but not method-hooked": "associateObjectWithObservation(second, flow);" in source and 'installCallbackObserver(second, "callback-1")' not in source,
