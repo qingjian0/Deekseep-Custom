@@ -11,7 +11,13 @@ checks = {
     "identity weak references use a reference queue": "ReferenceQueue<Object> FLOW_TRACE_QUEUE" in source and "WeakReference<Object>" in source and "drainFlowTraceQueueLocked()" in source,
     "weak identity equality compares referents by identity": "left != null && left == right" in source and "System.identityHashCode(value)" in source,
     "transport observation associates each returned Flow": "associateFlowWithObservation(result);" in source and source.index("associateFlowWithObservation(result);") < source.index("OBSERVATION_Y60.compareAndSet(false, true)"),
-    "Flow callback resolves its originating trace": "Object flow = chain.getThisObject();" in source and "Long flowTraceId = observationIdForObject(flow);" in source and '" flowTraceId="' in source,
+    "Flow callback resolves its originating trace": "Object flow = chain.getThisObject();" in source and "flowTraceId = observationIdForObject(flow);" in source and '" flowTraceId="' in source,
+    "continuation enter exit and throw retain the same trace ID": (
+        "continuation-enter method=" in source
+        and "continuation-throw flowTraceId=" in source
+        and "continuation-exit method=" in source
+        and source.count('flowTraceId == null ? "unlinked" : flowTraceId') >= 3
+    ),
     "Continuation is identity-linked but not method-hooked": "associateObjectWithObservation(second, flow);" in source and 'installCallbackObserver(second, "callback-1")' not in source,
     "collector callback receives the Flow trace identity": "associateObjectWithObservation(first, flow);" in source and "traceIdValue = observationIdForObject(receiver);" in source and 'flowTraceId=" + (traceIdValue == null ? "unlinked" : traceIdValue)' in source,
     "collector callback enter exit and throw logs retain trace IDs": source.count('flowTraceId=" + (callbackTraceId == null ? "unlinked" : callbackTraceId)') >= 2 and "flowTraceId=" in source[source.index('callback-throw method='):],
