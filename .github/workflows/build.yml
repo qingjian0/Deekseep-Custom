@@ -47,8 +47,8 @@ jobs:
           fi
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --install "platforms;android-37" "build-tools;36.0.0"
-          test -d "$ANDROID_SDK_ROOT/platforms/android-37"
+          "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0"
+          test -d "$ANDROID_SDK_ROOT/platforms/android-36"
           test -x "$ANDROID_SDK_ROOT/build-tools/36.0.0/zipalign"
           test -x "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner"
 
@@ -85,7 +85,7 @@ jobs:
           gradle --no-daemon --stacktrace \
             -PprotectedBuild=false \
             -PlocalApiIncluded=false \
-            -PandroidCompileSdk=37 \
+            -PandroidCompileSdk=36 \
             :app:assembleRelease
 
       - name: Verify signed APK and prepare release output
