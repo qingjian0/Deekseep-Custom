@@ -192,3 +192,17 @@ The runtime observer's declared signatures are pinned to the 2.7.5 candidate-met
 | Lifecycle | `iv1.c(Lfda;)V` |
 
 At runtime, reflection additionally verifies return type and static/instance shape before registering each hook. A mismatch is logged as unavailable and is not hooked. The source-only CI check pins the exact descriptor arguments so an accidental signature drift is caught before device testing.
+
+
+## 11. HTTP error and named-event mapping boundary
+
+The 2.7.5 static evidence distinguishes successful SSE responses from non-success HTTP responses:
+
+- `g0.z` is the HTTP response handler.
+- Its success branch creates the `cv1` heartbeat/connection event and the `vs1` SSE parser Flow.
+- Its non-success branch reads the response body, decodes a structured error model, and wraps it as `dv1(gt9)`.
+- The candidate-method index contains `gt9.a(Z, dc3) -> Object` as a serialization-related method, but the checked-in evidence does not yet expose the complete `gt9` descriptor, serialized field names, nullable/default rules, or status-to-error mapping.
+
+**Implementation decision:** no HTTP error mapper is added yet. Treating `dv1` as an SSE Delta or guessing `gt9` fields would be incorrect. The next static extraction must recover the `gt9` serializer descriptor and the exact `g0.z` non-success branch construction before a Local API error response can be mapped.
+
+Named SSE events are similarly recognized by name (`ready`, `finish`, `toast`, `hint`, `title`, `update_session`, `update_file`, `update_parent_message`, `close`, `check_client_update`, `auto_tts_capability`), but their full payload schemas and state effects are not all represented by the text mapper. The current Decoder/Mapper pair handles only the verified DeltaCommand snapshot and RESPONSE/THINK text paths. It does not claim completion-event, session-update, tool-execution, or HTTP-error compatibility.
