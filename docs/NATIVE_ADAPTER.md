@@ -1111,3 +1111,55 @@ The committed `open-native-1793943559724.log` was re-read from `dev` (1,676 line
 5. Run pure JVM regressions, Android Open build, source audit excluding Closed payload references, then code289 device acceptance for non-stream, SSE, failure, timeout, and disconnect.
 
 Until those gates pass, no successful native Completion is claimed. The route must remain exposed, and the execution facade must continue to fail closed with `engine_missing`.
+
+
+## 2.7.5 / code295 独立适配推进（2026-11-08）
+
+### APK 身份与静态证据来源
+
+跨项目静态审计材料位于 `qingjian0/apps` 仓库的 `audit/2.7.5/`。本轮核对到：
+
+- APK：`DeepSeek_2.7.5.apk`
+- package：`com.deepseek.chat`
+- versionName / versionCode：`2.7.5 / 295`
+- APK SHA-256：`ddc52ef868b991fd33e634de834a3e2c022b0cd7ff9e854f4f141996aaeadb70`
+- DEX：3 个；class_defs 合计 15,364（审计 summary 的 class_count 为 15,054，二者统计口径不同，不能混用）
+- JADX 输出 13,940 个 Java 文件，JADX exit code 3，存在部分反编译失败；Smali / DEX 级证据仍可用于方法签名和调用关系核对。
+
+### 2.7.5 已有静态调用链
+
+来自 `apps/audit/2.7.5` 与该项目 README 的静态链：
+
+```text
+消息提交 gx1.b
+  → rr2 会话/流编排
+  → nw3.e(yu1, Long) -> b70
+       ├─ 请求类型分派 / 路由选择 / 序列化
+       └─ PoW challenge / response 处理
+  → b70 Flow
+  → gr2
+  → pv1.j / pv1.l 收集
+  → ot1 事件收集器
+  → pv1.a SSE event 分派
+  → DeltaCommand / 消息片段 reducer
+  → rr2.h 自动恢复流
+```
+
+PoW 静态链包含 `nw3.c`、`of2`、`oq1`、`PowCalculator JNI` 与 `librscrypto.so`。静态分析已定位 PoW 请求、挑战响应和 `X-DS-PoW-Response` 组装；精确 native digest 变体和 nonce 判定条件仍未完整还原。工具消息片段模型已发现，但不能据此声称本地工具执行闭环完成。
+
+### 本轮代码改动
+
+- `OpenNativeCompletionProbe` 新增 code295 的被动请求路由观察分支：只在用户显式开启诊断探针时，按精确签名观察 `nw3.e(yu1, Long) -> b70`。
+- 该观察器复用既有请求对象身份、调用深度、线程、返回类型与 Flow 关联机制；不主动构造 Request、不调用候选方法、不修改参数或返回值、不记录 prompt、凭据或响应正文。
+- code289 的 `ly1/wu1 → zn3/jw3 → y60 → r3` 观察链保持独立，不把 2.7.2 混淆符号用于 code295。
+- code295 仍是 static-only profile：本次只增加显式 opt-in 的被动观察，不开启通用功能 Hook，也不宣称 Native Completion 已打通。
+
+### 当前差距与下一步
+
+1. 在真实 2.7.5/code295 设备上启用诊断探针，确认 `nw3.e` 是否被官方聊天路径实际调用，并采集其真实返回 Flow 的对象身份。
+2. 继续从 APK 静态证据确认 `yu1` 的具体请求实现类、构造入口、会话 ID 来源及 `nw3.e` 的调用者；不能把接口名直接当成可构造 DTO。
+3. 独立观察 `of2.k` / `oq1` PoW 生命周期，确认 challenge 获取、native 计算、header 注入及刷新时序；不自行重实现或绕过风控。
+4. 观察 `pv1.a` 的事件分派和 `pv1.j/l` 的 Flow collector，建立 SSE 事件到稳定 DeltaSink 的完整映射，并验证 cancellation / reconnect。
+5. 完成 code295 专用 RequestFactory、SessionBridge、ChallengeProvider、Transport 与 EventDecoder 后，再接入 Gateway；在此之前仍保持 `engine_missing` / fail-closed。
+
+**交付判定：** 2.7.5 APK 身份与静态调用链已有证据；本轮已加入 code295 请求路由的被动运行时观察器；尚无 2.7.5 真机运行轨迹，也没有 code295 原生 Completion 的端到端结果。不可标记为“2.7.5 已适配完成”。
