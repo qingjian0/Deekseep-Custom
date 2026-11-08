@@ -32,8 +32,10 @@ public final class NativeV275DeltaCommandDecoderTest {
         check("SET".equals(state.lastOperation()), "snapshot resets operation");
         NativeV275DeltaCommandDecoder.State invalidState =
                 new NativeV275DeltaCommandDecoder.State();
+        Map<String, Object> invalidRoot = new HashMap<String, Object>();
+        invalidRoot.put("response", null);
         NativeV275DeltaCommandDecoder.Result invalid = decode(invalidState,
-                command(null, null, map("response", null)));
+                command(null, null, invalidRoot));
         check(!invalid.accepted && !invalidState.initialized(),
                 "snapshot with null response is rejected without initializing stream");
     }
