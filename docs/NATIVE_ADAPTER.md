@@ -1178,3 +1178,15 @@ PoW 静态链包含 `nw3.c`、`of2`、`oq1`、`PowCalculator JNI` 与 `librscryp
 - 该点是独立 DEX 静态审计中的 SSE dispatch 候选，尚未在 2.7.5 真机确认，因此日志必须以实际 `installed` / `signature-unavailable` 结果为准。
 
 这使 2.7.5 opt-in trace 至少覆盖 Request route 与 SSE dispatch 两个静态边界；不能据此声称 b70 Flow collector、原始 SSE parser `vs1.z` 或完整 Delta reducer 已在设备上被观察到。下一步需通过 2.7.5 真机日志建立 `nw3.e` 返回的 b70 与 `pv1.a` 调用之间的对象/Continuation 关联，并确认事件终态、取消和恢复路径。
+
+
+### 2.7.5 PoW 算法边界被动观察器（2026-11-08）
+
+在 code295 静态审计确认的 `of2.k(ts9, ec3) -> Object` 候选上增加了 opt-in 只读观察：
+
+- 运行时必须精确解析 `of2.k(ts9, ec3)` 且返回类型为 `Object`，否则不安装。
+- 只记录方法描述符、参数类型、返回类型、耗时和异常类型。
+- 不读取 challenge、salt、difficulty、nonce、PoW solution 或任何 header 值；不参与计算、不缓存、不注入。
+- 这是 PoW 算法选择/处理边界的静态候选观察，不等于 PoW 已实现或已验证。
+
+目前 code295 的 opt-in observer 计划覆盖三处独立边界：`nw3.e(yu1, Long) -> b70` 请求路由、`of2.k(ts9, ec3) -> Object` PoW、`pv1.a(pv1, bia, ec3) -> Object` SSE dispatch。三处是否真实安装及是否被官方请求调用，必须以 2.7.5 设备日志为准。仍未实现 RequestFactory、SessionBridge、ChallengeProvider、EventDecoder 或 Gateway completion adapter。
