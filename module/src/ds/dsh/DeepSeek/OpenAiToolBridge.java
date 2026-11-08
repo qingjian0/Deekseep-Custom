@@ -219,33 +219,44 @@ final class OpenAiToolBridge {
             if (raw == null) {
                 throw invalid("invalid_tool", "Every tools entry must be an object");
             }
-            String kind = raw.optString("type", FUNCTION).toLowerCase(Locale.US);
+            String kind = optionalString(raw, "type", FUNCTION, "invalid_tool_type")
+                    .toLowerCase(Locale.US);
             if ("local_shell".equals(kind)) kind = SHELL;
             if (responses && NAMESPACE.equals(kind)) {
-                String namespace = raw.optString("name", "").trim();
+                String namespace = optionalString(raw, "name", "", "invalid_namespace")
+                        .trim();
                 validateName(namespace);
-                JSONArray nested = raw.optJSONArray("tools");
+                Object rawNested = raw.opt("tools");
+                if (!(rawNested instanceof JSONArray)) {
+                    throw invalid("invalid_namespace", "Namespace tools must be an array");
+                }
+                JSONArray nested = (JSONArray) rawNested;
                 if (nested == null) {
                     throw invalid("invalid_namespace", "Namespace tools must be an array");
                 }
                 for (int nestedIndex = 0; nestedIndex < nested.length(); nestedIndex++) {
                     JSONObject function = nested.optJSONObject(nestedIndex);
                     if (function == null || !FUNCTION.equalsIgnoreCase(
-                            function.optString("type", FUNCTION))) {
+                            optionalString(function, "type", FUNCTION,
+                                    "invalid_namespace_tool"))) {
                         throw invalid("invalid_namespace_tool",
                                 "Namespace entries must be function tools");
                     }
-                    String nestedName = function.optString("name", "").trim();
+                    String nestedName = optionalString(function, "name", "",
+                            "invalid_namespace_tool").trim();
+                    String nestedDescription = optionalString(function, "description", "",
+                            "invalid_namespace_tool");
                     validateName(nestedName);
                     String key = namespace + "\u0000" + nestedName;
                     if (!names.add(key)) {
                         throw invalid("duplicate_tool_name",
                                 "Duplicate namespace tool: " + namespace + "." + nestedName);
                     }
-                    JSONObject nestedSchema = function.optJSONObject("parameters");
+                    JSONObject nestedSchema = optionalObject(function, "parameters",
+                            "invalid_namespace_tool");
+                    validateSchemaShape(nestedSchema, "invalid_namespace_tool");
                     out.add(new Definition(FUNCTION, namespace, nestedName,
-                            function.optString("description", ""),
-                            cloneObject(nestedSchema), null, cloneObject(raw)));
+                            nestedDescription, cloneObject(nestedSchema), null, cloneObject(raw)));
                 }
                 continue;
             }
@@ -275,6 +286,7 @@ final class OpenAiToolBridge {
             String description;
             JSONObject schema;
             JSONObject format = null;
+            description = optionalString(source, "description", "", "invalid_tool_description");
             if (SHELL.equals(kind)) {
                 name = SHELL;
                 description = "Execute one or more shell commands in the agent's local environment.";
@@ -284,9 +296,8 @@ final class OpenAiToolBridge {
                 description = "Create, update, or delete one file using a unified diff.";
                 schema = applyPatchSchema();
             } else if (CUSTOM.equals(kind)) {
-                name = source.optString("name", "").trim();
-                description = source.optString("description", "");
-                format = source.optJSONObject("format");
+                name = optionalString(source, "name", "", "invalid_tool_name").trim();
+                format = optionalObject(source, "format", "invalid_tool_format");
                 schema = new JSONObject();
                 try {
                     schema.put("type", "object");
@@ -296,10 +307,10 @@ final class OpenAiToolBridge {
                     schema.put("required", new JSONArray().put("input"));
                 } catch (JSONException ignored) {}
             } else {
-                name = source.optString("name", "").trim();
-                description = source.optString("description", "");
-                schema = source.optJSONObject("parameters");
+                name = optionalString(source, "name", "", "invalid_tool_name").trim();
+                schema = optionalObject(source, "parameters", "invalid_tool_schema");
                 if (schema == null) schema = new JSONObject();
+                validateSchemaShape(schema, "invalid_tool_schema");
             }
             validateName(name);
             if (!names.add("\u0000" + name)) {
@@ -313,33 +324,39 @@ final class OpenAiToolBridge {
 
     private static Choice parseChoice(Object raw, List<Definition> tools, boolean responses)
             throws z2.GatewayException {
-        if (tools.isEmpty()) {
-            if (raw instanceof String && (Choice.REQUIRED.equalsIgnoreCase((String) raw))) {
-                throw invalid("invalid_tool_choice", "tool_choice is required but tools is empty");
-            }
-            if (raw instanceof JSONObject) {
-                throw invalid("invalid_tool_choice", "tool_choice selects a tool but tools is empty");
-            }
-            return new Choice(Choice.NONE, null, null);
+        if (raw == null || raw == JSONObject.NULL) {
+            return new Choice(tools.isEmpty() ? Choice.NONE : Choice.AUTO, null, null);
         }
-        if (raw == null || raw == JSONObject.NULL) return new Choice(Choice.AUTO, null, null);
         if (raw instanceof String) {
             String value = ((String) raw).toLowerCase(Locale.US);
-            if (Choice.NONE.equals(value) || Choice.AUTO.equals(value)
-                    || Choice.REQUIRED.equals(value)) return new Choice(value, null, null);
+            if (Choice.NONE.equals(value) || Choice.AUTO.equals(value)) {
+                return new Choice(tools.isEmpty() ? Choice.NONE : value, null, null);
+            }
+            if (Choice.REQUIRED.equals(value)) {
+                if (tools.isEmpty()) {
+                    throw invalid("invalid_tool_choice",
+                            "tool_choice is required but tools is empty");
+                }
+                return new Choice(value, null, null);
+            }
             throw invalid("invalid_tool_choice", "Unsupported tool_choice: " + value);
+        }
+        if (tools.isEmpty()) {
+            throw invalid("invalid_tool_choice", "tool_choice selects a tool but tools is empty");
         }
         if (!(raw instanceof JSONObject)) {
             throw invalid("invalid_tool_choice", "tool_choice must be a string or object");
         }
         JSONObject object = (JSONObject) raw;
-        String kind = object.optString("type", FUNCTION).toLowerCase(Locale.US);
+        String kind = optionalString(object, "type", FUNCTION, "invalid_tool_choice")
+                .toLowerCase(Locale.US);
         if ("local_shell".equals(kind)) kind = SHELL;
-        String name = object.optString("name", "").trim();
-        String namespace = clean(object.optString("namespace", null));
-        JSONObject function = object.optJSONObject("function");
+        String name = optionalString(object, "name", "", "invalid_tool_choice").trim();
+        String namespace = clean(optionalString(object, "namespace", null,
+                "invalid_tool_choice"));
+        JSONObject function = optionalObject(object, "function", "invalid_tool_choice");
         if (function != null) {
-            name = function.optString("name", name).trim();
+            name = optionalString(function, "name", name, "invalid_tool_choice").trim();
             kind = FUNCTION;
         }
         if ((SHELL.equals(kind) || APPLY_PATCH.equals(kind)) && name.length() == 0) name = kind;
@@ -1068,6 +1085,59 @@ final class OpenAiToolBridge {
             }
         }
         return true;
+    }
+
+    private static String optionalString(JSONObject object, String key, String fallback,
+                                          String errorCode)
+            throws z2.GatewayException {
+        if (!object.has(key)) return fallback;
+        Object value = object.opt(key);
+        if (!(value instanceof String)) {
+            throw invalid(errorCode, key + " must be a string");
+        }
+        return (String) value;
+    }
+
+    private static JSONObject optionalObject(JSONObject object, String key, String errorCode)
+            throws z2.GatewayException {
+        if (!object.has(key)) return null;
+        Object value = object.opt(key);
+        if (!(value instanceof JSONObject)) {
+            throw invalid(errorCode, key + " must be an object");
+        }
+        return (JSONObject) value;
+    }
+
+    private static void validateSchemaShape(JSONObject schema, String errorCode)
+            throws z2.GatewayException {
+        if (schema == null) return;
+        if (schema.has("type")) {
+            Object type = schema.opt("type");
+            if (!(type instanceof String) || !"object".equals(type)) {
+                throw invalid(errorCode, "Tool parameters schema type must be object");
+            }
+        }
+        if (schema.has("properties") && !(schema.opt("properties") instanceof JSONObject)) {
+            throw invalid(errorCode, "Tool parameters properties must be an object");
+        }
+        if (schema.has("required")) {
+            Object rawRequired = schema.opt("required");
+            if (!(rawRequired instanceof JSONArray)) {
+                throw invalid(errorCode, "Tool parameters required must be an array");
+            }
+            JSONArray required = (JSONArray) rawRequired;
+            for (int i = 0; i < required.length(); i++) {
+                if (!(required.opt(i) instanceof String)
+                        || ((String) required.opt(i)).trim().length() == 0) {
+                    throw invalid(errorCode, "Tool parameters required entries must be strings");
+                }
+            }
+        }
+        if (schema.has("additionalProperties")
+                && !(schema.opt("additionalProperties") instanceof Boolean)
+                && !(schema.opt("additionalProperties") instanceof JSONObject)) {
+            throw invalid(errorCode, "Tool parameters additionalProperties must be a boolean or object");
+        }
     }
 
     private static void validateName(String name) throws z2.GatewayException {

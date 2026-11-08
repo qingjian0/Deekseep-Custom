@@ -223,6 +223,12 @@ bridge_required = {
     "Chat tool definitions are parsed": "static Plan chatPlan(",
     "Responses tool definitions are parsed": "static Plan responsesPlan(",
     "tool calls are validated against request definitions": "static List<Call> parseCalls(",
+    "tool definition type fields are checked without coercion": 'optionalString(raw, "type", FUNCTION, "invalid_tool_type")',
+    "tool definition descriptions are checked without coercion": 'optionalString(source, "description", "", "invalid_tool_description")',
+    "function parameters must be an object": 'optionalObject(source, "parameters", "invalid_tool_schema")',
+    "tool schemas validate object/properties/required shapes": "validateSchemaShape(schema, \"invalid_tool_schema\")",
+    "tool choice object fields are checked without coercion": 'optionalString(object, "type", FUNCTION, "invalid_tool_choice")',
+    "tool choice nested function must be an object": 'optionalObject(object, "function", "invalid_tool_choice")',
 }
 missing_bridge = [label for label, token in bridge_required.items() if token not in tool_bridge]
 if missing_bridge:
