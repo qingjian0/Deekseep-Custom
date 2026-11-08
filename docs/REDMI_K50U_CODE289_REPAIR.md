@@ -9,7 +9,7 @@ It is intentionally scoped to `dev`; `main` is unchanged.
 ## Findings from uploaded device logs
 
 - The host was identified as `2.7.2/code289-cn`, and the ROI host identity recorder independently captured PackageManager versionName `2.7.2`, versionCode `289`.
-- The optional Agent tool-log renderer attempted to resolve the code257-only `mf6` mapping. The exception escaped the required feature-hook step and aborted the remainder of the feature-hook batch.
+- The optional Agent tool-log renderer attempted to resolve the code257-only `mf6` mapping. In the uploaded build the exception escaped the feature-hook step and aborted the remainder of the feature-hook batch. The separate Agent render group also encountered missing `rw2` / `tw2` mappings.
 - The OpenAI gateway rejected `stream_options.include_usage=true` even though the streaming implementation already emits an estimated-usage chunk.
 - The earlier OpenAPI request log reports `unsupported_feature` for `tools`. Current source already routes Chat Completions function tools through `OpenAiToolBridge.chatPlan`; this log is therefore treated as evidence from an older installed APK, not proof that the current source lacks the tool bridge. Streaming tool calls remain explicitly unsupported.
 - A diagnostic-copy action attempted to place a 1,095,388-byte report on the Android clipboard and triggered `TransactionTooLargeException`.
@@ -18,7 +18,7 @@ It is intentionally scoped to `dev`; `main` is unchanged.
 
 ## Changes
 
-1. Treat the Agent tool-log renderer as best-effort so a missing optional code257 mapping cannot abort unrelated feature hooks.
+1. Treat the Agent tool-log renderer as best-effort, and isolate every optional Agent response / patch / Markdown / status / attachment renderer so a missing `mf6`, `rw2`, or `tw2` mapping cannot prevent later independent render hooks or unrelated feature hooks from installing. Each optional render boundary is attempted once per host process to avoid duplicate partial registrations.
 2. Report target-process injection heartbeat in Open/universal and protected builds. The module provider still validates the caller UID against `com.deepseek.chat`.
 3. Recognize exact 2.7.2 versionCode 289/290 identities in the overlay companion and permit the 2.7.2 version name in the host version allowlist.
 4. Add MIUI / HyperOS overlay permission editor fallback, Android overlay settings fallback, Xiaomi per-app power manager / autostart routes, Android per-package battery-exemption routes, and app-details fallback.
@@ -41,7 +41,7 @@ It is intentionally scoped to `dev`; `main` is unchanged.
 
 1. Confirm launcher shows DeepSeek target injection after opening DeepSeek once.
 2. Confirm `dsprobe.log` reports `activation heartbeat accepted by module provider`.
-3. Enable Local API floating keeper; confirm MIUI permission editor opens for the module package and the overlay appears after permission is granted.
+3. Enable Local API floating keeper; confirm the `z20` trampoline opens the MIUI permission editor for the module app package, then confirm the overlay appears after permission is granted.
 4. Open battery settings; verify module and host background-power / autostart settings are reachable.
 5. Test `GET /v1/models`.
 6. Test Chat Completions with a plain text request, then a non-streaming function-tool request.
