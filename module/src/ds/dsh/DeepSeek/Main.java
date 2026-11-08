@@ -5028,8 +5028,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             @Override public String readinessDetail() {
                 if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
                     return UiLanguage.text(
-                            "Open API 已开放；原生执行能力按请求实际检测",
-                            "Open API is exposed; native execution support is checked per request");
+                            "Open 版 HTTP API 已启动，但此版本不包含原生执行引擎；生成请求会返回 engine_missing。",
+                            "Open HTTP API is running, but this build has no native execution engine; completion requests return engine_missing.");
                 }
                 if (hostClassLoader == null) return UiLanguage.text(
                         "等待宿主类加载器", "Waiting for host class loader");
