@@ -30,6 +30,12 @@ public final class NativeV275DeltaCommandDecoderTest {
         check(state.initialized(), "stream initialized");
         check("".equals(state.lastPath()), "snapshot resets path");
         check("SET".equals(state.lastOperation()), "snapshot resets operation");
+        NativeV275DeltaCommandDecoder.State invalidState =
+                new NativeV275DeltaCommandDecoder.State();
+        NativeV275DeltaCommandDecoder.Result invalid = decode(invalidState,
+                command(null, null, map("response", null)));
+        check(!invalid.accepted && !invalidState.initialized(),
+                "snapshot with null response is rejected without initializing stream");
     }
 
     private static void laterCommandsCarryPathAndOperation() {
