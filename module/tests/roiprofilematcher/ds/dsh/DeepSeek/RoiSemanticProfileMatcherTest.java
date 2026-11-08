@@ -17,6 +17,7 @@ public final class RoiSemanticProfileMatcherTest {
         testProfilesWithoutMethodRolesAreNotMatchable();
         testDetachedMethodRoleEvidenceIsNotMatchable();
         testTargetRoleDeclarationMustAgreeWithResolvedMethod();
+        testMalformedMethodDescriptorsAreNotMatchable();
         System.out.println("ROI semantic profile matcher tests passed");
     }
 
@@ -183,6 +184,18 @@ public final class RoiSemanticProfileMatcherTest {
         check(!match.resolvedMethodRoles.containsKey("transport.dispatch"),
                 "contradictory target role declaration must not resolve");
         check(!match.activationAuthorized, "contradictory role evidence cannot authorize activation");
+    }
+
+    private static void testMalformedMethodDescriptorsAreNotMatchable() {
+        RoiSemanticProfileMatcher.ClassProfile source = sourceProfile();
+        RoiSemanticProfileMatcher.ClassProfile malformed = new RoiSemanticProfileMatcher.ClassProfile(
+                "2.7.5", "transport.dispatch", "Lcandidate;", "Ljava/lang/Object;",
+                Collections.<String>emptyList(), Collections.<String>emptyList(),
+                Collections.singletonList("dispatch(Ljava/lang/String;)?"),
+                Collections.<String>emptyList(), Collections.<String>emptyList(),
+                Collections.singletonMap("transport.dispatch", "dispatch(Ljava/lang/String;)?"));
+        check(RoiSemanticProfileMatcher.rank(source, Collections.singletonList(malformed)).isEmpty(),
+                "malformed method descriptor must not become a semantic profile candidate");
     }
 
     private static RoiSemanticProfileMatcher.ClassProfile sourceProfile() {
