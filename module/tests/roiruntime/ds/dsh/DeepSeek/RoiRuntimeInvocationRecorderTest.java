@@ -261,12 +261,12 @@ public final class RoiRuntimeInvocationRecorderTest {
         r.record(new RoiRuntimeInvocationRecorder.Event(key, adapter, trustedScope,
                 "LNet;->execute()V", RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED,
                 110, 2, RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 110);
-        r.record(new RoiRuntimeInvocationRecorder.Event(key, adapter, trustedScope,
-                "LResp;->receive()V", RoiRuntimeInvocationRecorder.Phase.RESPONSE_RECEIVED,
-                120, 3, RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 120);
         r.record(new RoiRuntimeInvocationRecorder.Event(key, adapter, unrelatedScope,
                 "LDecoy;->observe()V", RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED,
                 115, 4, RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 115);
+        r.record(new RoiRuntimeInvocationRecorder.Event(key, adapter, trustedScope,
+                "LResp;->receive()V", RoiRuntimeInvocationRecorder.Phase.RESPONSE_RECEIVED,
+                120, 3, RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 120);
 
         List<RoiRuntimeInvocationRecorder.EvidenceSnapshot> snapshots = r.snapshotEvidence(120);
         check(snapshots.size() == 4, "all per-scope evidence entries must remain visible");
