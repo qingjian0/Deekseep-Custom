@@ -13,6 +13,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -65,6 +69,60 @@ final class OpenNativeCompletionProbe {
     private static volatile long SESSION_STARTED_AT_MS;
     private static final ThreadLocal<ObservationFrame> OBSERVATION_FRAME =
             new ThreadLocal<ObservationFrame>();
+
+    // Flow objects outlive the synchronous transport call and may collect on another thread.
+    // Keep an identity-based weak association so concurrent Flow callbacks can be correlated
+    // with the originating Request without retaining host Flow instances.
+    private static final ReferenceQueue<Object> FLOW_TRACE_QUEUE =
+            new ReferenceQueue<Object>();
+    private static final Map<IdentityWeakReference, Long> FLOW_TRACE_IDS =
+            new HashMap<IdentityWeakReference, Long>();
+
+    private static final class IdentityWeakReference extends WeakReference<Object> {
+        private final int identityHash;
+
+        IdentityWeakReference(Object value, ReferenceQueue<Object> queue) {
+            super(value, queue);
+            identityHash = System.identityHashCode(value);
+        }
+
+        @Override public int hashCode() { return identityHash; }
+
+        @Override public boolean equals(Object other) {
+            if (this == other) return true;
+            if (!(other instanceof IdentityWeakReference)) return false;
+            Object left = get();
+            Object right = ((IdentityWeakReference) other).get();
+            return left != null && left == right;
+        }
+    }
+
+    private static void drainFlowTraceQueueLocked() {
+        IdentityWeakReference stale;
+        while ((stale = (IdentityWeakReference) FLOW_TRACE_QUEUE.poll()) != null) {
+            FLOW_TRACE_IDS.remove(stale);
+        }
+    }
+
+    private static void associateFlowWithObservation(Object flow) {
+        if (flow == null) return;
+        ObservationFrame frame = OBSERVATION_FRAME.get();
+        if (frame == null) return;
+        synchronized (FLOW_TRACE_IDS) {
+            drainFlowTraceQueueLocked();
+            FLOW_TRACE_IDS.put(
+                    new IdentityWeakReference(flow, FLOW_TRACE_QUEUE),
+                    Long.valueOf(frame.id));
+        }
+    }
+
+    private static Long flowObservationId(Object flow) {
+        if (flow == null) return null;
+        synchronized (FLOW_TRACE_IDS) {
+            drainFlowTraceQueueLocked();
+            return FLOW_TRACE_IDS.get(new IdentityWeakReference(flow, null));
+        }
+    }
 
     private static final class CallbackStats {
         final java.util.concurrent.atomic.AtomicLong invocations =
@@ -133,7 +191,7 @@ final class OpenNativeCompletionProbe {
         OBSERVATION_IDS.set(0L);
         SESSION_STARTED_AT_MS = System.currentTimeMillis();
         SESSION_LOG_FILE = createSessionLogFile(SESSION_STARTED_AT_MS);
-        observerLog("[OPEN_NATIVE_CALL_OBSERVER] session-start schema=6 epochMs="
+        observerLog("[OPEN_NATIVE_CALL_OBSERVER] session-start schema=7 epochMs="
                 + SESSION_STARTED_AT_MS);
     }
 
@@ -205,7 +263,8 @@ final class OpenNativeCompletionProbe {
         int eligibleClassNames = 0;
         int classLoadFailures = 0;
         try {
-            line(out, "report.schema", "6");
+            line(out, "report.schema", "7");
+            line(out, "diagnostic.flow_request_correlation", "identity-weak-map-flow-instance-to-synchronous-request-observation-id");
             line(out, "diagnostic.coverage", "host-transport,y60-continuation,callback-implementations,delta-dispatch,local-api-gateway");
             line(out, "diagnostic.sensitive_data", "message-content,credentials,cookies,auth-headers-not-collected");
             line(out, "diagnostic.callback_detail_capture", "all-events-for-selected-methods-persisted-to-app-private-file");
@@ -709,8 +768,9 @@ final class OpenNativeCompletionProbe {
      * it never invokes callbacks itself or reads payload/response values.
      */
     private static void installContinuationObserver(Object result) {
-        if (result == null || !Main.isOpenNativeCompletionProbeEnabled()
-                || !OBSERVATION_Y60.compareAndSet(false, true)) return;
+        if (result == null || !Main.isOpenNativeCompletionProbeEnabled()) return;
+        associateFlowWithObservation(result);
+        if (!OBSERVATION_Y60.compareAndSet(false, true)) return;
         try {
             Class<?> owner = result.getClass();
             Method selected = null;
@@ -742,8 +802,12 @@ final class OpenNativeCompletionProbe {
                         List<?> args = chain.getArgs();
                         Object first = args != null && args.size() > 0 ? args.get(0) : null;
                         Object second = args != null && args.size() > 1 ? args.get(1) : null;
+                        Object flow = chain.getThisObject();
+                        Long flowTraceId = flowObservationId(flow);
                         safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-enter method="
                                 + observedMethodDescriptor(target)
+                                + " flowTraceId=" + (flowTraceId == null ? "unlinked" : flowTraceId)
+                                + " flowIdentity=" + (flow == null ? 0 : System.identityHashCode(flow))
                                 + " thread=" + Thread.currentThread().getName()
                                 + "#" + Thread.currentThread().getId()
                                 + " callback0Id=" + (first == null ? 0 : System.identityHashCode(first))
