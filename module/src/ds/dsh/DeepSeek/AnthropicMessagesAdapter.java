@@ -204,6 +204,9 @@ final class AnthropicMessagesAdapter {
                     if (id.length() == 0 || !pendingToolIds.remove(id)) {
                         throw invalid("invalid_tool_result", "tool_result does not match a preceding tool_use");
                     }
+                    if (block.has("is_error") && !(block.opt("is_error") instanceof Boolean)) {
+                        throw invalid("invalid_tool_result", "tool_result.is_error must be a boolean");
+                    }
                     String result = textContent(block.opt("content"), "tool_result");
                     if (result.length() == 0) result = block.optBoolean("is_error", false)
                             ? "Tool execution failed" : "(empty tool result)";
@@ -214,6 +217,10 @@ final class AnthropicMessagesAdapter {
                 }
             }
             if (text.length() > 0) append(prompt, role, text.toString());
+        }
+        if (!pendingToolIds.isEmpty()) {
+            throw invalid("invalid_tool_result",
+                    "Every tool_use must have a matching tool_result before the next assistant turn");
         }
         if (prompt.length() == 0 || prompt.length() > MAX_PROMPT_CHARS) {
             throw invalid("invalid_prompt", "Prompt is empty or too large");

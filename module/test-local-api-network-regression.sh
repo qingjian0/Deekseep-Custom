@@ -233,6 +233,10 @@ if "Copyright (c) 2026 diegosouzapw" not in omni_bridge or "normalizeLooseJson" 
 anthropic = (pathlib.Path(sys.argv[1]).parent / "AnthropicMessagesAdapter.java").read_text(encoding="utf-8")
 if "static Request parse(JSONObject body)" not in anthropic or "tool_use" not in anthropic or "tool_result" not in anthropic:
     raise SystemExit("Missing Anthropic Messages request adapter")
+if 'block.opt("is_error") instanceof Boolean' not in anthropic:
+    raise SystemExit("Anthropic tool_result.is_error must be type-checked as a boolean")
+if "if (!pendingToolIds.isEmpty())" not in anthropic or "Every tool_use must have a matching tool_result" not in anthropic:
+    raise SystemExit("Anthropic history must reject tool_use blocks without matching tool_result blocks")
 if '"/v1/responses".equals(request.path)' not in source or "handleResponses(out, request)" not in source:
     raise SystemExit("Responses endpoint is not registered")
 if '"/v1/messages".equals(request.path)' not in source or "handleAnthropicMessages(out, request)" not in source:
