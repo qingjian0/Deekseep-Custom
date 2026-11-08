@@ -119,7 +119,7 @@ jobs:
           for script in scripts/gradle-open-debug.sh scripts/build-all.sh \
               scripts/test-package-identity.sh scripts/test-universal-feature-parity.sh \
               module-legacy/test-adapter-regression.sh module/test-target-process-guard.sh \
-              module/test-hostmap-regression.sh module/test-local-api-network-regression.sh \
+              module/test-hostmap-regression.sh module/test-local-api-network-regression.sh module/test-open-native-flow-correlation.sh \
               module/test-native-adapter-fail-closed.sh module/test-roi-hook-resolver.sh scripts/package-dexkit-native.sh scripts/test-dexkit-integration.sh \
               module/test-roi-dexkit-discovery.sh module/test-roi-candidate-graph.sh \
               module/test-roi-semantic-role-hints.sh module/test-roi-functional-role-classifier.sh module/test-roi-class-candidate-matcher.sh module/test-roi-unknown-host-hook-policy.sh module/test-roi-unknown-host-invocation-probe.sh module/test-roi-unknown-host-invocation-wiring.sh module/test-roi-unknown-host-auto-probe.sh module/test-roi-unknown-host-chat-request.sh module/test-roi-unknown-host-chat-request-wiring.sh module/test-roi-runtime-recorder.sh \
@@ -175,6 +175,7 @@ jobs:
           bash module/test-hostmap-regression.sh
           bash module/test-hook-install-registry.sh
           bash module/test-local-api-network-regression.sh
+          bash module/test-open-native-flow-correlation.sh
           bash module/test-native-adapter-fail-closed.sh
 
       - name: Build traditional Xposed core for regression tests
