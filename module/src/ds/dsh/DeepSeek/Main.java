@@ -7786,10 +7786,23 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                         @Override public void onActivityCreated(Activity activity, Bundle state) {}
                         @Override public void onActivityStarted(Activity activity) {}
                         @Override public void onActivityResumed(Activity activity) {
-                            if (!isDeepSeekMainActivity(activity)) return;
+                            String activityName = activity == null ? "null"
+                                    : HostRemap.className(activity.getClass());
+                            if (!isDeepSeekMainActivity(activity)) {
+                                log("unknown-host menu: ignored resumed activity=" + activityName);
+                                return;
+                            }
                             Main module = MODULE;
-                            if (module == null || module.main == null) return;
+                            if (module == null) {
+                                log("unknown-host menu: MODULE is null on MainActivity resume");
+                                return;
+                            }
+                            if (module.main == null) {
+                                log("unknown-host menu: main Handler is null on MainActivity resume");
+                                return;
+                            }
                             module.curAct = new WeakReference<>(activity);
+                            log("unknown-host menu: MainActivity resumed, scheduling generic entry");
                             module.main.post(new Runnable() {
                                 @Override public void run() {
                                     // Unknown hosts have no verified native settings-row Hook.
@@ -10132,7 +10145,11 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             }
 
             ViewGroup content = act.findViewById(android.R.id.content);
-            if (content == null) return;
+            if (content == null) {
+                log("showButton skipped: android.R.id.content missing, unknownHostFallback="
+                        + unknownHostFallback);
+                return;
+            }
 
             TextView b = DeekseepUi.createEntryButton(act, new View.OnClickListener() {
                 public void onClick(View v) {
@@ -10149,7 +10166,8 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             content.addView(b, lp);
             b.bringToFront();
             btn = new WeakReference<>(b);
-            log("button added on " + HostRemap.className(act.getClass()));
+            log("button added on " + HostRemap.className(act.getClass())
+                    + ", unknownHostFallback=" + unknownHostFallback);
             scheduleRouteCheck(navController.get());
         } catch (Throwable t) { log("showButton failed: " + t); }
     }
