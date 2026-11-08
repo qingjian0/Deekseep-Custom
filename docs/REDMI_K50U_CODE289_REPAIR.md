@@ -33,6 +33,7 @@ It is intentionally scoped to `dev`; `main` is unchanged.
 - Streaming tool calls remain rejected with a specific unsupported-feature response; no fake tool execution is introduced.
 - HTTP listener startup is not treated as proof that the native completion engine is ready. A successful `/v1/models` response does not prove `/v1/chat/completions` can execute. If the native backend still reports `engine_missing` / `model_not_ready`, that remains a separate code289 native-engine integration blocker.
 - The uploaded `tools` 400 trace came from a prior runtime build; install the APK produced from this branch's CI before comparing that exact result again.
+- **Important Open-edition blocker:** `module/src/ds/dsh/DeepSeek/z14.java` is the Open-edition stub: `available()` returns false and `payloadClass(...)` returns null. `HookAccountLoginSecurity.executeLocalApiCompletion` therefore returns `503 engine_missing` in this edition. The HTTP gateway and protocol validation can be repaired here, but actual Local API generation requires a separately implemented and reviewed Open native execution engine; this PR does not pretend otherwise.
 - MIUI / HyperOS settings intents vary by ROM build. The implementation tries OEM routes and then Android fallbacks; final permission-page behavior must be verified on the physical Redmi K50 Ultra.
 - No physical-device result is marked PASS by this source-only change. LSPosed injection, overlay authorization, battery policy, API client interoperability, and end-to-end native completion require a new device run.
 
