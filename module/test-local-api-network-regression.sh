@@ -251,6 +251,10 @@ if 'Responses input exceeds the prompt size limit' not in source or 'Message con
     raise SystemExit("Oversized Responses content must be rejected, never silently truncated")
 if 'Input item type must be a string' not in source or 'Message role must be a string' not in source or 'Content part type must be a string' not in source:
     raise SystemExit("Responses item, role, and content-part types must be validated without coercion")
+if 'Chat messages exceed the prompt size limit' not in source or 'tool_calls must be an array' not in source or 'Tool result call id must be a string' not in source:
+    raise SystemExit("Chat history must reject oversized content and malformed tool history")
+if 'seenToolCallIds.add(id)' not in source:
+    raise SystemExit("Chat history must reject reused tool-call IDs")
 if 'Object rawCallId = item.opt("call_id");' not in source or "Tool-call output id must be a string" not in source:
     raise SystemExit("Responses tool-call output IDs must be validated as strings")
 if '"/v1/messages".equals(request.path)' not in source or "handleAnthropicMessages(out, request)" not in source:

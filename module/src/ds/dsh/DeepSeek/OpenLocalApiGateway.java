@@ -1655,10 +1655,15 @@ final class OpenLocalApiGateway {
         if (messages == null || messages.length() == 0) return "";
         StringBuilder prompt = new StringBuilder();
         java.util.HashSet<String> pendingToolCallIds = new java.util.HashSet<String>();
+        java.util.HashSet<String> seenToolCallIds = new java.util.HashSet<String>();
         for (int i = 0; i < messages.length(); i++) {
             JSONObject message = messages.optJSONObject(i);
             if (message == null) throw new IllegalArgumentException("Invalid message");
-            String role = message.optString("role", "");
+            Object rawRole = message.opt("role");
+            if (!(rawRole instanceof String)) {
+                throw new IllegalArgumentException("Message role must be a string");
+            }
+            String role = (String) rawRole;
             if (!"system".equals(role) && !"developer".equals(role)
                     && !"user".equals(role) && !"assistant".equals(role)
                     && !"tool".equals(role)) {
@@ -1668,7 +1673,11 @@ final class OpenLocalApiGateway {
                 throw new IllegalArgumentException("Named messages are not supported");
             }
             if ("tool".equals(role)) {
-                String callId = message.optString("tool_call_id", "").trim();
+                Object rawToolCallId = message.opt("tool_call_id");
+                if (!(rawToolCallId instanceof String)) {
+                    throw new IllegalArgumentException("Tool result call id must be a string");
+                }
+                String callId = ((String) rawToolCallId).trim();
                 if (callId.length() == 0 || !pendingToolCallIds.remove(callId)) {
                     throw new IllegalArgumentException("Tool result does not match a preceding assistant tool call");
                 }
@@ -1687,6 +1696,9 @@ final class OpenLocalApiGateway {
             String text = content == null || content == JSONObject.NULL
                     ? "" : messageText(content);
             JSONArray calls = message.optJSONArray("tool_calls");
+            if (message.has("tool_calls") && calls == null) {
+                throw new IllegalArgumentException("tool_calls must be an array");
+            }
             if (message.has("tool_calls") && !"assistant".equals(role)) {
                 throw new IllegalArgumentException("Only assistant messages may contain tool_calls");
             }
@@ -1704,14 +1716,18 @@ final class OpenLocalApiGateway {
                 for (int callIndex = 0; callIndex < calls.length(); callIndex++) {
                     JSONObject call = calls.optJSONObject(callIndex);
                     JSONObject function = call == null ? null : call.optJSONObject("function");
-                    String id = call == null ? "" : call.optString("id", "").trim();
-                    String name = function == null ? "" : function.optString("name", "").trim();
+                    Object rawId = call == null ? null : call.opt("id");
+                    Object rawName = function == null ? null : function.opt("name");
+                    Object rawType = call == null ? null : call.opt("type");
+                    String id = rawId instanceof String ? ((String) rawId).trim() : "";
+                    String name = rawName instanceof String ? ((String) rawName).trim() : "";
                     Object rawArguments = function == null ? null : function.opt("arguments");
-                    if (call == null || function == null || id.length() == 0 || id.length() > 128
+                    if (call == null || function == null || !(rawId instanceof String)
+                            || !(rawName instanceof String) || id.length() == 0 || id.length() > 128
                             || name.length() == 0 || name.length() > 128
-                            || !"function".equals(call.optString("type", "function"))
-                            || !(rawArguments instanceof String)
-                            || pendingToolCallIds.contains(id)) {
+                            || (rawType != null && (!(rawType instanceof String)
+                            || !"function".equals(rawType)))
+                            || !(rawArguments instanceof String) || !seenToolCallIds.add(id)) {
                         throw new IllegalArgumentException("Invalid assistant tool-call history");
                     }
                     String arguments = (String) rawArguments;
@@ -1723,7 +1739,9 @@ final class OpenLocalApiGateway {
                             .append(" arguments=").append(arguments);
                 }
             }
-            if (prompt.length() > MAX_PROMPT_CHARS) return prompt.toString();
+            if (prompt.length() > MAX_PROMPT_CHARS) {
+                throw new IllegalArgumentException("Chat messages exceed the prompt size limit");
+            }
         }
         return prompt.toString();
     }
