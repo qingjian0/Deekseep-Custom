@@ -3219,9 +3219,12 @@ public final class DeekseepUi {
                         (android.content.ClipboardManager) act.getSystemService(Context.CLIPBOARD_SERVICE);
                 if (clipboard != null) {
                     copyText(act, "Open Native Completion Probe", report);
-                    Toast.makeText(act, report.length() > 64 * 1024
-                            ? "诊断内容过大，已复制前 64 KB"
-                            : "原生适配诊断已复制", Toast.LENGTH_SHORT).show();
+                    String copyMessage = report.length() > 64 * 1024
+                            ? UiLanguage.text(act, "诊断内容过大，已复制前 64 KB",
+                                    "Report was large; first 64 KB copied")
+                            : UiLanguage.text(act, "原生适配诊断已复制",
+                                    "Native adapter diagnostics copied");
+                    Toast.makeText(act, copyMessage, Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -4090,8 +4093,8 @@ public final class DeekseepUi {
                         android.content.ClipData.newPlainText(label, safeValue));
             } catch (Throwable failure) {
                 android.widget.Toast.makeText(context,
-                        "复制失败：" + failure.getClass().getSimpleName()
-                                + "，请使用保存成文件",
+                        UiLanguage.text(context, "复制失败，请使用保存成文件",
+                                "Copy failed; use Save to file"),
                         android.widget.Toast.LENGTH_LONG).show();
             }
         }
