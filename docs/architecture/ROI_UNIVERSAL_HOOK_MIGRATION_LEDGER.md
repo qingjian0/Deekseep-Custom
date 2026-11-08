@@ -449,3 +449,12 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - `ClassProfile.valid()` now rejects incomplete method descriptors and role prototypes; descriptor parsing validates object/primitive/array parameter types and return types before normalization.
 - Added a malformed-return-descriptor regression fixture. The matcher remains discovery-only and never authorizes Hook activation.
 - PR #15 source commit: `571e4aa0766432f1b673ac25438d4cc5a0c9d005`; test commit: `0ff8bbe6406d27c99921f6fa91e6320a67f77302`. CI/test result is pending.
+
+## Focused ROI CI verification and semantic fixture correction (2026-11-08)
+
+- Serializer PR #11 dedicated run #201 completed successfully. The serializer pipeline and mapper test step passed, as did the existing ROI runtime and legacy adapter regression steps.
+- Lifecycle PR #14 dedicated run #200 completed successfully. The job log confirms module-kotlin-runtime:test completed with BUILD SUCCESSFUL; runtime recorder, feature install registry, universal Hook runtime, and legacy Xposed API 82-102 regression matrix also passed.
+- Semantic PR #15 run #197 exposed a test-fixture contract mismatch, not a production matcher failure: testAmbiguousMethodRoleFailsClosed() supplied two methods with the same normalized prototype for one declared role. ClassProfile.valid() correctly rejects this profile before ranking, while the test incorrectly indexed the empty candidate list.
+- Updated the ambiguous-role test to assert that duplicate normalized prototypes invalidate the profile and produce no candidates. This preserves the strict production invariant rather than weakening validation.
+- Semantic test correction commit: 99c460b1c9c5cebf585676b13c60442586275861. Dedicated rerun #202 and duplicate push-triggered run #203 are pending/in progress; no passing result is claimed yet.
+- YunSeek CI runs #2060-#2062 were independently triggered by the repository's existing work/** rule. They are not ROI-specific test evidence and may include Local API checks.
