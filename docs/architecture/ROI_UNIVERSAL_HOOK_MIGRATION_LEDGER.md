@@ -533,3 +533,5 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - Kept state publication thread-safe with a `ConcurrentHashMap` and a volatile active-count snapshot; made `state()` and `activeCount()` lock-free reads. Mutating install/uninstall serialization remains unchanged, avoiding concurrent mutation of the active target graph.
 - Added a cross-thread regression that queries INSTALLING/ACTIVE state and active count from a worker during backend install, health verify, and unhook callbacks.
 - Production commit `70482ae37b2096e7f4d1b3c5587a38eaf909e3a9`; test commit `bc3360473c4aebfaf5bad370a9c785436038a68a`. ROI verification pending.
+
+- ROI run #291 caught a test-fixture ordering error, not a production failure: the new regression inserted a timestamp-115 decoy after a timestamp-120 response. `record()` correctly prunes future-dated events relative to each call's `nowMillis`, so the fixture accidentally removed its own response before snapshotting. Reordered the decoy before the timestamp-120 response in test commit `8f51059889de7e0dd3c19d0fe98fedb35b46433b`; rerun pending. No production change was made for this test-only correction.
