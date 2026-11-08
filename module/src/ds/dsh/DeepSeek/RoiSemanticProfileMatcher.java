@@ -54,8 +54,18 @@ final class RoiSemanticProfileMatcher {
         }
 
         boolean valid() {
-            return !hostBuild.isEmpty() && !role.isEmpty() && !classDescriptor.isEmpty()
-                    && !methods.isEmpty() && !methodRoles.isEmpty();
+            if (hostBuild.isEmpty() || role.isEmpty() || classDescriptor.isEmpty()
+                    || methods.isEmpty() || methodRoles.isEmpty()) return false;
+            // Every declared semantic method role must be grounded in exactly one method
+            // prototype in this profile; detached or ambiguous role evidence is invalid.
+            for (String rolePrototype : methodRoles.values()) {
+                int matches = 0;
+                for (String method : methods) {
+                    if (methodShape(rolePrototype).equals(methodShape(method))) matches++;
+                }
+                if (matches != 1) return false;
+            }
+            return true;
         }
     }
 
