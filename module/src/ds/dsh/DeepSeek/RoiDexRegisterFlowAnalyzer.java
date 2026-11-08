@@ -239,12 +239,14 @@ public final class RoiDexRegisterFlowAnalyzer {
             throws AnalysisException {
         int first = u(code[offset]);
         if (op == 0x24 || (op >= 0x6e && op <= 0x72)) {
-            int words = (first >>> 12) & 0xf;
+            // DEX format 35c stores argument count A in bits 8..11 and
+            // the optional fifth register G in bits 12..15.
+            int words = (first >>> 8) & 0xf;
             if (words > 5) throw new AnalysisException("invoke_word_count_invalid");
             int packed = u(code[offset + 2]);
             int[] all = {packed & 0xf, (packed >>> 4) & 0xf,
                     (packed >>> 8) & 0xf, (packed >>> 12) & 0xf,
-                    (first >>> 8) & 0xf};
+                    (first >>> 12) & 0xf};
             int[] result = new int[words];
             System.arraycopy(all, 0, result, 0, words);
             return checked(result, count);
