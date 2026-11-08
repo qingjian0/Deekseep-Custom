@@ -44,7 +44,7 @@ final class OpenNativeCompletionProbe {
             new java.util.concurrent.atomic.AtomicBoolean();
     private static final java.util.concurrent.atomic.AtomicBoolean OBSERVATION_275_NW3 =
             new java.util.concurrent.atomic.AtomicBoolean();
-    private static final java.util.concurrent.atomic.AtomicBoolean OBSERVATION_275_PV1 =
+    private static final java.util.concurrent.atomic.AtomicBoolean OBSERVATION_275_R3 =
             new java.util.concurrent.atomic.AtomicBoolean();
     private static final java.util.concurrent.atomic.AtomicBoolean OBSERVATION_275_POW =
             new java.util.concurrent.atomic.AtomicBoolean();
@@ -582,7 +582,7 @@ final class OpenNativeCompletionProbe {
                 if (!requestMarker.isInterface()) return;
                 installObservedMethod(loader, "nw3", "e", requestMarker,
                         OBSERVATION_275_NW3, "transport-dispatch");
-                installCode295SseDispatchObserver(loader);
+                installCode295DeltaDispatchObserver(loader);
                 installCode295PowObserver(loader);
                 observerLog("[OPEN_NATIVE_CALL_OBSERVER] profile=2.7.5/code295"
                         + " mode=passive requestRoute=nw3.e(yu1,Long)->b70"
@@ -613,10 +613,67 @@ final class OpenNativeCompletionProbe {
      * is read; the sha.b data payload is never accessed or logged.
      */
 
+
     /**
-     * Passive code295 SSE event-dispatch observer. The exact descriptor comes from the
-     * independent 2.7.5 DEX audit; argument and return values are never serialized.
+     * Passive code295 DeltaCommand dispatcher observer. The exact descriptor is confirmed by
+     * the APK smali audit: r3.c(fv1, dc3) -> Object. No event payload is read or serialized.
      */
+    private static void installCode295DeltaDispatchObserver(ClassLoader loader) {
+        if (OBSERVATION_275_R3.get() || loader == null || Main.MODULE == null) return;
+        try {
+            Class<?> owner = Class.forName("r3", false, loader);
+            Class<?> eventType = Class.forName("fv1", false, loader);
+            Class<?> continuationType = Class.forName("dc3", false, loader);
+            final Method target = owner.getDeclaredMethod("c", eventType, continuationType);
+            if (target.getReturnType() != Object.class) {
+                observerLog("[OPEN_NATIVE_CALL_OBSERVER] code295 delta-dispatch signature-unavailable");
+                return;
+            }
+            if (!OBSERVATION_275_R3.compareAndSet(false, true)) return;
+            Main.MODULE.hook(target).intercept(new LegacyXposedModule.Hooker() {
+                @Override public Object intercept(LegacyXposedModule.Chain chain)
+                        throws Throwable {
+                    if (!Main.isOpenNativeCompletionProbeEnabled()) return chain.proceed();
+                    final long started = System.nanoTime();
+                    String args = "unavailable";
+                    String continuationId = "unlinked";
+                    try {
+                        List<?> values = chain.getArgs();
+                        args = observedArgumentTypes(values);
+                        Object continuation = values != null && values.size() > 1
+                                ? values.get(1) : null;
+                        Long linked = observationIdForObject(continuation);
+                        if (linked != null) continuationId = String.valueOf(linked);
+                    } catch (Throwable ignored) {}
+                    safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] code295 delta-dispatch-enter"
+                            + " method=" + observedMethodDescriptor(target)
+                            + " continuationTraceId=" + continuationId + " args=" + args);
+                    try {
+                        Object result = chain.proceed();
+                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] code295 delta-dispatch-exit"
+                                + " continuationTraceId=" + continuationId
+                                + " result=" + observedResultType(result)
+                                + " durationMs=" + ((System.nanoTime() - started) / 1_000_000L));
+                        return result;
+                    } catch (Throwable hostError) {
+                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] code295 delta-dispatch-throw"
+                                + " continuationTraceId=" + continuationId
+                                + " exception=" + hostError.getClass().getName());
+                        throw hostError;
+                    }
+                }
+            });
+            observerLog("[OPEN_NATIVE_CALL_OBSERVER] code295 delta-dispatch-installed method="
+                    + observedMethodDescriptor(target));
+        } catch (VirtualMachineError fatal) {
+            throw fatal;
+        } catch (ThreadDeath fatal) {
+            throw fatal;
+        } catch (Throwable error) {
+            safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] code295 delta-dispatch-install-failed exception="
+                    + error.getClass().getName());
+        }
+    }
 
     /**
      * Passive observer for the statically audited code295 PoW algorithm-selection boundary.
@@ -670,7 +727,7 @@ final class OpenNativeCompletionProbe {
     }
 
     private static void installCode295SseDispatchObserver(ClassLoader loader) {
-        if (OBSERVATION_275_PV1.get() || loader == null || Main.MODULE == null) return;
+        if (OBSERVATION_275_R3.get() || loader == null || Main.MODULE == null) return;
         try {
             Class<?> owner = Class.forName("pv1", false, loader);
             Class<?> eventType = Class.forName("bia", false, loader);
@@ -682,7 +739,7 @@ final class OpenNativeCompletionProbe {
                 observerLog("[OPEN_NATIVE_CALL_OBSERVER] code295 sse-dispatch signature-unavailable");
                 return;
             }
-            if (!OBSERVATION_275_PV1.compareAndSet(false, true)) return;
+            if (!OBSERVATION_275_R3.compareAndSet(false, true)) return;
             Main.MODULE.hook(target).intercept(new LegacyXposedModule.Hooker() {
                 @Override public Object intercept(LegacyXposedModule.Chain chain)
                         throws Throwable {
