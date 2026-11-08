@@ -116,7 +116,7 @@ public final class RoiDexSerializerMapperTest {
 
     static void multipleDecodeCallsForOneSwitchCaseRejected()throws Exception {
         RoiDexCodeReader.CodeItem code=code(new short[]{
-                (short)0x0071,0,0,
+                (short)0x016e,0,(short)0x0002,
                 (short)0x000a,
                 (short)0x002b,4,0,
                 (short)0x000e,
@@ -137,7 +137,7 @@ public final class RoiDexSerializerMapperTest {
 
     static void duplicateSwitchTargetRejected()throws Exception {
         RoiDexCodeReader.CodeItem code=code(new short[]{
-                (short)0x0071,0,0,
+                (short)0x016e,0,(short)0x0002,
                 (short)0x000a,
                 (short)0x002b,4,0,
                 (short)0x000e,
@@ -156,7 +156,7 @@ public final class RoiDexSerializerMapperTest {
 
     static void switchTargetWithAlternatePredecessorRejected()throws Exception {
         RoiDexCodeReader.CodeItem code=code(new short[]{
-                (short)0x0071,0,0,
+                (short)0x016e,0,(short)0x0002,
                 (short)0x000a,
                 (short)0x002b,6,0,
                 (short)0x0000,
