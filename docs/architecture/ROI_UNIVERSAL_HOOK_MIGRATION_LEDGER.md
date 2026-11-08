@@ -479,3 +479,8 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - Run #214 revealed the role-contradiction fixture still assigned the source-equivalent Long prototype in the target role map. Because method names are intentionally ignored, changing only the alternate method's name/prototype list did not create a contradiction.
 - Corrected the target role map to declare the Integer prototype, while retaining both distinct method prototypes so the target profile remains valid. This now tests a genuine target-role disagreement.
 - Test-only commit: 3b9b970cf9346b75061caf83c4f5da4054f8c4bf. Semantic CI pending.
+## External-call evidence provenance hardening (2026-11-08)
+
+- normalizedExternalCalls() intentionally excludes obfuscated owners because they are not stable cross-version anchors. A profile containing only such calls could otherwise normalize to an empty set and receive misleading similarity credit.
+- ClassProfile.valid() now rejects obfuscated owners in external-call evidence rather than silently accepting evidence that will later be discarded. Added regression coverage for an obfuscated owner with an otherwise valid method descriptor.
+- Production commit: 9dfb3ac9f186912093d4676c0f3a180c4ae08941; test commit: 00e500332fd48fcb51f2cb1cc4a58cfa229d8c82. CI pending.
