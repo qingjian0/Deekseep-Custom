@@ -431,3 +431,13 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - The proposed production guard change was reverted; no production behavior change remains from that hypothesis.
 - The two retry-after-condition-clears tests remain as regression coverage. Their execution is still pending.
 - Revert commit: `109b8bc52d5c8714e75ff4b5f8d6519995124341`. The prior ledger paragraph claiming a confirmed lifecycle liveness defect is superseded by this correction.
+
+
+## Dedicated ROI CI coverage update (2026-11-08)
+
+- Corrected the dedicated ROI workflow branch triggers to the active ROI development branches and stacked PR base branches; the previous push trigger referenced a retired branch.
+- Added path coverage and focused runner steps for `HookLifecycleManager`, `RoiSemanticProfileMatcher`, and `RoiDexSerializerPipeline` / mapper regression suites.
+- Added `module/test-roi-serializer-pipeline.sh` on the serializer branch to compile and run both pipeline and mapper test mains.
+- Test steps are guarded by `hashFiles` / file-presence checks so a base-stage PR does not fail merely because tests introduced by a later stacked PR are absent from its merge checkout.
+- First dedicated run #189 failed at shell syntax because PR #18 did not yet contain the semantic runner from PR #15. The workflow guard correction was committed as `3989ac5e895e98d057c6d100776f766ac0b55676`; follow-up CI result is pending/unobserved.
+- The general YunSeek CI remains separate and may still be automatically triggered by its existing `work/**` branch rule; the dedicated ROI workflow does not invoke Local API tests.
