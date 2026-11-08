@@ -133,8 +133,8 @@ require(
 )
 require(
     probe,
-    r'installCode295SseDispatchObserver\(loader\).*?Class\.forName\("pv1", false, loader\).*?Class\.forName\("bia", false, loader\).*?Class\.forName\("ec3", false, loader\).*?getDeclaredMethod\("a".*?code295 sse-dispatch',
-    "code295 observes the exact audited SSE dispatcher without reading event payloads",
+    r'installCode295DeltaDispatchObserver\(loader\).*?Class\.forName\("r3", false, loader\).*?Class\.forName\("fv1", false, loader\).*?Class\.forName\("dc3", false, loader\).*?getDeclaredMethod\("c".*?code295 delta-dispatch',
+    "code295 observes the smali-confirmed DeltaCommand dispatcher without reading event payloads",
 )
 require(
     probe,
