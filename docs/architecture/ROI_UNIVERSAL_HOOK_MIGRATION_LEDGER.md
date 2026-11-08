@@ -1,8 +1,8 @@
 # ROI Universal Hook — Production Evidence and Feature Migration Ledger
 
-Last audited: 2026-11-07  
-Branch: `work/roi-universal-hook-r1-r9`  
-PR: #17 (Draft; base `dev`)
+Last audited: 2026-11-08  
+Branch: `work/roi-hook` (canonical name; renamed from `work/roi-universal-hook-r1-r9`)  
+PR: #18 (Draft; base `dev`)
 
 ## 1. Executive status
 

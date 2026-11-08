@@ -27,6 +27,12 @@ public final class RoiUniversalHookRuntimeTest {
   ok(!graphGuard.install(Arrays.asList(cycleA,cycleB),Sample.class.getClassLoader(),"fp",a).success&&graphBackend.adds.get()==0,"dependency cycle must be rejected before backend calls");
   RoiUniversalHookRuntime.Spec missing=RoiUniversalHookRuntime.Spec.builder("missing").role("chat").className(Sample.class.getName()).method("ping").returns("void").fingerprint("fp").dependsOn("not-installed").callback(cb()).build();
   ok(!graphGuard.install(Collections.singletonList(missing),Sample.class.getClassLoader(),"fp",a).success&&graphBackend.adds.get()==0,"missing dependency must be rejected before backend calls");
+  Fake foreignDependencyBackend=new Fake();RoiUniversalHookRuntime.Installer foreignDependencyGuard=new RoiUniversalHookRuntime.Installer(r,foreignDependencyBackend,new RoiUniversalHookRuntime.Health(){public boolean verify(RoiUniversalHookRuntime.Target t,RoiUniversalHookRuntime.Handle h){return true;}},new RoiUniversalHookRuntime.ActivationGate(){public boolean authorized(RoiUniversalHookRuntime.Spec s,ClassLoader loader){return true;}});
+  RoiUniversalHookRuntime.Spec foreignDependency=method("foreign","convert","java.lang.String","int");
+  RoiUniversalHookRuntime.Spec crossLoaderDependent=RoiUniversalHookRuntime.Spec.builder("crossLoaderDependent").role("chat").className(Sample.class.getName()).method("ping").returns("void").fingerprint("fp").dependsOn("foreign").callback(cb()).build();
+  ClassLoader dependencyLoader=new ClassLoader(Sample.class.getClassLoader()){};
+  ok(foreignDependencyGuard.install(Collections.singletonList(foreignDependency),Sample.class.getClassLoader(),"fp",a).success,"initial dependency install");
+  ok(!foreignDependencyGuard.install(Collections.singletonList(crossLoaderDependent),dependencyLoader,"fp",a).success&&foreignDependencyBackend.adds.get()==1,"active dependency from another ClassLoader scope must not satisfy dependency");
   Fake f=new Fake();RoiUniversalHookRuntime.Installer i=new RoiUniversalHookRuntime.Installer(r,f,new RoiUniversalHookRuntime.Health(){public boolean verify(RoiUniversalHookRuntime.Target t,RoiUniversalHookRuntime.Handle h){return true;}},new RoiUniversalHookRuntime.ActivationGate(){public boolean authorized(RoiUniversalHookRuntime.Spec s,ClassLoader loader){return true;}});
   RoiUniversalHookRuntime.Spec one=method("one","convert","java.lang.String","int");
   RoiUniversalHookRuntime.Spec two=RoiUniversalHookRuntime.Spec.builder("two").role("chat").className(Sample.class.getName()).method("ping").returns("void").fingerprint("fp").dependsOn("one").callback(cb()).build();
@@ -81,6 +87,14 @@ public final class RoiUniversalHookRuntimeTest {
   bulkUninstall.uninstallAll();ok(bulkUninstall.activeCount()==0,"bulk uninstall retry must clear retained handle");
   RoiUniversalHookRuntime.Installer unhealthy=new RoiUniversalHookRuntime.Installer(r,new Fake(),new RoiUniversalHookRuntime.Health(){public boolean verify(RoiUniversalHookRuntime.Target t,RoiUniversalHookRuntime.Handle h){return false;}},new RoiUniversalHookRuntime.ActivationGate(){public boolean authorized(RoiUniversalHookRuntime.Spec s,ClassLoader loader){return true;}});
   ok(!unhealthy.install(Collections.singletonList(one),Sample.class.getClassLoader(),"fp",a).success&&unhealthy.activeCount()==0,"health failure rollback");
+  Fake dependencyScopeBackend=new Fake();RoiUniversalHookRuntime.Installer dependencyScopeGuard=new RoiUniversalHookRuntime.Installer(r,dependencyScopeBackend,new RoiUniversalHookRuntime.Health(){public boolean verify(RoiUniversalHookRuntime.Target t,RoiUniversalHookRuntime.Handle h){return true;}},new RoiUniversalHookRuntime.ActivationGate(){public boolean authorized(RoiUniversalHookRuntime.Spec s,ClassLoader loader){return true;}});
+  RoiUniversalHookRuntime.Adapters dependencyAdapters=new RoiUniversalHookRuntime.Adapters();dependencyAdapters.approve("fp",Collections.singleton("chat"));
+  RoiUniversalHookRuntime.Spec base=method("base","convert","java.lang.String","int");
+  RoiUniversalHookRuntime.Spec dependent=RoiUniversalHookRuntime.Spec.builder("dependent").role("chat").className(Sample.class.getName()).method("ping").returns("void").fingerprint("fp").dependsOn("base").callback(cb()).build();
+  ClassLoader baseLoader=Sample.class.getClassLoader();ClassLoader otherLoader=new ClassLoader(baseLoader){};
+  ok(dependencyScopeGuard.install(Collections.singletonList(base),baseLoader,"fp",dependencyAdapters).success,"install dependency in first loader");
+  ok(!dependencyScopeGuard.install(Arrays.asList(base,dependent),otherLoader,"fp",dependencyAdapters).success&&dependencyScopeBackend.adds.get()==1,"batch must not bypass loader-scope check for an already-active dependency");
+  dependencyScopeGuard.uninstall("base");
   System.out.println("ROI universal hook runtime tests passed");
  }
 }
