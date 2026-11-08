@@ -563,9 +563,14 @@ final class OpenNativeCompletionProbe {
     private static void installRuntimeObservation(ClassLoader loader) {
         if (!"Open".equals(BuildInfo.BUILD_EDITION) || BuildInfo.LOCAL_API_INCLUDED
                 || !Main.isOpenNativeCompletionProbeEnabled()
-                || HostCompat.hostCode271() != 289 || loader == null || Main.MODULE == null) {
+                || loader == null || Main.MODULE == null) {
             return;
         }
+        if (HostCompat.isV275StaticOnly()) {
+            NativeV275RuntimeProbe.install(loader);
+            return;
+        }
+        if (HostCompat.hostCode271() != 289) return;
         try {
             Class<?> requestType = Class.forName("ly1", false, loader);
             Class<?> requestMarker = Class.forName("wu1", false, loader);
@@ -632,7 +637,7 @@ final class OpenNativeCompletionProbe {
                     }
                     try {
                         Object value = chain.proceed();
-                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] delta-dispatch-exit"
+                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] delta-dispatch-return"
                                 + " flowTraceId=" + (deltaTraceId == null ? "unlinked" : deltaTraceId)
                                 + " eventClass=" + eventClass + " eventName=" + eventName
                                 + " durationMs=" + ((System.nanoTime() - started) / 1_000_000L)
@@ -891,7 +896,7 @@ final class OpenNativeCompletionProbe {
                         throw hostError;
                     }
                     try {
-                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-exit method="
+                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-return method="
                                 + observedMethodDescriptor(target)
                                 + " flowTraceId=" + (flowTraceId == null ? "unlinked" : flowTraceId)
                                 + " result=" + observedResultType(value));
@@ -1042,7 +1047,7 @@ final class OpenNativeCompletionProbe {
                                 safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] callback-result-shape method="
                                         + callbackMethod + " result=" + observedObjectShape(value));
                             }
-                            safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] callback-exit method="
+                            safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] callback-return method="
                                     + callbackMethod + " receiverId=" + identity
                                     + " flowTraceId=" + (callbackTraceId == null ? "unlinked" : callbackTraceId)
                                     + " event=" + eventNumber + " durationMs="

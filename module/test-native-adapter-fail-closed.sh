@@ -546,8 +546,8 @@ require(
 )
 require(
     probe,
-    r'installDeltaDispatchObserver\(ClassLoader loader\).*?getDeclaredMethod\("c", eventType, continuationType\).*?Main\.MODULE\.hook\(target\).*?delta-dispatch-enter.*?chain\.proceed\(\).*?delta-dispatch-exit.*?delta-dispatch-throw',
-    "r3.c is hooked transparently with one original invocation and entry/exit/throw diagnostics",
+    r'installDeltaDispatchObserver\(ClassLoader loader\).*?getDeclaredMethod\("c", eventType, continuationType\).*?Main\.MODULE\.hook\(target\).*?delta-dispatch-enter.*?chain\.proceed\(\).*?delta-dispatch-return.*?delta-dispatch-throw',
+    "r3.c is hooked transparently with one original invocation and entry/return/throw diagnostics",
 )
 require(
     probe,
@@ -584,7 +584,7 @@ if re.search(r'while \(current != null && current != Object\.class\)', callback_
     raise SystemExit("callback observer must not traverse callback superclasses")
 require(
     probe,
-    r'callback-enter role=.*?observedArgumentTypes\(args\).*?callback-throw method=.*?exception=.*?callback-exit method=.*?durationMs=',
+    r'callback-enter role=.*?observedArgumentTypes\(args\).*?callback-throw method=.*?exception=.*?callback-return method=.*?durationMs=',
     "callback trace captures entry, completion, elapsed time, and exception class without payload values",
 )
 require(
@@ -612,7 +612,7 @@ require(
 )
 require(
     probe,
-    r'CALLBACK_METHOD_INVOCATIONS.*?CALLBACK_DETAIL_EVENTS.*?safeObserverLog\("\[OPEN_NATIVE_CALL_OBSERVER\] callback-enter.*?callback-throw.*?callback-exit',
+    r'CALLBACK_METHOD_INVOCATIONS.*?CALLBACK_DETAIL_EVENTS.*?safeObserverLog\("\[OPEN_NATIVE_CALL_OBSERVER\] callback-enter.*?callback-throw.*?callback-return',
     "every callback event is persisted; only the in-memory preview remains bounded",
 )
 require(
