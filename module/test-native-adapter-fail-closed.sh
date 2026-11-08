@@ -56,8 +56,13 @@ require(
 )
 require(
     gateway,
-    r'current == null \? "model_not_ready" : current\.readinessCode\(\)',
-    "Chat Completions maps backend readiness to the backend-specific error code",
+    r'if \(!ready\).*?backend-not-ready-dispatching requestId=.*?current\.readinessCode\(\)',
+    "Chat Completions dispatches through the backend even when readiness is false",
+)
+require(
+    gateway,
+    r'if \(current == null\).*?"model_not_ready"',
+    "a missing backend still returns model_not_ready",
 )
 require(
     main,
