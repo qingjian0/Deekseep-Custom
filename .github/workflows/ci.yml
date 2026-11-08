@@ -177,6 +177,7 @@ jobs:
           bash module/test-local-api-network-regression.sh
           bash module/test-open-native-flow-correlation.sh
           bash module/test-native-adapter-fail-closed.sh
+          bash module/test-native-json-patch-reducer.sh
 
       - name: Build traditional Xposed core for regression tests
         run: |
