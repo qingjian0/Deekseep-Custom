@@ -22,6 +22,10 @@ checks = {
         'Class.forName("yu1", false, loader)' in source and 'if (!requestMarker.isInterface()) return;' in source,
     "request route observer targets nw3.e":
         'installObservedMethod(loader, "nw3", "e", requestMarker,' in source,
+    "code295 request route requires the exact b70 Flow return type":
+        'Class.forName("b70", false, loader)' in source
+        and 'installObservedMethod(loader, "nw3", "e", requestMarker, flowType,' in source
+        and "(expectedReturnType == null" in source,
     "DeltaCommand observer targets r3.c(fv1, dc3)":
         'Class.forName("r3", false, loader)' in source
         and 'Class.forName("fv1", false, loader)' in source
