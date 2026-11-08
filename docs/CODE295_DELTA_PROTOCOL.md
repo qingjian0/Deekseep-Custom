@@ -143,7 +143,12 @@ This is why the decoder takes an explicit per-stream `State`; a stateless parse 
 
 The decoder does **not** invoke host methods, mutate a host message model, install Hooks, or enable Native Completion. It intentionally does not call `NativeJsonPatchReducer`: that class implements RFC 6902 and is a separate protocol.
 
-Regression coverage: `module/tests/nativev275/ds/dsh/DeepSeek/NativeV275DeltaCommandDecoderTest.java`, run by `module/test-native-v275-delta-decoder.sh`.
+The text/reasoning mapper `NativeV275DeltaMapper` now tracks the fragment list and maps only `RESPONSE/content` to public text and `THINK/content` to reasoning. It honors host-confirmed `SET` replacement, `APPEND` string concatenation, fragment-list replacement/append, negative fragment indices, and BATCH-relative paths. Other fragment types (ToolOpen, ToolFind, Search, and unknown types) do not leak into text or reasoning. Mapper batches are applied to a copy and committed only on full success, avoiding partial output mutation.
+
+Regression coverage:
+- `module/tests/nativev275/ds/dsh/DeepSeek/NativeV275DeltaCommandDecoderTest.java`
+- `module/tests/nativev275/ds/dsh/DeepSeek/NativeV275DeltaMapperTest.java`
+- Both run through `module/test-native-v275-delta-decoder.sh`.
 
 ## 8. Remaining work before Native Completion
 
