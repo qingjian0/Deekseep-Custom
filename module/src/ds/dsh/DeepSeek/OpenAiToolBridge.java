@@ -1204,6 +1204,10 @@ final class OpenAiToolBridge {
 
     private static void validateSchemaShape(JSONObject schema, String errorCode)
             throws z2.GatewayException {
+        if (schema == null) return;
+        if (schema.has("type") && !"object".equals(schema.opt("type"))) {
+            throw invalid(errorCode, "Tool parameters schema type must be object");
+        }
         validateSchemaNode(schema, errorCode, 0);
     }
 
