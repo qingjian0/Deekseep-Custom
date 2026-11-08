@@ -170,3 +170,10 @@ The evidence was recovered from the 2.7.5 JADX source bundle, including:
 - `defpackage/ida.java`, `ky.java`, `jy1.java`
 - `defpackage/y44.java` (Response), `a54.java` (Think), `z44.java` (Search), `e54.java` (ToolOpen)
 - `defpackage/pv1.java`, `r3.java`, `bia.java`, `ev1.java`
+
+
+## 10. Read-only runtime probe preparation
+
+`NativeV275RuntimeProbe` is now installed only through the existing explicit native-diagnostics opt-in and only when `HostCompat.isV275StaticOnly()` identifies the 2.7.5 static profile. It passively observes exact declared boundaries for `nw3.e`, `r3.c`, `pv1.a`, `pv1.e`, and `iv1.c`. The observer records argument/result class names and exception classes only; it does not read fields, serialize payloads, invoke host methods independently, or modify arguments/results. It is transparent when the opt-in switch is off.
+
+This is instrumentation preparation, not runtime evidence. The probe still needs to be run on a device with the matching 2.7.5 mainland APK. Its output must be checked for exact signatures, real Flow lifecycle and event ordering before any execution adapter is enabled.
