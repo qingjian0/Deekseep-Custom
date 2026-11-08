@@ -1163,3 +1163,18 @@ PoW 静态链包含 `nw3.c`、`of2`、`oq1`、`PowCalculator JNI` 与 `librscryp
 5. 完成 code295 专用 RequestFactory、SessionBridge、ChallengeProvider、Transport 与 EventDecoder 后，再接入 Gateway；在此之前仍保持 `engine_missing` / fail-closed。
 
 **交付判定：** 2.7.5 APK 身份与静态调用链已有证据；本轮已加入 code295 请求路由的被动运行时观察器；尚无 2.7.5 真机运行轨迹，也没有 code295 原生 Completion 的端到端结果。不可标记为“2.7.5 已适配完成”。
+
+
+### 2.7.5 SSE dispatcher 被动观察器（2026-11-08）
+
+本轮在 code295 的 `nw3.e(yu1, Long) -> b70` 请求路由观察器后，增加第二个精确描述符观察点：
+
+- Owner：`pv1`
+- Method：`a`
+- Descriptor：`(pv1, bia, ec3) -> Object`
+- 要求目标方法为 static；若运行时反射结果不满足精确签名，则不安装。
+- 只记录方法描述符、参数类型、Continuation 关联 ID、返回类型、耗时和异常类型。
+- 不读取或序列化 SSE event payload，不修改参数、返回值或宿主状态。
+- 该点是独立 DEX 静态审计中的 SSE dispatch 候选，尚未在 2.7.5 真机确认，因此日志必须以实际 `installed` / `signature-unavailable` 结果为准。
+
+这使 2.7.5 opt-in trace 至少覆盖 Request route 与 SSE dispatch 两个静态边界；不能据此声称 b70 Flow collector、原始 SSE parser `vs1.z` 或完整 Delta reducer 已在设备上被观察到。下一步需通过 2.7.5 真机日志建立 `nw3.e` 返回的 b70 与 `pv1.a` 调用之间的对象/Continuation 关联，并确认事件终态、取消和恢复路径。
