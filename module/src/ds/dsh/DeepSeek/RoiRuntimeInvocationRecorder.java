@@ -79,6 +79,7 @@ final class RoiRuntimeInvocationRecorder {
     static final class Chain {
         final String requestKey;
         final String hostFingerprint;
+        final String sourceScope;
         final Set<String> requestBuilders;
         final Set<String> transports;
         final Set<String> responseReceivers;
@@ -88,13 +89,14 @@ final class RoiRuntimeInvocationRecorder {
         final boolean orderedRequestTransportResponse;
         final boolean orderedParsedResponse;
 
-        Chain(String requestKey, String hostFingerprint, Set<String> requestBuilders,
-              Set<String> transports, Set<String> responseReceivers,
+        Chain(String requestKey, String hostFingerprint, String sourceScope,
+              Set<String> requestBuilders, Set<String> transports, Set<String> responseReceivers,
               Set<String> responseParsers, long firstTimestampMillis,
               long lastTimestampMillis, boolean orderedRequestTransportResponse,
               boolean orderedParsedResponse) {
             this.requestKey = requestKey;
             this.hostFingerprint = hostFingerprint;
+            this.sourceScope = sourceScope;
             this.requestBuilders = immutable(requestBuilders);
             this.transports = immutable(transports);
             this.responseReceivers = immutable(responseReceivers);
@@ -185,7 +187,8 @@ final class RoiRuntimeInvocationRecorder {
         List<Chain> chains = new ArrayList<Chain>();
         Set<String> seen = new LinkedHashSet<String>();
         for (Event seed : events) {
-            String key = seed.hostFingerprint + "\u0000" + seed.requestKey;
+            String key = seed.hostFingerprint + "\u0000" + seed.requestKey
+                    + "\u0000" + seed.sourceScope;
             if (!seen.add(key)) continue;
             Set<String> builders = new LinkedHashSet<String>();
             Set<String> transports = new LinkedHashSet<String>();
@@ -205,7 +208,8 @@ final class RoiRuntimeInvocationRecorder {
             for (int eventIndex = 0; eventIndex < events.size(); eventIndex++) {
                 Event event = events.get(eventIndex);
                 if (!event.hostFingerprint.equals(seed.hostFingerprint)
-                        || !event.requestKey.equals(seed.requestKey)) continue;
+                        || !event.requestKey.equals(seed.requestKey)
+                        || !event.sourceScope.equals(seed.sourceScope)) continue;
                 first = Math.min(first, event.timestampMillis);
                 last = Math.max(last, event.timestampMillis);
                 switch (event.phase) {
@@ -252,8 +256,8 @@ final class RoiRuntimeInvocationRecorder {
             boolean orderedResponse = builtIndex >= 0
                     && transportIndex > builtIndex && receivedIndex > transportIndex;
             boolean orderedParsed = orderedResponse && parsedIndex > receivedIndex;
-            chains.add(new Chain(seed.requestKey, seed.hostFingerprint, builders,
-                    transports, receivers, parsers, first, last,
+            chains.add(new Chain(seed.requestKey, seed.hostFingerprint, seed.sourceScope,
+                    builders, transports, receivers, parsers, first, last,
                     orderedResponse, orderedParsed));
         }
         return Collections.unmodifiableList(chains);
@@ -266,7 +270,8 @@ final class RoiRuntimeInvocationRecorder {
         for (Chain chain : chains) {
             for (Event event : events) {
                 if (!chain.hostFingerprint.equals(event.hostFingerprint)
-                        || !chain.requestKey.equals(event.requestKey)) continue;
+                        || !chain.requestKey.equals(event.requestKey)
+                        || !chain.sourceScope.equals(event.sourceScope)) continue;
                 result.add(new EvidenceSnapshot(event.hostFingerprint, event.sourceScope,
                         event.candidateDescriptor, event.phase,
                         chain.confirmsRequestTransportResponse(), chain.confirmsParsedResponse()));
