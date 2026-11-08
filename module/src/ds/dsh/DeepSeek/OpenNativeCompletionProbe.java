@@ -848,12 +848,13 @@ final class OpenNativeCompletionProbe {
                 @Override public Object intercept(LegacyXposedModule.Chain chain)
                         throws Throwable {
                     if (!Main.isOpenNativeCompletionProbeEnabled()) return chain.proceed();
+                    Long flowTraceId = null;
                     try {
                         List<?> args = chain.getArgs();
                         Object first = args != null && args.size() > 0 ? args.get(0) : null;
                         Object second = args != null && args.size() > 1 ? args.get(1) : null;
                         Object flow = chain.getThisObject();
-                        Long flowTraceId = observationIdForObject(flow);
+                        flowTraceId = observationIdForObject(flow);
                         associateObjectWithObservation(first, flow);
                         associateObjectWithObservation(second, flow);
                         safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-enter method="
@@ -884,13 +885,15 @@ final class OpenNativeCompletionProbe {
                     try {
                         value = chain.proceed();
                     } catch (Throwable hostError) {
-                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-throw exception="
-                                + hostError.getClass().getName());
+                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-throw flowTraceId="
+                                + (flowTraceId == null ? "unlinked" : flowTraceId)
+                                + " exception=" + hostError.getClass().getName());
                         throw hostError;
                     }
                     try {
                         safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-exit method="
                                 + observedMethodDescriptor(target)
+                                + " flowTraceId=" + (flowTraceId == null ? "unlinked" : flowTraceId)
                                 + " result=" + observedResultType(value));
                     } catch (VirtualMachineError fatal) {
                         throw fatal;
