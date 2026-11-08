@@ -12,6 +12,7 @@ public final class FeatureHookInstallRegistryRegression {
         testDegradedEntryIsVisibleAsRetryable();
         testSkippedEntryIsTerminal();
         testConcurrentCallersDoNotDoubleInstall();
+        testInstallerCallbackRunsOutsideEntryLock();
         testDifferentIdsInstallConcurrently();
         testPartialRegistrationRetryDoesNotDuplicateHooks();
         testFailureIsRethrownAndRecorded();
@@ -122,6 +123,39 @@ public final class FeatureHookInstallRegistryRegression {
         if (threadFailure.get() != null) throw threadFailure.get();
         assertEquals(1, calls.get(), "concurrent calls must execute installer once");
         assertState(registry, "concurrent.feature", FeatureHookInstallRegistry.State.INSTALLED, 1);
+    }
+
+    private static void testInstallerCallbackRunsOutsideEntryLock() throws Throwable {
+        FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
+        CountDownLatch snapshotCompleted = new CountDownLatch(1);
+        AtomicReference<Throwable> probeFailure = new AtomicReference<>();
+
+        registry.install("callback.lock", () -> {
+            Thread probe = new Thread(() -> {
+                try {
+                    FeatureHookInstallRegistry.Status found = null;
+                    for (FeatureHookInstallRegistry.Status status : registry.snapshot()) {
+                        if ("callback.lock".equals(status.id)) found = status;
+                    }
+                    check(found != null && found.state == FeatureHookInstallRegistry.State.INSTALLING,
+                            "observer must see INSTALLING while callback runs");
+                } catch (Throwable failure) {
+                    probeFailure.set(failure);
+                } finally {
+                    snapshotCompleted.countDown();
+                }
+            }, "registry-callback-lock-probe");
+            probe.start();
+            check(snapshotCompleted.await(2, TimeUnit.SECONDS),
+                    "installer callback must not hold the entry monitor");
+            probe.join(2000L);
+            check(!probe.isAlive(), "registry observer must finish during callback");
+            if (probeFailure.get() != null) {
+                throw new AssertionError("registry observer failed", probeFailure.get());
+            }
+        });
+
+        assertState(registry, "callback.lock", FeatureHookInstallRegistry.State.INSTALLED, 1);
     }
 
     private static void testDifferentIdsInstallConcurrently() throws Throwable {
