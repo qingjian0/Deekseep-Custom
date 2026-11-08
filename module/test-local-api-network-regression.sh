@@ -330,5 +330,7 @@ if "includeUsage instanceof Boolean" not in validator or "Boolean.TRUE.equals(in
     raise SystemExit("stream_options.include_usage must accept implemented boolean values")
 if 'JSONArray rawTools = body.optJSONArray("tools")' not in source or "OpenAiToolBridge.chatPlan(" not in source:
     raise SystemExit("Chat Completions function tools must route through the OpenAI tool bridge")
+if "Open 版 HTTP API 已启动，但此版本不包含原生执行引擎" not in main:
+    raise SystemExit("Open edition must explain that HTTP availability does not imply native completion readiness")
 print("LAN lifecycle, key, URL, selectable UI, API protocol, and truthful Open capability checks passed")
 PY
