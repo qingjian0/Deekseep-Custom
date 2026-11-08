@@ -208,7 +208,7 @@ public final class HostCompat {
                 || "2.2.2".equals(value)
                 || "2.3.4".equals(value) || "2.3.6".equals(value)
                 || "2.4.1".equals(value) || "2.5.0".equals(value)
-                || "2.7.1".equals(value) || "2.7.2".equals(value);
+                || "2.7.1".equals(value) || "2.7.2".equals(value) || "2.7.5".equals(value);
     }
 
     static boolean isRetiredVersionName(String versionName) {
