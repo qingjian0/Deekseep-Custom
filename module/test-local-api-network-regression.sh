@@ -215,6 +215,21 @@ gateway_checks = {
 missing_gateway = [label for label, ok in gateway_checks.items() if not ok]
 if missing_gateway:
     raise SystemExit("Missing API protocol behavior: " + ", ".join(missing_gateway))
+
+# Backend readiness is diagnostic only. A missing Open native engine must reach
+# Backend.complete() so the execution facade can return its precise engine_missing
+# result instead of being short-circuited by the HTTP gateway.
+readiness_start = source.index("boolean ready = current.isReady();")
+readiness_end = source.index("boolean includeUsage", readiness_start)
+readiness_block = source[readiness_start:readiness_end]
+if "backend-not-ready-dispatching" not in readiness_block:
+    raise SystemExit("A non-ready backend must be traced and dispatched to its execution facade")
+if "if (!ready) {" in readiness_block and "sendError(" in readiness_block:
+    raise SystemExit("Backend readiness must not preempt the per-request native execution result")
+if "current.complete(completion, null)" not in source:
+    raise SystemExit("Non-streaming completion must enter Backend.complete()")
+if "streamCompletion(out, current, completion" not in source:
+    raise SystemExit("Streaming completion must enter Backend.complete() through its SSE sink")
 ui_open = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
 if "Open 版提供 OpenAI Chat Completions、Responses 与 Anthropic Messages：" not in ui_open:
     raise SystemExit("Open UI must describe the implemented protocol surface")
