@@ -188,6 +188,7 @@ public final class RoiDexSerializerPipeline {
         try { scan=RoiDexInstructionScanner.scan(code.instructions); }
         catch(RoiDexInstructionScanner.ScanException error){return -1;}
         boolean incomplete=false;
+        boolean registrationFound=false;
         for(RoiDexInstructionScanner.Instruction instruction:scan.instructions) {
             if(instruction.payload||!isInvoke(instruction.opcode))continue;
             try {
@@ -202,12 +203,15 @@ public final class RoiDexSerializerPipeline {
                     continue;
                 }
                 if("addElement".equals(method.name)
-                        &&"(Ljava/lang/String;Z)V".equals(method.prototypeDescriptor))return 1;
+                        &&"(Ljava/lang/String;Z)V".equals(method.prototypeDescriptor))
+                    registrationFound=true;
             } catch(Exception ignored) {
                 incomplete=true;
             }
         }
-        return incomplete?-1:0;
+        // Do not return as soon as a registration call is found: a later unresolved invoke
+        // could itself be another registration call and invalidate uniqueness.
+        return incomplete?-1:(registrationFound?1:0);
     }
 
     private static boolean isInvoke(int opcode) {
