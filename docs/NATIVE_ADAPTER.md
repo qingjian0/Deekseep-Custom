@@ -938,9 +938,21 @@ Session bootstrap 的 `ch2.b -> bi5.e` 与 completion request 的 `jw3.g -> y60`
 - y60.b 收到的 Continuation 实例按弱身份引用继承该 flowTraceId；r3.c 只在第二参数与该 Continuation 为同一对象时关联 DeltaCommand 事件。未匹配时明确输出 `unlinked`，不按线程、时间或事件顺序推断。
 - Continuation 仅做身份关联，不再对其通用方法安装 callback Hook；旧设备日志显示该类方法会被 Session、Ktor 和 Challenge 等无关协程路径复用，扩大 Hook 面并产生大量噪声。
 - y60.b 的 collector 对象也按身份继承同一 flowTraceId；collector 具体实现类的 enter/exit/throw 诊断事件输出该 ID。Continuation 仍不安装通用方法 Hook。
-- 每个返回的 Flow 都会登记；Continuation Hook 仍只对已确认的具体 Flow 实现类安装一次。
+- 每个返回的 Flow 都会登记；`y60.b` 观察 Hook 仍只对已确认的具体 Flow 实现类安装一次。该 Hook 是 Flow 的 collector 边界观察，不是对 Continuation 实例安装方法 Hook。
 - 每次显式重启诊断会话时递增 session generation 并清空旧 Flow 关联；Flow 和 Continuation 登记都在映射锁内复核 session generation，防止会话重置与登记并发时旧请求重新写入；observation ID 保持进程内单调递增。
 - 不读取 Request 字段值、Prompt、消息内容、Token、Cookie、Authorization、PoW 或 Challenge 响应。
 - 报告 schema 更新为 7；新增 source-only 回归脚本 module/test-open-native-flow-correlation.sh 并接入主 CI。
 
 **证据边界：** 该改动只提供请求与 Flow 实例的诊断关联。它不证明 Flow 一定被 collect、不证明 r3.c 的 DeltaCommand reducer 已正确应用，也不证明 response assembly、取消传播或真实设备 Completion 已完成。必须在 code289 受控设备上启用诊断后，看到同一 flowTraceId 对应的 continuation-enter 与 delta-dispatch 事件，才能确认运行时链路关联成功。
+
+
+### code289 reducer 的终止语义边界
+
+基于当前 code289-cn 静态调用图，`r3.c` 明确分派 `ready`、`delta`、`hint`、`title`、`update_session` 和 `close`；当前证据没有建立独立的 `finish` 事件分支。因此：
+
+- 不得把 `close` 直接等同于 OpenAI `finish_reason`，也不得从其他版本移植未在 code289 证实的事件名。
+- `close` 是否代表 reducer 收尾、服务端正常结束或某种会话状态变更，必须结合完整 `r3.c` 状态转换和上游 Flow 完成信号判断。
+- 最终响应模型 `gy` 与 `xr.B()` 的可见文本拼接路径已在静态资料中定位，但尚未证明 answer/reasoning 的完整分离及 Tool/Search/Find/Open fragment 的正确映射。
+- Gateway 的 `finish_reason` 与 `[DONE]` 只能在原生 reducer/Flow 已确认正常完成、结果模型构造成功后发送；不能以 `close` 单个事件或 HTTP 200 代替完成证明。
+
+在获得真机事件序列前，Native Adapter 保持 `engine_missing`（HTTP 503）fail-closed，不构造虚假的 CompletionResult。
