@@ -695,12 +695,12 @@ require(
 )
 require(
     tool_bridge,
-    r"parseChoice\\(Object raw, List<Definition> tools, boolean responses\\).*?tools\\.isEmpty\\(\\) \\? Choice\\.NONE : Choice\\.AUTO.*?Choice\\.NONE\\.equals\\(value\\).*?tools\\.isEmpty\\(\\) \\? Choice\\.NONE : value",
+    r"parseChoice\(Object raw, List<Definition> tools, boolean responses\).*?tools\.isEmpty\(\) \? Choice\.NONE : Choice\.AUTO.*?Choice\.NONE\.equals\(value\).*?tools\.isEmpty\(\) \? Choice\.NONE : value",
     "empty tools and explicit tool_choice none resolve to no tool execution",
 )
 require(
     tool_bridge,
-    r"boolean active\\(\\).*?return !tools\\.isEmpty\\(\\) && !Choice\\.NONE\\.equals\\(choice\\.mode\\)",
+    r"boolean active\(\).*?return !tools\.isEmpty\(\) && !Choice\.NONE\.equals\(choice\.mode\)",
     "empty definitions or tool_choice none cannot activate tool execution",
 )
 
