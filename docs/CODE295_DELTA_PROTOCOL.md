@@ -152,10 +152,10 @@ Regression coverage:
 
 ## 8. Remaining work before Native Completion
 
-1. Add a version-specific path/fragment mapper for the exact 2.7.5 message model, including `ready` message identity and fragment IDs.
-2. Prove how `RESPONSE` and `THINK` fragments map to public text and reasoning output, including multiple fragments and interleaving.
-3. Add tests from captured, sanitized 2.7.5 event fixtures; do not invent fixtures from assumed field names.
-4. Verify `BATCH` ordering and failure behavior against the actual host model semantics.
+1. Confirm on-device that `ready` message IDs and fragment IDs align with the static `SseMessageRoot` / `RESPONSE` / `THINK` mapping.
+2. Add tests from captured, sanitized 2.7.5 event fixtures; do not invent fixtures from assumed field names.
+3. Verify `BATCH` ordering and failure behavior against the actual host model semantics.
+4. Investigate `TEMPLATE_RESPONSE` before mapping it; the current text mapper intentionally emits only `RESPONSE` and `THINK`.
 5. Observe the exact runtime event and collector lifecycle on a device running the APK with the matching package/version/signer identity.
 6. Run streaming and non-streaming E2E tests before enabling the feature.
 
