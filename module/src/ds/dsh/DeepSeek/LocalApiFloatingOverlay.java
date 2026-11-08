@@ -91,12 +91,28 @@ final class LocalApiFloatingOverlay {
 
     static void requestPermission(Context context) {
         if (context == null || hasPermission(context)) return;
-        try {
-            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:" + context.getPackageName()))
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(intent);
-        } catch (Throwable ignored) {}
+        String packageName = context.getPackageName();
+        Intent[] intents = new Intent[]{
+                // MIUI / HyperOS app permission editor; fall back to Android's special access page.
+                new Intent("miui.intent.action.APP_PERM_EDITOR")
+                        .setPackage("com.miui.securitycenter")
+                        .putExtra("extra_pkgname", packageName)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:" + packageName))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:" + packageName))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        };
+        for (Intent intent : intents) {
+            try {
+                context.startActivity(intent);
+                return;
+            } catch (Throwable ignored) {}
+        }
     }
 
     static void sync(final Context context) {
@@ -135,7 +151,9 @@ final class LocalApiFloatingOverlay {
             long code = Build.VERSION.SDK_INT >= 28
                     ? info.getLongVersionCode() : info.versionCode;
             if (code == 249L && "2.3.6".equals(info.versionName)) return true;
-            return code == 257L && "2.4.1".equals(info.versionName);
+            if (code == 257L && "2.4.1".equals(info.versionName)) return true;
+            // Mainland 2.7.2/code289 and Google Play 2.7.2/code290.
+            return (code == 289L || code == 290L) && "2.7.2".equals(info.versionName);
         } catch (Throwable ignored) {
             return false;
         }
