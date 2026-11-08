@@ -606,6 +606,45 @@ class HookLifecycleManagerTest {
     }
 
     @Test
+    fun installerVerifierAndUnhookCallbacksRunOutsideCoordinationLock() {
+        val manager = HookLifecycleManager()
+        val callbackChecks = AtomicInteger()
+
+        fun assertCoordinationLockAvailable() {
+            val completed = CountDownLatch(1)
+            val probe = Thread {
+                manager.snapshot()
+                completed.countDown()
+            }
+            probe.start()
+            try {
+                assertTrue(
+                    completed.await(2, TimeUnit.SECONDS),
+                    "lifecycle callback must not hold the coordination lock"
+                )
+            } finally {
+                probe.join(2000)
+            }
+            callbackChecks.incrementAndGet()
+        }
+
+        val installed = manager.install(
+            HookLifecycleManager.Spec("callback.lock.probe"),
+            HookLifecycleManager.Installer {
+                assertCoordinationLockAvailable()
+                HookLifecycleManager.Unhook { assertCoordinationLockAvailable() }
+            },
+            HookLifecycleManager.Verifier {
+                assertCoordinationLockAvailable()
+                true
+            }
+        )
+        assertEquals(HookLifecycleManager.State.ACTIVE, installed.state)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("callback.lock.probe").state)
+        assertEquals(3, callbackChecks.get())
+    }
+
+    @Test
     fun candidateSideConflictDeclarationBlocksAgainstActiveTarget() {
         val manager = HookLifecycleManager()
         manager.install(
