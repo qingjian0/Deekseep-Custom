@@ -1,4 +1,7 @@
 name: ROI Universal Hook Runtime
+concurrency:
+  group: roi-universal-hook-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
 on:
   push:
     branches: ["work/roi-hook", "work/generic-hook-lifecycle-dev", "work/cross-version-semantic-hook-resolver", "work/roi-serializer-integrity"]
