@@ -488,3 +488,9 @@ These commands are the intended local/JVM regression suite. They do not replace 
 
 - ROI run #224 completed successfully on semantic branch commit 3b9b970cf9346b75061caf83c4f5da4054f8c4bf. The semantic profile matcher step passed together with lifecycle, runtime recorder, feature install registry, isolated universal Hook, and legacy adapter regression steps.
 - This run predates the subsequent structural-evidence validation changes (e9d9f9e5 / f0482b0e / 9dfb3ac9 / 00e50033). Those latest changes are being verified separately in runs #230/#231; do not treat #224 as verification of those later commits.
+## Semantic matcher CI confirmation and descriptor-name hardening (2026-11-08)
+
+- The target-role contradiction fixture was corrected in commit 3b9b970cf9346b75061caf83c4f5da4054f8c4bf by changing the target role-map prototype itself to Integer (not merely renaming the method). ROI run #224 passed the semantic matcher and all other enabled regression suites.
+- Structural evidence validation commits e9d9f9e5 / f0482b0e and external-call owner validation commits 9dfb3ac9 / 00e50033 were verified by ROI runs #230 and #231. Both runs passed lifecycle, semantic matcher, runtime recorder, feature install registry, isolated Universal Hook, and legacy adapter regression steps. Serializer step was correctly skipped because that stacked PR checkout did not contain the serializer branch files.
+- Additional static audit found descriptor-name syntax was still permissive: malformed internal class names and whitespace-containing method names could pass the shape parser. Added `isInternalClassName()` and `isMethodName()` checks and tests.
+- Descriptor-name production commit: 77532bdb5798445f48ca6b471191c8ecec70a477; tests: 5bd1da1f1b5303308a2e44e1c94445c6853298ee. ROI runs #236/#237/#238 are pending/in progress; no pass is claimed for this latest hardening yet.
