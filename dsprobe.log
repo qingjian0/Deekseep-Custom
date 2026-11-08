@@ -1,187 +1,87 @@
-08:49:20.167  installed native dual root capture ComposeView.setContent x1
-08:49:20.172  font scale hook installed on android.app.Activity
-08:49:20.174  module loaded (universal), package=com.deepseek.chat, hostGeneration=2.7.2/code289-cn
-08:49:20.185  Cold start: license verified, installing feature hooks early
-08:49:20.187  installAllFeatureHooks: installing all feature hooks (authorized)
-08:49:20.189  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:49:20.192  v271 page_show dispatcher not found; using always-visible entry
-08:49:20.196  2.7.2/code289-cn navigation controller capture installed class=p16
-08:49:20.209  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:20.212  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:20.216  attachment guide-prompt rollout hook unavailable: java.lang.ClassNotFoundException: Didn't find class "deekseep unmapped q55" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:20.219  home welcome-message rollout hook=fv5.e
-08:49:20.226  native image preview appearance boundary=pe4 x0 resources=3
-08:49:20.229  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:49:20.320  lifecycle bootstrap: license verified, installing feature hooks
-08:49:20.324  installAllFeatureHooks: installing all feature hooks (authorized)
-08:49:20.329  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:49:20.332  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:20.336  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:20.338  native image preview appearance boundary=pe4 x0 resources=3
-08:49:20.342  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:49:20.344  activity lifecycle callbacks registered
-08:49:20.390  captured DeepSeek native root for dual workspace content=zy1
-08:49:20.404  installAllFeatureHooks: installing all feature hooks (authorized)
-08:49:20.407  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:49:20.409  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:20.411  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:20.413  native image preview appearance boundary=pe4 x0 resources=3
-08:49:20.414  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:49:20.423  installAllFeatureHooks: installing all feature hooks (authorized)
-08:49:20.429  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:49:20.431  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:20.436  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:20.439  native image preview appearance boundary=pe4 x0 resources=3
-08:49:20.441  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:49:20.494  ROI host identity captured package=com.deepseek.chat version=2.7.2 versionCode=289 channel=mainland splitCountAndDigest=verified
-08:49:25.966  2.7.x full-map floating keeper setting applied enabled=true
-08:49:27.158  installAllFeatureHooks: installing all feature hooks (authorized)
-08:49:27.161  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:49:27.164  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:27.166  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:27.168  native image preview appearance boundary=pe4 x0 resources=3
-08:49:27.171  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:49:27.178  installAllFeatureHooks: installing all feature hooks (authorized)
-08:49:27.181  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:49:27.185  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:27.187  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:27.189  native image preview appearance boundary=pe4 x0 resources=3
-08:49:27.191  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:49:29.029  2.7.x full-map floating keeper setting applied enabled=false
-08:49:29.093  installAllFeatureHooks: installing all feature hooks (authorized)
-08:49:29.096  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:49:29.099  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:29.103  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:29.106  native image preview appearance boundary=pe4 x0 resources=3
-08:49:29.108  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:49:29.113  installAllFeatureHooks: installing all feature hooks (authorized)
-08:49:29.115  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:49:29.118  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:29.120  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:29.122  native image preview appearance boundary=pe4 x0 resources=3
-08:49:29.124  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:49:29.587  2.7.x full-map floating keeper setting applied enabled=true
-08:49:36.205  installAllFeatureHooks: installing all feature hooks (authorized)
-08:49:36.209  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:49:36.213  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:36.217  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:36.219  native image preview appearance boundary=pe4 x0 resources=3
-08:49:36.221  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:49:36.227  installAllFeatureHooks: installing all feature hooks (authorized)
-08:49:36.229  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:49:36.232  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:36.234  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:36.236  native image preview appearance boundary=pe4 x0 resources=3
-08:49:36.239  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:49:38.702  2.7.x full-map floating keeper setting applied enabled=false
-08:49:38.751  installAllFeatureHooks: installing all feature hooks (authorized)
-08:49:38.755  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:49:38.758  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:38.763  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:38.766  native image preview appearance boundary=pe4 x0 resources=3
-08:49:38.768  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:49:38.775  installAllFeatureHooks: installing all feature hooks (authorized)
-08:49:38.777  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:49:38.781  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:38.783  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:38.786  native image preview appearance boundary=pe4 x0 resources=3
-08:49:38.788  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:49:39.131  2.7.x full-map floating keeper setting applied enabled=true
-08:49:39.214  installAllFeatureHooks: installing all feature hooks (authorized)
-08:49:39.219  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:49:39.226  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:39.230  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:39.233  native image preview appearance boundary=pe4 x0 resources=3
-08:49:39.238  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:49:39.243  installAllFeatureHooks: installing all feature hooks (authorized)
-08:49:39.246  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:49:39.250  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:39.253  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:39.257  native image preview appearance boundary=pe4 x0 resources=3
-08:49:39.259  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:49:40.785  public tunnel Binder bridge connected, status=true, binary=false
-08:49:40.812  installAllFeatureHooks: installing all feature hooks (authorized)
-08:49:40.817  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:49:40.820  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:40.825  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:40.828  native image preview appearance boundary=pe4 x0 resources=3
-08:49:40.831  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:49:40.836  installAllFeatureHooks: installing all feature hooks (authorized)
-08:49:40.840  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:49:40.844  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:40.846  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:49:40.849  native image preview appearance boundary=pe4 x0 resources=3
-08:49:40.852  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:50:05.094  2.7.x full-map floating keeper setting applied enabled=false
-08:50:05.150  installAllFeatureHooks: installing all feature hooks (authorized)
-08:50:05.153  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:50:05.157  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:05.165  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:05.169  native image preview appearance boundary=pe4 x0 resources=3
-08:50:05.172  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:50:05.178  installAllFeatureHooks: installing all feature hooks (authorized)
-08:50:05.181  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:50:05.184  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:05.186  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:05.188  native image preview appearance boundary=pe4 x0 resources=3
-08:50:05.190  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:50:09.293  installAllFeatureHooks: installing all feature hooks (authorized)
-08:50:09.296  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:50:09.300  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:09.305  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:09.308  native image preview appearance boundary=pe4 x0 resources=3
-08:50:09.312  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:50:09.317  installAllFeatureHooks: installing all feature hooks (authorized)
-08:50:09.319  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:50:09.321  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:09.323  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:09.326  native image preview appearance boundary=pe4 x0 resources=3
-08:50:09.328  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:50:11.169  heartbeat live response hook unavailable for rw2: java.lang.ClassNotFoundException: Didn't find class "deekseep unmapped rw2" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:11.172  heartbeat live response hook unavailable for tw2: java.lang.ClassNotFoundException: Didn't find class "deekseep unmapped tw2" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:11.180  heartbeat hidden-tool response hooks live=0 static=4
-08:50:11.183  optional Agent render hook unavailable [heartbeat.responses]: ClassNotFoundException: Didn't find class "deekseep unmapped rw2" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:11.185  heartbeat JSON Patch dispatcher hook unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped jo0" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:11.187  optional Agent render hook unavailable [heartbeat.patch-dispatcher]: ClassNotFoundException: Didn't find class "deekseep unmapped jo0" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:11.192  heartbeat tracked RESPONSE state hooks=2 owner=rb8
-08:50:11.195  optional Agent render hook installed: heartbeat.state-writes
-08:50:11.198  heartbeat fragment screen monitor unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped ch2r" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:11.200  optional Agent render hook unavailable [heartbeat.fragment-render]: ClassNotFoundException: Didn't find class "deekseep unmapped ch2r" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:11.203  heartbeat Markdown input hook unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped ah5" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:11.205  optional Agent render hook unavailable [heartbeat.markdown-input]: ClassNotFoundException: Didn't find class "deekseep unmapped ah5" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:11.210  heartbeat native Markdown privacy hooks parser=1 renderer=0 owner=dh5
-08:50:11.212  optional Agent render hook installed: heartbeat.native-markdown-parser
-08:50:11.215  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:11.218  optional Agent render hook unavailable [agent.tool-log-rounded-rect]: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:11.220  native model-file message card hook unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped ch2r" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:11.222  optional Agent render hook unavailable [attachment.model-file-cards]: ClassNotFoundException: Didn't find class "deekseep unmapped ch2r" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:11.225  heartbeat tool status renderer unavailable gq8: ClassNotFoundException: Didn't find class "deekseep unmapped gq8" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:11.228  optional Agent render hook unavailable [agent.tool-status-style]: ClassNotFoundException: Didn't find class "deekseep unmapped gq8" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:11.230  heartbeat tool status BasicText renderer unavailable ox1.e: ClassNotFoundException: Didn't find class "deekseep unmapped ox1" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:11.232  optional Agent render hook unavailable [agent.tool-status-basic-text]: ClassNotFoundException: Didn't find class "deekseep unmapped ox1" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:11.238  model file native-message link hooks installed=2
-08:50:11.241  optional Agent render hook installed: attachment.model-file-links
-08:50:11.316  installAllFeatureHooks: installing all feature hooks (authorized)
-08:50:11.325  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:50:11.329  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:11.332  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:11.336  native image preview appearance boundary=pe4 x0 resources=3
-08:50:11.339  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:50:11.345  installAllFeatureHooks: installing all feature hooks (authorized)
-08:50:11.347  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:50:11.350  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:11.352  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:11.354  native image preview appearance boundary=pe4 x0 resources=3
-08:50:11.357  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:50:38.795  installAllFeatureHooks: installing all feature hooks (authorized)
-08:50:38.798  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:50:38.803  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:38.807  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:38.810  native image preview appearance boundary=pe4 x0 resources=3
-08:50:38.813  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
-08:50:38.819  installAllFeatureHooks: installing all feature hooks (authorized)
-08:50:38.822  installAllFeatureHooks: 2.7.2/code289-cn full mode via HostRemap classes=7636
-08:50:38.831  code257 agent tool-log Canvas renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:38.834  Agent tool-log renderer unavailable: ClassNotFoundException: Didn't find class "deekseep unmapped mf6" on path: DexPathList[[zip file "/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk"],nativeLibraryDirectories=[/data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/lib/arm64, /data/app/~~f8su2x72lVjVyXVyQx-YfA==/com.deepseek.chat--DTuN7sTAL7-hDG1orSYDw==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
-08:50:38.837  native image preview appearance boundary=pe4 x0 resources=3
-08:50:38.840  installAllFeatureHooks failed: IllegalStateException: native image preview hooks were only partially installed: resources=3/3 owner=0
+09:15:36.374  unknown/unmaintained host: isolated opt-in lanes unknownVersionAttempts=false, diagnosticProbes=false, featureHooksAuthorized=false, discovery version=2.7.5, detected=2.7.5/code295-static-only
+09:15:36.376  host symbol table is not maintained; all opt-in ROI lanes are disabled
+09:15:36.390  [ROI_DISCOVERY]
+schema=1
+mode=read_only_unknown_host
+host=channel=unknown generation=2.7.5/code295 (static-only; hooks disabled) legacyUnit=ui8
+apk.name=base.apk
+apk.length=22210268
+apk.lastModified=1794128182018
+loader.1.type=dalvik.system.PathClassLoader
+loader.1.identity=ec9d75d
+loader.1.parent=java.lang.BootClassLoader
+loader.1.dexElements=1
+loader.1.dex.0.name=/data/app/~~Zy2PI_ykPCZAw8-kYwLEBQ==/com.deepseek.chat-YFHtfqnPTtMnC3qPPD-vWg==/base.apk
+loader.1.dex.0.classCount=15364
+loader.2.type=java.lang.BootClassLoader
+loader.2.identity=38aaebe
+loader.2.parent=bootstrap
+loader.2.dexElements=0
+loader.count=2
+dex.elementCount=1
+dex.readFailures=0
+dex.classNameCount=15364
+dex.uniqueClassNames=15364
+dex.classNameLimitReached=false
+discovery.elapsedMs=11
+hooksInstalled=false
+classesInitialized=false
+
+09:15:36.408  [ROI_DEXKIT]
+pass=1
+scan.apkPathsIncluded=true
+artifactIdentity.status=verified
+artifactIdentity.algorithm=SHA-256
+artifactIdentity.base.sha256=ddc52ef868b991fd33e634de834a3e2c022b0cd7ff9e854f4f141996aaeadb70
+artifactIdentity.split.count=0
+artifactIdentity.aggregate.sha256=49cd8e969933ab24a763eff759876749614450c6afb0edf3c068c1821803dac0
+artifactIdentity.totalBytes=22210268
+artifactIdentity.reason=none
+
+scan.budget.maxQueries=48
+scan.budget.maxCandidates=128
+scan.budget.softDeadlineMs=45000
+schema=1
+mode=read_only
+loader.discovery=root_parent_and_thread_context_snapshot
+hooksInstalled=false
+hostClassesLoaded=false
+dexkit.available=false
+dexkit.loadError=java.lang.UnsatisfiedLinkError
+
+09:15:36.432  unknown-host activation observer registered (read-only)
+09:15:36.441  unknown-host loaded marker unavailable: ErrnoException: open failed: EPERM (Operation not permitted)
+09:15:36.491  activation heartbeat unavailable: java.lang.IllegalArgumentException: Unknown authority ds.dsh.DeepSeek.XposedService
+09:15:36.495  activation heartbeat dispatched through explicit broadcast fallback
+09:15:41.421  [ROI_DEXKIT]
+pass=2
+scan.apkPathsIncluded=false
+artifactIdentity.status=not_recomputed_runtime_rescan
+scan.budget.maxQueries=48
+scan.budget.maxCandidates=128
+scan.budget.softDeadlineMs=45000
+schema=1
+mode=read_only
+loader.discovery=root_parent_and_thread_context_snapshot
+hooksInstalled=false
+hostClassesLoaded=false
+dexkit.available=false
+dexkit.loadError=java.lang.UnsatisfiedLinkError
+
+09:17:17.708  [ROI_DEXKIT]
+pass=3
+scan.apkPathsIncluded=false
+artifactIdentity.status=not_recomputed_runtime_rescan
+scan.budget.maxQueries=48
+scan.budget.maxCandidates=128
+scan.budget.softDeadlineMs=45000
+schema=1
+mode=read_only
+loader.discovery=root_parent_and_thread_context_snapshot
+hooksInstalled=false
+hostClassesLoaded=false
+dexkit.available=false
+dexkit.loadError=java.lang.UnsatisfiedLinkError
+
+09:17:17.716  activation heartbeat unavailable: java.lang.IllegalArgumentException: Unknown authority ds.dsh.DeepSeek.XposedService
+09:17:17.730  activation heartbeat dispatched through explicit broadcast fallback
