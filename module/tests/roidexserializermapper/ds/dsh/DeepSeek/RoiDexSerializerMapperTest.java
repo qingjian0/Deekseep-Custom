@@ -3,7 +3,8 @@ package ds.dsh.DeepSeek;
 public final class RoiDexSerializerMapperTest {
     public static void main(String[] args)throws Exception {
         requestConstructorShape();directElementIndexMapping();checkCastSerializableElementMapping();
-        dynamicSwitchElementIndexMapping();multipleDecodeCallsForOneSwitchCaseRejected();
+        dynamicSwitchElementIndexMapping();dynamicSwitchDifferentDecoderReceiverRejected();
+        multipleDecodeCallsForOneSwitchCaseRejected();
         duplicateSwitchTargetRejected();
         switchTargetWithAlternatePredecessorRejected();decoderReceiverMismatchRejected();incompleteElementCoverageRejected();
         incompleteElementRegistrationRejected();duplicateElementIdentityRejected();
@@ -72,7 +73,7 @@ public final class RoiDexSerializerMapperTest {
 
     static void dynamicSwitchElementIndexMapping()throws Exception {
         RoiDexCodeReader.CodeItem code=code(new short[]{
-                (short)0x0071,0,0,      // decodeElementIndex()I
+                (short)0x016e,0,(short)0x0002, // invoke-virtual {v2}, decodeElementIndex()I
                 (short)0x000a,          // move-result v0
                 (short)0x002b,4,0,      // packed-switch v0, payload at 8
                 (short)0x000e,          // default path
@@ -92,6 +93,25 @@ public final class RoiDexSerializerMapperTest {
                 index->method(index),elements(),provenance);
         yes(result.complete);eq(1,result.constructors[0].parameters.length);
         eq(0,result.constructors[0].parameters[0].elementIndex);
+    }
+
+    static void dynamicSwitchDifferentDecoderReceiverRejected()throws Exception {
+        RoiDexCodeReader.CodeItem code=code(new short[]{
+                (short)0x016e,0,(short)0x0002, // decodeElementIndex on receiver v2
+                (short)0x000a,
+                (short)0x002b,4,0,
+                (short)0x000e,
+                (short)0x0100,1,0,0,10,0,
+                (short)0x036e,1,(short)0x0043, // decodeStringElement on receiver v3
+                (short)0x010c,
+                (short)0x0270,2,(short)0x0015, // <init> {v5,v1}
+                (short)0x000e
+        },6);
+        RoiDexValueProvenance.Result provenance=provenance(code,index->method(index));
+        RoiDexSerializerMapper.Result result=RoiDexSerializerMapper.analyze(code,"Lx;",
+                index->method(index),elements(),provenance);
+        yes(!result.complete);
+        yes(hasRejection(result,"dynamic_element_index_decoder_receiver_mismatch"));
     }
 
     static void multipleDecodeCallsForOneSwitchCaseRejected()throws Exception {
