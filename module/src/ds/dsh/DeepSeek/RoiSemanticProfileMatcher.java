@@ -54,8 +54,12 @@ final class RoiSemanticProfileMatcher {
         }
 
         boolean valid() {
-            if (hostBuild.isEmpty() || role.isEmpty() || classDescriptor.isEmpty()
+            if (hostBuild.isEmpty() || role.isEmpty() || !isClassDescriptor(classDescriptor)
                     || methods.isEmpty() || methodRoles.isEmpty()) return false;
+            if (!superclassDescriptor.isEmpty() && !isClassDescriptor(superclassDescriptor)) return false;
+            for (String iface : interfaces) if (!isClassDescriptor(iface)) return false;
+            for (String field : fields) if (!isFieldEvidence(field)) return false;
+            for (String call : externalCalls) if (!isExternalCallEvidence(call)) return false;
             // A role-to-method equality check is meaningful only for syntactically complete
             // JVM/DEX method descriptors. Do not let identical malformed strings become evidence.
             for (String method : methods) {
@@ -314,7 +318,29 @@ final class RoiSemanticProfileMatcher {
         return descriptor != null && descriptor.length() > 2
                 && descriptor.charAt(0) == 'L'
                 && descriptor.charAt(descriptor.length() - 1) == ';'
-                && descriptor.indexOf(';') == descriptor.length() - 1;
+                && descriptor.indexOf(';') == descriptor.length() - 1
+                && typeDescriptorEnd(descriptor, 0, false) == descriptor.length();
+    }
+
+    private static boolean isClassDescriptor(String descriptor) {
+        return isReferenceType(descriptor);
+    }
+
+    private static boolean isFieldEvidence(String field) {
+        String value = clean(field);
+        Matcher matcher = FIELD.matcher(value);
+        String descriptor = matcher.matches() ? matcher.group(1) : value;
+        return !descriptor.isEmpty()
+                && typeDescriptorEnd(descriptor, 0, false) == descriptor.length();
+    }
+
+    private static boolean isExternalCallEvidence(String call) {
+        String value = clean(call);
+        int arrow = value.indexOf("->");
+        if (arrow <= 0 || arrow != value.lastIndexOf("->")) return false;
+        String owner = value.substring(0, arrow);
+        String method = value.substring(arrow + 2);
+        return isClassDescriptor(owner) && !methodShape(method).isEmpty();
     }
 
     private static int typeDescriptorEnd(String value, int start, boolean allowVoid) {
