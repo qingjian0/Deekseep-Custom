@@ -9,6 +9,7 @@ public final class NativeJsonPatchReducerRegressionTest {
         appliesNestedAndArrayOperations();
         supportsEscapedJsonPointerTokens();
         supportsCopyMoveAndTest();
+        comparesNestedJsonValuesStructurally();
         rejectsInvalidOperationsAtomically();
         System.out.println("NativeJsonPatchReducer regression tests passed");
     }
@@ -64,6 +65,25 @@ public final class NativeJsonPatchReducerRegressionTest {
         check("b".equals(items.getString(0)) && "a".equals(items.getString(1))
                         && "c".equals(items.getString(2)) && "a".equals(items.getString(3)),
                 "copy/move ordering is wrong");
+    }
+
+    private static void comparesNestedJsonValuesStructurally() throws Exception {
+        JSONObject source = new JSONObject()
+                .put("tree", new JSONObject()
+                        .put("items", new JSONArray().put(1).put(new JSONObject().put("ok", true))));
+        JSONObject expected = new JSONObject()
+                .put("items", new JSONArray().put(1.0).put(new JSONObject().put("ok", true)));
+        JSONArray patch = new JSONArray()
+                .put(new JSONObject().put("op", "test").put("path", "/tree")
+                        .put("value", expected));
+        NativeJsonPatchReducer.Result result = NativeJsonPatchReducer.apply(source, patch);
+        check(result.applied, "structurally equal nested JSON value failed test: " + result.error);
+
+        JSONArray mismatch = new JSONArray().put(new JSONObject()
+                .put("op", "test").put("path", "/tree")
+                .put("value", new JSONObject().put("items", new JSONArray().put(1).put(false))));
+        check(!NativeJsonPatchReducer.apply(source, mismatch).applied,
+                "structurally different nested JSON value passed test");
     }
 
     private static void rejectsInvalidOperationsAtomically() throws Exception {
