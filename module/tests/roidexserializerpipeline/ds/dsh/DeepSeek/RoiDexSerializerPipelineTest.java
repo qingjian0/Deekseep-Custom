@@ -15,8 +15,19 @@ public final class RoiDexSerializerPipelineTest {
                 RoiDexSerializerPipeline.registrationCandidateFailureReason(1,true));
         yes(RoiDexSerializerPipeline.registrationCandidateFailureReason(1,false)==null);
         pipelineMappingBoundary();
+        registrationCandidateScanMustInspectAllInvokes();
         System.out.println("RoiDexSerializerPipelineTest: PASS");
     }
+
+    static void registrationCandidateScanMustInspectAllInvokes() {
+        eq("1", String.valueOf(RoiDexSerializerPipeline.registrationCandidateScanResult(false,true)));
+        eq("0", String.valueOf(RoiDexSerializerPipeline.registrationCandidateScanResult(false,false)));
+        // Even if an addElement was found, a later unresolved invoke means another
+        // registration candidate may have been missed. Uniqueness is therefore unproven.
+        eq("-1", String.valueOf(RoiDexSerializerPipeline.registrationCandidateScanResult(true,true)));
+        eq("-1", String.valueOf(RoiDexSerializerPipeline.registrationCandidateScanResult(true,false)));
+    }
+
     static void pipelineMappingBoundary() {
         java.util.List<RoiDexSerializerElementIndex.Element> values=
                 java.util.Collections.singletonList(new RoiDexSerializerElementIndex.Element(
