@@ -515,3 +515,5 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - Refactored install to reserve the ID as `INSTALLING` under lock, execute the installer outside the monitor, then commit `INSTALLED`/`FAILED` under lock. Duplicate callers still see `INSTALLING` and cannot execute a second installer. `markSkipped()` and `markDegraded()` now leave an in-progress install unchanged, preventing callback-time state overwrite.
 - Added cross-thread snapshot probes to both the active registry regression runner and the broader regression test source.
 - Production commit: `9db59c7ba14da45e7e84c993d859c7f37d89ea33`; active-runner test commit: `559f93e749333a2b1c64cfc1a03fd3b1247316f8`; additional test-source commit: `63033ecaa9034a1d7770f6c9db82851723f94091`. Dedicated ROI CI pending.
+
+- Corrected the registry KDoc to describe the new lock contract accurately. Expanded the active regression test to prove `markSkipped()` and `markDegraded()` cannot overwrite an in-progress `INSTALLING` reservation. Follow-up commits: `8d760565f2eac03315997494580ef47b2e7784bc` (KDoc) and `df56b987658336392a7674f52c824dc94f52d4be` (state-transition test). CI pending.
