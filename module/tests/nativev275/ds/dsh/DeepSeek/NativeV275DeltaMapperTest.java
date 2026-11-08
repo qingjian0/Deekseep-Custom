@@ -14,6 +14,7 @@ public final class NativeV275DeltaMapperTest {
         batchPathsAreRelativeToBatchTarget();
         nonTextFragmentsDoNotLeakIntoText();
         malformedTextFragmentFailsClosed();
+        batchFailureIsAtomic();
         System.out.println("2.7.5 DeltaMapper regression checks passed");
     }
 
@@ -98,6 +99,22 @@ public final class NativeV275DeltaMapperTest {
                 NativeV275DeltaCommandDecoder.Command.snapshot(map("response", map(
                         "fragments", Arrays.asList(map("type", "RESPONSE", "id", 1))))));
         check(!result.accepted, "RESPONSE without content rejected");
+    }
+
+    private static void batchFailureIsAtomic() {
+        NativeV275DeltaMapper.State state = new NativeV275DeltaMapper.State();
+        applySnapshot(state);
+        NativeV275DeltaCommandDecoder.Command good =
+                NativeV275DeltaCommandDecoder.Command.delta("content", "APPEND", " partial", null);
+        NativeV275DeltaCommandDecoder.Command bad =
+                NativeV275DeltaCommandDecoder.Command.delta("content", "SET", Integer.valueOf(7), null);
+        NativeV275DeltaCommandDecoder.Command batch =
+                NativeV275DeltaCommandDecoder.Command.delta(
+                        "response/fragments/0", "BATCH", new ArrayList<Object>(),
+                        Arrays.asList(good, bad));
+        NativeV275DeltaMapper.Result result = apply(state, batch);
+        check(!result.accepted, "invalid batch rejected");
+        check("Hello".equals(result.text), "failed batch leaves prior text unchanged");
     }
 
     private static void applySnapshot(NativeV275DeltaMapper.State state) {
