@@ -149,3 +149,34 @@ The apps audit confirms the 2.7.4 identity and a 28-component APKM install set w
 - `qingjian0/apps/audit/2.7.3/summary.json` (manifest mismatch; do not label as 2.7.3)
 - `qingjian0/apps/audit/2.7.4/summary.json`
 - `qingjian0/apps/audit/2.7.5/summary.json`
+
+
+## 2.7.5 / code295 isolated profile implementation
+
+The source now contains `HostV275`, a dedicated evidence catalog for the audited mainland APK. It records the exact package/version identity, APK digest, signer digest, and all three DEX digests. The catalog also records the statically traced role chain:
+
+```text
+nw3.e(yu1, Long)
+  -> b70 Flow wrapper
+  -> g0 HTTP response handler
+  -> vs1 SSE parser
+  -> qp0 line reader
+  -> bia SSE envelope
+  -> t5 event adapter
+  -> ev1 event wrapper
+  -> r3 DeltaCommand dispatcher
+  -> pv1 / ot1 UI collector path
+  -> rr2 auto-resume orchestration
+  -> iv1 lifecycle events
+```
+
+This implementation is intentionally marked `STATIC_VERIFIED`. The profile's capability methods return false for runtime hooks and Native Completion. `HostCompat` uses the isolated marker catalog only for static-generation recognition; it does not activate legacy symbol remapping or feature hooks. The regression runner `module/test-native-v275-profile.sh` asserts the version identity, APK/DEX digest inventory, key chain roles, and disabled capability gates, and is included in the PR regression workflow.
+
+Remaining blockers before a real 2.7.5 adapter can be enabled:
+- Runtime confirmation that the inspected mainland APK is the installed host, including package, versionName, versionCode, signer and APK/DEX identity.
+- Runtime observation of the real request object entering `nw3.e`, and confirmation of the returned Flow and its collector/continuation lifecycle.
+- Exact serializer/discriminator and field semantics for DeltaCommand operations (`p`, `o`, `v`); no SET/APPEND/BATCH semantics are inferred from names.
+- Runtime-verified cancellation, finish/close, reconnect/auto-resume and structured HTTP error behavior.
+- Device E2E evidence for streaming and non-streaming completion.
+
+Until these are independently verified, 2.7.5 remains native-disabled and Local API completion remains `engine_missing`. This is a completed static profile handoff, not a claim of a completed native execution adapter.
