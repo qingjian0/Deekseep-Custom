@@ -474,3 +474,8 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - Static audit found malformed class/interface/field/external-call descriptors could enter profile scoring. In particular, normalizedExternalCalls() discards malformed entries; if both sides normalize to empty sets, Jaccard similarity returns 1.0 and can award full evidence credit to invalid call data.
 - ClassProfile.valid() now validates class and superclass descriptors, interface descriptors, field evidence, and owner-qualified external-call method descriptors before scoring. Added tests for malformed class, interface, field, and external-call evidence.
 - Production commit: e9d9f9e504093f194def058662c4ee91bcd11658; test commit: f0482b0e334481c8362f96eea1cfae6066c9590b. Latest semantic CI pending.
+## Target-role assertion correction (2026-11-08)
+
+- Run #214 revealed the role-contradiction fixture still assigned the source-equivalent Long prototype in the target role map. Because method names are intentionally ignored, changing only the alternate method's name/prototype list did not create a contradiction.
+- Corrected the target role map to declare the Integer prototype, while retaining both distinct method prototypes so the target profile remains valid. This now tests a genuine target-role disagreement.
+- Test-only commit: 3b9b970cf9346b75061caf83c4f5da4054f8c4bf. Semantic CI pending.
