@@ -676,12 +676,25 @@ class SettingsActivity : ComponentActivity() {
         val lines = buildList {
             add(appVersionLine)
             add("DeepSeek：${host.label}")
-            if (!active) add("请在 LSPosed 中启用 YunSeek 并勾选 DeepSeek，然后重启 DeepSeek")
-            else if (host.installed && !host.supported) add("当前 DeepSeek 版本未经适配，部分功能可能失效")
+            if (status.frameworkConnected && !active) {
+                add("LSPosed 框架已连接，但尚未收到 DeepSeek 宿主进程的激活心跳")
+            } else if (!status.frameworkConnected && !active) {
+                add("尚未检测到 LSPosed 框架连接或 DeepSeek 宿主进程注入")
+            }
+            if (active) add("已收到 DeepSeek 宿主进程心跳（近期注入已确认）")
+            if (host.installed && !host.supported) {
+                add("当前 DeepSeek 版本未经适配，部分功能可能失效")
+            } else if (host.installed && host.label.contains("功能适配待验证")) {
+                add("版本允许模块加载，但 Native Completion 功能适配尚未验证")
+            }
         }
         StatusHeroCard(
             active = active,
-            title = if (active) "模块已激活" else "模块未激活",
+            title = when {
+                active -> "DeepSeek 宿主已激活"
+                status.frameworkConnected -> "LSPosed 已连接"
+                else -> "模块未激活"
+            },
             lines = lines,
             modifier = Modifier.staggeredEntrance(index),
             onClick = { statusViewModel.refresh() },
