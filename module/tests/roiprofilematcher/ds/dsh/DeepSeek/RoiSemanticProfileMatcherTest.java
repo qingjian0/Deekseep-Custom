@@ -172,7 +172,7 @@ public final class RoiSemanticProfileMatcherTest {
                         "Ljava/util/concurrent/ForkJoinPool;->commonPool()Ljava/util/concurrent/ForkJoinPool;"),
                 Arrays.asList("/api/v0/chat/completion", "/api/v0/chat/regenerate"),
                 Collections.singletonMap("transport.dispatch",
-                        "route(Lreq;Ljava/lang/Long;)Lresp;"));
+                        "route(Lreq;Ljava/lang/Integer;)Lresp;"));
         RoiSemanticProfileMatcher.Match match = RoiSemanticProfileMatcher.rank(
                 source, Collections.singletonList(contradictoryRole)).get(0);
         equal(RoiSemanticProfileMatcher.State.LOW_CONFIDENCE, match.state,
