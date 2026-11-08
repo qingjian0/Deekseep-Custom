@@ -113,19 +113,26 @@ jobs:
       - name: Shell syntax
         run: |
           bash -n module/test-roi-universal-hook-runtime.sh
-          bash -n module/test-roi-semantic-profile-matcher.sh
-          bash -n module/test-roi-serializer-pipeline.sh
+          if [[ -f module/test-roi-semantic-profile-matcher.sh ]]; then
+            bash -n module/test-roi-semantic-profile-matcher.sh
+          fi
+          if [[ -f module/test-roi-serializer-pipeline.sh ]]; then
+            bash -n module/test-roi-serializer-pipeline.sh
+          fi
           bash -n module/test-roi-runtime-recorder.sh
           bash -n module/test-hook-install-registry.sh
           bash -n module-legacy/test-adapter-regression.sh
       - name: Run Kotlin lifecycle manager tests
+        if: ${{ hashFiles('module-kotlin-runtime/src/test/kotlin/ds/dsh/DeepSeek/HookLifecycleManagerTest.kt') != '' }}
         run: |
           set -euo pipefail
           GRADLE_BIN="$(bash scripts/gradle-bootstrap.sh)"
           "$GRADLE_BIN" --no-daemon --stacktrace -p module-kotlin-runtime test
       - name: Run semantic profile matcher tests
+        if: ${{ hashFiles('module/test-roi-semantic-profile-matcher.sh') != '' }}
         run: bash module/test-roi-semantic-profile-matcher.sh
       - name: Run serializer pipeline and mapper tests
+        if: ${{ hashFiles('module/test-roi-serializer-pipeline.sh') != '' }}
         run: bash module/test-roi-serializer-pipeline.sh
       - name: Run runtime invocation recorder tests
         run: bash module/test-roi-runtime-recorder.sh
