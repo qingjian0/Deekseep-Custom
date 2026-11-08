@@ -447,6 +447,73 @@ class HookLifecycleManagerTest {
 
 
     @Test
+    fun duplicateInstallDuringInstallReturnsExplicitInProgressStatus() {
+        val manager = HookLifecycleManager()
+        val installerStarted = CountDownLatch(1)
+        val allowInstallToFinish = CountDownLatch(1)
+        val result = java.util.concurrent.atomic.AtomicReference<HookLifecycleManager.Status>()
+        val spec = HookLifecycleManager.Spec("chat.transport")
+        val installer = HookLifecycleManager.Installer {
+            installerStarted.countDown()
+            check(allowInstallToFinish.await(5, TimeUnit.SECONDS))
+            HookLifecycleManager.Unhook { }
+        }
+        val thread = Thread {
+            result.set(manager.install(spec, installer, HookLifecycleManager.Verifier { true }))
+        }
+        thread.start()
+        try {
+            assertTrue(installerStarted.await(5, TimeUnit.SECONDS))
+            val duplicate = manager.install(
+                spec,
+                HookLifecycleManager.Installer { error("duplicate install must not run") },
+                HookLifecycleManager.Verifier { true }
+            )
+            assertEquals(HookLifecycleManager.State.INSTALLING, duplicate.state)
+            assertEquals("install_in_progress", duplicate.detail)
+        } finally {
+            allowInstallToFinish.countDown()
+            thread.join(5000)
+        }
+        assertFalse(thread.isAlive)
+        assertEquals(HookLifecycleManager.State.ACTIVE, result.get().state)
+    }
+
+    @Test
+    fun installDuringUninstallReturnsExplicitInProgressStatus() {
+        val manager = HookLifecycleManager()
+        val unhookStarted = CountDownLatch(1)
+        val allowUnhookToFinish = CountDownLatch(1)
+        val spec = HookLifecycleManager.Spec("chat.transport")
+        val installer = HookLifecycleManager.Installer {
+            HookLifecycleManager.Unhook {
+                unhookStarted.countDown()
+                check(allowUnhookToFinish.await(5, TimeUnit.SECONDS))
+            }
+        }
+        assertEquals(
+            HookLifecycleManager.State.ACTIVE,
+            manager.install(spec, installer, HookLifecycleManager.Verifier { true }).state
+        )
+        val result = java.util.concurrent.atomic.AtomicReference<HookLifecycleManager.Status>()
+        val thread = Thread { result.set(manager.uninstall(spec.id)) }
+        thread.start()
+        try {
+            assertTrue(unhookStarted.await(5, TimeUnit.SECONDS))
+            val inProgress = manager.install(
+                spec, installer, HookLifecycleManager.Verifier { true }
+            )
+            assertEquals(HookLifecycleManager.State.UNINSTALLING, inProgress.state)
+            assertEquals("uninstall_in_progress", inProgress.detail)
+        } finally {
+            allowUnhookToFinish.countDown()
+            thread.join(5000)
+        }
+        assertFalse(thread.isAlive)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, result.get().state)
+    }
+
+    @Test
     fun uninstallDuringInstallReturnsExplicitInProgressStatus() {
         val manager = HookLifecycleManager()
         val installStarted = CountDownLatch(1)
