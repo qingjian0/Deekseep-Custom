@@ -66,17 +66,28 @@ class FeatureHookInstallRegistry {
             entry.startedAtMillis = System.currentTimeMillis()
             entry.completedAtMillis = 0L
             entry.detail = null
+        }
 
-            try {
-                installer.install()
-                entry.state = State.INSTALLED
-                entry.completedAtMillis = System.currentTimeMillis()
-            } catch (failure: Throwable) {
-                entry.state = State.FAILED
-                entry.completedAtMillis = System.currentTimeMillis()
-                entry.detail = describe(failure)
-                throw failure
+        // Never hold the entry monitor while invoking feature code. The INSTALLING state
+        // reserves this ID against duplicate callers while allowing callbacks and observers
+        // to query the registry without cross-thread lock inversion.
+        try {
+            installer.install()
+            synchronized(entry) {
+                if (entry.state == State.INSTALLING) {
+                    entry.state = State.INSTALLED
+                    entry.completedAtMillis = System.currentTimeMillis()
+                }
             }
+        } catch (failure: Throwable) {
+            synchronized(entry) {
+                if (entry.state == State.INSTALLING) {
+                    entry.state = State.FAILED
+                    entry.completedAtMillis = System.currentTimeMillis()
+                    entry.detail = describe(failure)
+                }
+            }
+            throw failure
         }
     }
 
@@ -121,7 +132,7 @@ class FeatureHookInstallRegistry {
         requireId(id)
         val entry = entries.computeIfAbsent(id!!) { Entry() }
         synchronized(entry) {
-            if (entry.state == State.INSTALLED) return
+            if (entry.state == State.INSTALLED || entry.state == State.INSTALLING) return
             entry.state = State.SKIPPED
             entry.completedAtMillis = System.currentTimeMillis()
             entry.detail = reason ?: ""
@@ -133,7 +144,8 @@ class FeatureHookInstallRegistry {
         requireId(id)
         val entry = entries.computeIfAbsent(id!!) { Entry() }
         synchronized(entry) {
-            if (entry.state == State.INSTALLED || entry.state == State.SKIPPED) return
+            if (entry.state == State.INSTALLED || entry.state == State.SKIPPED
+                || entry.state == State.INSTALLING) return
             entry.state = State.DEGRADED
             entry.completedAtMillis = System.currentTimeMillis()
             entry.detail = failure?.let(::describe) ?: "best-effort installation incomplete"
