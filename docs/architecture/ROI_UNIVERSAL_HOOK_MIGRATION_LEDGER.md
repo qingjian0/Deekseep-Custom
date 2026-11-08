@@ -469,3 +469,8 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - Corrected the alternate role method to use a distinct `Integer` parameter prototype while preserving the test's intended contradiction against the source `Long` prototype. Production validation remains unchanged.
 - Test-only commit: 0af4240fef19c89e646fe8e3727359cc7542cbe0. New ROI run is pending; no semantic pass claimed.
 - Latest ROI serializer branch run #213 passed all enabled steps, including serializer pipeline/mapper, runtime recorder, feature install registry, isolated universal Hook tests, and legacy adapter regression matrix. This does not imply the semantic suite passed.
+## Semantic structural-evidence validation hardening (2026-11-08)
+
+- Static audit found malformed class/interface/field/external-call descriptors could enter profile scoring. In particular, normalizedExternalCalls() discards malformed entries; if both sides normalize to empty sets, Jaccard similarity returns 1.0 and can award full evidence credit to invalid call data.
+- ClassProfile.valid() now validates class and superclass descriptors, interface descriptors, field evidence, and owner-qualified external-call method descriptors before scoring. Added tests for malformed class, interface, field, and external-call evidence.
+- Production commit: e9d9f9e504093f194def058662c4ee91bcd11658; test commit: f0482b0e334481c8362f96eea1cfae6066c9590b. Latest semantic CI pending.
