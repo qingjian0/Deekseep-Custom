@@ -331,8 +331,7 @@ final class RoiSemanticProfileMatcher {
                 || name.charAt(name.length() - 1) == '/' || name.contains("//")) return false;
         for (int i = 0; i < name.length(); i++) {
             char value = name.charAt(i);
-            if (value == '.' || value == '[' || value == ';' || value == '\\'
-                    || Character.isWhitespace(value)) return false;
+            if (value == '.' || value == '[' || value == ';') return false;
         }
         return true;
     }
@@ -344,8 +343,7 @@ final class RoiSemanticProfileMatcher {
         }
         for (int i = 0; i < name.length(); i++) {
             char value = name.charAt(i);
-            if (value == '.' || value == ';' || value == '[' || value == '/'
-                    || Character.isWhitespace(value)) return false;
+            if (value == '.' || value == ';' || value == '[' || value == '/') return false;
         }
         return true;
     }
