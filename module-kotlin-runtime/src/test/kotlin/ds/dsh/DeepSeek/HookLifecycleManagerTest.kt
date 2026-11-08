@@ -223,6 +223,36 @@ class HookLifecycleManagerTest {
         assertEquals(2, unhooks.get())
     }
 
+
+    @Test
+    fun mutableDependencySetCannotChangeRegisteredLifecycleGraph() {
+        val manager = HookLifecycleManager()
+        manager.install(
+            HookLifecycleManager.Spec("transport"),
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        )
+
+        val dependencies = mutableSetOf("transport")
+        val dependent = HookLifecycleManager.Spec("stream", dependencies = dependencies)
+        assertEquals(
+            HookLifecycleManager.State.ACTIVE,
+            manager.install(
+                dependent,
+                HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+                HookLifecycleManager.Verifier { true }
+            ).state
+        )
+
+        // Mutating the caller-owned collection must not erase the installed dependency edge.
+        dependencies.clear()
+        val blocked = manager.uninstall("transport")
+        assertEquals(HookLifecycleManager.State.ACTIVE, blocked.state)
+        assertEquals("required_by_active_target:stream", blocked.detail)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("stream").state)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("transport").state)
+    }
+
     @Test
     fun disabledTargetIsSkippedWithoutCallingInstaller() {
         val manager = HookLifecycleManager()
