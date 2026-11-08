@@ -14,6 +14,19 @@ The Universal Hook runtime and the Xposed shared-callback backend are implemente
 
 The current DexKit candidate constructor intentionally sets role to `unresolved`, `adapterApproved=false`, and an empty approved-fingerprint set. It uses `Policy.discoveryOnly()`. This is correct fail-closed behavior and must not be relaxed to make the new runtime appear active.
 
+
+## 1.1 2026-11-08 follow-up engineering audit
+
+The following source-level hardening was committed on the stacked implementation branches. These changes have not yet been merged into this ledger's base branch and are not represented as runtime-validated.
+
+- **Lifecycle dependency integrity (PR #14):** dependency/conflict sets are defensively snapshotted. A prerequisite cannot be uninstalled while a dependent is ACTIVE, INSTALLING, UNINSTALLING, or FAILED with a retained unhook handle. This closes the race where a dependent installer runs outside the coordinator lock while another thread removes its prerequisite.
+- **Lifecycle regression coverage:** added caller-owned mutable-set coverage, a latch-controlled INSTALLING-dependent teardown race, and a failed-rollback retained-handle dependency case. Tests are authored but intentionally not executed in this phase.
+- **Cross-version role integrity (PR #15):** a source semantic method role is resolved only when the target profile independently declares the same role with the same normalized prototype. A structurally similar method cannot override contradictory target role evidence. Regression coverage was added; tests are authored but intentionally not executed.
+- **Semantic profile evidence:** missing structural dimensions remain in the score denominator; profiles with missing, detached, or ambiguous method-role evidence are rejected.
+- **Universal runtime batch dependency scope:** an already-active dependency must belong to the same ClassLoader scope even if its ID is also present in the submitted batch.
+- **Serializer / Provenance (PR #11):** source audit is still in progress. No blanket integration or merge is approved; its shared CI workflow changes remain outside this phase.
+- **Validation boundary:** no CI, JVM test suite, APK build, emulator, or physical-device validation is performed until the explicitly requested final validation phase. Source edits and static review must not be described as passing runtime tests.
+
 ## 2. Actual call chains
 
 ### 2.1 Existing feature-hook path
