@@ -87,6 +87,14 @@ public final class RoiUniversalHookRuntimeTest {
   bulkUninstall.uninstallAll();ok(bulkUninstall.activeCount()==0,"bulk uninstall retry must clear retained handle");
   RoiUniversalHookRuntime.Installer unhealthy=new RoiUniversalHookRuntime.Installer(r,new Fake(),new RoiUniversalHookRuntime.Health(){public boolean verify(RoiUniversalHookRuntime.Target t,RoiUniversalHookRuntime.Handle h){return false;}},new RoiUniversalHookRuntime.ActivationGate(){public boolean authorized(RoiUniversalHookRuntime.Spec s,ClassLoader loader){return true;}});
   ok(!unhealthy.install(Collections.singletonList(one),Sample.class.getClassLoader(),"fp",a).success&&unhealthy.activeCount()==0,"health failure rollback");
+  Fake dependencyScopeBackend=new Fake();RoiUniversalHookRuntime.Installer dependencyScopeGuard=new RoiUniversalHookRuntime.Installer(r,dependencyScopeBackend,new RoiUniversalHookRuntime.Health(){public boolean verify(RoiUniversalHookRuntime.Target t,RoiUniversalHookRuntime.Handle h){return true;}},new RoiUniversalHookRuntime.ActivationGate(){public boolean authorized(RoiUniversalHookRuntime.Spec s,ClassLoader loader){return true;}});
+  RoiUniversalHookRuntime.Adapters dependencyAdapters=new RoiUniversalHookRuntime.Adapters();dependencyAdapters.approve("fp",Collections.singleton("chat"));
+  RoiUniversalHookRuntime.Spec base=method("base","convert","java.lang.String","int");
+  RoiUniversalHookRuntime.Spec dependent=RoiUniversalHookRuntime.Spec.builder("dependent").role("chat").className(Sample.class.getName()).method("ping").returns("void").fingerprint("fp").dependsOn("base").callback(cb()).build();
+  ClassLoader baseLoader=Sample.class.getClassLoader();ClassLoader otherLoader=new ClassLoader(baseLoader){};
+  ok(dependencyScopeGuard.install(Collections.singletonList(base),baseLoader,"fp",dependencyAdapters).success,"install dependency in first loader");
+  ok(!dependencyScopeGuard.install(Arrays.asList(base,dependent),otherLoader,"fp",dependencyAdapters).success&&dependencyScopeBackend.adds.get()==1,"batch must not bypass loader-scope check for an already-active dependency");
+  dependencyScopeGuard.uninstall("base");
   System.out.println("ROI universal hook runtime tests passed");
  }
 }
