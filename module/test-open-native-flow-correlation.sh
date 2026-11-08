@@ -12,6 +12,7 @@ checks = {
     "weak identity equality compares referents by identity": "left != null && left == right" in source and "System.identityHashCode(value)" in source,
     "transport observation associates each returned Flow": "associateFlowWithObservation(result);" in source and source.index("associateFlowWithObservation(result);") < source.index("OBSERVATION_Y60.compareAndSet(false, true)"),
     "Flow callback resolves its originating trace": "Object flow = chain.getThisObject();" in source and "Long flowTraceId = flowObservationId(flow);" in source and '" flowTraceId="' in source,
+    "new diagnostic sessions clear stale Flow identities": "FLOW_TRACE_IDS.clear();" in source and source.index("FLOW_TRACE_IDS.clear();") < source.index("SESSION_STARTED_AT_MS = System.currentTimeMillis();"),
     "correlation is metadata-only": "flowIdentity=" in source and "observedObjectShape(flow)" not in source,
 }
 for name, passed in checks.items():
