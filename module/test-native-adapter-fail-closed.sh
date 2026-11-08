@@ -133,6 +133,11 @@ require(
 )
 require(
     probe,
+    r'HostCompat\.isV275StaticOnly\(\)\s*\?\s*Class\.forName\("yu1", false, loader\)\s*:\s*HostCompat\.load\(loader, "ew0"\)',
+    "code295 inventory must not resolve the legacy 2.2 request symbol",
+)
+require(
+    probe,
     r'HostCompat\.hostCode271\(\) != 289.*?Class\.forName\("ly1", false, loader\).*?Class\.forName\("wu1", false, loader\).*?installObservedMethod\(loader, "jw3", "g".*?installObservedMethod\(loader, "zn3", "o"',
     "code289 keeps its independently verified request and transport observer",
 )
