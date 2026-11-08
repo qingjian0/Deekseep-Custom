@@ -102,8 +102,12 @@ public final class NativeJsonPatchReducerRegressionTest {
                 "unknown operation was accepted");
     }
 
+    private static JSONObject op(String name, String path) throws Exception {
+        return new JSONObject().put("op", name).put("path", path);
+    }
+
     private static JSONObject op(String name, String path, Object value) throws Exception {
-        return new JSONObject().put("op", name).put("path", path).put("value", value);
+        return op(name, path).put("value", value);
     }
 
     private static void check(boolean condition, String message) {
