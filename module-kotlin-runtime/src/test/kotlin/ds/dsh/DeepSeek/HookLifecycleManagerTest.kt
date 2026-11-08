@@ -107,6 +107,79 @@ class HookLifecycleManagerTest {
         assertTrue(blocked.detail!!.contains("transport.v1"))
     }
 
+
+    @Test
+    fun conflictingTargetRemainsBlockedWhileUnhookIsInProgress() {
+        val manager = HookLifecycleManager()
+        val unhookStarted = CountDownLatch(1)
+        val allowUnhookToFinish = CountDownLatch(1)
+        manager.install(
+            HookLifecycleManager.Spec("transport.v1", conflicts = setOf("transport.v2")),
+            HookLifecycleManager.Installer {
+                HookLifecycleManager.Unhook {
+                    unhookStarted.countDown()
+                    check(allowUnhookToFinish.await(5, TimeUnit.SECONDS))
+                }
+            },
+            HookLifecycleManager.Verifier { true }
+        )
+
+        val uninstallResult = java.util.concurrent.atomic.AtomicReference<HookLifecycleManager.Status>()
+        val uninstallThread = Thread { uninstallResult.set(manager.uninstall("transport.v1")) }
+        uninstallThread.start()
+        try {
+            assertTrue(unhookStarted.await(5, TimeUnit.SECONDS))
+            val blocked = manager.install(
+                HookLifecycleManager.Spec("transport.v2"),
+                HookLifecycleManager.Installer { error("conflict must remain reserved during unhook") },
+                HookLifecycleManager.Verifier { true }
+            )
+            assertEquals(HookLifecycleManager.State.SKIPPED, blocked.state)
+            assertEquals("conflicts_with_active_target:transport.v1", blocked.detail)
+        } finally {
+            allowUnhookToFinish.countDown()
+            uninstallThread.join(5000)
+        }
+
+        assertFalse(uninstallThread.isAlive)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, uninstallResult.get().state)
+        assertEquals(HookLifecycleManager.State.ACTIVE, manager.install(
+            HookLifecycleManager.Spec("transport.v2"),
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        ).state)
+    }
+
+    @Test
+    fun conflictingTargetRemainsBlockedWhenRollbackRetainsHandle() {
+        val manager = HookLifecycleManager()
+        val unhooks = AtomicInteger()
+        val failed = manager.install(
+            HookLifecycleManager.Spec("transport.v1", conflicts = setOf("transport.v2")),
+            HookLifecycleManager.Installer {
+                HookLifecycleManager.Unhook {
+                    if (unhooks.incrementAndGet() == 1) error("temporary rollback failure")
+                }
+            },
+            HookLifecycleManager.Verifier { false }
+        )
+        assertEquals(HookLifecycleManager.State.FAILED, failed.state)
+
+        val blocked = manager.install(
+            HookLifecycleManager.Spec("transport.v2"),
+            HookLifecycleManager.Installer { error("retained hook handle still owns conflict") },
+            HookLifecycleManager.Verifier { true }
+        )
+        assertEquals(HookLifecycleManager.State.SKIPPED, blocked.state)
+        assertEquals("conflicts_with_active_target:transport.v1", blocked.detail)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("transport.v1").state)
+        assertEquals(HookLifecycleManager.State.ACTIVE, manager.install(
+            HookLifecycleManager.Spec("transport.v2"),
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        ).state)
+    }
+
     @Test
     fun dependencyCannotBeUninstalledWhileDependentIsActive() {
         val manager = HookLifecycleManager()
