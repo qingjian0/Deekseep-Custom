@@ -1,6 +1,6 @@
 # ROI 架构说明
 
-**适用范围：** 当前工作分支 `work/roi-agent-core-kotlin`。本文描述渐进式架构约束；具体实现进度以 [PROJECT_STATUS.md](PROJECT_STATUS.md) 为准。
+**适用范围：** 当前开发基线 `dev`。本文描述渐进式架构约束；具体实现进度以 [PROJECT_STATUS.md](PROJECT_STATUS.md) 和 [ROI dev 专项收尾审计](ROI_DEV_CLOSEOUT_AUDIT.md) 为准。
 
 ## 1. 项目定位
 
@@ -57,11 +57,11 @@ ROI 是作用于 DeepSeek Android 客户端（`com.deepseek.chat`）的 LSPosed 
 
 ## 7. 自动发现与跨版本适配
 
-ROI 自动发现引擎的目标架构、模块边界、候选状态机与实施阶段见 [ROI 自动发现与跨版本 Hook 适配引擎](architecture/ROI_AUTO_DISCOVERY_ENGINE.md)。当前文档是架构决策草案，不代表自动发现或自动 Hook 已经实现。
+ROI 自动发现现已接入未知宿主分支：有界 Loader/DEX 扫描、静态候选与调用关系、CFG 可达性、类加载观察和诊断探针均有实现及回归入口。其输出仍是诊断候选，不等于业务语义验证或 Hook 授权。详细实现和缺口见 [ROI 自动发现与跨版本 Hook 适配引擎](architecture/ROI_AUTO_DISCOVERY_ENGINE.md)。
 
 ## 8. Version-independent Hook Resolution
 
-跨版本 Hook 解析器的证据模型、状态机、激活门槛与实施阶段见 [ROI Version-independent Hook Resolution](architecture/ROI_HOOK_RESOLUTION.md)。当前 R0 仅提供纯 Java 决策核心；尚未接入真实 DEX 候选、通用调用链验证或自动 Hook 安装。
+跨版本 Hook 解析器已与 DEX 候选、宿主身份、reviewed evidence gate 和 Universal Hook 安装入口建立受控衔接；候选默认 discovery-only，当前没有通用生产 HookSpec 目录记录。真实 response/Flow 关联、完整行为契约和 L5 真机验证仍是激活前置条件。见 [ROI Version-independent Hook Resolution](architecture/ROI_HOOK_RESOLUTION.md)。
 
 ## 9. 架构变更要求
 
@@ -73,3 +73,8 @@ ROI 自动发现引擎的目标架构、模块边界、候选状态机与实施�
 5. 回归测试和验证环境。
 
 不允许以“清理代码”为理由一次性重写大文件或批量移动 Hook。大文件拆分应保持行为不变，并以可验证的小步骤进行。
+
+
+## 10. ROI 当前交付快照
+
+当前分支、CI 证据、自动发现调用链、Universal Hook 与旧 Hook 迁移边界统一记录于 [ROI dev 专项收尾审计](ROI_DEV_CLOSEOUT_AUDIT.md)。

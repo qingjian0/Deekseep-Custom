@@ -1,6 +1,6 @@
 # ROI Version-independent Hook Resolution
 
-> Status: Phase R0 implemented as a pure-Java, side-effect-free resolver core. This document does not claim automatic host-method discovery, real Hook installation, or cross-version runtime compatibility.
+> Status (2026-11-08, dev): deterministic resolver core is integrated with DEX discovery evidence and the Universal Hook activation gate. This does not mean arbitrary cross-version production Hook activation is complete.
 
 ## 1. Objective
 
@@ -162,3 +162,17 @@ extra-line, or unreadable switch files are treated as disabled. This opt-in does
 legacy feature hooks, approve an adapter, or authorize functional method hooks. Resolver proof,
 exact adapter approval, role allowlisting, installer verification, and rollback remain mandatory.
 The switch is development-only and is not merged into `main`.
+
+
+## 9. Current integration status (2026-11-08)
+
+The original R0 description above is historical and must not be read as the current integration boundary.
+
+- DEX discovery now produces loader-scoped candidates with descriptor shape, semantic anchors, invoke/caller relations and CFG reachability observations.
+- Candidate role hints can feed only the separately gated diagnostic probe lane; static role hints are not promoted to verified runtime evidence.
+- The Universal Hook activation gate checks reviewed evidence, exact candidate identity, exact ClassLoader scope, and the current complete host build identity.
+- The reviewed evidence registry has no general production feature HookSpec records. Discovery candidates remain unresolved/unapproved and use discovery-only policy.
+- The shared Legacy Xposed backend is integrated with the universal runtime and retains one native callback per Member; logical Hook groups own removable callback handles.
+- Flow suspend collector and response parser correlation remain unsupported for authorization purposes. A static call graph or successful hook registration does not prove response delivery, cancellation semantics, or lifecycle correctness.
+
+See [ROI dev 专项收尾审计](../ROI_DEV_CLOSEOUT_AUDIT.md) for the end-to-end call chains, CI evidence, migration disposition and remaining L5 requirements.
