@@ -934,7 +934,7 @@ Session bootstrap 的 `ch2.b -> bi5.e` 与 completion request 的 `jw3.g -> y60`
 
 - zn3.o / jw3.g 的同步观察帧在返回 Flow 时，将 Flow 实例与原始 observation ID 建立关联。
 - 使用 ReferenceQueue + identity-based weak reference，按对象身份而不是 equals() 关联；Flow 被释放后映射自动清理，不长期持有宿主 Flow。
-- y60.b collector 观察点记录 Flow 的 identity hash 与原始 flowTraceId，使跨线程收集事件能够回溯到产生该 Flow 的请求观察帧。
+- y60.b collector 观察点记录 Flow 的 identity hash 与原始 flowTraceId；continuation-enter/exit/throw 均保留同一 trace ID，使异步收集边界的正常返回与异常也可按请求回溯。
 - y60.b 收到的 Continuation 实例按弱身份引用继承该 flowTraceId；r3.c 只在第二参数与该 Continuation 为同一对象时关联 DeltaCommand 事件。未匹配时明确输出 `unlinked`，不按线程、时间或事件顺序推断。
 - Continuation 仅做身份关联，不再对其通用方法安装 callback Hook；旧设备日志显示该类方法会被 Session、Ktor 和 Challenge 等无关协程路径复用，扩大 Hook 面并产生大量噪声。
 - y60.b 的 collector 对象也按身份继承同一 flowTraceId；collector 具体实现类的 enter/exit/throw 诊断事件输出该 ID。Continuation 仍不安装通用方法 Hook。
