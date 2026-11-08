@@ -563,9 +563,14 @@ final class OpenNativeCompletionProbe {
     private static void installRuntimeObservation(ClassLoader loader) {
         if (!"Open".equals(BuildInfo.BUILD_EDITION) || BuildInfo.LOCAL_API_INCLUDED
                 || !Main.isOpenNativeCompletionProbeEnabled()
-                || HostCompat.hostCode271() != 289 || loader == null || Main.MODULE == null) {
+                || loader == null || Main.MODULE == null) {
             return;
         }
+        if (HostCompat.isV275StaticOnly()) {
+            NativeV275RuntimeProbe.install(loader);
+            return;
+        }
+        if (HostCompat.hostCode271() != 289) return;
         try {
             Class<?> requestType = Class.forName("ly1", false, loader);
             Class<?> requestMarker = Class.forName("wu1", false, loader);
