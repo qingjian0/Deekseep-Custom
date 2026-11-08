@@ -98,10 +98,13 @@ public final class RoiUniversalHookRuntime {
     if(fp==null||!fp.equals(s.fingerprint)||adapters==null||!adapters.allows(fp,s.role))return result(false,s.id,"fingerprint/role not approved");
     if(!gate.authorized(s,loader))return result(false,s.id,"evidence resolver denied activation");}
    for(Spec s:byId.values())for(String d:s.dependencies){
-    if(byId.containsKey(d))continue;
     Active dependency=active.get(d);
-    if(dependency==null||states.get(d)!=State.ACTIVE)return result(false,s.id,"missing or unhealthy dependency "+d);
-    if(dependency.loader!=loader)return result(false,s.id,"dependency belongs to another ClassLoader scope "+d);
+    if(dependency!=null){
+     if(states.get(d)!=State.ACTIVE)return result(false,s.id,"missing or unhealthy dependency "+d);
+     if(dependency.loader!=loader)return result(false,s.id,"dependency belongs to another ClassLoader scope "+d);
+     continue;
+    }
+    if(!byId.containsKey(d))return result(false,s.id,"missing or unhealthy dependency "+d);
    }
    List<Spec> ordered;try{ordered=order(byId);}catch(Exception e){return result(false,null,e.getMessage());}
    List<Target> targets=new ArrayList<Target>();Set<Member> batchMembers=new HashSet<Member>();
