@@ -46,6 +46,7 @@ final class HostV275 {
     static final String DELTA_REDUCER = "l83";
     static final String DELTA_STATE_OWNER = "coc";
     static final String DELTA_ROOT_MODEL = "ida";
+    static final String DELTA_ROOT_SERIALIZER = "gda";
     static final String CHAT_MESSAGE_MODEL = "ky";
     static final String FRAGMENT_LIST_MODEL = "jy1";
 
@@ -77,7 +78,8 @@ final class HostV275 {
                 && classExists(loader, FLOW_WRAPPER)
                 && classExists(loader, DELTA_COMMAND_MODEL)
                 && classExists(loader, DELTA_COMMAND_SERIALIZER)
-                && classExists(loader, DELTA_REDUCER);
+                && classExists(loader, DELTA_REDUCER)
+                && classExists(loader, DELTA_ROOT_SERIALIZER);
     }
 
     private static boolean classExists(ClassLoader loader, String name) {
