@@ -115,12 +115,18 @@ class HookLifecycleManager {
                     stableSpec.required, "dependency_not_active:$missingDependency")
             }
 
+            // A target continues to occupy its conflict domain until unhook has
+            // definitely completed. UNINSTALLING and FAILED-with-handle are not free slots.
+            fun occupiesConflictDomain(candidate: Entry): Boolean =
+                candidate.state == State.ACTIVE ||
+                    candidate.state == State.INSTALLING ||
+                    candidate.state == State.UNINSTALLING ||
+                    (candidate.state == State.FAILED && candidate.handle != null)
+
             val activeConflict = stableSpec.conflicts.firstOrNull {
-                val state = entries[it]?.state
-                state == State.ACTIVE || state == State.INSTALLING
+                entries[it]?.let(::occupiesConflictDomain) == true
             } ?: entries.values.firstOrNull {
-                (it.state == State.ACTIVE || it.state == State.INSTALLING) &&
-                    stableSpec.id in it.spec.conflicts
+                occupiesConflictDomain(it) && stableSpec.id in it.spec.conflicts
             }?.spec?.id
             if (activeConflict != null) {
                 return Status(stableSpec.id, State.SKIPPED, existing?.attempts ?: 0,
