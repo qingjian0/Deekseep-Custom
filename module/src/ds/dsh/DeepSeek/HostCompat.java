@@ -204,11 +204,21 @@ public final class HostCompat {
     static boolean supportsHostVersionName(String versionName) {
         if (versionName == null) return true;
         String value = normalizedVersionName(versionName);
-        return "2.2.1".equals(value)
-                || "2.2.2".equals(value)
+        if ("2.2.1".equals(value) || "2.2.2".equals(value)
                 || "2.3.4".equals(value) || "2.3.6".equals(value)
-                || "2.4.1".equals(value) || "2.5.0".equals(value)
-                || "2.7.1".equals(value) || "2.7.2".equals(value) || "2.7.5".equals(value);
+                || "2.4.1".equals(value) || "2.5.0".equals(value)) return true;
+        // Compatibility admission is open-ended from 2.7.0 onward. This only permits
+        // module loading/diagnostics; HostCompat's independent runtime gates still decide
+        // whether any feature Hook has a reviewed mapping and may be installed.
+        String[] parts = value.split("\\.");
+        if (parts.length < 2) return false;
+        try {
+            int major = Integer.parseInt(parts[0]);
+            int minor = Integer.parseInt(parts[1]);
+            return major > 2 || (major == 2 && minor >= 7);
+        } catch (NumberFormatException ignored) {
+            return false;
+        }
     }
 
     static boolean isRetiredVersionName(String versionName) {
