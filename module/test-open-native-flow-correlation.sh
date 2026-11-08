@@ -22,10 +22,10 @@ checks = {
     "in-flight prior-session requests cannot repopulate current links": "frame.sessionId != CURRENT_OBSERVATION_SESSION_ID" in source and "link.sessionId != CURRENT_OBSERVATION_SESSION_ID" in source,
     "Flow association rechecks session generation under the map lock": (
         "private static void associateFlowWithObservation" in source
-        and "private static void associateContinuationWithObservation" in source
+        and "private static void associateObjectWithObservation" in source
         and "if (frame.sessionId != CURRENT_OBSERVATION_SESSION_ID) return;" in
             source[source.index("private static void associateFlowWithObservation"):
-                   source.index("private static void associateContinuationWithObservation")]
+                   source.index("private static void associateObjectWithObservation")]
     ),
     "observation ids remain monotonic across sessions": "OBSERVATION_IDS.set(0L)" not in source and "OBSERVATION_SESSION_IDS.incrementAndGet()" in source,
     "correlation is metadata-only": "flowIdentity=" in source and "observedObjectShape(flow)" not in source,
