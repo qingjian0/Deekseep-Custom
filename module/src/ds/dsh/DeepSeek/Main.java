@@ -5032,13 +5032,18 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         }
         z13.start(appContext, new z2.Backend() {
             @Override public boolean isReady() {
-                // Open exposes the full HTTP surface even when a native capability is absent.
-                // The execution path reports the exact unsupported capability per request.
+                // HTTP listener availability is independent from native completion readiness.
+                // Open keeps /v1/models available but must not advertise generation as ready.
                 if ("Open".equals(BuildInfo.BUILD_EDITION) && !BuildInfo.LOCAL_API_INCLUDED) {
-                    return true;
+                    return false;
                 }
                 return BuildInfo.LOCAL_API_INCLUDED
                         && hostClassLoader != null && liveR92 != null && liveQ71 != null;
+            }
+
+            @Override public String readinessCode() {
+                return "Open".equals(BuildInfo.BUILD_EDITION) && !BuildInfo.LOCAL_API_INCLUDED
+                        ? "engine_missing" : "model_not_ready";
             }
 
             @Override public String readinessDetail() {
