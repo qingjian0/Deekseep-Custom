@@ -102,13 +102,19 @@ ida.c("response")
 
 `jy1.c` resolves numeric indices and also supports negative indices relative to the end of the fragment list. This is host path behavior; it is not JSON Pointer's `~0` / `~1` escaping or array-index grammar.
 
-## 5. Stateful omission rules
+## 5. Stream bootstrap and stateful omission rules
 
-`coc.W(wt3, iv1)` applies the carry-forward rules before calling `l83.H`:
+The first DeltaCommand in a collected stream is a **snapshot bootstrap**, not a patch:
+- `pv1.u` starts at `-1`; the event path increments it before calling `pv1.e`, so the first command enters the `i == 0` branch.
+- That branch calls `coc.c0(wt3.v)`, which decodes `v` with the `SseMessageRoot` serializer (`gda`). The root serializer requires a `response` field.
+- The first command's `p` and `o` are deserialized as part of `wt3`, but they are not applied as a patch in this branch.
+- `coc.c0` resets the remembered path to empty and operation to `SET`.
 
-- Initial path is the empty string.
-- Initial operation is `SET`.
-- If `p` is absent, the previous path is reused.
+Only subsequent DeltaCommands enter `coc.W(wt3, iv1)` and apply the carry-forward rules before calling `l83.H`:
+
+- After snapshot bootstrap, initial path is the empty string.
+- After snapshot bootstrap, initial operation is `SET`.
+- If `p` is absent on a later command, the previous path is reused.
 - If `o` is absent, the previous operation is reused.
 - The resulting path and operation are stored for the next top-level DeltaCommand in that stream.
 
@@ -127,7 +133,8 @@ This is why the decoder takes an explicit per-stream `State`; a stateless parse 
 ## 7. Adapter implementation in Deekseep-Custom
 
 `NativeV275DeltaCommandDecoder` now decodes a parsed JSON object represented as a Java `Map` into an immutable command tree. It:
-- preserves the exact `p` / `o` / `v` field contract;
+- recognizes the first command as a full `SseMessageRoot` snapshot (`v.response`), not as a path patch;
+- preserves the exact `p` / `o` / `v` field contract for subsequent deltas;
 - maintains top-level per-stream path/operation carry-forward;
 - gives each BATCH its own default path/operation state and carries fields between its children;
 - accepts JSON null as a present `v` value;
