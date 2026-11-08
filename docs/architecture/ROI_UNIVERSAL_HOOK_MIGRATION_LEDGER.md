@@ -408,3 +408,9 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - `Main.uninstallRoiUniversalHookBatch` can complete cleanup for either an INSTALLED group or a FAILED install after all runtime handles have been removed. The new registry transition is distinct and callable only after Main verifies activeCount()==0.
 - Fatal errors during rollback/uninstall propagate only after the uncertain handle is retained in runtime state. Normal backend registration errors remain a failed install result, with any partially published Xposed callback quarantined disabled.
 - Per the requested execution order, full CI and Android/LSPosed device validation are postponed until the final consolidated source commit.
+
+### Lifecycle transition observability follow-up (2026-11-08)
+
+- `HookLifecycleManager.uninstall(id)` now returns explicit transient details when the target is `INSTALLING` or `UNINSTALLING` (`install_in_progress` / `uninstall_in_progress`). The in-flight entry is not mutated by the rejected uninstall request.
+- Regression test source added for uninstall-during-install and reverse-direction conflict declarations.
+- This is source/test-code work only. The lifecycle test suite, CI, APK build, emulator, and physical-device validation remain intentionally deferred to the final validation stage.
