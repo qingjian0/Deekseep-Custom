@@ -1,8 +1,8 @@
 # ROI Universal Hook — Production Evidence and Feature Migration Ledger
 
 Last audited: 2026-11-08  
-Branch: `work/roi-hook` (canonical name; renamed from `work/roi-universal-hook-r1-r9`)  
-PR: #18 (Draft; base `dev`)
+Branch: `dev`  
+PR: #18 (merged to dev; merge commit `3342c3e521411417c8b23a0f4ff511b3cd80e07f`)
 
 ## 1. Executive status
 
@@ -17,7 +17,7 @@ The current DexKit candidate constructor intentionally sets role to `unresolved`
 
 ## 1.1 2026-11-08 follow-up engineering audit
 
-The following source-level hardening was committed on the stacked implementation branches. These changes have not yet been merged into this ledger's base branch and are not represented as runtime-validated.
+The lifecycle, semantic matcher, serializer, host-identity and Universal Hook hardening summarized below is now represented in the dev implementation lineage through PR #18. CI evidence is commit-specific; the latest dev CI is recorded in PROJECT_STATUS.md. This still does not constitute L5 host-device validation.
 
 - **Lifecycle dependency integrity (PR #14):** dependency/conflict sets are defensively snapshotted. A prerequisite cannot be uninstalled while a dependent is ACTIVE, INSTALLING, UNINSTALLING, or FAILED with a retained unhook handle. This closes the race where a dependent installer runs outside the coordinator lock while another thread removes its prerequisite.
 - **Lifecycle regression coverage:** added caller-owned mutable-set coverage, a latch-controlled INSTALLING-dependent teardown race, and a failed-rollback retained-handle dependency case. Tests are authored but intentionally not executed in this phase.
@@ -135,7 +135,7 @@ Important constraints:
 
 ## 4. Existing feature-hook migration inventory
 
-All entries below are currently installed through the legacy feature pipeline. **None is automatically converted to Universal HookSpec by this PR.** Migration requires a separate reviewed adapter record with exact host/version evidence and an integration test.
+All entries below are currently installed through the legacy feature pipeline unless a separate exact adapter is explicitly identified. **No bulk conversion to Universal HookSpec is enabled on dev.** Migration requires a separate reviewed adapter record with exact host/version evidence and an integration test.
 
 ### Chat and request/response
 
@@ -256,8 +256,8 @@ Do not migrate Local API account/credential routing in this ROI PR. It is intent
 - Improve the runtime evidence path for Kotlin suspend/Flow without wrapping or replacing host return objects unsafely. Until that is proven, mark response coverage unsupported and deny authorization that depends on it.
 - Build a version-scoped reviewed evidence catalog only from inspected APK/DEX plus verified device traces. Empty catalog is a valid safe state.
 - Add one production adapter only when all required evidence families and its explicit policy are present.
-- Keep the PR Draft. Do not merge to `dev` or `main` without an explicit request.
-- Run the final complete CI only after the source integration and migration work is finished. Automatic branch-triggered workflow runs may still occur; do not use them as a reason to prematurely close the engineering phase.
+- PR #18 is merged to `dev`; keep any future feature-migration work isolated until its evidence and device acceptance are complete. Do not merge to `main` without explicit authorization.
+- Current dev full CI passed on `4ca8a845` (Run 42454218917). Future source changes must be validated on their own commit; CI success does not replace L5 device acceptance.
 
 ## 7. Verification commands
 
@@ -535,3 +535,12 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - Production commit `70482ae37b2096e7f4d1b3c5587a38eaf909e3a9`; test commit `bc3360473c4aebfaf5bad370a9c785436038a68a`. ROI verification pending.
 
 - ROI run #291 caught a test-fixture ordering error, not a production failure: the new regression inserted a timestamp-115 decoy after a timestamp-120 response. `record()` correctly prunes future-dated events relative to each call's `nowMillis`, so the fixture accidentally removed its own response before snapshotting. Reordered the decoy before the timestamp-120 response in test commit `8f51059889de7e0dd3c19d0fe98fedb35b46433b`; rerun pending. No production change was made for this test-only correction.
+
+
+## dev integration snapshot (2026-11-08)
+
+- Universal Hook runtime PR #18 is merged to dev; this ledger now describes the dev implementation, not an unmerged work branch.
+- The production feature inventory remains on legacy feature pipelines. No reviewed production HookSpec catalog records are currently available for a safe bulk migration.
+- The DEX discovery pipeline is integrated but remains discovery-only for general candidates. Runtime Flow/response correlation is incomplete and explicitly reported as unsupported coverage.
+- Current dev full CI: [Run 42454218917](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42454218917), commit `4ca8a845`; this is not a device acceptance result.
+- See [ROI dev closeout audit](../ROI_DEV_CLOSEOUT_AUDIT.md) for the unified call chain and acceptance matrix.

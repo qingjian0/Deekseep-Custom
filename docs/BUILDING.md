@@ -1,6 +1,6 @@
-# 构建说明（当前工作分支）
+# 构建说明（dev 开发基线）
 
-> 适用分支：`work/roi-agent-core-kotlin`。本文描述当前 CI 与构建目录，不代表其他分支或历史 Release 使用相同流程。
+> 适用分支：`dev` 及从其创建的任务分支。本文描述当前 CI 与构建目录，不代表历史 Release 使用相同流程。
 
 ## 环境
 
@@ -56,7 +56,8 @@ bash module/test-local-api-network-regression.sh
 
 ## 工作流与发布边界
 
-- `.github/workflows/ci.yml`：对 `dev` 与 `work/**` 推送，以及目标为 `dev` 的 PR 执行质量门禁；只使用 `contents: read` 权限和临时 CI 签名密钥。
+- `.github/workflows/ci.yml`：对 `dev` 与 `work/**` 推送，以及目标为 `dev` 的 PR 执行完整质量门禁；只使用 `contents: read` 权限和临时 CI 签名密钥。
+- `.github/workflows/roi-universal-hook.yml`：ROI 专项 JVM 工作流；覆盖 Universal Hook 生命周期/Legacy adapter 与 ROI DEX discovery、候选、ClassLoader、运行时观察和 unknown-host 回归。它不替代完整 Regression 与 Android 构建。
 - 正式签名与 Release 流程由独立 workflow 管理。不得为普通分支回归借用正式签名 Secrets。
 - CI 上传的 APK 是构建验证产物，不应自动视为面向用户的正式发布包。
 

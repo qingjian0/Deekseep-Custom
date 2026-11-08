@@ -27,7 +27,7 @@
 | 工作分支 | `dev`（唯一日常开发基线） |
 | 最近一次 Runtime 观察源码修复 | code289 `r3.c(dv1, yb3)` Delta 事件观察点；仅记录白名单事件名，不读 `sha.b`。当前仅有源码实现，尚无该观察点的设备运行日志 |
 | 最近一次 ROI 扫描预算实现 | `cca035d6b319a5ed0ab897bee6b1fb2a3c36589b` |
-| 最近一次已完成完整 CI | [Run `42355705172`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42355705172) — success（commit `cd2742b`）；后续 HEAD 仍需独立验证 |
+| 最近一次已完成完整 CI | [Run `42454218917`](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42454218917) — success（commit `4ca8a845`，与当前 dev HEAD 一致） |
 | Kotlin 架构基线 | `refactor/kotlin-hook-architecture`（历史基线） |
 | 与架构基线关系 | 不作为当前 `dev` 的实时 ahead/behind 指标 |
 | 主干策略 | `dev` 为唯一日常开发分支；`main` 仅作稳定分支；不从旧工作分支整体合并或覆盖 `dev` |
@@ -145,19 +145,21 @@ Run `41649071834` 是较早阶段的绿色基线。最近可引用的完整绿�
 
 ## 7. ROI 自动发现引擎
 
-- 项目名称统一为 **ROI**；仓库名、Android 包名、Xposed 入口和既有命名空间保持原样，避免无关的兼容性变更。
-- 已新增 [ROI 自动发现与跨版本 Hook 适配引擎](architecture/ROI_AUTO_DISCOVERY_ENGINE.md) 架构决策草案。
-- 当前未知版本仍会在功能 Hook 安装前被拒绝；只读发现入口尚未接入，自动发现、结构指纹、调用图分析和自动映射均未实现。
-- 最新探针回归修复提交 `41a569b` 的 CI Run `41783005479` 已通过；架构文档提交 `83f8c9e` 的 CI 正在排队/运行，不能与前一 Run 混为一谈。
+- 项目名称统一为 **ROI**；仓库名、Android 包名、Xposed 入口和既有命名空间保持原样。
+- 未知宿主分支已经接入 `RoiHostDiscovery` 与 `RoiDexKitDiscovery`，包括有界 Loader/DEX 扫描、base/split APK 补充扫描、候选结构、静态 invoke/caller 关系、CFG 可达性、语义角色提示及类加载观察。
+- 未知宿主默认不进入常规生产功能 Hook 安装；元数据观察、诊断探针和受限 prompt feature lane 使用独立显式开关。
+- 静态候选和 runtime recorder 仍为诊断证据；Flow collector 与 response parser correlation 未完整支持，不能作为完整 response/lifecycle 契约。
+- 未审核候选保持 unresolved / adapterApproved=false / discovery-only；当前没有通用生产 HookSpec 记录，不允许把候选自动升级为生产 Hook。
+- 详见 [ROI dev 专项收尾审计](ROI_DEV_CLOSEOUT_AUDIT.md)。
 
-## 7A. Version-independent Hook Resolution（2026-11-04）
+## 7A. Version-independent Hook Resolution（2026-11-08）
 
-- 已新增纯 Java `RoiHookResolver` 决策核心：按证据族去重、加权评分、冲突拒绝、关键证据硬门槛，以及默认 discovery-only 策略。
-- 已新增独立可执行回归脚本 `module/test-roi-hook-resolver.sh`，并接入 CI Regression job。
-- 自动激活授权还要求适配规则批准、精确宿主指纹匹配、语义角色 allowlist 与显式开启策略；Resolver 只输出 installer authorization，不把候选标记为 ACTIVE，也不直接安装 Hook。
-- 当前仅完成 R0。真实 DEX 候选接入、跨版本调用链相关性验证、Adapter Registry 集成、安装后验证与回滚仍未完成；不得宣称任意版本自动 Hook 已实现。
+- `RoiHookResolver` 已作为确定性决策核心接入 DEX candidate pipeline 和 Universal Hook activation gate。
+- 激活门禁要求 reviewed evidence、完整宿主构建身份、精确 ClassLoader、候选 identity、角色 allowlist 和显式策略；默认 discovery-only。
+- Universal Hook installer 与 Legacy Xposed shared callback backend 已接通，具备生命周期、rollback、uninstall/reinstall 和失败句柄保留能力。
+- 仍缺少完整 runtime response/Flow 关联、完整生产 adapter 证据和可审核生产 HookSpec 目录；当前生产 feature pipelines 未整体迁移。
 
-## 7B. ROI R1 / CI Audit 0.5（2026-11-04）
+## 7B. ROI R1 / CI Audit 0.5（2026-11-08，历史实施记录）
 
 - DexKit 字符串锚点候选已接入 `RoiHookResolver`，但只提供低置信度、未确认的宿主诊断与方法形状证据；策略仍为 discovery-only，不允许安装 Hook。
 - 候选报告增加 resolver state、score、activationAuthorized 和 reason；新增 DEX 方法描述符解析，提取 owner、method、参数数量和返回描述符。
@@ -739,3 +741,12 @@ Added process-local source scopes for runtime ClassLoader and APK observations. 
 - 对该 code289 artifact 执行扩展后的完整本地静态审计：**24/24 PASS**。此结果只证明 Smali 静态锚点匹配，不证明挑战可运行、模块可获取宿主 client、Flow 可安全收集或 Completion 已成功。
 - Native Completion 协议入口保持开放；原生引擎缺失时按请求返回 `engine_missing`（HTTP 503）。当前优先研究宿主 `zn3/jw3`、`bi5/cf5`、`hq1` 的实例来源、生命周期和取消语义；不复制 challenge plugin、不自行拼接认证 header。
 - 按既定计划，PR CI 与真机验证继续留到源码阶段收尾后统一执行；本轮没有触发 CI，也没有声称设备验收通过。
+
+
+## 9. ROI dev 收尾审计快照（2026-11-08）
+
+当前 `dev` HEAD 为 `4ca8a84548bd3fd2286935eeb4ffb1e6aa6ec03f`。完整 YunSeek CI Run [42454218917](https://github.com/qingjian0/Deekseep-Custom/actions/runs/42454218917) 对该 HEAD 的 ROI fast audit、Regression tests、Android Open build/Lint 与 APK 校验均通过。该结果不等于 L5 真机验收。
+
+ROI 当前已有未知宿主只读发现、静态调用边/CFG reachability、类加载观察、诊断探针、Universal Hook 生命周期和 fail-closed 授权。未完成项是完整 Flow/response 运行时相关性、完整生产 adapter 证据、生产 HookSpec 目录和逐版本真机验收。现有生产 feature hooks 仍主要通过 Legacy feature pipelines 安装；禁止机械批量迁移。
+
+详细调用链、证据边界、回归覆盖与验收标准见 [ROI dev 专项收尾审计](ROI_DEV_CLOSEOUT_AUDIT.md)。

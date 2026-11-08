@@ -1,6 +1,6 @@
 # ROI 自动发现与跨版本 Hook 适配引擎
 
-> 状态：架构决策草案（2026-11-04）。本文定义目标边界与实施顺序，不代表下述模块已经实现。
+> 状态：架构决策 + 实现快照（2026-11-08）。本文保留原始目标设计；当前实现与剩余缺口以末尾“实现状态快照”为准。
 
 ## 1. 目标
 
@@ -153,3 +153,60 @@ DexKit 不应成为核心接口的唯一实现，也不应因 Native 库加载�
 3. 版本名只是元数据，DEX/结构指纹才是跨版本匹配的重要证据之一。
 4. 映射规则必须可审计、可回滚、可失效。
 5. 未知版本始终 fail-closed；发现能力与功能启用能力彻底分离。
+
+
+## 12. 实现状态快照（2026-11-08，dev）
+
+以下状态基于 `dev` HEAD `4ca8a84548bd3fd2286935eeb4ffb1e6aa6ec03f` 的源码与回归入口核对，覆盖原第 10 节中的过期描述。
+
+| 能力 | 当前状态 | 边界 |
+|---|---|---|
+| 未知宿主入口 | 已接入 | 在未知宿主分支调度只读发现后提前返回，不落入常规生产 Hook 安装 |
+| Loader 发现 | 部分实现 | root/parent/thread-context snapshot + 受信任类加载事件登记；非全局、非无限追踪 |
+| DEX 发现 | 已实现有界路径 | DexKit 内存 DEX + 安装 base/split APK 补充扫描 |
+| 结构与描述符 | 已实现 | 不等于业务语义验证 |
+| 静态调用关系 | 已实现部分 | invoke/caller + CFG 可达性；不等于真实运行时调用链 |
+| 语义角色提示 | 已实现候选层 | 仅提示，不等于 roleVerified |
+| 运行时关联 | 部分实现 | exact descriptor/adapter/loader scope；Flow/response parser correlation 有明确 unsupported coverage |
+| 自动诊断探针 | 有条件实现 | 只针对已加载类精确匹配、显式 opt-in、pass-through |
+| 未知宿主 prompt adapter | 狭窄受控路径 | 单独显式开关 + serializer/identity/policy 门禁；不是通用自动 Hook |
+| 适配规则持久化 | 未完成生产闭环 | 无完整的 reviewed production adapter catalog |
+| Universal Hook 生产迁移 | 未完成 | 旧 feature pipelines 尚未批量迁移 |
+
+### 12.1 实际入口和调用链
+
+未知宿主路径：
+
+```text
+Main.handleLoadPackage
+  -> HostCompat maintained-runtime gate
+  -> unknown-host activation gates
+  -> optional BaseDexClassLoader.findClass observation
+  -> RoiHostDiscovery.schedule
+  -> RoiDexKitDiscovery.schedule
+  -> bounded Loader / DEX / APK discovery
+  -> static candidates + invoke/caller + CFG reachability
+  -> role hints and candidate graph
+  -> exact ClassLoader-scoped correlation
+  -> optional diagnostic probe / narrowly gated prompt adapter
+  -> return; no ordinary legacy feature-hook installation
+```
+
+### 12.2 当前扫描预算
+
+- 最多 12 个 Loader。
+- 每次扫描最多 48 次 DexKit 查询、128 个候选。
+- 每次扫描 45 秒软截止；查询执行本身不可强制中断，预算在查询开始和候选遍历处检查。
+- 最多 3 轮；后续轮次为有界 runtime loader rescan，不重复 base/split APK 扫描。
+- 最多 256 个报告 DEX；每 Loader parsed method index 上限 300,000。
+- 扫描失败或 DexKit Native 不可用时输出失败状态，不得把不完整扫描描述为完整覆盖。
+
+### 12.3 未完成项
+
+1. 全面捕获任意自定义/动态 ClassLoader 与所有运行时新增 DEX。
+2. 维护逐版本、逐渠道、逐 APK-set 的完整语义 profile。
+3. 形成 request → transport → response 的完整 runtime correlation，尤其是 suspend Flow collector 和 response parser。
+4. 建立完整 reviewed adapter catalog 与可回滚持久化。
+5. 对生产 feature groups 逐项完成 shadow comparison、行为契约和 L5 真机验收。
+
+未知宿主默认不安装功能 Hook；发现、候选和诊断不能绕过授权门禁。

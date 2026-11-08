@@ -4,7 +4,7 @@ concurrency:
   cancel-in-progress: true
 on:
   push:
-    branches: ["work/roi-hook", "work/generic-hook-lifecycle-dev", "work/cross-version-semantic-hook-resolver", "work/roi-serializer-integrity"]
+    branches: ["dev", "work/roi-hook", "work/generic-hook-lifecycle-dev", "work/cross-version-semantic-hook-resolver", "work/roi-serializer-integrity", "work/roi-dev-closeout-20261108"]
     paths:
       - "module/src/ds/dsh/DeepSeek/RoiUniversalHookRuntime.java"
       - "module-kotlin-runtime/src/main/kotlin/ds/dsh/DeepSeek/HookLifecycleManager.kt"
@@ -51,6 +51,15 @@ on:
       - "docs/architecture/ROI_UNIVERSAL_HOOK_RUNTIME.md"
       - "docs/architecture/ROI_UNIVERSAL_HOOK_MIGRATION_LEDGER.md"
       - ".github/workflows/roi-universal-hook.yml"
+      - "module/src/ds/dsh/DeepSeek/Roi*.java"
+      - "module/test-roi-*.sh"
+      - "module/tests/roi*/**"
+      - "docs/PROJECT_STATUS.md"
+      - "docs/ARCHITECTURE.md"
+      - "docs/BRANCHING.md"
+      - "docs/BUILDING.md"
+      - "docs/ROI_DEV_CLOSEOUT_AUDIT.md"
+      - "docs/architecture/ROI_*.md"
   pull_request:
     branches: [dev, "work/roi-hook", "work/generic-hook-lifecycle-dev"]
     paths:
@@ -99,9 +108,45 @@ on:
       - "docs/architecture/ROI_UNIVERSAL_HOOK_RUNTIME.md"
       - "docs/architecture/ROI_UNIVERSAL_HOOK_MIGRATION_LEDGER.md"
       - ".github/workflows/roi-universal-hook.yml"
+      - "module/src/ds/dsh/DeepSeek/Roi*.java"
+      - "module/test-roi-*.sh"
+      - "module/tests/roi*/**"
+      - "docs/PROJECT_STATUS.md"
+      - "docs/ARCHITECTURE.md"
+      - "docs/BRANCHING.md"
+      - "docs/BUILDING.md"
+      - "docs/ROI_DEV_CLOSEOUT_AUDIT.md"
+      - "docs/architecture/ROI_*.md"
 permissions:
   contents: read
 jobs:
+  roi-discovery-jvm:
+    name: ROI discovery and resolver JVM regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Validate ROI runner shell syntax
+        run: |
+          set -euo pipefail
+          for script in module/test-roi-*.sh; do
+            bash -n "$script"
+          done
+      - name: Run ROI discovery, CFG, candidate, and unknown-host regressions
+        run: |
+          set -euo pipefail
+          for script in module/test-roi-*.sh; do
+            echo "::group::$script"
+            bash "$script"
+            echo "::endgroup::"
+          done
+
   roi-universal-hook-jvm:
     runs-on: ubuntu-latest
     timeout-minutes: 10
