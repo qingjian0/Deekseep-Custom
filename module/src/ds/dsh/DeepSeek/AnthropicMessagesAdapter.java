@@ -84,15 +84,23 @@ final class AnthropicMessagesAdapter {
             for (int i = 0; i < rawTools.length(); i++) {
                 JSONObject raw = rawTools.optJSONObject(i);
                 if (raw == null) throw invalid("invalid_tool", "Every tool must be an object");
-                String name = raw.optString("name", "").trim();
+                Object rawName = raw.opt("name");
+                if (!(rawName instanceof String)) {
+                    throw invalid("invalid_tool", "Every tool requires a string name");
+                }
+                String name = ((String) rawName).trim();
                 if (name.length() == 0 || name.length() > 128) {
                     throw invalid("invalid_tool", "Every tool requires a valid name");
                 }
                 JSONObject schema = raw.optJSONObject("input_schema");
                 if (schema == null) throw invalid("invalid_tool", "Tool input_schema must be an object");
+                Object rawDescription = raw.opt("description");
+                if (rawDescription != null && !(rawDescription instanceof String)) {
+                    throw invalid("invalid_tool", "Tool description must be a string");
+                }
                 JSONObject function = new JSONObject()
                         .put("name", name)
-                        .put("description", raw.optString("description", ""))
+                        .put("description", rawDescription == null ? "" : rawDescription)
                         .put("parameters", schema);
                 openAiTools.put(new JSONObject().put("type", "function").put("function", function));
             }
@@ -112,14 +120,22 @@ final class AnthropicMessagesAdapter {
                 }
                 parallelTools = !((Boolean) rawParallel).booleanValue();
             }
-            String type = toolChoice.optString("type", "");
+            Object rawChoiceType = toolChoice.opt("type");
+            if (!(rawChoiceType instanceof String)) {
+                throw invalid("invalid_tool_choice", "tool_choice.type must be a string");
+            }
+            String type = (String) rawChoiceType;
             if ("auto".equals(type)) {
                 choice = "auto";
             } else if ("any".equals(type)) {
                 choice = "required";
             } else if ("tool".equals(type)) {
-                String name = toolChoice.optString("name", "").trim();
-                if (name.length() == 0) throw invalid("invalid_tool_choice", "tool_choice.name is required");
+                Object rawChoiceName = toolChoice.opt("name");
+                if (!(rawChoiceName instanceof String)
+                        || ((String) rawChoiceName).trim().length() == 0) {
+                    throw invalid("invalid_tool_choice", "tool_choice.name must be a non-empty string");
+                }
+                String name = ((String) rawChoiceName).trim();
                 choice = new JSONObject().put("type", "function")
                         .put("function", new JSONObject().put("name", name));
             } else {
@@ -146,7 +162,11 @@ final class AnthropicMessagesAdapter {
         for (int i = 0; i < messages.length(); i++) {
             JSONObject message = messages.optJSONObject(i);
             if (message == null) throw invalid("invalid_messages", "Every message must be an object");
-            String role = message.optString("role", "");
+            Object rawRole = message.opt("role");
+            if (!(rawRole instanceof String)) {
+                throw invalid("invalid_messages", "Message role must be a string");
+            }
+            String role = (String) rawRole;
             if (!"user".equals(role) && !"assistant".equals(role)) {
                 throw invalid("invalid_messages", "Message role must be user or assistant");
             }
@@ -166,9 +186,17 @@ final class AnthropicMessagesAdapter {
             for (int j = 0; j < blocks.length(); j++) {
                 JSONObject block = blocks.optJSONObject(j);
                 if (block == null) throw invalid("invalid_content_block", "Content block must be an object");
-                String type = block.optString("type", "");
+                Object rawType = block.opt("type");
+                if (!(rawType instanceof String)) {
+                    throw invalid("invalid_content_block", "Content block type must be a string");
+                }
+                String type = (String) rawType;
                 if ("text".equals(type)) {
-                    String value = block.optString("text", "");
+                    Object rawText = block.opt("text");
+                    if (!(rawText instanceof String)) {
+                        throw invalid("invalid_content_block", "Text block text must be a string");
+                    }
+                    String value = (String) rawText;
                     if (value.length() > 0) {
                         if (text.length() > 0) text.append("\n");
                         text.append(value);
@@ -181,8 +209,13 @@ final class AnthropicMessagesAdapter {
                     if (!"assistant".equals(role) || !plan.active()) {
                         throw invalid("invalid_tool_use", "tool_use is allowed only in assistant messages with tools declared");
                     }
-                    String id = block.optString("id", "").trim();
-                    String name = block.optString("name", "").trim();
+                    Object rawId = block.opt("id");
+                    Object rawName = block.opt("name");
+                    if (!(rawId instanceof String) || !(rawName instanceof String)) {
+                        throw invalid("invalid_tool_use", "tool_use id and name must be strings");
+                    }
+                    String id = ((String) rawId).trim();
+                    String name = ((String) rawName).trim();
                     JSONObject input = block.optJSONObject("input");
                     if (id.length() == 0 || id.length() > 128 || name.length() == 0
                             || input == null || pendingToolIds.contains(id)
@@ -200,7 +233,11 @@ final class AnthropicMessagesAdapter {
                     if (!"user".equals(role)) {
                         throw invalid("invalid_tool_result", "tool_result is allowed only in user messages");
                     }
-                    String id = block.optString("tool_use_id", "").trim();
+                    Object rawToolUseId = block.opt("tool_use_id");
+                    if (!(rawToolUseId instanceof String)) {
+                        throw invalid("invalid_tool_result", "tool_use_id must be a string");
+                    }
+                    String id = ((String) rawToolUseId).trim();
                     if (id.length() == 0 || !pendingToolIds.remove(id)) {
                         throw invalid("invalid_tool_result", "tool_result does not match a preceding tool_use");
                     }
