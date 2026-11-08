@@ -38,6 +38,16 @@ final class HostV275 {
     static final String UI_DELTA_OWNER = "pv1";
     static final String FLOW_COLLECTOR = "ot1";
     static final String LIFECYCLE_OWNER = "iv1";
+    static final String DELTA_COMMAND_MODEL = "wt3";
+    static final String DELTA_COMMAND_SERIALIZER = "ut3";
+    static final String OPERATION_VALUE = "f48";
+    static final String OPERATION_SERIALIZER = "w28";
+    static final String JSON_ELEMENT_MODEL = "h26";
+    static final String DELTA_REDUCER = "l83";
+    static final String DELTA_STATE_OWNER = "coc";
+    static final String DELTA_ROOT_MODEL = "ida";
+    static final String CHAT_MESSAGE_MODEL = "ky";
+    static final String FRAGMENT_LIST_MODEL = "jy1";
 
     enum EvidenceState { DISCOVERED, STATIC_VERIFIED, RUNTIME_VERIFIED, E2E_VERIFIED }
 
@@ -64,7 +74,10 @@ final class HostV275 {
                 && classExists(loader, "qy1")
                 && classExists(loader, REQUEST_ENTRY_OWNER)
                 && classExists(loader, UI_DELTA_OWNER)
-                && classExists(loader, FLOW_WRAPPER);
+                && classExists(loader, FLOW_WRAPPER)
+                && classExists(loader, DELTA_COMMAND_MODEL)
+                && classExists(loader, DELTA_COMMAND_SERIALIZER)
+                && classExists(loader, DELTA_REDUCER);
     }
 
     private static boolean classExists(ClassLoader loader, String name) {
