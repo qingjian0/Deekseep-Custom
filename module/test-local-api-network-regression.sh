@@ -312,6 +312,7 @@ if 'native_adapter_unavailable' in security:
 
 overlay = (pathlib.Path(sys.argv[1]).parent / "LocalApiFloatingOverlay.java").read_text(encoding="utf-8")
 ui = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
+bridge = (pathlib.Path(sys.argv[1]).parent / "z20.java").read_text(encoding="utf-8")
 if 'installBestEffortHook("agent.tool-log.rounded-rect"' not in main:
     raise SystemExit("Optional Agent renderer failure must not abort the feature Hook batch")
 heartbeat = main[main.index("private static void reportActivationHeartbeat"):main.index("static boolean setExpertRelayEnabled")]
@@ -323,6 +324,22 @@ if "miui.intent.action.APP_PERM_EDITOR" not in overlay or "Settings.ACTION_MANAG
     raise SystemExit("MIUI and Android overlay permission routes are missing")
 if "code == 289L || code == 290L" not in overlay:
     raise SystemExit("Floating overlay host gate must recognize exact 2.7.2 code289/code290 identities")
+if "LocalApiFloatingOverlay.requestPermission(this)" not in bridge or "!LocalApiFloatingOverlay.hasPermission(this)" not in bridge:
+    raise SystemExit("The overlay-start trampoline must open the permission editor when permission is absent")
+agent_start = main.index('if (AgentToolConfig.enabledFast() || isDualChatEnabled())')
+agent_end = main.index('if (ChatAppearance.hasEnabledRuntimeEffects()', agent_start)
+agent_block = main[agent_start:agent_end]
+for hook_id in ("heartbeat.responses", "heartbeat.patch-dispatcher", "heartbeat.state-writes",
+                "heartbeat.fragment-render", "heartbeat.markdown-input",
+                "heartbeat.native-markdown-parser", "agent.tool-log-rounded-rect",
+                "attachment.model-file-cards", "agent.tool-status-style",
+                "agent.tool-status-basic-text", "attachment.model-file-links"):
+    if 'installOptionalAgentRenderHook("' + hook_id + '"' not in agent_block:
+        raise SystemExit("Optional Agent render boundary is not independently isolated: " + hook_id)
+if "AGENT_RENDER_HOOKS_ATTEMPTED.compareAndSet(false, true)" not in agent_block:
+    raise SystemExit("Optional Agent render hooks must be attempted once to avoid duplicate partial installs")
+if "private void installOptionalAgentRenderHook(" not in main:
+    raise SystemExit("Missing independent best-effort Agent render hook wrapper")
 if "maxClipboardChars = 64 * 1024" not in ui or 'copyText(act, "Open Native Completion Probe", report)' not in ui:
     raise SystemExit("Large diagnostic reports must be bounded before clipboard IPC")
 validator = source[source.index("private static String unsupportedFeature"):source.index("private static String messageText")]
