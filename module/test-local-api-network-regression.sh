@@ -229,6 +229,12 @@ bridge_required = {
     "tool schemas validate object/properties/required shapes": "validateSchemaShape(schema, \"invalid_tool_schema\")",
     "tool choice object fields are checked without coercion": 'optionalString(object, "type", FUNCTION, "invalid_tool_choice")',
     "tool choice nested function must be an object": 'optionalObject(object, "function", "invalid_tool_choice")',
+    "model-produced tool names are not coerced from non-strings": 'if (!(rawName instanceof String)) continue;',
+    "model-produced tool namespaces are not coerced from non-strings": '!(rawNamespace instanceof String)) continue;',
+    "custom tool input must be a string": 'if (CUSTOM.equals(definition.kind)) return object.opt("input") instanceof String;',
+    "function arguments are checked against the declared schema": "return matchesSchema(object, definition.schema, 0);",
+    "nested schema property types are enforced": "private static boolean matchesJsonType(Object value, String type)",
+    "required schema values are checked as strings": "Object rawKey = required.opt(i);",
 }
 missing_bridge = [label for label, token in bridge_required.items() if token not in tool_bridge]
 if missing_bridge:

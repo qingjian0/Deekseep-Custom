@@ -482,13 +482,18 @@ final class OpenAiToolBridge {
         for (int i = 0; i < array.length(); i++) {
             JSONObject candidate = array.optJSONObject(i);
             if (candidate == null) continue;
-            JSONObject function = candidate.optJSONObject("function");
-            String name = function == null ? candidate.optString("name", "").trim()
-                    : function.optString("name", "").trim();
-            String namespace = function == null
-                    ? clean(candidate.optString("namespace", null))
-                    : clean(function.optString("namespace",
-                            candidate.optString("namespace", null)));
+            Object rawFunction = candidate.opt("function");
+            if (candidate.has("function") && !(rawFunction instanceof JSONObject)) continue;
+            JSONObject function = (JSONObject) rawFunction;
+            Object rawName = function == null ? candidate.opt("name") : function.opt("name");
+            if (!(rawName instanceof String)) continue;
+            String name = ((String) rawName).trim();
+            Object rawNamespace = function != null && function.has("namespace")
+                    ? function.opt("namespace") : candidate.opt("namespace");
+            if (rawNamespace != null && rawNamespace != JSONObject.NULL
+                    && !(rawNamespace instanceof String)) continue;
+            String namespace = clean(rawNamespace instanceof String
+                    ? (String) rawNamespace : null);
             Definition definition = plan.find(name, namespace);
             if (definition == null) continue;
             if (Choice.FORCED.equals(plan.choice.mode)
@@ -1058,33 +1063,122 @@ final class OpenAiToolBridge {
         JSONObject object;
         try { object = new JSONObject(canonical); }
         catch (Throwable ignored) { return false; }
-        if (CUSTOM.equals(definition.kind)) return object.has("input");
+        if (CUSTOM.equals(definition.kind)) return object.opt("input") instanceof String;
         if (SHELL.equals(definition.kind)) {
-            JSONArray commands = object.optJSONArray("commands");
-            if (commands != null && commands.length() > 0) {
+            Object rawCommands = object.opt("commands");
+            if (rawCommands instanceof JSONArray) {
+                JSONArray commands = (JSONArray) rawCommands;
+                if (commands.length() == 0) return false;
                 for (int i = 0; i < commands.length(); i++) {
-                    if (!(commands.opt(i) instanceof String)
-                            || commands.optString(i).trim().length() == 0) return false;
+                    Object command = commands.opt(i);
+                    if (!(command instanceof String) || ((String) command).trim().length() == 0) {
+                        return false;
+                    }
                 }
-                return true;
+                return validOptionalInteger(object, "timeout_ms")
+                        && validOptionalInteger(object, "max_output_length");
             }
-            return object.optString("command", "").trim().length() > 0;
+            Object command = object.opt("command");
+            return command instanceof String && ((String) command).trim().length() > 0;
         }
         if (APPLY_PATCH.equals(definition.kind)) {
-            String type = object.optString("type", "");
+            Object rawType = object.opt("type");
+            Object rawPath = object.opt("path");
+            Object rawDiff = object.opt("diff");
+            if (!(rawType instanceof String) || !(rawPath instanceof String)
+                    || ((String) rawPath).trim().length() == 0) return false;
+            String type = (String) rawType;
             if (!"create_file".equals(type) && !"update_file".equals(type)
                     && !"delete_file".equals(type)) return false;
-            if (object.optString("path", "").trim().length() == 0) return false;
-            return "delete_file".equals(type) || object.has("diff");
+            return "delete_file".equals(type)
+                    || (rawDiff instanceof String && ((String) rawDiff).length() > 0);
         }
-        JSONArray required = definition.schema.optJSONArray("required");
-        if (required != null) {
-            for (int i = 0; i < required.length(); i++) {
-                String key = required.optString(i, "");
-                if (key.length() > 0 && (!object.has(key) || object.isNull(key))) return false;
+        return matchesSchema(object, definition.schema, 0);
+    }
+
+    private static boolean validOptionalInteger(JSONObject object, String key) {
+        if (!object.has(key)) return true;
+        Object value = object.opt(key);
+        return value instanceof Number
+                && ((Number) value).doubleValue() == Math.rint(((Number) value).doubleValue());
+    }
+
+    /** Validate the JSON Schema subset used by function tools without executing any tool. */
+    private static boolean matchesSchema(Object value, JSONObject schema, int depth) {
+        if (schema == null || depth > 16) return false;
+        if (schema.has("enum")) {
+            JSONArray values = schema.optJSONArray("enum");
+            if (values == null) return false;
+            boolean found = false;
+            for (int i = 0; i < values.length(); i++) {
+                if (jsonValuesEqual(value, values.opt(i))) { found = true; break; }
+            }
+            if (!found) return false;
+        }
+        if (schema.has("type")) {
+            Object rawType = schema.opt("type");
+            if (!(rawType instanceof String)
+                    || !matchesJsonType(value, (String) rawType)) return false;
+        }
+        if (value instanceof JSONObject) {
+            JSONObject object = (JSONObject) value;
+            JSONObject properties = schema.optJSONObject("properties");
+            JSONArray required = schema.optJSONArray("required");
+            if (schema.has("required") && required == null) return false;
+            if (required != null) {
+                for (int i = 0; i < required.length(); i++) {
+                    Object rawKey = required.opt(i);
+                    if (!(rawKey instanceof String) || !object.has((String) rawKey)
+                            || object.isNull((String) rawKey)) return false;
+                }
+            }
+            Object additional = schema.opt("additionalProperties");
+            java.util.Iterator<String> keys = object.keys();
+            while (keys.hasNext()) {
+                String key = keys.next();
+                if (properties != null && properties.has(key)) {
+                    if (!matchesSchema(object.opt(key), properties.optJSONObject(key), depth + 1)) {
+                        return false;
+                    }
+                } else if (Boolean.FALSE.equals(additional)) {
+                    return false;
+                } else if (additional instanceof JSONObject
+                        && !matchesSchema(object.opt(key), (JSONObject) additional, depth + 1)) {
+                    return false;
+                }
+            }
+        } else if (value instanceof JSONArray && schema.has("items")) {
+            Object rawItems = schema.opt("items");
+            if (!(rawItems instanceof JSONObject)) return false;
+            JSONArray array = (JSONArray) value;
+            for (int i = 0; i < array.length(); i++) {
+                if (!matchesSchema(array.opt(i), (JSONObject) rawItems, depth + 1)) return false;
             }
         }
         return true;
+    }
+
+    private static boolean matchesJsonType(Object value, String type) {
+        if ("object".equals(type)) return value instanceof JSONObject;
+        if ("array".equals(type)) return value instanceof JSONArray;
+        if ("string".equals(type)) return value instanceof String;
+        if ("boolean".equals(type)) return value instanceof Boolean;
+        if ("integer".equals(type)) return value instanceof Number
+                && ((Number) value).doubleValue() == Math.rint(((Number) value).doubleValue());
+        if ("number".equals(type)) return value instanceof Number;
+        if ("null".equals(type)) return value == null || value == JSONObject.NULL;
+        return false;
+    }
+
+    private static boolean jsonValuesEqual(Object left, Object right) {
+        if (left == right) return true;
+        if (left == null || right == null || left == JSONObject.NULL || right == JSONObject.NULL) {
+            return false;
+        }
+        if (left instanceof Number && right instanceof Number) {
+            return ((Number) left).doubleValue() == ((Number) right).doubleValue();
+        }
+        return left.equals(right);
     }
 
     private static String optionalString(JSONObject object, String key, String fallback,
