@@ -1052,3 +1052,15 @@ Important evidence boundary:
 - The executable regression script `module/test-native-json-patch-reducer.sh` is added to the CI Regression job. It compiles against the Android platform `org.json` implementation and tests nested object/array edits, escaped JSON Pointer tokens, copy/move/test, immutability, and atomic failure.
 
 This is an independently testable state-tree primitive, not a completed code289 wire decoder or Native Adapter. Integration is gated on an evidence-backed translation of every host operation, path convention, batch ordering rule, and value representation, followed by code289 device verification.
+
+
+## 2026-11-08：区分 suspend 调用返回与异步完成
+
+源码审计发现，`y60.b(fl4, Continuation)` 与 `r3.c(dv1, Continuation)` 都是 Kotlin suspend 形态：方法体可以先返回 `COROUTINE_SUSPENDED`，后续工作再由协程恢复继续。因此诊断日志中的同步调用返回不能命名或解释为 reducer/Flow 已完成。
+
+- 将 `continuation-exit`、`delta-dispatch-exit`、`callback-exit` 统一改名为 `*-return`，准确表示被观察方法本次同步调用已经返回。
+- `*-return` 不代表 Flow collect 正常结束、Continuation 已成功恢复、Delta patch 已应用、response snapshot 已完整或客户端可安全发送终止 chunk。
+- `*-throw` 仍表示本次同步调用直接抛出异常；若 suspend 方法先返回挂起标记，后续异步失败不一定会在该调用边界表现为同步 throw。
+- 真正的完成语义仍须分别观察 suspend Continuation 恢复结果、Flow 完成/异常/取消，以及 reducer 状态快照；当前没有引入通用 Continuation Hook，也没有新增宿主 Hook 目标。
+
+该改动只修正诊断事件命名，不改变宿主参数、返回值、调用次数、Flow 身份或执行路径。
