@@ -463,3 +463,9 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - The first semantic test correction exposed a second stale fixture in testDetachedMethodRoleEvidenceIsNotMatchable(): its method name differed, but its normalized prototype intentionally matched because semantic matching ignores obfuscated method names.
 - Corrected that fixture to use a genuinely different parameter descriptor (Integer instead of Long), so it now tests detached structural evidence rather than a harmless method rename.
 - Follow-up test commit: 6ee8d72c1aaaad95e38506f7e74b9e9ea0490e4b. Dedicated rerun #208 is queued; semantic suite remains unverified until that run completes.
+## Semantic target-role fixture correction (2026-11-08)
+
+- Latest semantic rerun #208/#209 confirmed the prior two fixture corrections were effective, then exposed one more stale fixture in testTargetRoleDeclarationMustAgreeWithResolvedMethod(): its alternate `route(...)` method duplicated the `dispatch(...)` normalized prototype, so the profile was invalid before role-agreement evaluation.
+- Corrected the alternate role method to use a distinct `Integer` parameter prototype while preserving the test's intended contradiction against the source `Long` prototype. Production validation remains unchanged.
+- Test-only commit: 0af4240fef19c89e646fe8e3727359cc7542cbe0. New ROI run is pending; no semantic pass claimed.
+- Latest ROI serializer branch run #213 passed all enabled steps, including serializer pipeline/mapper, runtime recorder, feature install registry, isolated universal Hook tests, and legacy adapter regression matrix. This does not imply the semantic suite passed.
