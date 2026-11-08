@@ -956,3 +956,85 @@ Session bootstrap 的 `ch2.b -> bi5.e` 与 completion request 的 `jw3.g -> y60`
 - Gateway 的 `finish_reason` 与 `[DONE]` 只能在原生 reducer/Flow 已确认正常完成、结果模型构造成功后发送；不能以 `close` 单个事件或 HTTP 200 代替完成证明。
 
 在获得真机事件序列前，Native Adapter 保持 `engine_missing`（HTTP 503）fail-closed，不构造虚假的 CompletionResult。
+
+
+## 2026-11-08：与 apps/code289 静态证据仓库交叉核对
+
+本节以 `qingjian0/apps` 的 `work/deepseek-272-static-audit` 分支为独立证据源，不将 2.7.3 / 2.7.5 的混淆类名直接套用到 code289。
+
+**证据固定点**
+
+- apps commit：`3b7c383edb4092bb18257a85afe50cc8c652c590`
+- 静态审计 workflow：`42343582039`（success）
+- artifact：`deepseek-272-static-evidence`，artifact ID `13562119133`
+- artifact ZIP SHA-256：`173c69bcae1a0e428d54cfd4fe684b859b6286a88a84b4224d3ec7425e105dce`
+- APK：DeepSeek 2.7.2 / versionCode 289 / `code289-cn`，SHA-256 `3c2fe31c73575400b9d59e46dde05daa2ef06491498ebfef658801e99eca1aff`
+- 证据包含完整 `all-smali.zip`、候选调用点、类描述符、方法 inventory 和静态报告；本节结论来自该 artifact 的 Smali 复核，而不只是 README 摘要。
+
+### 1. code289 响应链已可精确到的层次
+
+```text
+HTTP response handler g0
+  -> SSE ByteReadChannel parser ts1
+  -> sha(eventName, data)
+  -> cv1(sha)
+  -> r3.c(dv1, Continuation)
+  -> DeltaCommand / named-event reducer
+  -> doc.W(st3, gv1)
+  -> ll23.y(...) patch application
+  -> zca.response -> gy
+  -> gy.fragments / Ley1
+```
+
+apps 的 `docs/deepseek-272-native-callgraph.md` 与 artifact Smali 对应，明确区分了 SSE 行解析、事件封装和业务 reducer。尤其不能把 `y60.b` 的 collector 边界当成底层 SSE parser。
+
+### 2. Delta 不是文本增量，而是结构化 JSON Patch
+
+- `r3.c` 对 `delta` 的 data 使用 `st3` serializer 解码。
+- `st3` 的字段为 `path`、`operation`、`value`，其中 `value` 是多态 `c26`。
+- `c26` 的 Smali 类型层级包含 primitive、map、list 形态；不能把 value 一律转成 String。
+- `doc.W` 将 path / operation / value 归一化为 patch 对象，再调用 `ll23.y` 更新 reducer 状态树。
+- 当前静态报告列出的操作类别为 `SET`、`APPEND`、`BATCH`。Native Adapter 必须按 patch 语义更新状态，不能把 SSE data 直接当作 OpenAI delta。
+
+### 3. Response 文本投影存在重要限制
+
+- 根状态 `zca.a` 指向 `gy` response model。
+- `gy.m(..., "fragments")` 将 fragment patch 解码并更新 `Ley1` fragment 集合。
+- `xr.B()` 遍历 fragment 列表，但只对 `nk0` 类型调用 `f()` 并拼接；其他 fragment 被投影为空字符串。
+
+因此，`xr.B()` 只能作为宿主可见文本的一个投影，**不能作为完整 Completion 内容模型**。Reasoning、Tool、Search、Find、Open、ReadLink、Tip 等非普通文本 fragment 必须保留独立结构，不能从 `B()` 的结果反推或补造。
+
+### 4. code289 reducer 事件与结束语义
+
+当前 `r3.c` 的已确认事件分支：
+
+| Event | 行为 |
+|---|---|
+| `ready` | 解码 ready data，并初始化/绑定 response 状态 |
+| `delta` | 解码 `st3` 并应用状态树 patch |
+| `hint` | 解码 hint 数据并更新 reducer |
+| `title` | 解码标题事件 |
+| `update_session` | 解码 Session 更新事件 |
+| `close` | 向 reducer 投递 close 事件 |
+
+同一方法中还存在 `parse_error`、`InvalidEvent`、`InvalidDelta`、`UnexpectedMessage` 等错误路径。
+
+**没有在 code289 的 `r3.c` 中确认独立 `finish` 事件分支。** `close` 会被转换为 reducer 内部 close action；它本身不足以证明上游 Flow 正常完成，也不能直接映射为 OpenAI `finish_reason` 或触发 `[DONE]`。终止必须由 reducer 状态和 Flow 的正常完成信号共同确认；异常、取消和客户端断开必须走不同出口。
+
+### 5. 对当前实现的修正方向
+
+1. 不再把“从 `gy.B()` 取完整回答”作为 Adapter 方案；应从 `gy` 的 fragment snapshot 构造有类型的中间模型。
+2. 将 patch reducer 独立为可单测组件：支持 path、SET / APPEND / BATCH、primitive / object / array value、无效 path 和 malformed patch fail-closed。
+3. 为 Answer、Think/Reasoning、ToolOpen、ToolFind、Search、ReadLink、Tip 等 fragment 建立显式类型映射；未识别类型必须保留为 unsupported evidence，不能静默拼成文本。
+4. 将 `close`、Flow complete、Flow error、Flow cancellation 分开建模；只有正常终止且结果快照完整时才允许输出 OpenAI terminal chunk。
+5. 运行时仍需复用宿主的 `zn3/jw3/bi5/cf5` 与 ChallengePlugin 管线；不自行拼接 Challenge / PoW header，不额外 collect 诊断用 Flow。
+
+### 6. 尚未被静态 artifact 证明的事项
+
+- 本模块通过反射启动 code289 请求并安全 collect 冷 Flow。
+- reducer 的全部 fragment 类型与每个 JSON discriminator 的一一映射。
+- Reasoning 与 Answer 在实际流式时序中的边界。
+- Flow 正常完成、异常、取消、resume 和并发 Session 的设备行为。
+- 从宿主 reducer snapshot 构造稳定 OpenAI delta 的端到端正确性。
+
+本节把 apps 仓库的静态调用链和 Smali artifact 转化为当前 Adapter 的实现约束；不代表上述运行时能力已实现或通过设备验证。
