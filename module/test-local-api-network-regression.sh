@@ -245,6 +245,10 @@ if "if (!callIds.add(callId))" not in source or "Duplicate tool-call id" not in 
     raise SystemExit("Responses tool-call history must reject duplicate call IDs")
 if "rawArguments instanceof String" not in source:
     raise SystemExit("Responses tool-call arguments must be strings")
+if 'basePrompt = "system: " + instructions' not in source:
+    raise SystemExit("Responses instructions must remain system context before prior transcript")
+if 'Object rawCallId = item.opt("call_id");' not in source or "Tool-call output id must be a string" not in source:
+    raise SystemExit("Responses tool-call output IDs must be validated as strings")
 if '"/v1/messages".equals(request.path)' not in source or "handleAnthropicMessages(out, request)" not in source:
     raise SystemExit("Anthropic Messages endpoint is not registered")
 if 'throw new z2.GatewayException(503, "engine_missing"' not in security:

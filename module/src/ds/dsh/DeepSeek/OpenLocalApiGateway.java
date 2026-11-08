@@ -1133,10 +1133,11 @@ final class OpenLocalApiGateway {
         }
         String basePrompt = previousState == null ? inputPrompt
                 : previousState.transcript + (inputPrompt.length() == 0 ? "" : "\n" + inputPrompt);
+        // Responses instructions are request-level system context. Keep them ahead of the
+        // accumulated transcript so a follow-up request cannot demote them to the final turn.
         if (instructions.length() > 0) {
-            basePrompt = previousState == null
-                    ? "system: " + instructions + "\n" + basePrompt
-                    : basePrompt + "\nsystem: " + instructions;
+            basePrompt = "system: " + instructions
+                    + (basePrompt.length() == 0 ? "" : "\n" + basePrompt);
         }
         if (basePrompt.trim().length() == 0 || basePrompt.length() > MAX_PROMPT_CHARS) {
             sendError(out, 400, "invalid_input", "input is empty or too large");
@@ -1395,7 +1396,11 @@ final class OpenLocalApiGateway {
                         .append(" name=").append(name).append(" arguments=").append(arguments);
             } else if ("function_call_output".equals(type)
                     || "custom_tool_call_output".equals(type)) {
-                String callId = item.optString("call_id", "").trim();
+                Object rawCallId = item.opt("call_id");
+                if (!(rawCallId instanceof String)) {
+                    throw new IllegalArgumentException("Tool-call output id must be a string");
+                }
+                String callId = ((String) rawCallId).trim();
                 if (callId.length() == 0 || !callIds.remove(callId)) {
                     throw new IllegalArgumentException("Unmatched tool-call output");
                 }
