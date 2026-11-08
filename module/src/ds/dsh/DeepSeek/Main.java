@@ -2184,7 +2184,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             if (HostCompat.isV236() || HostCompat.isV241()) {
                 installHookStep("host.navigation.bridge", () -> HostNavigationBridge.install(this, hookLoader));
             }
-            installHookStep("agent.tool-log.rounded-rect", () -> HookAgentPipeline.INSTANCE.hookAgentToolLogRoundedRect(hookLoader));
+            installBestEffortHook("agent.tool-log.rounded-rect",
+                    () -> HookAgentPipeline.INSTANCE.hookAgentToolLogRoundedRect(hookLoader),
+                    "Agent tool-log renderer unavailable: ");
             if (!HostCompat.isV271()) installHookStep("remote.feature-flags", () -> RemoteFeatureFlags.install(this, hookLoader));
             installHookStep("config.attachment-guide-rollout", () -> HookConfigRollout.INSTANCE.hookAttachmentGuidePromptRollout(hookLoader));
             installHookStep("config.home-welcome-rollout", () -> HookConfigRollout.INSTANCE.hookHomeWelcomeRollout(hookLoader));
@@ -4171,15 +4173,28 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     static boolean openLocalApiBatterySettings(Activity activity) {
         if (activity == null || activity.isFinishing()) return false;
-        Intent[] intents = new Intent[]{
-                // Global background-app/battery-usage list. On this ColorOS 16 device it resolves
-                // to Settings$AppBatteryUsageActivity, which is the requested management page.
-                new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS),
-                // ColorOS/OxygenOS background-start management fallback.
-                new Intent("com.oplus.battery.permission.startup.StartupAppListActivity")
-                        .setPackage("com.oplus.battery"),
-                new Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS)
-        };
+        ArrayList<Intent> intents = new ArrayList<Intent>();
+        // Xiaomi / MIUI / HyperOS per-app background-power settings first.
+        String[] managedPackages = new String[]{"ds.dsh.DeepSeek", "com.deepseek.chat"};
+        for (String packageName : managedPackages) {
+            intents.add(new Intent("miui.intent.action.POWER_MANAGER")
+                    .setPackage("com.miui.powerkeeper")
+                    .putExtra("package_name", packageName)
+                    .putExtra("package_label", packageName));
+            intents.add(new Intent("miui.intent.action.OP_AUTO_START")
+                    .setPackage("com.miui.securitycenter")
+                    .putExtra("package_name", packageName));
+            if (Build.VERSION.SDK_INT >= 23) {
+                intents.add(new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                        Uri.parse("package:" + packageName)));
+            }
+            intents.add(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:" + packageName)));
+        }
+        intents.add(new Intent("com.oplus.battery.permission.startup.StartupAppListActivity")
+                .setPackage("com.oplus.battery"));
+        intents.add(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+        intents.add(new Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS));
         for (Intent intent : intents) {
             try {
                 activity.startActivityForResult(intent, LOCAL_API_BATTERY_REQUEST);
@@ -7659,7 +7674,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
      * arbitrary app cannot make the launcher claim that the DeepSeek scope is active.
      */
     private static void reportActivationHeartbeat(Activity act) {
-        if (!BuildInfo.PROTECTED_BUILD || act == null) return;
+        if (act == null) return;
         long now = System.currentTimeMillis();
         if (now - activationHeartbeatAttemptAt < 60_000L) return;
         activationHeartbeatAttemptAt = now;
