@@ -119,6 +119,5 @@ jobs:
           generate_release_notes: true
           files: |
             out/YunSeek-1.8.1-release.apk
-            out/SHA256.txt
           fail_on_unmatched_files: true
 
