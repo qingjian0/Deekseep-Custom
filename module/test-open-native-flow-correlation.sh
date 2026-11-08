@@ -18,6 +18,7 @@ checks = {
     "DeltaCommand events expose linked or explicitly unlinked trace IDs": source.count('" flowTraceId=" + (deltaTraceId == null ? "unlinked" : deltaTraceId)') >= 3 and "continuationIdentity=" in source,
     "new diagnostic sessions clear stale Flow identities": "FLOW_TRACE_IDS.clear();" in source and source.index("FLOW_TRACE_IDS.clear();") < source.index("SESSION_STARTED_AT_MS = System.currentTimeMillis();"),
     "in-flight prior-session requests cannot repopulate current links": "frame.sessionId != CURRENT_OBSERVATION_SESSION_ID" in source and "link.sessionId != CURRENT_OBSERVATION_SESSION_ID" in source,
+    "Flow association rechecks session generation under the map lock": "synchronized (FLOW_TRACE_IDS) {\\n            // Recheck after acquiring the map lock" in source,
     "observation ids remain monotonic across sessions": "OBSERVATION_IDS.set(0L)" not in source and "OBSERVATION_SESSION_IDS.incrementAndGet()" in source,
     "correlation is metadata-only": "flowIdentity=" in source and "observedObjectShape(flow)" not in source,
 }
