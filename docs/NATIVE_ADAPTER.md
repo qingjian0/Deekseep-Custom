@@ -1054,6 +1054,12 @@ Important evidence boundary:
 This is an independently testable state-tree primitive, not a completed code289 wire decoder or Native Adapter. Integration is gated on an evidence-backed translation of every host operation, path convention, batch ordering rule, and value representation, followed by code289 device verification.
 
 
+
+
+## code289 原生调用链
+
+完整的 code289-cn (Open 2.7.2) Request → Transport → Challenge/PoW → HTTP/SSE → DeltaCommand → Response 状态树调用链、证据范围、接入顺序和未完成验收项，见 [CODE289_NATIVE_CALLCHAIN.md](CODE289_NATIVE_CALLCHAIN.md)。该文档仅记录静态证据，不代表 Native Adapter 已接通。
+
 ## 2026-11-08：区分 suspend 调用返回与异步完成
 
 源码审计发现，`y60.b(fl4, Continuation)` 与 `r3.c(dv1, Continuation)` 都是 Kotlin suspend 形态：方法体可以先返回 `COROUTINE_SUSPENDED`，后续工作再由协程恢复继续。因此诊断日志中的同步调用返回不能命名或解释为 reducer/Flow 已完成。
