@@ -185,3 +185,8 @@ Until these are independently verified, 2.7.5 remains native-disabled and Local 
 ### DeltaCommand protocol follow-up
 
 The dedicated protocol reconstruction is now documented in [CODE295_DELTA_PROTOCOL.md](CODE295_DELTA_PROTOCOL.md). It records the exact serializer contract (`p` optional String, `o` optional Operation string, `v` required JsonElement), the `SET` / `APPEND` / `BATCH` reducer semantics, path traversal, fragment-specific updates, and per-stream / per-batch carry-forward state. The new Java decoder is intentionally a parsed-object normalizer only; it does not call the host reducer or enable Native Completion.
+
+
+### 2.7.5 DeltaCommand implementation update
+
+The code295 protocol reconstruction now has a dedicated decoder and text/reasoning mapper. See [CODE295_DELTA_PROTOCOL.md](CODE295_DELTA_PROTOCOL.md). The first DeltaCommand is handled as the full `SseMessageRoot` snapshot; subsequent commands use the verified `SET` / `APPEND` / `BATCH` path semantics. Only `RESPONSE` and `THINK` fragments are mapped to Local API text and reasoning. Runtime Hook activation and Native Completion remain disabled pending device validation.
