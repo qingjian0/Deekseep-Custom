@@ -516,6 +516,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     private static volatile boolean activationHeartbeatLogged = false;
 
+    private static final AtomicBoolean UNKNOWN_HOST_ACTIVATION_REPORTER_INSTALLED =
+            new AtomicBoolean(false);
+
     private static volatile boolean proactiveHeartbeatConfigSynced = false;
 
     private static volatile String lastUiLanguageLog = "";
@@ -1247,6 +1250,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             RoiDexKitDiscovery.schedule(cl,
                     param.appInfo == null ? null : param.appInfo.sourceDir,
                     param.appInfo == null ? null : param.appInfo.splitSourceDirs);
+            // Unknown/unmaintained hosts still need an honest activation signal. Register only
+            // an Activity lifecycle observer: no feature hooks, symbol adapters, or UI patches.
+            installUnknownHostActivationReporter();
             // Unknown-host switches never fall through to legacy feature hooks. The separate
             // feature switch can authorize only the serializer-verified chat prompt adapter.
             return;
@@ -7687,6 +7693,60 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         }
         return UiLanguage.text("前台保活：正在等待 DeepSeek 心跳确认",
                 "Foreground keepalive: waiting for DeepSeek heartbeat confirmation");
+    }
+
+    /**
+     * Unknown/unmaintained hosts return before the maintained feature bootstrap. Keep the
+     * activation UI truthful by registering a read-only lifecycle observer before that return.
+     * This observer reports only that the target process actually resumed; it installs no Hooks.
+     */
+    private static void installUnknownHostActivationReporter() {
+        if (UNKNOWN_HOST_ACTIVATION_REPORTER_INSTALLED.get()) return;
+        Looper looper = Looper.getMainLooper();
+        if (looper == null) {
+            log("unknown-host activation observer unavailable: main Looper missing");
+            return;
+        }
+        new Handler(looper).post(new Runnable() {
+            @Override public void run() {
+                if (UNKNOWN_HOST_ACTIVATION_REPORTER_INSTALLED.get()) return;
+                try {
+                    Application app = (Application) Class.forName("android.app.ActivityThread")
+                            .getMethod("currentApplication").invoke(null);
+                    if (app == null) {
+                        log("unknown-host activation observer deferred: Application not ready");
+                        return;
+                    }
+                    app.registerActivityLifecycleCallbacks(
+                            new Application.ActivityLifecycleCallbacks() {
+                        @Override public void onActivityCreated(Activity activity, Bundle state) {}
+                        @Override public void onActivityStarted(Activity activity) {}
+                        @Override public void onActivityResumed(Activity activity) {
+                            reportActivationHeartbeat(activity);
+                        }
+                        @Override public void onActivityPaused(Activity activity) {}
+                        @Override public void onActivityStopped(Activity activity) {}
+                        @Override public void onActivitySaveInstanceState(
+                                Activity activity, Bundle state) {}
+                        @Override public void onActivityDestroyed(Activity activity) {}
+                    });
+                    UNKNOWN_HOST_ACTIVATION_REPORTER_INSTALLED.set(true);
+                    log("unknown-host activation observer registered (read-only)");
+                    try {
+                        FileWriter writer = new FileWriter(LOADED_MARK_EXT, false);
+                        writer.write(TS.format(new Date()) + "  loaded into "
+                                + TARGET + " (unknown-host; feature hooks gated)\\n");
+                        writer.close();
+                    } catch (Throwable markerError) {
+                        log("unknown-host loaded marker unavailable: "
+                                + safeThrowableMessage(markerError));
+                    }
+                } catch (Throwable error) {
+                    log("unknown-host activation observer failed: "
+                            + safeThrowableMessage(error));
+                }
+            }
+        });
     }
 
     /**
