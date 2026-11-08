@@ -18,6 +18,7 @@ public final class RoiSemanticProfileMatcherTest {
         testDetachedMethodRoleEvidenceIsNotMatchable();
         testTargetRoleDeclarationMustAgreeWithResolvedMethod();
         testMalformedMethodDescriptorsAreNotMatchable();
+        testMalformedStructuralEvidenceIsNotMatchable();
         System.out.println("ROI semantic profile matcher tests passed");
     }
 
@@ -179,6 +180,47 @@ public final class RoiSemanticProfileMatcherTest {
         check(!match.resolvedMethodRoles.containsKey("transport.dispatch"),
                 "contradictory target role declaration must not resolve");
         check(!match.activationAuthorized, "contradictory role evidence cannot authorize activation");
+    }
+
+    private static void testMalformedStructuralEvidenceIsNotMatchable() {
+        RoiSemanticProfileMatcher.ClassProfile source = sourceProfile();
+        List<RoiSemanticProfileMatcher.ClassProfile> malformed = Arrays.asList(
+                new RoiSemanticProfileMatcher.ClassProfile(
+                        "2.7.5", "transport.dispatch", "not-a-class", "Ljava/lang/Object;",
+                        Arrays.asList("Liface;", "Ljava/lang/AutoCloseable;"),
+                        Arrays.asList("Lhttp;", "Lcfg;"),
+                        Arrays.asList("<init>(Lcfg;)V", "dispatch(Lreq;Ljava/lang/Long;)Lresp;", "close()V"),
+                        Collections.singletonList(
+                                "Ljava/util/concurrent/ForkJoinPool;->commonPool()Ljava/util/concurrent/ForkJoinPool;"),
+                        Arrays.asList("/api/v0/chat/completion", "/api/v0/chat/regenerate"),
+                        Collections.singletonMap("transport.dispatch", "dispatch(Lreq;Ljava/lang/Long;)Lresp;")),
+                new RoiSemanticProfileMatcher.ClassProfile(
+                        "2.7.5", "transport.dispatch", "Lcandidate;", "Ljava/lang/Object;",
+                        Arrays.asList("Liface;", "?"),
+                        Arrays.asList("Lhttp;", "Lcfg;"),
+                        Arrays.asList("<init>(Lcfg;)V", "dispatch(Lreq;Ljava/lang/Long;)Lresp;", "close()V"),
+                        Collections.<String>emptyList(), Collections.<String>emptyList(),
+                        Collections.singletonMap("transport.dispatch", "dispatch(Lreq;Ljava/lang/Long;)Lresp;")),
+                new RoiSemanticProfileMatcher.ClassProfile(
+                        "2.7.5", "transport.dispatch", "Lcandidate;", "Ljava/lang/Object;",
+                        Arrays.asList("Liface;", "Ljava/lang/AutoCloseable;"),
+                        Arrays.asList("Lhttp;", "?"),
+                        Arrays.asList("<init>(Lcfg;)V", "dispatch(Lreq;Ljava/lang/Long;)Lresp;", "close()V"),
+                        Collections.<String>emptyList(), Collections.<String>emptyList(),
+                        Collections.singletonMap("transport.dispatch", "dispatch(Lreq;Ljava/lang/Long;)Lresp;")),
+                new RoiSemanticProfileMatcher.ClassProfile(
+                        "2.7.5", "transport.dispatch", "Lcandidate;", "Ljava/lang/Object;",
+                        Arrays.asList("Liface;", "Ljava/lang/AutoCloseable;"),
+                        Arrays.asList("Lhttp;", "Lcfg;"),
+                        Arrays.asList("<init>(Lcfg;)V", "dispatch(Lreq;Ljava/lang/Long;)Lresp;", "close()V"),
+                        Collections.singletonList("Lbad;->notACompleteMethod("),
+                        Collections.<String>emptyList(),
+                        Collections.singletonMap("transport.dispatch", "dispatch(Lreq;Ljava/lang/Long;)Lresp;")));
+        for (RoiSemanticProfileMatcher.ClassProfile profile : malformed) {
+            check(!profile.valid(), "malformed structural evidence invalidates profile");
+            check(RoiSemanticProfileMatcher.rank(source, Collections.singletonList(profile)).isEmpty(),
+                    "malformed structural evidence must not enter candidate ranking");
+        }
     }
 
     private static void testMalformedMethodDescriptorsAreNotMatchable() {
