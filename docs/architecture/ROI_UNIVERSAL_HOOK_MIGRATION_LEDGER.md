@@ -526,3 +526,10 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - Fixed chain partitioning to include `sourceScope`, filtered chain events by exact scope, stored scope on the chain, and filtered evidence export by exact scope. This preserves independent evidence from each loader while preventing cross-loader confirmation leakage.
 - Added regression coverage with a complete confirmed chain in one loader and a decoy event using the same host/request key in another loader; the decoy must remain unconfirmed. Strengthened the existing cross-loader phase test to check every resulting chain.
 - Production commit `1f597d05961a16e32be2721098ce56a752cc6940`; test commit `91d789fb3d49d608bc6836e244cd2d74a8dc9651`. ROI run triggered; verification pending.
+
+## Universal Hook runtime callback-observation lock boundary (2026-11-08)
+
+- Static concurrency audit found `RoiUniversalHookRuntime.Installer.install()` and `uninstall()` hold the Installer monitor while invoking backend installation, health verification, and unhook callbacks. A callback that waits for another thread to query `state()` or `activeCount()` could block that worker on the same monitor.
+- Kept state publication thread-safe with a `ConcurrentHashMap` and a volatile active-count snapshot; made `state()` and `activeCount()` lock-free reads. Mutating install/uninstall serialization remains unchanged, avoiding concurrent mutation of the active target graph.
+- Added a cross-thread regression that queries INSTALLING/ACTIVE state and active count from a worker during backend install, health verify, and unhook callbacks.
+- Production commit `70482ae37b2096e7f4d1b3c5587a38eaf909e3a9`; test commit `bc3360473c4aebfaf5bad370a9c785436038a68a`. ROI verification pending.
