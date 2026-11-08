@@ -1,9 +1,23 @@
 name: ROI Universal Hook Runtime
 on:
   push:
-    branches: ["work/roi-universal-hook-r1-r9"]
+    branches: ["work/roi-hook", "work/generic-hook-lifecycle-dev", "work/cross-version-semantic-hook-resolver", "work/roi-serializer-integrity"]
     paths:
       - "module/src/ds/dsh/DeepSeek/RoiUniversalHookRuntime.java"
+      - "module-kotlin-runtime/src/main/kotlin/ds/dsh/DeepSeek/HookLifecycleManager.kt"
+      - "module-kotlin-runtime/src/test/kotlin/ds/dsh/DeepSeek/HookLifecycleManagerTest.kt"
+      - "module/src/ds/dsh/DeepSeek/RoiSemanticProfileMatcher.java"
+      - "module/tests/roiprofilematcher/**"
+      - "module/test-roi-semantic-profile-matcher.sh"
+      - "module/src/ds/dsh/DeepSeek/RoiDexSerializerPipeline.java"
+      - "module/src/ds/dsh/DeepSeek/RoiDexSerializerMapper.java"
+      - "module/src/ds/dsh/DeepSeek/RoiDexSerializerElementIndex.java"
+      - "module/src/ds/dsh/DeepSeek/RoiDexCandidateEvidence.java"
+      - "module/src/ds/dsh/DeepSeek/RoiDexValueProvenance.java"
+      - "module/src/ds/dsh/DeepSeek/RoiDexInvokeResultLinker.java"
+      - "module/tests/roidexserializerpipeline/**"
+      - "module/tests/roidexserializermapper/**"
+      - "module/test-roi-serializer-pipeline.sh"
       - "module/src/ds/dsh/DeepSeek/RoiHookResolverActivationGate.java"
       - "module/src/ds/dsh/DeepSeek/RoiHostArtifactFingerprint.java"
       - "module/src/ds/dsh/DeepSeek/RoiHostBuildIdentity.java"
@@ -35,9 +49,23 @@ on:
       - "docs/architecture/ROI_UNIVERSAL_HOOK_MIGRATION_LEDGER.md"
       - ".github/workflows/roi-universal-hook.yml"
   pull_request:
-    branches: [dev]
+    branches: [dev, "work/roi-hook", "work/generic-hook-lifecycle-dev"]
     paths:
       - "module/src/ds/dsh/DeepSeek/RoiUniversalHookRuntime.java"
+      - "module-kotlin-runtime/src/main/kotlin/ds/dsh/DeepSeek/HookLifecycleManager.kt"
+      - "module-kotlin-runtime/src/test/kotlin/ds/dsh/DeepSeek/HookLifecycleManagerTest.kt"
+      - "module/src/ds/dsh/DeepSeek/RoiSemanticProfileMatcher.java"
+      - "module/tests/roiprofilematcher/**"
+      - "module/test-roi-semantic-profile-matcher.sh"
+      - "module/src/ds/dsh/DeepSeek/RoiDexSerializerPipeline.java"
+      - "module/src/ds/dsh/DeepSeek/RoiDexSerializerMapper.java"
+      - "module/src/ds/dsh/DeepSeek/RoiDexSerializerElementIndex.java"
+      - "module/src/ds/dsh/DeepSeek/RoiDexCandidateEvidence.java"
+      - "module/src/ds/dsh/DeepSeek/RoiDexValueProvenance.java"
+      - "module/src/ds/dsh/DeepSeek/RoiDexInvokeResultLinker.java"
+      - "module/tests/roidexserializerpipeline/**"
+      - "module/tests/roidexserializermapper/**"
+      - "module/test-roi-serializer-pipeline.sh"
       - "module/src/ds/dsh/DeepSeek/RoiHookResolverActivationGate.java"
       - "module/src/ds/dsh/DeepSeek/RoiHostArtifactFingerprint.java"
       - "module/src/ds/dsh/DeepSeek/RoiHostBuildIdentity.java"
@@ -85,9 +113,27 @@ jobs:
       - name: Shell syntax
         run: |
           bash -n module/test-roi-universal-hook-runtime.sh
+          if [[ -f module/test-roi-semantic-profile-matcher.sh ]]; then
+            bash -n module/test-roi-semantic-profile-matcher.sh
+          fi
+          if [[ -f module/test-roi-serializer-pipeline.sh ]]; then
+            bash -n module/test-roi-serializer-pipeline.sh
+          fi
           bash -n module/test-roi-runtime-recorder.sh
           bash -n module/test-hook-install-registry.sh
           bash -n module-legacy/test-adapter-regression.sh
+      - name: Run Kotlin lifecycle manager tests
+        if: ${{ hashFiles('module-kotlin-runtime/src/test/kotlin/ds/dsh/DeepSeek/HookLifecycleManagerTest.kt') != '' }}
+        run: |
+          set -euo pipefail
+          GRADLE_BIN="$(bash scripts/gradle-bootstrap.sh)"
+          "$GRADLE_BIN" --no-daemon --stacktrace -p module-kotlin-runtime test
+      - name: Run semantic profile matcher tests
+        if: ${{ hashFiles('module/test-roi-semantic-profile-matcher.sh') != '' }}
+        run: bash module/test-roi-semantic-profile-matcher.sh
+      - name: Run serializer pipeline and mapper tests
+        if: ${{ hashFiles('module/test-roi-serializer-pipeline.sh') != '' }}
+        run: bash module/test-roi-serializer-pipeline.sh
       - name: Run runtime invocation recorder tests
         run: bash module/test-roi-runtime-recorder.sh
       - name: Run feature install registry tests
