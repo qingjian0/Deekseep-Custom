@@ -206,8 +206,18 @@ class HookLifecycleManager {
             if (entry.state == State.FAILED && entry.handle == null) return entry.snapshot()
             if (entry.state != State.ACTIVE && entry.state != State.FAILED) return entry.snapshot()
 
+            // A dependent protects its prerequisite from the moment installation starts
+            // until its unhook has definitely completed. INSTALLING is important here: its
+            // installer callback runs outside this lock, so the prerequisite could otherwise be
+            // removed while the dependent is being attached. FAILED with a retained handle also
+            // means rollback did not prove that the dependent is detached.
             val dependent = entries.values.firstOrNull {
-                it.state == State.ACTIVE && id in it.spec.dependencies
+                id in it.spec.dependencies && (
+                    it.state == State.ACTIVE ||
+                    it.state == State.INSTALLING ||
+                    it.state == State.UNINSTALLING ||
+                    (it.state == State.FAILED && it.handle != null)
+                )
             }
             if (dependent != null) {
                 return Status(id, entry.state, entry.attempts, entry.spec.required,
