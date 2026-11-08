@@ -140,7 +140,7 @@ public final class FeatureHookInstallRegistryRegression {
                     for (FeatureHookInstallRegistry.Status status : registry.snapshot()) {
                         if ("callback.lock".equals(status.id)) found = status;
                     }
-                    check(found != null && found.state == FeatureHookInstallRegistry.State.INSTALLING,
+                    assertTrue(found != null && found.state == FeatureHookInstallRegistry.State.INSTALLING,
                             "observer must see INSTALLING while callback runs");
                 } catch (Throwable failure) {
                     probeFailure.set(failure);
@@ -149,10 +149,10 @@ public final class FeatureHookInstallRegistryRegression {
                 }
             }, "registry-callback-lock-probe");
             probe.start();
-            check(snapshotCompleted.await(2, TimeUnit.SECONDS),
+            assertTrue(snapshotCompleted.await(2, TimeUnit.SECONDS),
                     "installer callback must not hold the entry monitor");
             probe.join(2000L);
-            check(!probe.isAlive(), "registry observer must finish during callback");
+            assertTrue(!probe.isAlive(), "registry observer must finish during callback");
             if (probeFailure.get() != null) {
                 throw new AssertionError("registry observer failed", probeFailure.get());
             }
