@@ -46,7 +46,11 @@ grep -Fq 'candidate.fieldAnchors.contains("chat_session_id")' "$POLICY"
 grep -Fq 'allowsChatRequestPromptHook' "$POLICY"
 grep -Fq 'hasExpectedConstructorShape' "$RESOLVER"
 grep -Fq 'constructorDescriptorForPolicy(constructor)' "$POLICY"
-grep -Fq 'hookUnknownHostChatRequest(constructor)' "$MAIN"
+grep -Fq 'hookUnknownHostChatRequest(candidate, constructor)' "$MAIN"
+grep -Fq 'hookUnknownHostChatRequest(resolved, constructor)' "$MAIN"
+grep -Fq 'isUnknownHostChatRequestHookAuthorized(candidate, requestConstructor)' "$PIPELINE"
+grep -Fq 'RoiManagedHookInstaller.install(' "$PIPELINE"
+grep -Fq 'HookLifecycleManager.State.ACTIVE' "$PIPELINE"
 grep -Fq 'HistoryBridge.wrapSystemPrompt(' "$PIPELINE"
 grep -Fq 'combined, originalPrompt);' "$PIPELINE"
 grep -Fq 'tlLocalApiRequest.get()' "$PIPELINE"
@@ -57,7 +61,7 @@ test -n "$observer_line" && test -n "$dex_scan_line" && test "$observer_line" -l
 
 # This first adapter is deliberately limited to the user/plugin prompt on the outgoing
 # ChatFullCompletionRequest constructor; it must not synthesize tools or alter transport/auth.
-start="$(grep -n 'boolean hookUnknownHostChatRequest(Constructor' "$PIPELINE" | cut -d: -f1)"
+start="$(grep -n 'boolean hookUnknownHostChatRequest(' "$PIPELINE" | cut -d: -f1)"
 end="$(grep -n 'private static String combineSystemPrompts' "$PIPELINE" | cut -d: -f1)"
 test -n "$start" && test -n "$end" && test "$end" -gt "$start"
 section="$(sed -n "${start},$((end - 1))p" "$PIPELINE")"

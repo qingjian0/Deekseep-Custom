@@ -1,0 +1,664 @@
+package ds.dsh.DeepSeek
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+
+class HookLifecycleManagerTest {
+    @Test
+    fun installsAndVerifiesTargetOnlyOnce() {
+        val manager = HookLifecycleManager()
+        val installs = AtomicInteger()
+        val verifies = AtomicInteger()
+        val spec = HookLifecycleManager.Spec("chat.transport")
+        val installer = HookLifecycleManager.Installer {
+            installs.incrementAndGet()
+            HookLifecycleManager.Unhook { }
+        }
+        val verifier = HookLifecycleManager.Verifier {
+            verifies.incrementAndGet()
+            true
+        }
+
+        assertEquals(HookLifecycleManager.State.ACTIVE, manager.install(spec, installer, verifier).state)
+        assertEquals(HookLifecycleManager.State.ACTIVE, manager.install(spec, installer, verifier).state)
+        assertEquals(1, installs.get())
+        assertEquals(1, verifies.get())
+    }
+
+    @Test
+    fun failedPostInstallVerificationRollsBackTarget() {
+        val manager = HookLifecycleManager()
+        val unhooks = AtomicInteger()
+        val status = manager.install(
+            HookLifecycleManager.Spec("chat.transport"),
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { unhooks.incrementAndGet() } },
+            HookLifecycleManager.Verifier { false }
+        )
+
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, status.state)
+        assertEquals("post_install_verification_failed", status.detail)
+        assertEquals(1, unhooks.get())
+        assertFalse(manager.hasRequiredFailures())
+    }
+
+    @Test
+    fun verifierExceptionAlsoRollsBackBeforeReportingFailure() {
+        val manager = HookLifecycleManager()
+        val unhooks = AtomicInteger()
+        val status = manager.install(
+            HookLifecycleManager.Spec("chat.transport"),
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { unhooks.incrementAndGet() } },
+            HookLifecycleManager.Verifier { throw IllegalStateException("health check failed") }
+        )
+
+        assertEquals(HookLifecycleManager.State.FAILED, status.state)
+        assertEquals(1, unhooks.get())
+        assertTrue(status.detail!!.contains("health check failed"))
+    }
+
+    @Test
+    fun dependencyMustBeActiveBeforeDependentCanInstall() {
+        val manager = HookLifecycleManager()
+        val dependent = HookLifecycleManager.Spec(
+            id = "chat.stream",
+            dependencies = setOf("chat.transport")
+        )
+        val blocked = manager.install(
+            dependent,
+            HookLifecycleManager.Installer { error("must not install") },
+            HookLifecycleManager.Verifier { true }
+        )
+        assertEquals(HookLifecycleManager.State.SKIPPED, blocked.state)
+        assertTrue(blocked.detail!!.startsWith("dependency_not_active:"))
+
+        manager.install(
+            HookLifecycleManager.Spec("chat.transport"),
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        )
+        val installed = manager.install(
+            dependent,
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        )
+        assertEquals(HookLifecycleManager.State.ACTIVE, installed.state)
+    }
+
+    @Test
+    fun dependencySkippedTargetCanRetryAfterDependencyBecomesActive() {
+        val manager = HookLifecycleManager()
+        val dependent = HookLifecycleManager.Spec(
+            id = "chat.stream",
+            dependencies = setOf("chat.transport")
+        )
+        val first = manager.install(
+            dependent,
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        )
+        assertEquals(HookLifecycleManager.State.SKIPPED, first.state)
+        assertEquals("dependency_not_active:chat.transport", first.detail)
+
+        assertEquals(
+            HookLifecycleManager.State.ACTIVE,
+            manager.install(
+                HookLifecycleManager.Spec("chat.transport"),
+                HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+                HookLifecycleManager.Verifier { true }
+            ).state
+        )
+        val retried = manager.install(
+            dependent,
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        )
+        assertEquals(HookLifecycleManager.State.ACTIVE, retried.state)
+    }
+
+    @Test
+    fun conflictSkippedTargetCanRetryAfterConflictingTargetIsUninstalled() {
+        val manager = HookLifecycleManager()
+        assertEquals(
+            HookLifecycleManager.State.ACTIVE,
+            manager.install(
+                HookLifecycleManager.Spec("transport.v1", conflicts = setOf("transport.v2")),
+                HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+                HookLifecycleManager.Verifier { true }
+            ).state
+        )
+        val spec = HookLifecycleManager.Spec("transport.v2")
+        val first = manager.install(
+            spec,
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        )
+        assertEquals(HookLifecycleManager.State.SKIPPED, first.state)
+        assertEquals("conflicts_with_active_target:transport.v1", first.detail)
+
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("transport.v1").state)
+        val retried = manager.install(
+            spec,
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        )
+        assertEquals(HookLifecycleManager.State.ACTIVE, retried.state)
+    }
+
+    @Test
+    fun conflictingActiveTargetBlocksInstall() {
+        val manager = HookLifecycleManager()
+        manager.install(
+            HookLifecycleManager.Spec("transport.v1", conflicts = setOf("transport.v2")),
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        )
+        val blocked = manager.install(
+            HookLifecycleManager.Spec("transport.v2"),
+            HookLifecycleManager.Installer { error("conflicting target must not install") },
+            HookLifecycleManager.Verifier { true }
+        )
+
+        assertEquals(HookLifecycleManager.State.SKIPPED, blocked.state)
+        assertTrue(blocked.detail!!.contains("transport.v1"))
+    }
+
+
+    @Test
+    fun conflictingTargetRemainsBlockedWhileUnhookIsInProgress() {
+        val manager = HookLifecycleManager()
+        val unhookStarted = CountDownLatch(1)
+        val allowUnhookToFinish = CountDownLatch(1)
+        manager.install(
+            HookLifecycleManager.Spec("transport.v1", conflicts = setOf("transport.v2")),
+            HookLifecycleManager.Installer {
+                HookLifecycleManager.Unhook {
+                    unhookStarted.countDown()
+                    check(allowUnhookToFinish.await(5, TimeUnit.SECONDS))
+                }
+            },
+            HookLifecycleManager.Verifier { true }
+        )
+
+        val uninstallResult = java.util.concurrent.atomic.AtomicReference<HookLifecycleManager.Status>()
+        val uninstallThread = Thread { uninstallResult.set(manager.uninstall("transport.v1")) }
+        uninstallThread.start()
+        try {
+            assertTrue(unhookStarted.await(5, TimeUnit.SECONDS))
+            val blocked = manager.install(
+                HookLifecycleManager.Spec("transport.v2"),
+                HookLifecycleManager.Installer { error("conflict must remain reserved during unhook") },
+                HookLifecycleManager.Verifier { true }
+            )
+            assertEquals(HookLifecycleManager.State.SKIPPED, blocked.state)
+            assertEquals("conflicts_with_active_target:transport.v1", blocked.detail)
+        } finally {
+            allowUnhookToFinish.countDown()
+            uninstallThread.join(5000)
+        }
+
+        assertFalse(uninstallThread.isAlive)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, uninstallResult.get().state)
+        assertEquals(HookLifecycleManager.State.ACTIVE, manager.install(
+            HookLifecycleManager.Spec("transport.v2"),
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        ).state)
+    }
+
+    @Test
+    fun conflictingTargetRemainsBlockedWhenRollbackRetainsHandle() {
+        val manager = HookLifecycleManager()
+        val unhooks = AtomicInteger()
+        val failed = manager.install(
+            HookLifecycleManager.Spec("transport.v1", conflicts = setOf("transport.v2")),
+            HookLifecycleManager.Installer {
+                HookLifecycleManager.Unhook {
+                    if (unhooks.incrementAndGet() == 1) error("temporary rollback failure")
+                }
+            },
+            HookLifecycleManager.Verifier { false }
+        )
+        assertEquals(HookLifecycleManager.State.FAILED, failed.state)
+
+        val blocked = manager.install(
+            HookLifecycleManager.Spec("transport.v2"),
+            HookLifecycleManager.Installer { error("retained hook handle still owns conflict") },
+            HookLifecycleManager.Verifier { true }
+        )
+        assertEquals(HookLifecycleManager.State.SKIPPED, blocked.state)
+        assertEquals("conflicts_with_active_target:transport.v1", blocked.detail)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("transport.v1").state)
+        assertEquals(HookLifecycleManager.State.ACTIVE, manager.install(
+            HookLifecycleManager.Spec("transport.v2"),
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        ).state)
+    }
+
+    @Test
+    fun dependencyCannotBeUninstalledWhileDependentIsActive() {
+        val manager = HookLifecycleManager()
+        manager.install(
+            HookLifecycleManager.Spec("transport"),
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        )
+        manager.install(
+            HookLifecycleManager.Spec("stream", dependencies = setOf("transport")),
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        )
+
+        val blocked = manager.uninstall("transport")
+        assertEquals(HookLifecycleManager.State.ACTIVE, blocked.state)
+        assertEquals("required_by_active_target:stream", blocked.detail)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("stream").state)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("transport").state)
+    }
+
+    @Test
+    fun failedInstallCanBeRetriedButActiveTargetCannotBeReplaced() {
+        val manager = HookLifecycleManager()
+        val attempts = AtomicInteger()
+        val spec = HookLifecycleManager.Spec("chat.transport")
+        val installer = HookLifecycleManager.Installer {
+            if (attempts.incrementAndGet() == 1) error("transient install failure")
+            HookLifecycleManager.Unhook { }
+        }
+        val verifier = HookLifecycleManager.Verifier { true }
+
+        assertEquals(HookLifecycleManager.State.FAILED, manager.install(spec, installer, verifier).state)
+        assertEquals(HookLifecycleManager.State.ACTIVE, manager.install(spec, installer, verifier).state)
+        assertEquals(2, attempts.get())
+    }
+
+    @Test
+    fun failedRollbackRetainsHandleForExplicitCleanupRetry() {
+        val manager = HookLifecycleManager()
+        val unhooks = AtomicInteger()
+        val status = manager.install(
+            HookLifecycleManager.Spec("chat.transport"),
+            HookLifecycleManager.Installer {
+                HookLifecycleManager.Unhook {
+                    if (unhooks.incrementAndGet() == 1) error("temporary unhook failure")
+                }
+            },
+            HookLifecycleManager.Verifier { false }
+        )
+
+        assertEquals(HookLifecycleManager.State.FAILED, status.state)
+        assertTrue(status.detail!!.contains("rollback_failed"))
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("chat.transport").state)
+        assertEquals(2, unhooks.get())
+    }
+
+    @Test
+    fun conflictingTargetIsReservedWhileFirstInstallIsInProgress() {
+        val manager = HookLifecycleManager()
+        val installerStarted = CountDownLatch(1)
+        val allowInstallToFinish = CountDownLatch(1)
+        val firstResult = java.util.concurrent.atomic.AtomicReference<HookLifecycleManager.Status>()
+        val first = Thread {
+            firstResult.set(manager.install(
+                HookLifecycleManager.Spec("transport.v1", conflicts = setOf("transport.v2")),
+                HookLifecycleManager.Installer {
+                    installerStarted.countDown()
+                    check(allowInstallToFinish.await(5, TimeUnit.SECONDS))
+                    HookLifecycleManager.Unhook { }
+                },
+                HookLifecycleManager.Verifier { true }
+            ))
+        }
+        first.start()
+        assertTrue(installerStarted.await(5, TimeUnit.SECONDS))
+
+        val second = manager.install(
+            HookLifecycleManager.Spec("transport.v2"),
+            HookLifecycleManager.Installer { error("conflicting install must be blocked") },
+            HookLifecycleManager.Verifier { true }
+        )
+        allowInstallToFinish.countDown()
+        first.join(5000)
+
+        assertFalse(first.isAlive)
+        assertEquals(HookLifecycleManager.State.SKIPPED, second.state)
+        assertTrue(second.detail!!.contains("transport.v1"))
+        assertEquals(HookLifecycleManager.State.ACTIVE, firstResult.get().state)
+    }
+
+
+    @Test
+    fun installingDependentProtectsItsActivePrerequisite() {
+        val manager = HookLifecycleManager()
+        assertEquals(
+            HookLifecycleManager.State.ACTIVE,
+            manager.install(
+                HookLifecycleManager.Spec("transport"),
+                HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+                HookLifecycleManager.Verifier { true }
+            ).state
+        )
+
+        val installerStarted = CountDownLatch(1)
+        val allowInstallToFinish = CountDownLatch(1)
+        val dependentResult = java.util.concurrent.atomic.AtomicReference<HookLifecycleManager.Status>()
+        val dependent = Thread {
+            dependentResult.set(manager.install(
+                HookLifecycleManager.Spec("stream", dependencies = setOf("transport")),
+                HookLifecycleManager.Installer {
+                    installerStarted.countDown()
+                    check(allowInstallToFinish.await(5, TimeUnit.SECONDS))
+                    HookLifecycleManager.Unhook { }
+                },
+                HookLifecycleManager.Verifier { true }
+            ))
+        }
+
+        dependent.start()
+        try {
+            assertTrue(installerStarted.await(5, TimeUnit.SECONDS))
+            val blocked = manager.uninstall("transport")
+            assertEquals(HookLifecycleManager.State.ACTIVE, blocked.state)
+            assertEquals("required_by_active_target:stream", blocked.detail)
+        } finally {
+            allowInstallToFinish.countDown()
+            dependent.join(5000)
+        }
+
+        assertFalse(dependent.isAlive)
+        assertEquals(HookLifecycleManager.State.ACTIVE, dependentResult.get().state)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("stream").state)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("transport").state)
+    }
+
+
+    @Test
+    fun failedDependentWithRetainedHandleProtectsPrerequisite() {
+        val manager = HookLifecycleManager()
+        assertEquals(
+            HookLifecycleManager.State.ACTIVE,
+            manager.install(
+                HookLifecycleManager.Spec("transport"),
+                HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+                HookLifecycleManager.Verifier { true }
+            ).state
+        )
+
+        val unhooks = AtomicInteger()
+        val failedDependent = manager.install(
+            HookLifecycleManager.Spec("stream", dependencies = setOf("transport")),
+            HookLifecycleManager.Installer {
+                HookLifecycleManager.Unhook {
+                    if (unhooks.incrementAndGet() == 1) error("transient rollback failure")
+                }
+            },
+            HookLifecycleManager.Verifier { false }
+        )
+        assertEquals(HookLifecycleManager.State.FAILED, failedDependent.state)
+
+        val blocked = manager.uninstall("transport")
+        assertEquals(HookLifecycleManager.State.ACTIVE, blocked.state)
+        assertEquals("required_by_active_target:stream", blocked.detail)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("stream").state)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("transport").state)
+        assertEquals(2, unhooks.get())
+    }
+
+    @Test
+    fun uninstallFailureRetainsHandleForRetry() {
+        val manager = HookLifecycleManager()
+        val unhooks = AtomicInteger()
+        val spec = HookLifecycleManager.Spec("chat.transport")
+        val installed = manager.install(
+            spec,
+            HookLifecycleManager.Installer {
+                HookLifecycleManager.Unhook {
+                    if (unhooks.incrementAndGet() == 1) error("temporary unhook failure")
+                }
+            },
+            HookLifecycleManager.Verifier { true }
+        )
+        assertEquals(HookLifecycleManager.State.ACTIVE, installed.state)
+
+        val failed = manager.uninstall(spec.id)
+        assertEquals(HookLifecycleManager.State.FAILED, failed.state)
+        assertTrue(failed.detail!!.contains("temporary unhook failure"))
+
+        val retried = manager.uninstall(spec.id)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, retried.state)
+        assertEquals(2, unhooks.get())
+    }
+
+
+    @Test
+    fun mutableDependencySetCannotChangeRegisteredLifecycleGraph() {
+        val manager = HookLifecycleManager()
+        manager.install(
+            HookLifecycleManager.Spec("transport"),
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        )
+
+        val dependencies = mutableSetOf("transport")
+        val dependent = HookLifecycleManager.Spec("stream", dependencies = dependencies)
+        assertEquals(
+            HookLifecycleManager.State.ACTIVE,
+            manager.install(
+                dependent,
+                HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+                HookLifecycleManager.Verifier { true }
+            ).state
+        )
+
+        // Mutating the caller-owned collection must not erase the installed dependency edge.
+        dependencies.clear()
+        val blocked = manager.uninstall("transport")
+        assertEquals(HookLifecycleManager.State.ACTIVE, blocked.state)
+        assertEquals("required_by_active_target:stream", blocked.detail)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("stream").state)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("transport").state)
+    }
+
+
+    @Test
+    fun mutableConflictSetCannotRemoveRegisteredConflict() {
+        val manager = HookLifecycleManager()
+        val conflicts = mutableSetOf("transport.v2")
+        val first = manager.install(
+            HookLifecycleManager.Spec("transport.v1", conflicts = conflicts),
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        )
+        assertEquals(HookLifecycleManager.State.ACTIVE, first.state)
+
+        conflicts.clear()
+        val second = manager.install(
+            HookLifecycleManager.Spec("transport.v2"),
+            HookLifecycleManager.Installer { error("snapshotted conflict must block install") },
+            HookLifecycleManager.Verifier { true }
+        )
+        assertEquals(HookLifecycleManager.State.SKIPPED, second.state)
+        assertEquals("conflicts_with_active_target:transport.v1", second.detail)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("transport.v1").state)
+    }
+
+    @Test
+    fun disabledTargetIsSkippedWithoutCallingInstaller() {
+        val manager = HookLifecycleManager()
+        val installs = AtomicInteger()
+        val status = manager.install(
+            HookLifecycleManager.Spec("chat.experimental", enabled = false),
+            HookLifecycleManager.Installer {
+                installs.incrementAndGet()
+                HookLifecycleManager.Unhook { }
+            },
+            HookLifecycleManager.Verifier { true }
+        )
+
+        assertEquals(HookLifecycleManager.State.SKIPPED, status.state)
+        assertEquals("disabled_by_policy", status.detail)
+        assertEquals(0, installs.get())
+    }
+
+
+    @Test
+    fun duplicateInstallDuringInstallReturnsExplicitInProgressStatus() {
+        val manager = HookLifecycleManager()
+        val installerStarted = CountDownLatch(1)
+        val allowInstallToFinish = CountDownLatch(1)
+        val result = java.util.concurrent.atomic.AtomicReference<HookLifecycleManager.Status>()
+        val spec = HookLifecycleManager.Spec("chat.transport")
+        val installer = HookLifecycleManager.Installer {
+            installerStarted.countDown()
+            check(allowInstallToFinish.await(5, TimeUnit.SECONDS))
+            HookLifecycleManager.Unhook { }
+        }
+        val thread = Thread {
+            result.set(manager.install(spec, installer, HookLifecycleManager.Verifier { true }))
+        }
+        thread.start()
+        try {
+            assertTrue(installerStarted.await(5, TimeUnit.SECONDS))
+            val duplicate = manager.install(
+                spec,
+                HookLifecycleManager.Installer { error("duplicate install must not run") },
+                HookLifecycleManager.Verifier { true }
+            )
+            assertEquals(HookLifecycleManager.State.INSTALLING, duplicate.state)
+            assertEquals("install_in_progress", duplicate.detail)
+        } finally {
+            allowInstallToFinish.countDown()
+            thread.join(5000)
+        }
+        assertFalse(thread.isAlive)
+        assertEquals(HookLifecycleManager.State.ACTIVE, result.get().state)
+    }
+
+    @Test
+    fun installDuringUninstallReturnsExplicitInProgressStatus() {
+        val manager = HookLifecycleManager()
+        val unhookStarted = CountDownLatch(1)
+        val allowUnhookToFinish = CountDownLatch(1)
+        val spec = HookLifecycleManager.Spec("chat.transport")
+        val installer = HookLifecycleManager.Installer {
+            HookLifecycleManager.Unhook {
+                unhookStarted.countDown()
+                check(allowUnhookToFinish.await(5, TimeUnit.SECONDS))
+            }
+        }
+        assertEquals(
+            HookLifecycleManager.State.ACTIVE,
+            manager.install(spec, installer, HookLifecycleManager.Verifier { true }).state
+        )
+        val result = java.util.concurrent.atomic.AtomicReference<HookLifecycleManager.Status>()
+        val thread = Thread { result.set(manager.uninstall(spec.id)) }
+        thread.start()
+        try {
+            assertTrue(unhookStarted.await(5, TimeUnit.SECONDS))
+            val inProgress = manager.install(
+                spec, installer, HookLifecycleManager.Verifier { true }
+            )
+            assertEquals(HookLifecycleManager.State.UNINSTALLING, inProgress.state)
+            assertEquals("uninstall_in_progress", inProgress.detail)
+        } finally {
+            allowUnhookToFinish.countDown()
+            thread.join(5000)
+        }
+        assertFalse(thread.isAlive)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, result.get().state)
+    }
+
+    @Test
+    fun uninstallDuringInstallReturnsExplicitInProgressStatus() {
+        val manager = HookLifecycleManager()
+        val installStarted = CountDownLatch(1)
+        val allowInstallToFinish = CountDownLatch(1)
+        val installResult = java.util.concurrent.atomic.AtomicReference<HookLifecycleManager.Status>()
+        val installer = HookLifecycleManager.Installer {
+            installStarted.countDown()
+            check(allowInstallToFinish.await(5, TimeUnit.SECONDS))
+            HookLifecycleManager.Unhook { }
+        }
+        val thread = Thread {
+            installResult.set(manager.install(
+                HookLifecycleManager.Spec("chat.transport"),
+                installer,
+                HookLifecycleManager.Verifier { true }
+            ))
+        }
+        thread.start()
+        try {
+            assertTrue(installStarted.await(5, TimeUnit.SECONDS))
+            val blocked = manager.uninstall("chat.transport")
+            assertEquals(HookLifecycleManager.State.INSTALLING, blocked.state)
+            assertEquals("install_in_progress", blocked.detail)
+        } finally {
+            allowInstallToFinish.countDown()
+            thread.join(5000)
+        }
+        assertFalse(thread.isAlive)
+        assertEquals(HookLifecycleManager.State.ACTIVE, installResult.get().state)
+    }
+
+    @Test
+    fun installerVerifierAndUnhookCallbacksRunOutsideCoordinationLock() {
+        val manager = HookLifecycleManager()
+        val callbackChecks = AtomicInteger()
+
+        fun assertCoordinationLockAvailable() {
+            val completed = CountDownLatch(1)
+            val probe = Thread {
+                manager.snapshot()
+                completed.countDown()
+            }
+            probe.start()
+            try {
+                assertTrue(
+                    completed.await(2, TimeUnit.SECONDS),
+                    "lifecycle callback must not hold the coordination lock"
+                )
+            } finally {
+                probe.join(2000)
+            }
+            callbackChecks.incrementAndGet()
+        }
+
+        val installed = manager.install(
+            HookLifecycleManager.Spec("callback.lock.probe"),
+            HookLifecycleManager.Installer {
+                assertCoordinationLockAvailable()
+                HookLifecycleManager.Unhook { assertCoordinationLockAvailable() }
+            },
+            HookLifecycleManager.Verifier {
+                assertCoordinationLockAvailable()
+                true
+            }
+        )
+        assertEquals(HookLifecycleManager.State.ACTIVE, installed.state)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("callback.lock.probe").state)
+        assertEquals(3, callbackChecks.get())
+    }
+
+    @Test
+    fun candidateSideConflictDeclarationBlocksAgainstActiveTarget() {
+        val manager = HookLifecycleManager()
+        manager.install(
+            HookLifecycleManager.Spec("transport.v1"),
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        )
+        val blocked = manager.install(
+            HookLifecycleManager.Spec("transport.v2", conflicts = setOf("transport.v1")),
+            HookLifecycleManager.Installer { error("candidate-declared conflict must block install") },
+            HookLifecycleManager.Verifier { true }
+        )
+        assertEquals(HookLifecycleManager.State.SKIPPED, blocked.state)
+        assertEquals("conflicts_with_active_target:transport.v1", blocked.detail)
+    }
+
+}

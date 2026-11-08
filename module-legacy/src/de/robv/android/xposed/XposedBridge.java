@@ -13,6 +13,8 @@ public final class XposedBridge {
     public static boolean nativeHookInstalledForTest;
     public static boolean hookFailureAfterNativeInstallForTest;
     public static boolean returnNullForTest;
+    public static int unhookCountForTest;
+    public static RuntimeException unhookFailureForTest;
     public static OriginalMethodInvoker originalMethodInvokerForTest;
 
     public interface OriginalMethodInvoker {
@@ -51,6 +53,20 @@ public final class XposedBridge {
         return callback.new Unhook(hookMethod);
     }
 
+    public static void unhookForTest(Member member) {
+        unhookCountForTest++;
+        if (unhookFailureForTest != null) {
+            RuntimeException failure = unhookFailureForTest;
+            unhookFailureForTest = null;
+            throw failure;
+        }
+        if (memberForTest != null && memberForTest.equals(member)) {
+            memberForTest = null;
+            callbackForTest = null;
+            nativeHookInstalledForTest = false;
+        }
+    }
+
     public static Object invokeOriginalMethod(Member method, Object thisObject, Object[] args)
             throws Throwable {
         return originalMethodInvokerForTest == null ? null
@@ -65,6 +81,8 @@ public final class XposedBridge {
         nativeHookInstalledForTest = false;
         hookFailureAfterNativeInstallForTest = false;
         returnNullForTest = false;
+        unhookCountForTest = 0;
+        unhookFailureForTest = null;
         originalMethodInvokerForTest = null;
     }
 }
