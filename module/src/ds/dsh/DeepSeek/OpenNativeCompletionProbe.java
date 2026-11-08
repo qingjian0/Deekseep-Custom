@@ -131,14 +131,14 @@ final class OpenNativeCompletionProbe {
     }
 
     private static void associateContinuationWithObservation(
-            Object continuation, Long observationId) {
-        if (continuation == null || observationId == null) return;
-        long sessionId = CURRENT_OBSERVATION_SESSION_ID;
+            Object continuation, Object flow) {
+        if (continuation == null || flow == null) return;
         synchronized (FLOW_TRACE_IDS) {
-            if (sessionId != CURRENT_OBSERVATION_SESSION_ID) return;
             drainFlowTraceQueueLocked();
+            FlowTraceLink flowLink = FLOW_TRACE_IDS.get(new IdentityWeakReference(flow, null));
+            if (flowLink == null || flowLink.sessionId != CURRENT_OBSERVATION_SESSION_ID) return;
             FLOW_TRACE_IDS.put(new IdentityWeakReference(continuation, FLOW_TRACE_QUEUE),
-                    new FlowTraceLink(sessionId, observationId.longValue()));
+                    new FlowTraceLink(flowLink.sessionId, flowLink.observationId));
         }
     }
 
@@ -851,7 +851,7 @@ final class OpenNativeCompletionProbe {
                         Object second = args != null && args.size() > 1 ? args.get(1) : null;
                         Object flow = chain.getThisObject();
                         Long flowTraceId = observationIdForObject(flow);
-                        associateContinuationWithObservation(second, flowTraceId);
+                        associateContinuationWithObservation(second, flow);
                         safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-enter method="
                                 + observedMethodDescriptor(target)
                                 + " flowTraceId=" + (flowTraceId == null ? "unlinked" : flowTraceId)
