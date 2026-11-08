@@ -56,12 +56,17 @@ final class RoiSemanticProfileMatcher {
         boolean valid() {
             if (hostBuild.isEmpty() || role.isEmpty() || classDescriptor.isEmpty()
                     || methods.isEmpty() || methodRoles.isEmpty()) return false;
-            // Every declared semantic method role must be grounded in exactly one method
-            // prototype in this profile; detached or ambiguous role evidence is invalid.
-            for (String rolePrototype : methodRoles.values()) {
+            // A role-to-method equality check is meaningful only for syntactically complete
+            // JVM/DEX method descriptors. Do not let identical malformed strings become evidence.
+            for (String method : methods) {
+                if (methodShape(method).isEmpty()) return false;
+            }
+            for (Map.Entry<String, String> role : methodRoles.entrySet()) {
+                if (role.getKey() == null || role.getKey().trim().isEmpty()
+                        || methodShape(role.getValue()).isEmpty()) return false;
                 int matches = 0;
                 for (String method : methods) {
-                    if (methodShape(rolePrototype).equals(methodShape(method))) matches++;
+                    if (methodShape(role.getValue()).equals(methodShape(method))) matches++;
                 }
                 if (matches != 1) return false;
             }
@@ -274,13 +279,60 @@ final class RoiSemanticProfileMatcher {
     private static String methodShape(String descriptor) {
         String value = clean(descriptor);
         int arrow = value.indexOf("->");
-        if (arrow >= 0) value = value.substring(arrow + 2);
+        if (arrow >= 0) {
+            if (arrow == 0 || !isReferenceType(value.substring(0, arrow))) return "";
+            value = value.substring(arrow + 2);
+        }
         int open = value.indexOf('(');
         int close = value.indexOf(')', open + 1);
-        if (open < 0 || close < 0 || close == value.length() - 1) return value;
-        String args = normalizeTypeSequence(value.substring(open + 1, close));
-        String returns = normalizeType(value.substring(close + 1));
-        return "(" + args + ")" + returns;
+        if (open <= 0 || close < open || close == value.length() - 1) return "";
+        String name = value.substring(0, open);
+        if (name.trim().isEmpty() || name.indexOf('(') >= 0 || name.indexOf(')') >= 0) return "";
+        String arguments = value.substring(open + 1, close);
+        String returns = value.substring(close + 1);
+        if (!validTypeSequence(arguments) || !validReturnType(returns)) return "";
+        return "(" + normalizeTypeSequence(arguments) + ")" + normalizeType(returns);
+    }
+
+    private static boolean validTypeSequence(String descriptors) {
+        int index = 0;
+        while (index < descriptors.length()) {
+            int end = typeDescriptorEnd(descriptors, index, false);
+            if (end <= index) return false;
+            index = end;
+        }
+        return true;
+    }
+
+    private static boolean validReturnType(String descriptor) {
+        if ("V".equals(descriptor)) return true;
+        return typeDescriptorEnd(descriptor, 0, false) == descriptor.length()
+                && !descriptor.isEmpty();
+    }
+
+    private static boolean isReferenceType(String descriptor) {
+        return descriptor != null && descriptor.length() > 2
+                && descriptor.charAt(0) == 'L'
+                && descriptor.charAt(descriptor.length() - 1) == ';'
+                && descriptor.indexOf(';') == descriptor.length() - 1;
+    }
+
+    private static int typeDescriptorEnd(String value, int start, boolean allowVoid) {
+        if (value == null || start < 0 || start >= value.length()) return -1;
+        int index = start;
+        while (index < value.length() && value.charAt(index) == '[') index++;
+        if (index >= value.length()) return -1;
+        char kind = value.charAt(index);
+        if (kind == 'L') {
+            int end = value.indexOf(';', index);
+            if (end <= index + 1) return -1;
+            String name = value.substring(index + 1, end);
+            if (name.indexOf('.') >= 0 || name.indexOf('[') >= 0) return -1;
+            return end + 1;
+        }
+        if ("BCDFIJSZ".indexOf(kind) >= 0) return index + 1;
+        if (kind == 'V' && allowVoid && index == start) return index + 1;
+        return -1;
     }
 
     private static String normalizeTypeSequence(String descriptors) {
