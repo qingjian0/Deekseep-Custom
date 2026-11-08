@@ -27,6 +27,7 @@ public final class HostV275ProfileTest {
         check("l83".equals(HostV275.DELTA_REDUCER), "host delta reducer");
         check("coc".equals(HostV275.DELTA_STATE_OWNER), "host carry-forward state owner");
         check("ida".equals(HostV275.DELTA_ROOT_MODEL), "SSE message root");
+        check("gda".equals(HostV275.DELTA_ROOT_SERIALIZER), "SSE message root serializer");
         check("ky".equals(HostV275.CHAT_MESSAGE_MODEL), "chat message model");
         check("jy1".equals(HostV275.FRAGMENT_LIST_MODEL), "fragment list model");
         check(HostV275.diagnosticLabel().contains("native-disabled"),
