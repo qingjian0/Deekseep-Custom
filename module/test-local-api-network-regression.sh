@@ -51,6 +51,12 @@ required = {
     "LAN-only address range": "(bytes[0] & 255) == 192 && (bytes[1] & 255) == 168",
     "LAN bind refresh": "refreshLanBinding()",
     "network-loss listener close": "current.close()",
+    "active client sockets are tracked": "activeClients = Collections.newSetFromMap(",
+    "stop closes active client sockets": "closeActiveClients();",
+    "client registration is serialized with stop": "synchronized (activeClients)",
+    "accepted sockets are rejected after stop": "if (!RUNNING.get() || client == null || client.isClosed()) return false;",
+    "handler always unregisters and closes its socket": "closeTrackedClient(socket);",
+    "executor saturation closes tracked sockets": "closeTrackedClient(client);",
     "generated API keys retain the sk prefix": '"sk-" + android.util.Base64.encodeToString(random',
     "custom API keys accept visible ASCII without an sk prefix": "private static boolean isValidApiKey(String value)",
     "persisted custom API keys use the same validation": 'if (isValidApiKey(existing)) return existing;',
@@ -166,11 +172,11 @@ gateway_checks = {
     "unsupported multimodal parts are rejected instead of silently discarded": '"Only text content parts are supported"' in source,
     "unsupported generation controls are rejected instead of ignored": "unsupportedChatOption(body)" in source and '"unsupported_parameter"' in source,
     "only one completion choice is accepted": 'if (body.has("n"))' in source and 'return "n";' in source,
-    "named messages are rejected rather than silently flattened": 'message.has("name")' in source and '"Named messages, tool messages, and tool calls are not supported"' in source,
+    "named messages are rejected while valid tool messages are preserved": 'message.has("name")' in source and '"tool".equals(role)' in source and 'Tool result does not match a preceding assistant tool call' in source,
     "empty message content is rejected": 'text.trim().length() == 0' in source and '"Message content is empty"' in source,
-    "assistant tool call history is rejected instead of silently discarded": 'message.has("tool_calls")' in source and '"Named messages, tool messages, and tool calls are not supported"' in source,
-    "tool calling and response_format are explicitly rejected": '"unsupported_feature"' in source and 'Object toolChoice = body.opt("tool_choice");' in source and 'Object responseFormat = body.opt("response_format");' in source and 'return "tool_choice";' in source and 'return "response_format";' in source,
-    "usage streaming is explicitly rejected": 'Object streamOptions = body.opt("stream_options");' in source and 'options.opt("include_usage")' in source and 'return "stream_options.include_usage";' in source,
+    "assistant tool-call history is validated for client-side continuation": 'message.optJSONArray("tool_calls")' in source and 'Invalid assistant tool-call history' in source,
+    "tool plans are parsed through the shared bridge": "OpenAiToolBridge.chatPlan(" in source and "OpenAiToolBridge.responsesPlan(" in source,
+    "stream usage is supported with explicit estimate marker": '"dsh_usage_estimated"' in source and 'includeUsage instanceof Boolean' in source and 'put("usage", usage)' in source,
     "stream must be a boolean": 'body.opt("stream") instanceof Boolean' in source and '"invalid_stream"' in source,
     "model must be a string when supplied": 'body.opt("model") instanceof String' in source and '"invalid_model"' in source,
     "legacy deepseek-flash model ID is advertised as a compatibility alias": 'new JSONObject().put("id", "deepseek-flash")' in source and "Compatibility alias retained" in source,
@@ -193,20 +199,48 @@ missing_gateway = [label for label, ok in gateway_checks.items() if not ok]
 if missing_gateway:
     raise SystemExit("Missing API protocol behavior: " + ", ".join(missing_gateway))
 ui_open = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
-if "Responses API、Anthropic Messages、工具调用和多模态尚未实现" not in ui_open:
-    raise SystemExit("Open UI must not advertise unimplemented API protocols")
+if "Open 版提供 OpenAI Chat Completions、Responses 与 Anthropic Messages：" not in ui_open:
+    raise SystemExit("Open UI must describe the implemented protocol surface")
 if "原生执行适配器尚未接通" not in ui_open:
     raise SystemExit("Open UI must disclose that native completion is not connected")
 hook = (pathlib.Path(sys.argv[1]).parent / "HookAccountLoginSecurity.java").read_text(encoding="utf-8")
 if 'if ("Open".equals(BuildInfo.BUILD_EDITION)) {' not in overlay or 'httpsSwitch = null;' not in overlay:
     raise SystemExit("Open floating overlay must hide unavailable HTTPS controls")
-if 'protocolValue.setClickable(false);' not in overlay or 'OpenAI（固定）' not in overlay:
-    raise SystemExit("Open floating overlay must keep the protocol fixed to OpenAI")
-if '!"Open".equals(BuildInfo.BUILD_EDITION)' not in hook or 'Open 版当前仅支持 HTTP + OpenAI Chat Completions' not in hook:
+if 'protocolValue.setClickable(false);' not in overlay or 'OpenAI + Anthropic（固定）' not in overlay:
+    raise SystemExit("Open floating overlay must keep the supported protocols fixed")
+if '!"Open".equals(BuildInfo.BUILD_EDITION)' not in hook or 'Open 版当前支持 HTTP + OpenAI / Anthropic Messages；HTTPS 暂不可用' not in hook:
     raise SystemExit("Open host control receiver must reject unsupported HTTPS/protocol changes")
 if '((operation == null || operation.length() == 0)' not in hook or 'z2.PROTOCOL_ANTHROPIC.equals(protocol)' not in hook:
     raise SystemExit("Open host control receiver must guard the legacy protocol broadcast path")
-if 'protocolValue.setText(UiLanguage.text(act, "OpenAI（仅 Chat Completions）"' not in ui_open or 'protocolValue.setClickable(false)' not in ui_open:
-    raise SystemExit("Open UI must not expose the unavailable Anthropic protocol picker")
+if 'protocolValue.setText(UiLanguage.text(act, "OpenAI + Anthropic Messages（固定）"' not in ui_open or 'protocolValue.setClickable(false)' not in ui_open:
+    raise SystemExit("Open UI must keep the supported protocol selection fixed")
+
+tool_bridge = (pathlib.Path(sys.argv[1]).parent / "OpenAiToolBridge.java").read_text(encoding="utf-8")
+bridge_required = {
+    "ported OpenAI tool bridge retains MIT copyright": "Copyright (c) 2026 haoyangtu09-art",
+    "ported OpenAI tool bridge retains MIT permission grant": "Permission is hereby granted, free of charge",
+    "tool plan implements shared backend contract": "static final class Plan implements z2.ToolPlan",
+    "Chat tool definitions are parsed": "static Plan chatPlan(",
+    "Responses tool definitions are parsed": "static Plan responsesPlan(",
+    "tool calls are validated against request definitions": "static List<Call> parseCalls(",
+}
+missing_bridge = [label for label, token in bridge_required.items() if token not in tool_bridge]
+if missing_bridge:
+    raise SystemExit("Missing OpenAI tool bridge contract: " + ", ".join(missing_bridge))
+omni_bridge = (pathlib.Path(sys.argv[1]).parent / "OmniRouteToolBridge.java").read_text(encoding="utf-8")
+if "Copyright (c) 2026 diegosouzapw" not in omni_bridge or "normalizeLooseJson" not in omni_bridge:
+    raise SystemExit("Missing attributed OmniRoute tool parser")
+anthropic = (pathlib.Path(sys.argv[1]).parent / "AnthropicMessagesAdapter.java").read_text(encoding="utf-8")
+if "static Request parse(JSONObject body)" not in anthropic or "tool_use" not in anthropic or "tool_result" not in anthropic:
+    raise SystemExit("Missing Anthropic Messages request adapter")
+if '"/v1/responses".equals(request.path)' not in source or "handleResponses(out, request)" not in source:
+    raise SystemExit("Responses endpoint is not registered")
+if '"/v1/messages".equals(request.path)' not in source or "handleAnthropicMessages(out, request)" not in source:
+    raise SystemExit("Anthropic Messages endpoint is not registered")
+if 'throw new z2.GatewayException(503, "engine_missing"' not in security:
+    raise SystemExit("Open native completion must report engine_missing when the execution payload is absent")
+if 'native_adapter_unavailable' in security:
+    raise SystemExit("Open native completion must not be blocked by an edition-level gate")
+
 print("LAN lifecycle, key, URL, selectable UI, API protocol, and truthful Open capability checks passed")
 PY
