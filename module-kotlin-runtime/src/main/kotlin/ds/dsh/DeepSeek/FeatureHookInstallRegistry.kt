@@ -48,7 +48,8 @@ class FeatureHookInstallRegistry {
 
     /**
      * Runs an installer once per stable ID. A failed installer is eligible for another attempt.
-     * The entry lock is held across installation so concurrent callers cannot double-register it.
+     * The entry lock protects state transitions only; INSTALLING reserves the ID while the
+     * injected installer callback executes outside the lock.
      */
     @Throws(Throwable::class)
     fun install(id: String?, installer: Installer?) {
