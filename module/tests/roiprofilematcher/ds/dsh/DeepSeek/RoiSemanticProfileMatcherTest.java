@@ -235,9 +235,9 @@ public final class RoiSemanticProfileMatcherTest {
                         "2.7.5", "transport.dispatch", "Lcandidate;", "Ljava/lang/Object;",
                         Arrays.asList("Liface;", "Ljava/lang/AutoCloseable;"),
                         Arrays.asList("Lhttp;", "Lcfg;"),
-                        Arrays.asList("<init>(Lcfg;)V", "bad method(Lreq;Ljava/lang/Long;)Lresp;", "close()V"),
+                        Arrays.asList("<init>(Lcfg;)V", "bad/method(Lreq;Ljava/lang/Long;)Lresp;", "close()V"),
                         Collections.<String>emptyList(), Collections.<String>emptyList(),
-                        Collections.singletonMap("transport.dispatch", "bad method(Lreq;Ljava/lang/Long;)Lresp;")));
+                        Collections.singletonMap("transport.dispatch", "bad/method(Lreq;Ljava/lang/Long;)Lresp;")));
         for (RoiSemanticProfileMatcher.ClassProfile profile : malformed) {
             check(!profile.valid(), "malformed structural evidence invalidates profile");
             check(RoiSemanticProfileMatcher.rank(source, Collections.singletonList(profile)).isEmpty(),
