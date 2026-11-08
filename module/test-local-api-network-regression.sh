@@ -177,6 +177,8 @@ gateway_checks = {
             'if ("GET".equals(request.method) && "/v1/models".equals(request.path)) {', 1
         )[1].split('if (!"POST".equals(request.method)', 1)[0]
     ),
+    "completion readiness uses backend-specific error codes": 'current.readinessCode()' in source,
+    "backend readiness defaults to model_not_ready": 'readinessCode() { return "model_not_ready"; }' in api_contract,
     "max_completion_tokens alias is supported": 'body.has("max_completion_tokens")' in source,
     "max_tokens values are validated instead of silently clamped": 'numericMaxTokens != Math.rint(numericMaxTokens)' in source and '"invalid_max_tokens"' in source,
     "reasoning is returned in non-stream completions": 'message.put("reasoning_content", result.reasoning)' in source,
