@@ -97,7 +97,12 @@ public final class RoiUniversalHookRuntime {
    for(Spec s:specs){if(s==null||byId.put(s.id,s)!=null)return result(false,s==null?null:s.id,"null or duplicate id");
     if(fp==null||!fp.equals(s.fingerprint)||adapters==null||!adapters.allows(fp,s.role))return result(false,s.id,"fingerprint/role not approved");
     if(!gate.authorized(s,loader))return result(false,s.id,"evidence resolver denied activation");}
-   for(Spec s:byId.values())for(String d:s.dependencies)if(!byId.containsKey(d)&&(!active.containsKey(d)||states.get(d)!=State.ACTIVE))return result(false,s.id,"missing or unhealthy dependency "+d);
+   for(Spec s:byId.values())for(String d:s.dependencies){
+    if(byId.containsKey(d))continue;
+    Active dependency=active.get(d);
+    if(dependency==null||states.get(d)!=State.ACTIVE)return result(false,s.id,"missing or unhealthy dependency "+d);
+    if(dependency.loader!=loader)return result(false,s.id,"dependency belongs to another ClassLoader scope "+d);
+   }
    List<Spec> ordered;try{ordered=order(byId);}catch(Exception e){return result(false,null,e.getMessage());}
    List<Target> targets=new ArrayList<Target>();Set<Member> batchMembers=new HashSet<Member>();
    try{for(Spec s:ordered){Active old=active.get(s.id);if(old!=null){if(!same(old.target.spec,s))return result(false,s.id,"id already bound to another spec");if(old.loader!=loader)return result(false,s.id,"id already bound to another ClassLoader scope");if(states.get(s.id)!=State.ACTIVE)return result(false,s.id,"existing target has unresolved lifecycle failure; uninstall before retry");continue;}Target target=resolver.resolve(s,loader);if(!batchMembers.add(target.member))return result(false,s.id,"batch target conflict with another spec");for(Active a:active.values())if(a.target.member.equals(target.member))return result(false,s.id,"target conflict with "+a.target.spec.id);targets.add(target);}}
