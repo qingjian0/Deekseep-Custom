@@ -100,17 +100,12 @@ public final class RoiSemanticProfileMatcherTest {
                 base.hostBuild, base.role, base.classDescriptor, base.superclassDescriptor,
                 base.interfaces, base.fields,
                 Arrays.asList("<init>(Lcfg;)V", "dispatch(Lreq;Ljava/lang/Long;)Lresp;",
-                        "route(Lothr;Ljava/lang/Long;)Lres;", "close()V"),
+                        "route(Lreq;Ljava/lang/Long;)Lres;", "close()V"),
                 base.externalCalls, base.semanticMarkers, base.methodRoles);
-        RoiSemanticProfileMatcher.Match match = RoiSemanticProfileMatcher.rank(
-                source, Collections.singletonList(duplicateMethod)).get(0);
-        equal(RoiSemanticProfileMatcher.State.LOW_CONFIDENCE, match.state,
-                "duplicate method prototypes must not produce a resolved role");
-        check(!match.resolvedMethodRoles.containsKey("transport.dispatch"),
-                "ambiguous method role must be omitted");
-        check(!match.activationAuthorized, "ambiguous method role never authorizes activation");
+        check(!duplicateMethod.valid(), "duplicate normalized method prototypes invalidate role evidence");
+        check(RoiSemanticProfileMatcher.rank(source, Collections.singletonList(duplicateMethod)).isEmpty(),
+                "ambiguous method role must be rejected before candidate ranking");
     }
-
 
     private static void testMissingEvidenceDimensionsDoNotInflateScore() {
         RoiSemanticProfileMatcher.ClassProfile source = sourceProfile();
