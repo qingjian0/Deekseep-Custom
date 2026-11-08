@@ -1038,3 +1038,17 @@ apps 的 `docs/deepseek-272-native-callgraph.md` 与 artifact Smali 对应，明
 - 从宿主 reducer snapshot 构造稳定 OpenAI delta 的端到端正确性。
 
 本节把 apps 仓库的静态调用链和 Smali artifact 转化为当前 Adapter 的实现约束；不代表上述运行时能力已实现或通过设备验证。
+
+
+## 2026-11-08 — normalized JSON Patch reducer boundary
+
+Added `NativeJsonPatchReducer` as an isolated, pure Java reducer for **normalized RFC 6902** operations. It supports add/remove/replace/move/copy/test, JSON Pointer escaping, object members, array insertion/removal, and atomic batch failure (the caller's source tree is not mutated and a failed batch returns the original tree).
+
+Important evidence boundary:
+
+- The code289 static investigation establishes a DeltaCommand carrying path / operation / value and identifies SET / APPEND / BATCH behavior in the host path. It does **not** yet establish a complete, lossless mapping from the host's obfuscated operation representation to RFC 6902 operation names.
+- Therefore this reducer is not wired into `NativeApiPatchDecoder`, `OpenLocalApiGateway`, or the native completion path. The existing Open decoder remains fail-closed.
+- No host Fragment type names, Answer/Think/Tool schemas, event terminators, or completion lifecycle transitions are inferred from this reducer.
+- The executable regression script `module/test-native-json-patch-reducer.sh` is added to the CI Regression job. It compiles against the Android platform `org.json` implementation and tests nested object/array edits, escaped JSON Pointer tokens, copy/move/test, immutability, and atomic failure.
+
+This is an independently testable state-tree primitive, not a completed code289 wire decoder or Native Adapter. Integration is gated on an evidence-backed translation of every host operation, path convention, batch ordering rule, and value representation, followed by code289 device verification.
