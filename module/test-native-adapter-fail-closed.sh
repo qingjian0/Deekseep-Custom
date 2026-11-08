@@ -46,8 +46,18 @@ require(
 )
 require(
     main,
-    r'@Override\s+public boolean isReady\(\).*?if \("Open"\.equals\(BuildInfo\.BUILD_EDITION\) && !BuildInfo\.LOCAL_API_INCLUDED\)\s*\{\s*return true;\s*\}.*?return BuildInfo\.LOCAL_API_INCLUDED',
-    "Open HTTP surface remains available when the native adapter is absent",
+    r'@Override\s+public boolean isReady\(\).*?if \("Open"\.equals\(BuildInfo\.BUILD_EDITION\) && !BuildInfo\.LOCAL_API_INCLUDED\)\s*\{\s*return false;\s*\}.*?return BuildInfo\.LOCAL_API_INCLUDED',
+    "Open HTTP listener does not claim completion readiness when the native adapter is absent",
+)
+require(
+    main,
+    r'@Override\s+public String readinessCode\(\).*?"engine_missing".*?"model_not_ready"',
+    "Open completion requests expose engine_missing instead of generic model_not_ready",
+)
+require(
+    gateway,
+    r'current == null \? "model_not_ready" : current\.readinessCode\(\)',
+    "Chat Completions maps backend readiness to the backend-specific error code",
 )
 require(
     main,
