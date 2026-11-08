@@ -1,5 +1,8 @@
 package ds.dsh.DeepSeek
 
+import java.util.Collections
+import java.util.LinkedHashSet
+
 /**
  * Target-level lifecycle coordinator for a single resolved Hook target.
  *
@@ -77,12 +80,18 @@ class HookLifecycleManager {
      * verification fails. Installer and verifier callbacks run outside the coordination lock.
      */
     fun install(spec: Spec, installer: Installer, verifier: Verifier): Status {
+        // Callers may pass mutable Sets. Freeze one defensive snapshot before any decision or
+        // callback so the dependency/conflict graph cannot change after registration begins.
+        val stableSpec = spec.copy(
+            dependencies = Collections.unmodifiableSet(LinkedHashSet(spec.dependencies)),
+            conflicts = Collections.unmodifiableSet(LinkedHashSet(spec.conflicts)),
+        )
         val entry: Entry
         synchronized(coordination) {
-            val existing = entries[spec.id]
+            val existing = entries[stableSpec.id]
             if (existing != null) {
-                require(existing.spec == spec) {
-                    "hook target ID is already registered with a different specification: ${spec.id}"
+                require(existing.spec == stableSpec) {
+                    "hook target ID is already registered with a different specification: ${stableSpec.id}"
                 }
                 if (existing.state == State.ACTIVE || existing.state == State.SKIPPED ||
                     existing.state == State.INSTALLING || existing.state == State.UNINSTALLING ||
@@ -91,34 +100,34 @@ class HookLifecycleManager {
                 }
             }
 
-            if (!spec.enabled) {
-                val skipped = existing ?: Entry(spec).also { entries[spec.id] = it }
+            if (!stableSpec.enabled) {
+                val skipped = existing ?: Entry(stableSpec).also { entries[stableSpec.id] = it }
                 skipped.state = State.SKIPPED
                 skipped.detail = "disabled_by_policy"
                 return skipped.snapshot()
             }
 
-            val missingDependency = spec.dependencies.firstOrNull {
+            val missingDependency = stableSpec.dependencies.firstOrNull {
                 entries[it]?.state != State.ACTIVE
             }
             if (missingDependency != null) {
-                return Status(spec.id, State.SKIPPED, existing?.attempts ?: 0,
-                    spec.required, "dependency_not_active:$missingDependency")
+                return Status(stableSpec.id, State.SKIPPED, existing?.attempts ?: 0,
+                    stableSpec.required, "dependency_not_active:$missingDependency")
             }
 
-            val activeConflict = spec.conflicts.firstOrNull {
+            val activeConflict = stableSpec.conflicts.firstOrNull {
                 val state = entries[it]?.state
                 state == State.ACTIVE || state == State.INSTALLING
             } ?: entries.values.firstOrNull {
                 (it.state == State.ACTIVE || it.state == State.INSTALLING) &&
-                    spec.id in it.spec.conflicts
+                    stableSpec.id in it.spec.conflicts
             }?.spec?.id
             if (activeConflict != null) {
                 return Status(spec.id, State.SKIPPED, existing?.attempts ?: 0,
                     spec.required, "conflicts_with_active_target:$activeConflict")
             }
 
-            entry = existing ?: Entry(spec).also { entries[spec.id] = it }
+            entry = existing ?: Entry(stableSpec).also { entries[stableSpec.id] = it }
             entry.state = State.INSTALLING
             entry.attempts++
             entry.detail = null
@@ -126,12 +135,12 @@ class HookLifecycleManager {
 
         var handle: Unhook? = null
         try {
-            handle = installer.install(spec)
+            handle = installer.install(stableSpec)
             synchronized(coordination) {
                 entry.handle = handle
             }
 
-            if (!verifier.verify(spec)) {
+            if (!verifier.verify(stableSpec)) {
                 val rollbackFailure = try {
                     handle.uninstall()
                     null
