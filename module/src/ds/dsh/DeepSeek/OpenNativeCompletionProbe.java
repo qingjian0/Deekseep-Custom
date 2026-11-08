@@ -310,8 +310,8 @@ final class OpenNativeCompletionProbe {
             line(out, "diagnostic.sensitive_data", "message-content,credentials,cookies,auth-headers-not-collected");
             line(out, "diagnostic.callback_detail_capture", "all-events-for-selected-methods-persisted-to-app-private-file");
             line(out, "diagnostic.callback_aggregate_coverage", "all-invocations-for-every-successfully-hooked-concrete-callback-method");
-            line(out, "diagnostic.callback_discovery_limits", "callback-objects-observed-at-y60-continuation-boundary-only");
-            line(out, "diagnostic.callback_hook_limits", "concrete-class-declared-methods-1-to-2-args-nonvoid-max-12-no-superclass-traversal-sorted-by-descriptor");
+            line(out, "diagnostic.callback_discovery_limits", "collector-callback-objects-observed-at-y60-boundary-only; continuation-identity-only-never-method-hooked");
+            line(out, "diagnostic.callback_hook_limits", "collector-concrete-class-declared-methods-1-to-2-args-nonvoid-max-12-no-superclass-traversal-sorted-by-descriptor");
             line(out, "diagnostic.callback_shape_capture", "first-argument-and-successful-result-field-names-and-types-once-per-method-no-field-values");
             Class<?> requestType = HostCompat.load(loader, "ew0");
             line(out, "edition", BuildInfo.BUILD_EDITION);
