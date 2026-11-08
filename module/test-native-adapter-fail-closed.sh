@@ -652,7 +652,7 @@ require(
 )
 require(
     ui,
-    r'采集官方客户端 Transport、y60 边界符合筛选条件的回调方法及 Local API 网关阶段.*?仅 Hook 具体类自身声明的 1～2 参数非 void 方法，每类最多 12 个.*?所有事件实时追加到应用私有目录文件.*?复制完整报告（包含持久化日志）',
+    r'采集官方客户端 Transport、y60 collector 边界符合筛选条件的回调方法及 Local API 网关阶段.*?仅 Hook collector 具体类自身声明的 1～2 参数非 void 方法，每类最多 12 个；Continuation 仅做关联，不 Hook 通用方法.*?所有事件实时追加到应用私有目录文件.*?复制完整报告（包含持久化日志）',
     "the UI documents bounded callback selection and persistent full-event export",
 )
 require(
