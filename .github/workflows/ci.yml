@@ -181,6 +181,7 @@ jobs:
           bash module/test-native-flow-lifecycle.sh
           bash module/test-native-v275-profile.sh
           bash module/test-native-v275-delta-decoder.sh
+          bash module/test-native-v275-runtime-probe.sh
           bash module/test-native-adapter-fail-closed.sh
           bash module/test-native-json-patch-reducer.sh
 
