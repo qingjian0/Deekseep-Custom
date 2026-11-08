@@ -1204,15 +1204,38 @@ final class OpenAiToolBridge {
 
     private static void validateSchemaShape(JSONObject schema, String errorCode)
             throws z2.GatewayException {
-        if (schema == null) return;
+        validateSchemaNode(schema, errorCode, 0);
+    }
+
+    private static void validateSchemaNode(JSONObject schema, String errorCode, int depth)
+            throws z2.GatewayException {
+        if (schema == null || depth > 16) {
+            throw invalid(errorCode, "Tool parameters schema is invalid or too deeply nested");
+        }
         if (schema.has("type")) {
             Object type = schema.opt("type");
-            if (!(type instanceof String) || !"object".equals(type)) {
-                throw invalid(errorCode, "Tool parameters schema type must be object");
+            if (!(type instanceof String) || !("object".equals(type)
+                    || "array".equals(type) || "string".equals(type)
+                    || "number".equals(type) || "integer".equals(type)
+                    || "boolean".equals(type) || "null".equals(type))) {
+                throw invalid(errorCode, "Tool parameters schema type is invalid");
             }
         }
-        if (schema.has("properties") && !(schema.opt("properties") instanceof JSONObject)) {
-            throw invalid(errorCode, "Tool parameters properties must be an object");
+        if (schema.has("properties")) {
+            Object rawProperties = schema.opt("properties");
+            if (!(rawProperties instanceof JSONObject)) {
+                throw invalid(errorCode, "Tool parameters properties must be an object");
+            }
+            JSONObject properties = (JSONObject) rawProperties;
+            java.util.Iterator<String> keys = properties.keys();
+            while (keys.hasNext()) {
+                String key = keys.next();
+                Object propertySchema = properties.opt(key);
+                if (!(propertySchema instanceof JSONObject)) {
+                    throw invalid(errorCode, "Every tool property schema must be an object");
+                }
+                validateSchemaNode((JSONObject) propertySchema, errorCode, depth + 1);
+            }
         }
         if (schema.has("required")) {
             Object rawRequired = schema.opt("required");
@@ -1227,10 +1250,25 @@ final class OpenAiToolBridge {
                 }
             }
         }
-        if (schema.has("additionalProperties")
-                && !(schema.opt("additionalProperties") instanceof Boolean)
-                && !(schema.opt("additionalProperties") instanceof JSONObject)) {
-            throw invalid(errorCode, "Tool parameters additionalProperties must be a boolean or object");
+        if (schema.has("items")) {
+            Object items = schema.opt("items");
+            if (!(items instanceof JSONObject)) {
+                throw invalid(errorCode, "Tool parameters items must be an object");
+            }
+            validateSchemaNode((JSONObject) items, errorCode, depth + 1);
+        }
+        if (schema.has("additionalProperties")) {
+            Object additional = schema.opt("additionalProperties");
+            if (!(additional instanceof Boolean) && !(additional instanceof JSONObject)) {
+                throw invalid(errorCode,
+                        "Tool parameters additionalProperties must be a boolean or object");
+            }
+            if (additional instanceof JSONObject) {
+                validateSchemaNode((JSONObject) additional, errorCode, depth + 1);
+            }
+        }
+        if (schema.has("enum") && !(schema.opt("enum") instanceof JSONArray)) {
+            throw invalid(errorCode, "Tool parameters enum must be an array");
         }
     }
 
