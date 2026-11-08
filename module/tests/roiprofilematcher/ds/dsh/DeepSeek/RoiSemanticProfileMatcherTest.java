@@ -14,6 +14,7 @@ public final class RoiSemanticProfileMatcherTest {
         testStableMarkerConflict();
         testAmbiguousMethodRoleFailsClosed();
         testMissingEvidenceDimensionsDoNotInflateScore();
+        testProfilesWithoutMethodRolesAreNotMatchable();
         System.out.println("ROI semantic profile matcher tests passed");
     }
 
@@ -124,6 +125,22 @@ public final class RoiSemanticProfileMatcherTest {
         check(match.score < RoiSemanticProfileMatcher.DEFAULT_MIN_SCORE,
                 "method-only candidate must not inherit a perfect normalized score");
         check(!match.activationAuthorized, "incomplete profile never authorizes activation");
+    }
+
+
+    private static void testProfilesWithoutMethodRolesAreNotMatchable() {
+        RoiSemanticProfileMatcher.ClassProfile source = sourceProfile();
+        RoiSemanticProfileMatcher.ClassProfile noRoles = new RoiSemanticProfileMatcher.ClassProfile(
+                "2.7.5", "transport.dispatch", "Lcandidate;", "Ljava/lang/Object;",
+                Arrays.asList("Liface;", "Ljava/lang/AutoCloseable;"),
+                Arrays.asList("Lhttp;", "Lcfg;"),
+                Arrays.asList("<init>(Lcfg;)V", "dispatch(Lreq;Ljava/lang/Long;)Lresp;", "close()V"),
+                Collections.singletonList(
+                        "Ljava/util/concurrent/ForkJoinPool;->commonPool()Ljava/util/concurrent/ForkJoinPool;"),
+                Arrays.asList("/api/v0/chat/completion", "/api/v0/chat/regenerate"),
+                Collections.<String, String>emptyMap());
+        check(RoiSemanticProfileMatcher.rank(source, Collections.singletonList(noRoles)).isEmpty(),
+                "class-only profile without semantic method roles must not be reported as matched");
     }
 
     private static RoiSemanticProfileMatcher.ClassProfile sourceProfile() {
