@@ -7792,7 +7792,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
                             module.curAct = new WeakReference<>(activity);
                             module.main.post(new Runnable() {
                                 @Override public void run() {
-                                    module.showButton();
+                                    // Unknown hosts have no verified native settings-row Hook.
+                                    // Show the generic entry independently of that legacy policy.
+                                    module.showButton(true);
                                 }
                             });
                         }
@@ -10099,8 +10101,16 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     }
 
     void showButton() {
+        showButton(false);
+    }
+
+    /**
+     * The unknown-host menu is a generic launcher entry, not the legacy native-settings row.
+     * It must not be hidden merely because an unmaintained host has no verified row Hook.
+     */
+    private void showButton(boolean unknownHostFallback) {
         try {
-            if (!NativeSettingsEntryPolicy.showFloating(
+            if (!unknownHostFallback && !NativeSettingsEntryPolicy.showFloating(
                     HookUiSurface.isNativeSettingsEntryEnabled(), HookUiSurface.nativeSettingsRowHooked,
                     HookUiSurface.nativeSettingsRowEmitted)) {
                 hideButton();
