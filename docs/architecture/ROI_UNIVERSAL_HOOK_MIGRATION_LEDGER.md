@@ -441,3 +441,11 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - Test steps are guarded by `hashFiles` / file-presence checks so a base-stage PR does not fail merely because tests introduced by a later stacked PR are absent from its merge checkout.
 - First dedicated run #189 failed at shell syntax because PR #18 did not yet contain the semantic runner from PR #15. The workflow guard correction was committed as `3989ac5e895e98d057c6d100776f766ac0b55676`; follow-up CI result is pending/unobserved.
 - The general YunSeek CI remains separate and may still be automatically triggered by its existing `work/**` branch rule; the dedicated ROI workflow does not invoke Local API tests.
+
+
+## Semantic profile descriptor validation (2026-11-08)
+
+- Audit found `methodShape()` preserved malformed method strings unchanged when a complete argument/return descriptor could not be parsed. Two malformed but identical strings could pass role-to-method equality and participate in a high-confidence semantic match.
+- `ClassProfile.valid()` now rejects incomplete method descriptors and role prototypes; descriptor parsing validates object/primitive/array parameter types and return types before normalization.
+- Added a malformed-return-descriptor regression fixture. The matcher remains discovery-only and never authorizes Hook activation.
+- PR #15 source commit: `571e4aa0766432f1b673ac25438d4cc5a0c9d005`; test commit: `0ff8bbe6406d27c99921f6fa91e6320a67f77302`. CI/test result is pending.
