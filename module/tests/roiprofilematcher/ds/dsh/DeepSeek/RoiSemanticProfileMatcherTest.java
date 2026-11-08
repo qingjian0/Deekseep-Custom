@@ -13,6 +13,7 @@ public final class RoiSemanticProfileMatcherTest {
         testLowConfidenceAndRoleMismatch();
         testStableMarkerConflict();
         testAmbiguousMethodRoleFailsClosed();
+        testMissingEvidenceDimensionsDoNotInflateScore();
         System.out.println("ROI semantic profile matcher tests passed");
     }
 
@@ -104,6 +105,25 @@ public final class RoiSemanticProfileMatcherTest {
         check(!match.resolvedMethodRoles.containsKey("transport.dispatch"),
                 "ambiguous method role must be omitted");
         check(!match.activationAuthorized, "ambiguous method role never authorizes activation");
+    }
+
+
+    private static void testMissingEvidenceDimensionsDoNotInflateScore() {
+        RoiSemanticProfileMatcher.ClassProfile source = sourceProfile();
+        RoiSemanticProfileMatcher.ClassProfile methodOnly = new RoiSemanticProfileMatcher.ClassProfile(
+                "2.7.5", "transport.dispatch", "Lcandidate;", "",
+                Collections.<String>emptyList(), Collections.<String>emptyList(),
+                Collections.singletonList("renamed(Lrequest;Ljava/lang/Long;)Lresponse;"),
+                Collections.<String>emptyList(), Collections.<String>emptyList(),
+                Collections.singletonMap("transport.dispatch",
+                        "renamed(Lrequest;Ljava/lang/Long;)Lresponse;"));
+        RoiSemanticProfileMatcher.Match match = RoiSemanticProfileMatcher.rank(
+                source, Collections.singletonList(methodOnly)).get(0);
+        equal(RoiSemanticProfileMatcher.State.LOW_CONFIDENCE, match.state,
+                "missing structural dimensions must not be omitted from score");
+        check(match.score < RoiSemanticProfileMatcher.DEFAULT_MIN_SCORE,
+                "method-only candidate must not inherit a perfect normalized score");
+        check(!match.activationAuthorized, "incomplete profile never authorizes activation");
     }
 
     private static RoiSemanticProfileMatcher.ClassProfile sourceProfile() {
