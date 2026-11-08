@@ -153,7 +153,7 @@ public final class RoiSemanticProfileMatcherTest {
                         "Ljava/util/concurrent/ForkJoinPool;->commonPool()Ljava/util/concurrent/ForkJoinPool;"),
                 Arrays.asList("/api/v0/chat/completion", "/api/v0/chat/regenerate"),
                 Collections.singletonMap("transport.dispatch",
-                        "missing(Lreq;Ljava/lang/Long;)Lresp;"));
+                        "missing(Lreq;Ljava/lang/Integer;)Lresp;"));
         check(RoiSemanticProfileMatcher.rank(source, Collections.singletonList(detachedRole)).isEmpty(),
                 "method role must map to exactly one declared method prototype");
     }
