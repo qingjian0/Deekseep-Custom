@@ -60,9 +60,9 @@ public final class NativeJsonPatchReducerRegressionTest {
         NativeJsonPatchReducer.Result result = NativeJsonPatchReducer.apply(source, patch);
         check(result.applied, "copy/move/test rejected: " + result.error);
         JSONArray items = ((JSONObject) result.value).getJSONArray("items");
-        check(items.length() == 3, "copy/move produced wrong array length");
+        check(items.length() == 4, "copy/move produced wrong array length");
         check("b".equals(items.getString(0)) && "a".equals(items.getString(1))
-                        && "c".equals(items.getString(2)),
+                        && "c".equals(items.getString(2)) && "a".equals(items.getString(3)),
                 "copy/move ordering is wrong");
     }
 
