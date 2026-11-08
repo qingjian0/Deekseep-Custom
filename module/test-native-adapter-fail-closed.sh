@@ -702,6 +702,7 @@ require(
     tool_bridge,
     r"boolean active\\(\\).*?return !tools\\.isEmpty\\(\\) && !Choice\\.NONE\\.equals\\(choice\\.mode\\)",
     "empty definitions or tool_choice none cannot activate tool execution",
+)
 
 require(
     gateway,
