@@ -718,17 +718,24 @@ final class OpenLocalApiGateway {
                     + " stream=" + stream + " promptChars=" + prompt.length()
                     + " maxTokens=" + maxTokens);
             z2.Backend current = backend;
-            boolean ready = current != null && current.isReady();
+            if (current == null) {
+                sendError(out, 503, "model_not_ready", "server_error",
+                        "Model backend unavailable");
+                OpenNativeCompletionProbe.apiTrace("request-rejected requestId=" + requestId
+                        + " stage=backend-missing status=503");
+                return;
+            }
+            boolean ready = current.isReady();
             OpenNativeCompletionProbe.apiTrace("backend-readiness requestId=" + requestId
                     + " ready=" + ready);
             if (!ready) {
-                sendError(out, 503,
-                        current == null ? "model_not_ready" : current.readinessCode(),
-                        "server_error",
-                        current == null ? "Model backend unavailable" : current.readinessDetail());
-                OpenNativeCompletionProbe.apiTrace("request-rejected requestId=" + requestId
-                        + " stage=backend-readiness status=503");
-                return;
+                // Readiness is diagnostic, not a dispatch gate. The backend execution facade
+                // owns the per-request failure code (for Open this is engine_missing). This
+                // keeps the protocol route honest and prevents an edition-level preflight from
+                // bypassing the native adapter boundary. Streaming failures are emitted as SSE
+                // errors by streamCompletion; non-streaming failures retain their HTTP status.
+                OpenNativeCompletionProbe.apiTrace("backend-not-ready-dispatching requestId="
+                        + requestId + " code=" + current.readinessCode());
             }
             boolean includeUsage = body.optJSONObject("stream_options") != null
                     && body.optJSONObject("stream_options").optBoolean("include_usage", false);
