@@ -22,11 +22,11 @@ internal data class LauncherHostInfo(
 
 internal data class LauncherStatusUiState(
     val host: LauncherHostInfo = LauncherHostInfo("正在检测…", false, false),
-    /** True only after an authenticated heartbeat from the DeepSeek host process. */
-    val targetRecentlyActive: Boolean = false,
-    /** Framework connectivity is reported separately; it does not prove host injection. */
+    /** LSPosed has delivered its module service Binder to this module. */
     val frameworkConnected: Boolean = false,
-    val isActive: Boolean = targetRecentlyActive,
+    /** DeepSeek host heartbeat is diagnostic only and never controls module activation UI. */
+    val targetRecentlyActive: Boolean = false,
+    val isActive: Boolean = frameworkConnected,
 )
 
 internal class LauncherStatusRepository(context: Context) {
@@ -69,7 +69,7 @@ internal class LauncherStatusRepository(context: Context) {
             host = host,
             targetRecentlyActive = targetRecentlyActive,
             frameworkConnected = frameworkConnected,
-            isActive = targetRecentlyActive,
+            isActive = frameworkConnected,
         )
     }
 
