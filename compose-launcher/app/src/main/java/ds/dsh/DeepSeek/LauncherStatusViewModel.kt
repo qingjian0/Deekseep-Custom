@@ -22,7 +22,11 @@ internal data class LauncherHostInfo(
 
 internal data class LauncherStatusUiState(
     val host: LauncherHostInfo = LauncherHostInfo("正在检测…", false, false),
-    val isActive: Boolean = false,
+    /** True only after an authenticated heartbeat from the DeepSeek host process. */
+    val targetRecentlyActive: Boolean = false,
+    /** Framework connectivity is reported separately; it does not prove host injection. */
+    val frameworkConnected: Boolean = false,
+    val isActive: Boolean = targetRecentlyActive,
 )
 
 internal class LauncherStatusRepository(context: Context) {
@@ -63,7 +67,9 @@ internal class LauncherStatusRepository(context: Context) {
 
         return LauncherStatusUiState(
             host = host,
-            isActive = frameworkConnected || targetRecentlyActive,
+            targetRecentlyActive = targetRecentlyActive,
+            frameworkConnected = frameworkConnected,
+            isActive = targetRecentlyActive,
         )
     }
 
