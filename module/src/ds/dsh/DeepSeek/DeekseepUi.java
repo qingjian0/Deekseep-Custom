@@ -3218,9 +3218,10 @@ public final class DeekseepUi {
                 android.content.ClipboardManager clipboard =
                         (android.content.ClipboardManager) act.getSystemService(Context.CLIPBOARD_SERVICE);
                 if (clipboard != null) {
-                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText(
-                            "Open Native Completion Probe", report));
-                    Toast.makeText(act, "原生适配诊断已复制", Toast.LENGTH_SHORT).show();
+                    copyText(act, "Open Native Completion Probe", report);
+                    Toast.makeText(act, report.length() > 64 * 1024
+                            ? "诊断内容过大，已复制前 64 KB"
+                            : "原生适配诊断已复制", Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -4074,10 +4075,26 @@ public final class DeekseepUi {
     }
 
     private static void copyText(Context context, String label, String value) {
+        if (context == null) return;
+        String safeValue = value == null ? "" : value;
+        final int maxClipboardChars = 64 * 1024;
+        if (safeValue.length() > maxClipboardChars) {
+            safeValue = safeValue.substring(0, maxClipboardChars)
+                    + "\n[内容过长，已截断；请使用文件导出获取完整报告]";
+        }
         android.content.ClipboardManager clipboard = (android.content.ClipboardManager)
                 context.getSystemService(Context.CLIPBOARD_SERVICE);
-        if (clipboard != null) clipboard.setPrimaryClip(
-                android.content.ClipData.newPlainText(label, value == null ? "" : value));
+        if (clipboard != null) {
+            try {
+                clipboard.setPrimaryClip(
+                        android.content.ClipData.newPlainText(label, safeValue));
+            } catch (Throwable failure) {
+                android.widget.Toast.makeText(context,
+                        "复制失败：" + failure.getClass().getSimpleName()
+                                + "，请使用保存成文件",
+                        android.widget.Toast.LENGTH_LONG).show();
+            }
+        }
     }
 
     /** 手工绘制的 API 连接面板，不使用 AlertDialog 或系统确认弹窗。 */
