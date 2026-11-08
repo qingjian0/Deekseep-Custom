@@ -3215,16 +3215,19 @@ public final class DeekseepUi {
                             Toast.LENGTH_LONG).show();
                     return;
                 }
-                android.content.ClipboardManager clipboard =
-                        (android.content.ClipboardManager) act.getSystemService(Context.CLIPBOARD_SERVICE);
-                if (clipboard != null) {
-                    copyText(act, "Open Native Completion Probe", report);
+                boolean copied = copyText(act, "Open Native Completion Probe", report);
+                if (copied) {
                     String copyMessage = report.length() > 64 * 1024
                             ? UiLanguage.text(act, "诊断内容过大，已复制前 64 KB",
                                     "Report was large; first 64 KB copied")
                             : UiLanguage.text(act, "原生适配诊断已复制",
                                     "Native adapter diagnostics copied");
                     Toast.makeText(act, copyMessage, Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(act,
+                            UiLanguage.text(act, "复制失败，请使用保存成文件",
+                                    "Copy failed; use Save to file"),
+                            Toast.LENGTH_LONG).show();
                 }
             }
         });
@@ -4077,26 +4080,28 @@ public final class DeekseepUi {
         return params;
     }
 
-    private static void copyText(Context context, String label, String value) {
-        if (context == null) return;
+    private static boolean copyText(Context context, String label, String value) {
+        if (context == null) return false;
         String safeValue = value == null ? "" : value;
         final int maxClipboardChars = 64 * 1024;
         if (safeValue.length() > maxClipboardChars) {
             safeValue = safeValue.substring(0, maxClipboardChars)
                     + "\n[内容过长，已截断；请使用文件导出获取完整报告]";
         }
-        android.content.ClipboardManager clipboard = (android.content.ClipboardManager)
-                context.getSystemService(Context.CLIPBOARD_SERVICE);
-        if (clipboard != null) {
-            try {
-                clipboard.setPrimaryClip(
-                        android.content.ClipData.newPlainText(label, safeValue));
-            } catch (Throwable failure) {
-                android.widget.Toast.makeText(context,
-                        UiLanguage.text(context, "复制失败，请使用保存成文件",
-                                "Copy failed; use Save to file"),
-                        android.widget.Toast.LENGTH_LONG).show();
-            }
+        try {
+            android.content.ClipboardManager clipboard =
+                    (android.content.ClipboardManager)
+                            context.getSystemService(Context.CLIPBOARD_SERVICE);
+            if (clipboard == null) return false;
+            clipboard.setPrimaryClip(
+                    android.content.ClipData.newPlainText(label, safeValue));
+            return true;
+        } catch (Throwable failure) {
+            android.widget.Toast.makeText(context,
+                    UiLanguage.text(context, "复制失败，请使用保存成文件",
+                            "Copy failed; use Save to file"),
+                    android.widget.Toast.LENGTH_LONG).show();
+            return false;
         }
     }
 
