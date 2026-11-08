@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 GATEWAY="$ROOT/module/src/ds/dsh/DeepSeek/OpenLocalApiGateway.java"
+API_CONTRACT="$ROOT/module/src/ds/dsh/DeepSeek/z2.java"
 LOCAL_API_UI="$ROOT/module/src/ds/dsh/DeepSeek/DeekseepUi.java"
 COMPOSE_MANIFEST="$ROOT/compose-launcher/app/src/main/AndroidManifest.xml"
 BUILD_GRADLE="$ROOT/compose-launcher/app/build.gradle.kts"
@@ -25,12 +26,13 @@ grep -Fq -- '-keep class ds.dsh.DeepSeek.** { *; }' "$ROOT/compose-launcher/app/
 grep -Fq 'android:name="ds.dsh.DeepSeek.z21"' "$COMPOSE_MANIFEST"
 grep -Fq 'android:enabled="${localApiComponentEnabled}"' "$COMPOSE_MANIFEST"
 
-python - "$GATEWAY" "$LOCAL_API_UI" "$BUILD_GRADLE" <<'PY'
+python - "$GATEWAY" "$LOCAL_API_UI" "$BUILD_GRADLE" "$API_CONTRACT" <<'PY'
 import pathlib
 import sys
 
 source = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
 build_gradle = pathlib.Path(sys.argv[3]).read_text(encoding="utf-8")
+api_contract = pathlib.Path(sys.argv[4]).read_text(encoding="utf-8")
 if '(!protectedDistribution || localApiIncluded).toString()' not in build_gradle:
     raise SystemExit("Open builds must enable the declared Local API companion components")
 required = {
@@ -283,6 +285,10 @@ if "catch (Exception disconnectedDuringStart)" not in source:
     raise SystemExit("SSE initial event writes must stop cleanly on client disconnect")
 if "sink.onText(result.text);\n                if (disconnected.get()) return;" not in source:
     raise SystemExit("Anthropic fallback text write must stop before terminal events after disconnect")
+if "Backends must poll this while collecting the native Flow" not in api_contract:
+    raise SystemExit("DeltaSink must explicitly require cancellation polling during idle Flow collection")
+if source.count("@Override public boolean isCancelled() { return disconnected.get(); }") != 3:
+    raise SystemExit("Chat, Responses, and Anthropic stream sinks must all expose disconnect cancellation")
 if 'Streaming tool_use is not implemented yet; use stream=false' not in source:
     raise SystemExit("Anthropic streaming must reject tool_use until structured tool events are implemented")
 if 'throw new z2.GatewayException(503, "engine_missing"' not in security:

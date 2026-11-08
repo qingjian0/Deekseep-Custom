@@ -38,6 +38,11 @@ public final class z2 {
         /** Return false when the client connection is gone and upstream collection should stop. */
         public boolean onText(String delta) throws Exception;
         public boolean onReasoning(String delta) throws Exception;
+        /**
+         * Backends must poll this while collecting the native Flow and before retry/wait
+         * boundaries. A callback returning false is not sufficient when the upstream Flow
+         * can remain idle without emitting another event.
+         */
         public boolean isCancelled();
         /** True once a complete structured action has been captured; not a client cancellation. */
         public default boolean isSatisfied() { return false; }
