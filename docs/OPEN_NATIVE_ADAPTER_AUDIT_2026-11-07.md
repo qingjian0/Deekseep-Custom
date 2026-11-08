@@ -32,16 +32,16 @@ The `CompletionRequest`, `CompletionResult`, and `DeltaSink` contracts are in th
 
 ### Previous Main gate and current request dispatch
 
-The earlier implementation had two Open-specific preflight blocks: `isReady()` required `BuildInfo.LOCAL_API_INCLUDED`, and `complete(...)` threw `native_adapter_unavailable` before reaching the execution facade. These edition-level blocks have now been removed on `dev` per the user's explicit direction.
+Historical note: the old `native_adapter_unavailable` throw in `complete(...)` was removed. The current Main backend still reports `isReady() == false` for Open builds without the native payload; the gateway now treats this only as diagnostic readiness and dispatches the request to `Backend.complete()`.
 
 Current behavior:
 
-1. For Open builds without the bundled Local API payload, `isReady()` returns true so the HTTP surface can dispatch requests.
-2. `Backend.complete(...)` no longer throws `native_adapter_unavailable` before execution.
-3. The request reaches `Main.executeLocalApiCompletion(...)` and then `HookAccountLoginSecurity.INSTANCE.executeLocalApiCompletion(...)`.
+1. For Open builds without the bundled Local API payload, `isReady()` returns false because native execution is not ready.
+2. `OpenLocalApiGateway` records that readiness state but does not reject Completion solely because it is false.
+3. The request reaches `Backend.complete(...)`, then `Main.executeLocalApiCompletion(...)` and `HookAccountLoginSecurity.INSTANCE.executeLocalApiCompletion(...)`.
 4. That facade still resolves `ds.dsh.DeepSeek.z18` from the protected payload and invokes `executeLocalApiCompletion(CompletionRequest, DeltaSink)`. If absent, it reports `engine_missing` for that request.
 
-This is the requested open-dispatch policy: API exposure is not blocked by a global readiness gate, and unsupported native execution is reported by the execution path. It does not claim that the native adapter has been implemented.
+This is the open-dispatch policy after the 2026-11-08 gateway correction: API exposure is not blocked by the `isReady()` preflight, and unsupported native execution is reported by the execution facade. It does not claim that the native adapter has been implemented.
 
 ## Prior code289 callback-observation handoff
 
@@ -248,7 +248,7 @@ The verified semantic profile is vendored at docs/evidence/deepseek-2.7.2-code28
 
 The Open edition no longer rejects the entire completion route at the edition-level backend gate:
 
-- `Main.startz1()` now reports the Open backend as dispatchable so `/v1/chat/completions` reaches the execution facade.
+- `Main.startz1()` still reports native execution as not ready on Open builds without the payload. `OpenLocalApiGateway` now dispatches Completion requests despite that readiness state, allowing the execution facade to return the precise per-request error.
 - The early `native_adapter_unavailable` throw has been removed from `Backend.complete()`.
 - The existing execution facade is still payload-backed and will report `engine_missing` if the `z18` engine is absent. This is now a per-request execution result, not an API-wide preflight block.
 - Closed/protected readiness behavior is unchanged.
@@ -312,6 +312,11 @@ Build a version-specific code289 implementation first. Keep request construction
 - **Native host observations:** partial code289 evidence exists.
 - **Open native Completion adapter:** not implemented.
 - **End-to-end model generation through Open Local API:** not verified and must not be claimed.
-- **Open request dispatch:** implemented at source level; Open readiness no longer blocks the HTTP route, and the old `native_adapter_unavailable` preflight rejection was removed.
+- **Open request dispatch:** implemented at source level; gateway readiness is diagnostic rather than a preflight Completion rejection. The execution facade remains payload-backed and returns `engine_missing` in Open builds.
 - **Current request failure boundary:** the execution facade still depends on `z18`; when absent it reports `engine_missing` for that request.
 - **Validation:** source-level assertions were updated, but the shell regression script, Android build, CI, and device execution have not been run in this pass.
+
+
+## 2026-11-08 correction
+
+The current authoritative adapter status, including the new readiness-dispatch regression, the re-parsed schema-4 runtime log, the schema-7 delta observer boundary, and the remaining device evidence gates, is maintained in [NATIVE_ADAPTER.md](NATIVE_ADAPTER.md). The 2026-11-08 gateway change is committed on `dev` as `03ae70e2ca8bc86438c270c84b2353115f26230b`; its regression assertion is `88c317b10858c212de19b0d8bed30976a45d0ffe`.
