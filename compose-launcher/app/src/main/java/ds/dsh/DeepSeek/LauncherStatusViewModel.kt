@@ -37,10 +37,19 @@ internal class LauncherStatusRepository(context: Context) {
             } else {
                 info.versionCode.toLong()
             }
-            when (code) {
-                287L -> LauncherHostInfo("国内版 2.7.1 (287)", true, true)
-                289L -> LauncherHostInfo("国内版 2.7.2 (289)", true, true)
-                290L -> LauncherHostInfo("国际版 2.7.2 (290)", true, true)
+            val version = info.versionName.orEmpty().substringBefore('-')
+            val parts = version.split('.')
+            val major = parts.getOrNull(0)?.toIntOrNull()
+            val minor = parts.getOrNull(1)?.toIntOrNull()
+            val openEnded27Plus = major != null && minor != null &&
+                (major > 2 || (major == 2 && minor >= 7))
+            when {
+                code == 287L -> LauncherHostInfo("国内版 2.7.1 (287)", true, true)
+                code == 289L -> LauncherHostInfo("国内版 2.7.2 (289)", true, true)
+                code == 290L -> LauncherHostInfo("国际版 2.7.2 (290)", true, true)
+                openEnded27Plus -> LauncherHostInfo(
+                    "DeepSeek ${version} ($code) · 允许加载（功能适配待验证）", true, true
+                )
                 else -> LauncherHostInfo("不支持的版本 ${info.versionName} ($code)", false, true)
             }
         }.getOrDefault(LauncherHostInfo("未安装 DeepSeek", false, false))
