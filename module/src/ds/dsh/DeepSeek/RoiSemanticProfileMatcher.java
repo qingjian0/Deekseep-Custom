@@ -151,32 +151,48 @@ final class RoiSemanticProfileMatcher {
 
         double weighted = 0.0;
         double weights = 0.0;
-        if (!source.superclassDescriptor.isEmpty() && !target.superclassDescriptor.isEmpty()) {
-            weighted += 0.15 * (normalizeType(source.superclassDescriptor)
-                    .equals(normalizeType(target.superclassDescriptor)) ? 1.0 : 0.0);
+        // A missing dimension is negative evidence, not permission to remove its weight.
+        // Otherwise a candidate that copies only the method prototypes can score 1.0 while
+        // omitting the source profile's inheritance, fields, calls, and semantic anchors.
+        if (!source.superclassDescriptor.isEmpty() || !target.superclassDescriptor.isEmpty()) {
+            double similarity = !source.superclassDescriptor.isEmpty()
+                    && !target.superclassDescriptor.isEmpty()
+                    && normalizeType(source.superclassDescriptor)
+                            .equals(normalizeType(target.superclassDescriptor)) ? 1.0 : 0.0;
+            weighted += 0.15 * similarity;
             weights += 0.15;
         }
-        if (!source.interfaces.isEmpty() && !target.interfaces.isEmpty()) {
-            weighted += 0.15 * jaccard(new LinkedHashSet<String>(normalizedTypes(source.interfaces)),
-                    new LinkedHashSet<String>(normalizedTypes(target.interfaces)));
+        if (!source.interfaces.isEmpty() || !target.interfaces.isEmpty()) {
+            double similarity = source.interfaces.isEmpty() || target.interfaces.isEmpty() ? 0.0
+                    : jaccard(new LinkedHashSet<String>(normalizedTypes(source.interfaces)),
+                            new LinkedHashSet<String>(normalizedTypes(target.interfaces)));
+            weighted += 0.15 * similarity;
             weights += 0.15;
         }
-        if (!source.fields.isEmpty() && !target.fields.isEmpty()) {
-            weighted += 0.15 * dice(normalizedFields(source.fields), normalizedFields(target.fields));
+        if (!source.fields.isEmpty() || !target.fields.isEmpty()) {
+            double similarity = source.fields.isEmpty() || target.fields.isEmpty() ? 0.0
+                    : dice(normalizedFields(source.fields), normalizedFields(target.fields));
+            weighted += 0.15 * similarity;
             weights += 0.15;
         }
-        if (!source.methods.isEmpty() && !target.methods.isEmpty()) {
-            weighted += 0.30 * dice(normalizedMethods(source.methods), normalizedMethods(target.methods));
+        if (!source.methods.isEmpty() || !target.methods.isEmpty()) {
+            double similarity = source.methods.isEmpty() || target.methods.isEmpty() ? 0.0
+                    : dice(normalizedMethods(source.methods), normalizedMethods(target.methods));
+            weighted += 0.30 * similarity;
             weights += 0.30;
         }
-        if (!source.externalCalls.isEmpty() && !target.externalCalls.isEmpty()) {
-            weighted += 0.15 * jaccard(new LinkedHashSet<String>(normalizedExternalCalls(source.externalCalls)),
-                    new LinkedHashSet<String>(normalizedExternalCalls(target.externalCalls)));
+        if (!source.externalCalls.isEmpty() || !target.externalCalls.isEmpty()) {
+            double similarity = source.externalCalls.isEmpty() || target.externalCalls.isEmpty() ? 0.0
+                    : jaccard(new LinkedHashSet<String>(normalizedExternalCalls(source.externalCalls)),
+                            new LinkedHashSet<String>(normalizedExternalCalls(target.externalCalls)));
+            weighted += 0.15 * similarity;
             weights += 0.15;
         }
-        if (!source.semanticMarkers.isEmpty() && !target.semanticMarkers.isEmpty()) {
-            weighted += 0.10 * jaccard(new LinkedHashSet<String>(source.semanticMarkers),
-                    new LinkedHashSet<String>(target.semanticMarkers));
+        if (!source.semanticMarkers.isEmpty() || !target.semanticMarkers.isEmpty()) {
+            double similarity = source.semanticMarkers.isEmpty() || target.semanticMarkers.isEmpty() ? 0.0
+                    : jaccard(new LinkedHashSet<String>(source.semanticMarkers),
+                            new LinkedHashSet<String>(target.semanticMarkers));
+            weighted += 0.10 * similarity;
             weights += 0.10;
         }
         double score = weights == 0.0 ? 0.0 : weighted / weights;
