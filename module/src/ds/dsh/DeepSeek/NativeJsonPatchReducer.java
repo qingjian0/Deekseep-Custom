@@ -4,7 +4,9 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -225,14 +227,44 @@ public final class NativeJsonPatchReducer {
 
     private static boolean jsonEquals(Object left, Object right) {
         if (left == right) return true;
+        if (isJsonNull(left) || isJsonNull(right)) {
+            return isJsonNull(left) && isJsonNull(right);
+        }
         if (left == null || right == null) return false;
         if (left instanceof JSONObject && right instanceof JSONObject) {
-            return ((JSONObject) left).similar(right);
+            JSONObject a = (JSONObject) left;
+            JSONObject b = (JSONObject) right;
+            if (a.length() != b.length()) return false;
+            Iterator<String> keys = a.keys();
+            while (keys.hasNext()) {
+                String key = keys.next();
+                if (!b.has(key) || !jsonEquals(a.opt(key), b.opt(key))) return false;
+            }
+            return true;
         }
         if (left instanceof JSONArray && right instanceof JSONArray) {
-            return ((JSONArray) left).similar(right);
+            JSONArray a = (JSONArray) left;
+            JSONArray b = (JSONArray) right;
+            if (a.length() != b.length()) return false;
+            for (int i = 0; i < a.length(); i++) {
+                if (!jsonEquals(a.opt(i), b.opt(i))) return false;
+            }
+            return true;
+        }
+        if (left instanceof Number && right instanceof Number) {
+            try {
+                return new BigDecimal(left.toString()).compareTo(
+                        new BigDecimal(right.toString())) == 0;
+            } catch (NumberFormatException ignored) {
+                return Double.compare(((Number) left).doubleValue(),
+                        ((Number) right).doubleValue()) == 0;
+            }
         }
         return left.equals(right);
+    }
+
+    private static boolean isJsonNull(Object value) {
+        return value == null || value == JSONObject.NULL;
     }
 
     private static Object copy(Object value) throws JSONException {
