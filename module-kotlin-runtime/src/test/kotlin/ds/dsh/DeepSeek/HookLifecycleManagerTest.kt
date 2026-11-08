@@ -198,6 +198,51 @@ class HookLifecycleManagerTest {
         assertEquals(HookLifecycleManager.State.ACTIVE, firstResult.get().state)
     }
 
+
+    @Test
+    fun installingDependentProtectsItsActivePrerequisite() {
+        val manager = HookLifecycleManager()
+        assertEquals(
+            HookLifecycleManager.State.ACTIVE,
+            manager.install(
+                HookLifecycleManager.Spec("transport"),
+                HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+                HookLifecycleManager.Verifier { true }
+            ).state
+        )
+
+        val installerStarted = CountDownLatch(1)
+        val allowInstallToFinish = CountDownLatch(1)
+        val dependentResult = java.util.concurrent.atomic.AtomicReference<HookLifecycleManager.Status>()
+        val dependent = Thread {
+            dependentResult.set(manager.install(
+                HookLifecycleManager.Spec("stream", dependencies = setOf("transport")),
+                HookLifecycleManager.Installer {
+                    installerStarted.countDown()
+                    check(allowInstallToFinish.await(5, TimeUnit.SECONDS))
+                    HookLifecycleManager.Unhook { }
+                },
+                HookLifecycleManager.Verifier { true }
+            ))
+        }
+
+        dependent.start()
+        try {
+            assertTrue(installerStarted.await(5, TimeUnit.SECONDS))
+            val blocked = manager.uninstall("transport")
+            assertEquals(HookLifecycleManager.State.ACTIVE, blocked.state)
+            assertEquals("required_by_active_target:stream", blocked.detail)
+        } finally {
+            allowInstallToFinish.countDown()
+            dependent.join(5000)
+        }
+
+        assertFalse(dependent.isAlive)
+        assertEquals(HookLifecycleManager.State.ACTIVE, dependentResult.get().state)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("stream").state)
+        assertEquals(HookLifecycleManager.State.ROLLED_BACK, manager.uninstall("transport").state)
+    }
+
     @Test
     fun uninstallFailureRetainsHandleForRetry() {
         val manager = HookLifecycleManager()
