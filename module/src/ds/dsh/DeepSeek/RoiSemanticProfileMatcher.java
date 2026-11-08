@@ -215,6 +215,12 @@ final class RoiSemanticProfileMatcher {
         Map<String, String> resolved = new LinkedHashMap<String, String>();
         for (Map.Entry<String, String> role : source.methodRoles.entrySet()) {
             String wanted = methodShape(role.getValue());
+            // The target profile's own semantic-role declaration is independent evidence.
+            // Do not resolve a source role to a coincidentally similar method when the target
+            // explicitly assigns that role to a different prototype (or omits the role).
+            String targetRolePrototype = target.methodRoles.get(role.getKey());
+            if (targetRolePrototype == null
+                    || !wanted.equals(methodShape(targetRolePrototype))) continue;
             String found = null;
             boolean ambiguous = false;
             for (String candidate : target.methods) {
