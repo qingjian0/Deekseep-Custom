@@ -180,3 +180,8 @@ Remaining blockers before a real 2.7.5 adapter can be enabled:
 - Device E2E evidence for streaming and non-streaming completion.
 
 Until these are independently verified, 2.7.5 remains native-disabled and Local API completion remains `engine_missing`. This is a completed static profile handoff, not a claim of a completed native execution adapter.
+
+
+### DeltaCommand protocol follow-up
+
+The dedicated protocol reconstruction is now documented in [CODE295_DELTA_PROTOCOL.md](CODE295_DELTA_PROTOCOL.md). It records the exact serializer contract (`p` optional String, `o` optional Operation string, `v` required JsonElement), the `SET` / `APPEND` / `BATCH` reducer semantics, path traversal, fragment-specific updates, and per-stream / per-batch carry-forward state. The new Java decoder is intentionally a parsed-object normalizer only; it does not call the host reducer or enable Native Completion.
