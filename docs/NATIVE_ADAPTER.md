@@ -3,7 +3,7 @@
  > 适用分支：`dev`（唯一开发基线；Local API 按功能范围选择性移植，不导入旧分支无关提交）  
  > 当前源码快照：以 `dev` 最新 HEAD 为准；本文件随 Local API 移植更新  
 > 当前宿主验证目标：`com.deepseek.chat` 国内版 2.7.2 / versionCode 289（287 / 290 仅保留独立兼容调查，不继承 code289 证据）  
-> 当前结论：**协议网关已扩展；schema-6 只读诊断探针源码已加入，但 null-name DeltaCommand / `ready` / `close` 运行时事件尚未取得完整证据；Open 原生 Completion Adapter 未完成，所有 Completion 协议路由保持开放并进入执行门面；原生引擎缺失时按请求返回 `engine_missing`（HTTP 503），不得在 Open 版本级别提前关闭路由。**  
+> 当前结论：**协议网关已扩展；schema-7 只读诊断探针已加入请求到异步 Flow 的弱身份关联，但 null-name DeltaCommand / `ready` / `close` 运行时事件尚未取得完整证据；Open 原生 Completion Adapter 未完成，所有 Completion 协议路由保持开放并进入执行门面；原生引擎缺失时按请求返回 `engine_missing`（HTTP 503），不得在 Open 版本级别提前关闭路由。**  
 > 验证安排：按工程要求，PR CI、Open APK 构建与 code289 真机验证统一留到本阶段源码工作完成后执行；此前不宣称通过。
 
 ## 1. 结论摘要
@@ -926,3 +926,17 @@ Session bootstrap 的 `ch2.b -> bi5.e` 与 completion request 的 `jw3.g -> y60`
 `tools/audit_code289_session_fallback.py` 已扩展为同时检查 session fallback 与 challenge/client pipeline 的静态锚点。新增检查覆盖插件注册、请求阶段插件调用、challenge attempt 调用、challenge/PoW header 写入、completion request 的 PoW header 分支，以及 DeepSeekHashV1 算法方法引用。
 
 该脚本只检查 Smali 静态结构；它不执行 challenge、不发送网络请求、不验证账号状态或设备运行时。Native Completion 协议入口保持开放；在独立运行时对象、Flow collect、DeltaCommand reducer、取消和真实 Completion 验收全部完成前，执行门面按请求返回 `engine_missing`（HTTP 503）。
+
+
+## 2026-11-08：schema-7 请求到异步 Flow 的弱身份关联
+
+本轮只增强诊断关联能力，不实现原生 Completion，也不改变宿主网络调用：
+
+- zn3.o / jw3.g 的同步观察帧在返回 Flow 时，将 Flow 实例与原始 observation ID 建立关联。
+- 使用 ReferenceQueue + identity-based weak reference，按对象身份而不是 equals() 关联；Flow 被释放后映射自动清理，不长期持有宿主 Flow。
+- y60.b collector 观察点记录 Flow 的 identity hash 与原始 flowTraceId，使跨线程收集事件能够回溯到产生该 Flow 的请求观察帧。
+- 每个返回的 Flow 都会登记；Continuation Hook 仍只对已确认的具体 Flow 实现类安装一次。
+- 不读取 Request 字段值、Prompt、消息内容、Token、Cookie、Authorization、PoW 或 Challenge 响应。
+- 报告 schema 更新为 7；新增 source-only 回归脚本 module/test-open-native-flow-correlation.sh 并接入主 CI。
+
+**证据边界：** 该改动只提供请求与 Flow 实例的诊断关联。它不证明 Flow 一定被 collect、不证明 r3.c 的 DeltaCommand reducer 已正确应用，也不证明 response assembly、取消传播或真实设备 Completion 已完成。必须在 code289 受控设备上启用诊断后，看到同一 flowTraceId 对应的 continuation-enter 与 delta-dispatch 事件，才能确认运行时链路关联成功。
