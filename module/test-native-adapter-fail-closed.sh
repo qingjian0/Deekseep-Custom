@@ -231,7 +231,7 @@ require(
 )
 require(
     probe,
-    r'line\(out, "report\.schema", "6"\)',
+    r'line\(out, "report\.schema", "7"\)',
     "probe report schema is versioned",
 )
 require(
@@ -597,7 +597,7 @@ if "callback.toString()" in probe or "receiver.toString()" in probe:
 
 require(
     probe,
-    r'line\(out, "report\.schema", "6"\).*?diagnostic\.coverage.*?diagnostic\.sensitive_data.*?diagnostic\.callback_hook_limits.*?concrete-class-declared-methods-1-to-2-args-nonvoid-max-12-no-superclass-traversal-sorted-by-descriptor.*?diagnostic\.callback_shape_capture.*?field-names-and-types-once-per-method-no-field-values',
+    r'line\(out, "report\.schema", "7"\).*?diagnostic\.coverage.*?diagnostic\.sensitive_data.*?diagnostic\.callback_hook_limits.*?collector-concrete-class-declared-methods-1-to-2-args-nonvoid-max-12-no-superclass-traversal-sorted-by-descriptor.*?diagnostic\.callback_shape_capture.*?field-names-and-types-once-per-method-no-field-values',
     "schema 6 declares bounded concrete-callback hook coverage, deterministic selection, and one-time object-shape capture",
 )
 require(
@@ -622,7 +622,7 @@ require(
 )
 require(
     probe,
-    r'onExplicitEnable\(ClassLoader loader\).*?resetRuntimeTrace\(\).*?private static void resetRuntimeTrace\(\).*?OBSERVATION_LOG\.setLength\(0\).*?CALLBACK_METHOD_INVOCATIONS\.set\(0\).*?CALLBACK_ARGUMENT_SHAPES\.clear\(\).*?CALLBACK_RESULT_SHAPES\.clear\(\).*?API_TRACE_EVENTS\.set\(0\).*?session-start schema=6',
+    r'onExplicitEnable\(ClassLoader loader\).*?resetRuntimeTrace\(\).*?private static void resetRuntimeTrace\(\).*?OBSERVATION_LOG\.setLength\(0\).*?CALLBACK_METHOD_INVOCATIONS\.set\(0\).*?CALLBACK_ARGUMENT_SHAPES\.clear\(\).*?CALLBACK_RESULT_SHAPES\.clear\(\).*?API_TRACE_EVENTS\.set\(0\).*?session-start schema=7',
     "each explicit enable starts a clean report session without uninstalling transparent hooks",
 )
 require(
@@ -652,7 +652,7 @@ require(
 )
 require(
     ui,
-    r'采集官方客户端 Transport、y60 边界符合筛选条件的回调方法及 Local API 网关阶段.*?仅 Hook 具体类自身声明的 1～2 参数非 void 方法，每类最多 12 个.*?所有事件实时追加到应用私有目录文件.*?复制完整报告（包含持久化日志）',
+    r'采集官方客户端 Transport、y60 collector 边界符合筛选条件的回调方法及 Local API 网关阶段.*?仅 Hook collector 具体类自身声明的 1～2 参数非 void 方法，每类最多 12 个；Continuation 仅做关联，不 Hook 通用方法.*?所有事件实时追加到应用私有目录文件.*?复制完整报告（包含持久化日志）',
     "the UI documents bounded callback selection and persistent full-event export",
 )
 require(
@@ -695,9 +695,15 @@ require(
 )
 require(
     tool_bridge,
-    r"parseChoice\(Object raw, List<Definition> tools, boolean responses\).*?if \(tools\.isEmpty\(\)\).*?return new Choice\(Choice\.NONE, null, null\).*?Choice\.NONE\.equals\(value\).*?return new Choice\(value, null, null\)",
+    r"parseChoice\(Object raw, List<Definition> tools, boolean responses\).*?tools\.isEmpty\(\) \? Choice\.NONE : Choice\.AUTO.*?Choice\.NONE\.equals\(value\).*?tools\.isEmpty\(\) \? Choice\.NONE : value",
     "empty tools and explicit tool_choice none resolve to no tool execution",
 )
+require(
+    tool_bridge,
+    r"boolean active\(\).*?return !tools\.isEmpty\(\) && !Choice\.NONE\.equals\(choice\.mode\)",
+    "empty definitions or tool_choice none cannot activate tool execution",
+)
+
 require(
     gateway,
     r'functionCall instanceof String && "none"\.equals\(functionCall\)',

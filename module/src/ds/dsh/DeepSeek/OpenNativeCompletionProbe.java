@@ -13,6 +13,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -66,6 +70,91 @@ final class OpenNativeCompletionProbe {
     private static final ThreadLocal<ObservationFrame> OBSERVATION_FRAME =
             new ThreadLocal<ObservationFrame>();
 
+    // Flow objects outlive the synchronous transport call and may collect on another thread.
+    // Keep an identity-based weak association so concurrent Flow callbacks can be correlated
+    // with the originating Request without retaining host Flow instances.
+    private static final ReferenceQueue<Object> FLOW_TRACE_QUEUE =
+            new ReferenceQueue<Object>();
+    private static final Map<IdentityWeakReference, FlowTraceLink> FLOW_TRACE_IDS =
+            new HashMap<IdentityWeakReference, FlowTraceLink>();
+    private static final java.util.concurrent.atomic.AtomicLong OBSERVATION_SESSION_IDS =
+            new java.util.concurrent.atomic.AtomicLong();
+    private static volatile long CURRENT_OBSERVATION_SESSION_ID;
+
+    private static final class FlowTraceLink {
+        final long sessionId;
+        final long observationId;
+
+        FlowTraceLink(long sessionId, long observationId) {
+            this.sessionId = sessionId;
+            this.observationId = observationId;
+        }
+    }
+
+    private static final class IdentityWeakReference extends WeakReference<Object> {
+        private final int identityHash;
+
+        IdentityWeakReference(Object value, ReferenceQueue<Object> queue) {
+            super(value, queue);
+            identityHash = System.identityHashCode(value);
+        }
+
+        @Override public int hashCode() { return identityHash; }
+
+        @Override public boolean equals(Object other) {
+            if (this == other) return true;
+            if (!(other instanceof IdentityWeakReference)) return false;
+            Object left = get();
+            Object right = ((IdentityWeakReference) other).get();
+            return left != null && left == right;
+        }
+    }
+
+    private static void drainFlowTraceQueueLocked() {
+        IdentityWeakReference stale;
+        while ((stale = (IdentityWeakReference) FLOW_TRACE_QUEUE.poll()) != null) {
+            FLOW_TRACE_IDS.remove(stale);
+        }
+    }
+
+    private static void associateFlowWithObservation(Object flow) {
+        if (flow == null) return;
+        ObservationFrame frame = OBSERVATION_FRAME.get();
+        if (frame == null
+                || frame.sessionId != CURRENT_OBSERVATION_SESSION_ID) return;
+        synchronized (FLOW_TRACE_IDS) {
+            // Recheck after acquiring the map lock: resetRuntimeTrace() may have advanced
+            // the session between the optimistic check above and this critical section.
+            if (frame.sessionId != CURRENT_OBSERVATION_SESSION_ID) return;
+            drainFlowTraceQueueLocked();
+            FLOW_TRACE_IDS.put(
+                    new IdentityWeakReference(flow, FLOW_TRACE_QUEUE),
+                    new FlowTraceLink(frame.sessionId, frame.id));
+        }
+    }
+
+    private static void associateObjectWithObservation(
+            Object continuation, Object flow) {
+        if (continuation == null || flow == null) return;
+        synchronized (FLOW_TRACE_IDS) {
+            drainFlowTraceQueueLocked();
+            FlowTraceLink flowLink = FLOW_TRACE_IDS.get(new IdentityWeakReference(flow, null));
+            if (flowLink == null || flowLink.sessionId != CURRENT_OBSERVATION_SESSION_ID) return;
+            FLOW_TRACE_IDS.put(new IdentityWeakReference(continuation, FLOW_TRACE_QUEUE),
+                    new FlowTraceLink(flowLink.sessionId, flowLink.observationId));
+        }
+    }
+
+    private static Long observationIdForObject(Object value) {
+        if (value == null) return null;
+        synchronized (FLOW_TRACE_IDS) {
+            drainFlowTraceQueueLocked();
+            FlowTraceLink link = FLOW_TRACE_IDS.get(new IdentityWeakReference(value, null));
+            if (link == null || link.sessionId != CURRENT_OBSERVATION_SESSION_ID) return null;
+            return Long.valueOf(link.observationId);
+        }
+    }
+
     private static final class CallbackStats {
         final java.util.concurrent.atomic.AtomicLong invocations =
                 new java.util.concurrent.atomic.AtomicLong();
@@ -90,11 +179,15 @@ final class OpenNativeCompletionProbe {
 
     private static final class ObservationFrame {
         final long id;
+        final long sessionId;
         final Deque<String> callStack = new ArrayDeque<String>();
         Object rootRequest;
         boolean hasRootRequest;
         int depth;
-        ObservationFrame(long id) { this.id = id; }
+        ObservationFrame(long id, long sessionId) {
+            this.id = id;
+            this.sessionId = sessionId;
+        }
     }
 
 
@@ -130,10 +223,16 @@ final class OpenNativeCompletionProbe {
         CALLBACK_ARGUMENT_SHAPES.clear();
         CALLBACK_RESULT_SHAPES.clear();
         API_TRACE_EVENTS.set(0);
-        OBSERVATION_IDS.set(0L);
+        CURRENT_OBSERVATION_SESSION_ID = OBSERVATION_SESSION_IDS.incrementAndGet();
+        synchronized (FLOW_TRACE_IDS) {
+            FLOW_TRACE_IDS.clear();
+            while (FLOW_TRACE_QUEUE.poll() != null) {
+                // Drain stale weak references from the previous diagnostic session.
+            }
+        }
         SESSION_STARTED_AT_MS = System.currentTimeMillis();
         SESSION_LOG_FILE = createSessionLogFile(SESSION_STARTED_AT_MS);
-        observerLog("[OPEN_NATIVE_CALL_OBSERVER] session-start schema=6 epochMs="
+        observerLog("[OPEN_NATIVE_CALL_OBSERVER] session-start schema=7 epochMs="
                 + SESSION_STARTED_AT_MS);
     }
 
@@ -205,13 +304,14 @@ final class OpenNativeCompletionProbe {
         int eligibleClassNames = 0;
         int classLoadFailures = 0;
         try {
-            line(out, "report.schema", "6");
+            line(out, "report.schema", "7");
+            line(out, "diagnostic.flow_request_correlation", "identity-weak-map-flow-instance-to-synchronous-request-observation-id");
             line(out, "diagnostic.coverage", "host-transport,y60-continuation,callback-implementations,delta-dispatch,local-api-gateway");
             line(out, "diagnostic.sensitive_data", "message-content,credentials,cookies,auth-headers-not-collected");
             line(out, "diagnostic.callback_detail_capture", "all-events-for-selected-methods-persisted-to-app-private-file");
             line(out, "diagnostic.callback_aggregate_coverage", "all-invocations-for-every-successfully-hooked-concrete-callback-method");
-            line(out, "diagnostic.callback_discovery_limits", "callback-objects-observed-at-y60-continuation-boundary-only");
-            line(out, "diagnostic.callback_hook_limits", "concrete-class-declared-methods-1-to-2-args-nonvoid-max-12-no-superclass-traversal-sorted-by-descriptor");
+            line(out, "diagnostic.callback_discovery_limits", "collector-callback-objects-observed-at-y60-boundary-only; continuation-identity-only-never-method-hooked");
+            line(out, "diagnostic.callback_hook_limits", "collector-concrete-class-declared-methods-1-to-2-args-nonvoid-max-12-no-superclass-traversal-sorted-by-descriptor");
             line(out, "diagnostic.callback_shape_capture", "first-argument-and-successful-result-field-names-and-types-once-per-method-no-field-values");
             Class<?> requestType = HostCompat.load(loader, "ew0");
             line(out, "edition", BuildInfo.BUILD_EDITION);
@@ -509,12 +609,18 @@ final class OpenNativeCompletionProbe {
                     final long started = System.nanoTime();
                     String eventClass = "null";
                     String eventName = "unavailable";
+                    Long deltaTraceId = null;
                     try {
                         List<?> args = chain.getArgs();
                         Object event = args != null && !args.isEmpty() ? args.get(0) : null;
+                        Object continuation = args != null && args.size() > 1 ? args.get(1) : null;
+                        deltaTraceId = observationIdForObject(continuation);
                         eventClass = event == null ? "null" : event.getClass().getName();
                         eventName = safeDeltaEventName(event);
                         safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] delta-dispatch-enter"
+                                + " flowTraceId=" + (deltaTraceId == null ? "unlinked" : deltaTraceId)
+                                + " continuationIdentity=" + (continuation == null ? 0
+                                        : System.identityHashCode(continuation))
                                 + " eventClass=" + eventClass + " eventName=" + eventName);
                     } catch (VirtualMachineError fatal) {
                         throw fatal;
@@ -527,12 +633,14 @@ final class OpenNativeCompletionProbe {
                     try {
                         Object value = chain.proceed();
                         safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] delta-dispatch-exit"
+                                + " flowTraceId=" + (deltaTraceId == null ? "unlinked" : deltaTraceId)
                                 + " eventClass=" + eventClass + " eventName=" + eventName
                                 + " durationMs=" + ((System.nanoTime() - started) / 1_000_000L)
                                 + " result=" + observedResultType(value));
                         return value;
                     } catch (Throwable hostError) {
                         safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] delta-dispatch-throw"
+                                + " flowTraceId=" + (deltaTraceId == null ? "unlinked" : deltaTraceId)
                                 + " eventClass=" + eventClass + " eventName=" + eventName
                                 + " exception=" + hostError.getClass().getName());
                         throw hostError;
@@ -598,7 +706,8 @@ final class OpenNativeCompletionProbe {
                         frame = OBSERVATION_FRAME.get();
                         root = frame == null;
                         if (root) {
-                            frame = new ObservationFrame(OBSERVATION_IDS.incrementAndGet());
+                            frame = new ObservationFrame(OBSERVATION_IDS.incrementAndGet(),
+                                    CURRENT_OBSERVATION_SESSION_ID);
                             OBSERVATION_FRAME.set(frame);
                         }
                         frame.depth++;
@@ -709,8 +818,9 @@ final class OpenNativeCompletionProbe {
      * it never invokes callbacks itself or reads payload/response values.
      */
     private static void installContinuationObserver(Object result) {
-        if (result == null || !Main.isOpenNativeCompletionProbeEnabled()
-                || !OBSERVATION_Y60.compareAndSet(false, true)) return;
+        if (result == null || !Main.isOpenNativeCompletionProbeEnabled()) return;
+        associateFlowWithObservation(result);
+        if (!OBSERVATION_Y60.compareAndSet(false, true)) return;
         try {
             Class<?> owner = result.getClass();
             Method selected = null;
@@ -738,12 +848,19 @@ final class OpenNativeCompletionProbe {
                 @Override public Object intercept(LegacyXposedModule.Chain chain)
                         throws Throwable {
                     if (!Main.isOpenNativeCompletionProbeEnabled()) return chain.proceed();
+                    Long flowTraceId = null;
                     try {
                         List<?> args = chain.getArgs();
                         Object first = args != null && args.size() > 0 ? args.get(0) : null;
                         Object second = args != null && args.size() > 1 ? args.get(1) : null;
+                        Object flow = chain.getThisObject();
+                        flowTraceId = observationIdForObject(flow);
+                        associateObjectWithObservation(first, flow);
+                        associateObjectWithObservation(second, flow);
                         safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-enter method="
                                 + observedMethodDescriptor(target)
+                                + " flowTraceId=" + (flowTraceId == null ? "unlinked" : flowTraceId)
+                                + " flowIdentity=" + (flow == null ? 0 : System.identityHashCode(flow))
                                 + " thread=" + Thread.currentThread().getName()
                                 + "#" + Thread.currentThread().getId()
                                 + " callback0Id=" + (first == null ? 0 : System.identityHashCode(first))
@@ -752,8 +869,10 @@ final class OpenNativeCompletionProbe {
                                 + " arg0Shape=" + observedObjectShape(first)
                                 + " arg1Shape=" + observedObjectShape(second)
                                 + " stack=" + observedStack());
+                        // The Continuation implementation is shared by unrelated coroutine
+                        // paths (network, session and challenge work). Keep its identity link for
+                        // r3.c correlation, but never hook its generic methods.
                         installCallbackObserver(first, "callback-0");
-                        installCallbackObserver(second, "callback-1");
                     } catch (VirtualMachineError fatal) {
                         throw fatal;
                     } catch (ThreadDeath fatal) {
@@ -766,13 +885,15 @@ final class OpenNativeCompletionProbe {
                     try {
                         value = chain.proceed();
                     } catch (Throwable hostError) {
-                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-throw exception="
-                                + hostError.getClass().getName());
+                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-throw flowTraceId="
+                                + (flowTraceId == null ? "unlinked" : flowTraceId)
+                                + " exception=" + hostError.getClass().getName());
                         throw hostError;
                     }
                     try {
                         safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-exit method="
                                 + observedMethodDescriptor(target)
+                                + " flowTraceId=" + (flowTraceId == null ? "unlinked" : flowTraceId)
                                 + " result=" + observedResultType(value));
                     } catch (VirtualMachineError fatal) {
                         throw fatal;
@@ -855,6 +976,7 @@ final class OpenNativeCompletionProbe {
                         String methodValue = "method-descriptor-unavailable";
                         CallbackStats statsValue = null;
                         int identityValue = 0;
+                        Long traceIdValue = null;
                         long eventValue = 0L;
                         try {
                             methodValue = observedMethodDescriptor(target);
@@ -867,6 +989,7 @@ final class OpenNativeCompletionProbe {
                             statsValue = existingStats;
                             Object receiver = chain.getThisObject();
                             identityValue = receiver == null ? 0 : System.identityHashCode(receiver);
+                            traceIdValue = observationIdForObject(receiver);
                             List<?> args = chain.getArgs();
                             if (CALLBACK_ARGUMENT_SHAPES.putIfAbsent(methodValue, Boolean.TRUE) == null) {
                                 Object arg0 = args == null || args.isEmpty() ? null : args.get(0);
@@ -879,6 +1002,7 @@ final class OpenNativeCompletionProbe {
                             eventValue = CALLBACK_DETAIL_EVENTS.incrementAndGet();
                             safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] callback-enter role=" + role
                                     + " method=" + methodValue + " receiverId=" + identityValue
+                                    + " flowTraceId=" + (traceIdValue == null ? "unlinked" : traceIdValue)
                                     + " event=" + eventValue + " args=" + observedArgumentTypes(args)
                                     + " stack=" + observedStack());
                         } catch (VirtualMachineError fatal) {
@@ -892,6 +1016,7 @@ final class OpenNativeCompletionProbe {
                         final String callbackMethod = methodValue;
                         final CallbackStats stats = statsValue;
                         final int identity = identityValue;
+                        final Long callbackTraceId = traceIdValue;
                         final long eventNumber = eventValue;
                         final Object value;
                         try {
@@ -900,7 +1025,9 @@ final class OpenNativeCompletionProbe {
                             try {
                                 if (stats != null) stats.record(System.nanoTime() - started, true);
                                 safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] callback-throw method="
-                                        + callbackMethod + " exception=" + hostError.getClass().getName());
+                                        + callbackMethod + " receiverId=" + identity
+                                        + " flowTraceId=" + (callbackTraceId == null ? "unlinked" : callbackTraceId)
+                                        + " exception=" + hostError.getClass().getName());
                             } catch (VirtualMachineError fatal) {
                                 throw fatal;
                             } catch (ThreadDeath fatal) {
@@ -917,6 +1044,7 @@ final class OpenNativeCompletionProbe {
                             }
                             safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] callback-exit method="
                                     + callbackMethod + " receiverId=" + identity
+                                    + " flowTraceId=" + (callbackTraceId == null ? "unlinked" : callbackTraceId)
                                     + " event=" + eventNumber + " durationMs="
                                     + (durationNanos / 1000000L) + " result=" + observedResultType(value));
                         } catch (VirtualMachineError fatal) {
