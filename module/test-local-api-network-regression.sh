@@ -9,6 +9,8 @@ COMPOSE_MANIFEST="$ROOT/compose-launcher/app/src/main/AndroidManifest.xml"
 BUILD_GRADLE="$ROOT/compose-launcher/app/build.gradle.kts"
 for manifest in "$ROOT/module-universal/AndroidManifest.xml" "$ROOT/module-legacy/AndroidManifest.xml" "$COMPOSE_MANIFEST"; do
     grep -Fq 'android.permission.ACCESS_NETWORK_STATE' "$manifest"
+    grep -Fq 'android.permission.SYSTEM_ALERT_WINDOW' "$manifest"
+    grep -Fq 'android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS' "$manifest"
     grep -Fq 'android.permission.FOREGROUND_SERVICE' "$manifest"
     grep -Fq 'android.permission.FOREGROUND_SERVICE_SPECIAL_USE' "$manifest"
     grep -Fq 'android:name="ds.dsh.DeepSeek.z20"' "$manifest"
@@ -175,6 +177,8 @@ gateway_checks = {
             'if ("GET".equals(request.method) && "/v1/models".equals(request.path)) {', 1
         )[1].split('if (!"POST".equals(request.method)', 1)[0]
     ),
+    "completion readiness uses backend-specific error codes": 'current.readinessCode()' in source,
+    "backend readiness defaults to model_not_ready": 'readinessCode() { return "model_not_ready"; }' in api_contract,
     "max_completion_tokens alias is supported": 'body.has("max_completion_tokens")' in source,
     "max_tokens values are validated instead of silently clamped": 'numericMaxTokens != Math.rint(numericMaxTokens)' in source and '"invalid_max_tokens"' in source,
     "reasoning is returned in non-stream completions": 'message.put("reasoning_content", result.reasoning)' in source,
@@ -307,5 +311,45 @@ if 'throw new z2.GatewayException(503, "engine_missing"' not in security:
 if 'native_adapter_unavailable' in security:
     raise SystemExit("Open native completion must not be blocked by an edition-level gate")
 
+
+overlay = (pathlib.Path(sys.argv[1]).parent / "LocalApiFloatingOverlay.java").read_text(encoding="utf-8")
+ui = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
+bridge = (pathlib.Path(sys.argv[1]).parent / "z20.java").read_text(encoding="utf-8")
+if 'installOptionalAgentRenderHook("agent.tool-log-rounded-rect"' not in main:
+    raise SystemExit("Optional Agent renderer must be isolated as an independent best-effort boundary")
+heartbeat = main[main.index("private static void reportActivationHeartbeat"):main.index("static boolean setExpertRelayEnabled")]
+if "if (act == null) return;" not in heartbeat or "!BuildInfo.PROTECTED_BUILD" in heartbeat:
+    raise SystemExit("Target activation heartbeat must be reported in Open and protected builds")
+if "miui.intent.action.POWER_MANAGER" not in main or "ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" not in main:
+    raise SystemExit("MIUI battery and Android per-app exemption routes are missing")
+if "miui.intent.action.APP_PERM_EDITOR" not in overlay or "Settings.ACTION_MANAGE_OVERLAY_PERMISSION" not in overlay:
+    raise SystemExit("MIUI and Android overlay permission routes are missing")
+if "code == 289L || code == 290L" not in overlay:
+    raise SystemExit("Floating overlay host gate must recognize exact 2.7.2 code289/code290 identities")
+if "LocalApiFloatingOverlay.requestPermission(this)" not in bridge or "!LocalApiFloatingOverlay.hasPermission(this)" not in bridge:
+    raise SystemExit("The overlay-start trampoline must open the permission editor when permission is absent")
+agent_start = main.index('if (AgentToolConfig.enabledFast() || isDualChatEnabled())')
+agent_end = main.index('if (ChatAppearance.hasEnabledRuntimeEffects()', agent_start)
+agent_block = main[agent_start:agent_end]
+for hook_id in ("heartbeat.responses", "heartbeat.patch-dispatcher", "heartbeat.state-writes",
+                "heartbeat.fragment-render", "heartbeat.markdown-input",
+                "heartbeat.native-markdown-parser", "agent.tool-log-rounded-rect",
+                "attachment.model-file-cards", "agent.tool-status-style",
+                "agent.tool-status-basic-text", "attachment.model-file-links"):
+    if 'installOptionalAgentRenderHook("' + hook_id + '"' not in agent_block:
+        raise SystemExit("Optional Agent render boundary is not independently isolated: " + hook_id)
+if "AGENT_RENDER_HOOKS_ATTEMPTED.compareAndSet(false, true)" not in agent_block:
+    raise SystemExit("Optional Agent render hooks must be attempted once to avoid duplicate partial installs")
+if "private void installOptionalAgentRenderHook(" not in main:
+    raise SystemExit("Missing independent best-effort Agent render hook wrapper")
+if "maxClipboardChars = 64 * 1024" not in ui or 'copyText(act, "Open Native Completion Probe", report)' not in ui:
+    raise SystemExit("Large diagnostic reports must be bounded before clipboard IPC")
+validator = source[source.index("private static String unsupportedFeature"):source.index("private static String messageText")]
+if "includeUsage instanceof Boolean" not in validator or "Boolean.TRUE.equals(includeUsage)" in validator:
+    raise SystemExit("stream_options.include_usage must accept implemented boolean values")
+if 'JSONArray rawTools = body.optJSONArray("tools")' not in source or "OpenAiToolBridge.chatPlan(" not in source:
+    raise SystemExit("Chat Completions function tools must route through the OpenAI tool bridge")
+if "Open 版 HTTP API 已启动，但此版本不包含原生执行引擎" not in main:
+    raise SystemExit("Open edition must explain that HTTP availability does not imply native completion readiness")
 print("LAN lifecycle, key, URL, selectable UI, API protocol, and truthful Open capability checks passed")
 PY

@@ -722,7 +722,9 @@ final class OpenLocalApiGateway {
             OpenNativeCompletionProbe.apiTrace("backend-readiness requestId=" + requestId
                     + " ready=" + ready);
             if (!ready) {
-                sendError(out, 503, "model_not_ready",
+                sendError(out, 503,
+                        current == null ? "model_not_ready" : current.readinessCode(),
+                        "server_error",
                         current == null ? "Model backend unavailable" : current.readinessDetail());
                 OpenNativeCompletionProbe.apiTrace("request-rejected requestId=" + requestId
                         + " stage=backend-readiness status=503");
@@ -1825,8 +1827,10 @@ final class OpenLocalApiGateway {
             JSONObject options = body.optJSONObject("stream_options");
             if (options == null) return "stream_options";
             Object includeUsage = options.opt("include_usage");
+            // include_usage is implemented by streamCompletion(): accept either boolean
+            // value and reject only malformed types.
             if (includeUsage != null && includeUsage != JSONObject.NULL
-                    && (!(includeUsage instanceof Boolean) || Boolean.TRUE.equals(includeUsage))) {
+                    && !(includeUsage instanceof Boolean)) {
                 return "stream_options.include_usage";
             }
             java.util.Iterator<String> keys = options.keys();

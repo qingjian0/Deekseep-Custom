@@ -27,8 +27,11 @@ public final class z2 {
     private z2() {}
 
     public interface Backend {
+        /** True only when completion execution can actually be entered. */
         public boolean isReady();
         public String readinessDetail();
+        /** Stable OpenAI error code for a backend that is not completion-ready. */
+        public default String readinessCode() { return "model_not_ready"; }
         public CompletionResult complete(CompletionRequest request, DeltaSink sink) throws Exception;
     }
 

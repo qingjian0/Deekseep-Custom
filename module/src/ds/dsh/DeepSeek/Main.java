@@ -524,7 +524,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     private static final AtomicBoolean TEXT_WAVE_HOOKS_INSTALLED = new AtomicBoolean(false);
 
-    private static final AtomicBoolean AGENT_RENDER_HOOKS_INSTALLED = new AtomicBoolean(false);
+    private static final AtomicBoolean AGENT_RENDER_HOOKS_ATTEMPTED = new AtomicBoolean(false);
 
     private static final AtomicBoolean APPEARANCE_HOOKS_INSTALLED = new AtomicBoolean(false);
 
@@ -1867,6 +1867,22 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         return true;
     }
 
+    private void installOptionalAgentRenderHook(
+            String id, FeatureHookInstallRegistry.Installer installer) {
+        try {
+            installer.install();
+            log("optional Agent render hook installed: " + id);
+        } catch (VirtualMachineError fatal) {
+            throw fatal;
+        } catch (ThreadDeath fatal) {
+            throw fatal;
+        } catch (Throwable error) {
+            // Agent render adapters are independent optional features. A stale code257
+            // symbol must not prevent later render boundaries from being attempted.
+            log("optional Agent render hook unavailable [" + id + "]: "
+                    + safeThrowableMessage(error));
+        }
+    }
     void installBestEffortHook(String id, FeatureHookInstallRegistry.Installer installer,
             String logPrefix) {
         try {
@@ -2176,7 +2192,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         if (HostCompat.isV271Full()) {
             // Hand-verified 2.7.1 settings entry (gt0.Q page_show) as a guaranteed module entry;
             // the translated 2.4.1 settings hooks below are best effort on top of it.
-            log("installAllFeatureHooks: 2.7.1 full mode via HostRemap classes=" + HostRemap.classCount());
+            log("installAllFeatureHooks: " + HostCompat.hostLabel() + " full mode via HostRemap classes=" + HostRemap.classCount());
             installBestEffortHook("host.v271.settings-entry", () -> HostV271.installSettingsEntry(hookLoader),
                     "2.7.1 settings entry failed: ");
         }
@@ -2184,7 +2200,9 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
             if (HostCompat.isV236() || HostCompat.isV241()) {
                 installHookStep("host.navigation.bridge", () -> HostNavigationBridge.install(this, hookLoader));
             }
-            installHookStep("agent.tool-log.rounded-rect", () -> HookAgentPipeline.INSTANCE.hookAgentToolLogRoundedRect(hookLoader));
+            installBestEffortHook("agent.tool-log.rounded-rect",
+                    () -> HookAgentPipeline.INSTANCE.hookAgentToolLogRoundedRect(hookLoader),
+                    "Agent tool-log renderer unavailable: ");
             if (!HostCompat.isV271()) installHookStep("remote.feature-flags", () -> RemoteFeatureFlags.install(this, hookLoader));
             installHookStep("config.attachment-guide-rollout", () -> HookConfigRollout.INSTANCE.hookAttachmentGuidePromptRollout(hookLoader));
             installHookStep("config.home-welcome-rollout", () -> HookConfigRollout.INSTANCE.hookHomeWelcomeRollout(hookLoader));
@@ -4171,15 +4189,28 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     static boolean openLocalApiBatterySettings(Activity activity) {
         if (activity == null || activity.isFinishing()) return false;
-        Intent[] intents = new Intent[]{
-                // Global background-app/battery-usage list. On this ColorOS 16 device it resolves
-                // to Settings$AppBatteryUsageActivity, which is the requested management page.
-                new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS),
-                // ColorOS/OxygenOS background-start management fallback.
-                new Intent("com.oplus.battery.permission.startup.StartupAppListActivity")
-                        .setPackage("com.oplus.battery"),
-                new Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS)
-        };
+        ArrayList<Intent> intents = new ArrayList<Intent>();
+        // Xiaomi / MIUI / HyperOS per-app background-power settings first.
+        String[] managedPackages = new String[]{"ds.dsh.DeepSeek", "com.deepseek.chat"};
+        for (String packageName : managedPackages) {
+            intents.add(new Intent("miui.intent.action.POWER_MANAGER")
+                    .setPackage("com.miui.powerkeeper")
+                    .putExtra("package_name", packageName)
+                    .putExtra("package_label", packageName));
+            intents.add(new Intent("miui.intent.action.OP_AUTO_START")
+                    .setPackage("com.miui.securitycenter")
+                    .putExtra("package_name", packageName));
+            if (Build.VERSION.SDK_INT >= 23) {
+                intents.add(new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                        Uri.parse("package:" + packageName)));
+            }
+            intents.add(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:" + packageName)));
+        }
+        intents.add(new Intent("com.oplus.battery.permission.startup.StartupAppListActivity")
+                .setPackage("com.oplus.battery"));
+        intents.add(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+        intents.add(new Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS));
         for (Intent intent : intents) {
             try {
                 activity.startActivityForResult(intent, LOCAL_API_BATTERY_REQUEST);
@@ -4566,7 +4597,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     private static boolean setLocalApiFloatingWindowEnabledV241(
             Context context, boolean enabled) {
-        return persistAndDispatchFloatingWindow(context, enabled, "code257");
+        return persistAndDispatchFloatingWindow(context, enabled, "2.7.x full-map");
     }
 
     private static boolean persistAndDispatchFloatingWindow(
@@ -5001,20 +5032,25 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
         }
         z13.start(appContext, new z2.Backend() {
             @Override public boolean isReady() {
-                // Open exposes the full HTTP surface even when a native capability is absent.
-                // The execution path reports the exact unsupported capability per request.
+                // HTTP listener availability is independent from native completion readiness.
+                // Open keeps /v1/models available but must not advertise generation as ready.
                 if ("Open".equals(BuildInfo.BUILD_EDITION) && !BuildInfo.LOCAL_API_INCLUDED) {
-                    return true;
+                    return false;
                 }
                 return BuildInfo.LOCAL_API_INCLUDED
                         && hostClassLoader != null && liveR92 != null && liveQ71 != null;
             }
 
+            @Override public String readinessCode() {
+                return "Open".equals(BuildInfo.BUILD_EDITION) && !BuildInfo.LOCAL_API_INCLUDED
+                        ? "engine_missing" : "model_not_ready";
+            }
+
             @Override public String readinessDetail() {
                 if (!BuildInfo.LOCAL_API_INCLUDED && "Open".equals(BuildInfo.BUILD_EDITION)) {
                     return UiLanguage.text(
-                            "Open API 已开放；原生执行能力按请求实际检测",
-                            "Open API is exposed; native execution support is checked per request");
+                            "Open 版 HTTP API 已启动，但此版本不包含原生执行引擎；生成请求会返回 engine_missing。",
+                            "Open HTTP API is running, but this build has no native execution engine; completion requests return engine_missing.");
                 }
                 if (hostClassLoader == null) return UiLanguage.text(
                         "等待宿主类加载器", "Waiting for host class loader");
@@ -7569,7 +7605,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     private static boolean requestLocalApiFloatingWindowV241(
             Context context, boolean enabled) {
-        return requestLocalApiFloatingWindowExact(context, enabled, "code257");
+        return requestLocalApiFloatingWindowExact(context, enabled, "2.7.x full-map");
     }
 
     private static boolean requestLocalApiFloatingWindowExact(
@@ -7659,7 +7695,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
      * arbitrary app cannot make the launcher claim that the DeepSeek scope is active.
      */
     private static void reportActivationHeartbeat(Activity act) {
-        if (!BuildInfo.PROTECTED_BUILD || act == null) return;
+        if (act == null) return;
         long now = System.currentTimeMillis();
         if (now - activationHeartbeatAttemptAt < 60_000L) return;
         activationHeartbeatAttemptAt = now;
@@ -7890,28 +7926,36 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
         if (AgentToolConfig.enabledFast() || isDualChatEnabled()) {
             installBestEffortHook("optional.agent.render-pipeline", () -> {
-                if (!AGENT_RENDER_HOOKS_INSTALLED.compareAndSet(false, true)) return;
-                try {
-                    HookAgentPipeline.INSTANCE.hookHeartbeatToolResponses(cl);
-                    HookAgentPipeline.INSTANCE.hookHeartbeatPatchDispatcher(cl);
-                    HookAgentPipeline.INSTANCE.hookTrackedHeartbeatStateWrites(cl);
-                    HookAgentPipeline.INSTANCE.hookHeartbeatFragmentRenderBoundary(cl);
-                    HookAgentPipeline.INSTANCE.hookHeartbeatMarkdownInputBoundary(cl);
-                    HookAgentPipeline.INSTANCE.hookHeartbeatNativeMarkdownParser(cl);
-                    HookAgentPipeline.INSTANCE.hookAgentToolLogRoundedRect(cl);
-                    HookAttachmentPipeline.INSTANCE.hookNativeModelFileCards(cl);
-                    HookAgentPipeline.INSTANCE.hookHeartbeatToolStatusStyle(
-                            cl, HostCompat.name("i68"), HostCompat.name("h78"));
-                    HookAgentPipeline.INSTANCE.hookHeartbeatToolStatusBasicText(
-                            cl, HostCompat.isV241() ? "ox1" : HostCompat.name("yg8"),
-                            HostCompat.isV241() ? "e" : HostCompat.method("yg8", "b"),
-                            HostCompat.name("h78"));
-                    HookAttachmentPipeline.INSTANCE.hookModelFileLinks();
-                } catch (Throwable error) {
-                    AGENT_RENDER_HOOKS_INSTALLED.set(false);
-                    throw error;
-                }
-            }, "Agent render hook installation failed: ");
+                if (!AGENT_RENDER_HOOKS_ATTEMPTED.compareAndSet(false, true)) return;
+                // Attempt every optional render boundary independently. A missing
+                // code257/code289 symbol degrades only that feature, not later adapters.
+                installOptionalAgentRenderHook("heartbeat.responses",
+                        () -> HookAgentPipeline.INSTANCE.hookHeartbeatToolResponses(cl));
+                installOptionalAgentRenderHook("heartbeat.patch-dispatcher",
+                        () -> HookAgentPipeline.INSTANCE.hookHeartbeatPatchDispatcher(cl));
+                installOptionalAgentRenderHook("heartbeat.state-writes",
+                        () -> HookAgentPipeline.INSTANCE.hookTrackedHeartbeatStateWrites(cl));
+                installOptionalAgentRenderHook("heartbeat.fragment-render",
+                        () -> HookAgentPipeline.INSTANCE.hookHeartbeatFragmentRenderBoundary(cl));
+                installOptionalAgentRenderHook("heartbeat.markdown-input",
+                        () -> HookAgentPipeline.INSTANCE.hookHeartbeatMarkdownInputBoundary(cl));
+                installOptionalAgentRenderHook("heartbeat.native-markdown-parser",
+                        () -> HookAgentPipeline.INSTANCE.hookHeartbeatNativeMarkdownParser(cl));
+                installOptionalAgentRenderHook("agent.tool-log-rounded-rect",
+                        () -> HookAgentPipeline.INSTANCE.hookAgentToolLogRoundedRect(cl));
+                installOptionalAgentRenderHook("attachment.model-file-cards",
+                        () -> HookAttachmentPipeline.INSTANCE.hookNativeModelFileCards(cl));
+                installOptionalAgentRenderHook("agent.tool-status-style",
+                        () -> HookAgentPipeline.INSTANCE.hookHeartbeatToolStatusStyle(
+                                cl, HostCompat.name("i68"), HostCompat.name("h78")));
+                installOptionalAgentRenderHook("agent.tool-status-basic-text",
+                        () -> HookAgentPipeline.INSTANCE.hookHeartbeatToolStatusBasicText(
+                                cl, HostCompat.isV241() ? "ox1" : HostCompat.name("yg8"),
+                                HostCompat.isV241() ? "e" : HostCompat.method("yg8", "b"),
+                                HostCompat.name("h78")));
+                installOptionalAgentRenderHook("attachment.model-file-links",
+                        () -> HookAttachmentPipeline.INSTANCE.hookModelFileLinks());
+            }, "Agent render pipeline initialization failed: ");
         }
 
         if (ChatAppearance.hasEnabledRuntimeEffects() || InputGlassStyle.anyEnabled()) {

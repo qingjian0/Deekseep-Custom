@@ -3215,12 +3215,14 @@ public final class DeekseepUi {
                             Toast.LENGTH_LONG).show();
                     return;
                 }
-                android.content.ClipboardManager clipboard =
-                        (android.content.ClipboardManager) act.getSystemService(Context.CLIPBOARD_SERVICE);
-                if (clipboard != null) {
-                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText(
-                            "Open Native Completion Probe", report));
-                    Toast.makeText(act, "原生适配诊断已复制", Toast.LENGTH_SHORT).show();
+                boolean copied = copyText(act, "Open Native Completion Probe", report);
+                if (copied) {
+                    String copyMessage = report.length() > 64 * 1024
+                            ? UiLanguage.text(act, "诊断内容过大，已复制前 64 KB",
+                                    "Report was large; first 64 KB copied")
+                            : UiLanguage.text(act, "原生适配诊断已复制",
+                                    "Native adapter diagnostics copied");
+                    Toast.makeText(act, copyMessage, Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -3432,18 +3434,20 @@ public final class DeekseepUi {
             public void onClick(View v) {
                 String baseUrl = z2.PROTOCOL_ANTHROPIC.equals(Main.localApiProtocol())
                         ? Main.localApiRootEndpoint() : Main.localApiCopyEndpoint();
-                copyText(act, "API URL", baseUrl);
-                feedback.setText(UiLanguage.dynamic(act, "URL 已复制"));
-                Toast.makeText(act, UiLanguage.dynamic(act, "URL 已复制"),
-                        Toast.LENGTH_SHORT).show();
+                if (copyText(act, "API URL", baseUrl)) {
+                    feedback.setText(UiLanguage.dynamic(act, "URL 已复制"));
+                    Toast.makeText(act, UiLanguage.dynamic(act, "URL 已复制"),
+                            Toast.LENGTH_SHORT).show();
+                }
             }
         });
         copyKey.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                copyText(act, "API Key", Main.localApiKey());
-                feedback.setText(UiLanguage.dynamic(act, "API Key 已复制"));
-                Toast.makeText(act, UiLanguage.dynamic(act, "API Key 已复制"),
-                        Toast.LENGTH_SHORT).show();
+                if (copyText(act, "API Key", Main.localApiKey())) {
+                    feedback.setText(UiLanguage.dynamic(act, "API Key 已复制"));
+                    Toast.makeText(act, UiLanguage.dynamic(act, "API Key 已复制"),
+                            Toast.LENGTH_SHORT).show();
+                }
             }
         });
         copyLan.setOnClickListener(new View.OnClickListener() {
@@ -3458,10 +3462,11 @@ public final class DeekseepUi {
                             Toast.LENGTH_SHORT).show();
                     return;
                 }
-                copyText(act, "LAN API URL", lan);
-                feedback.setText(UiLanguage.dynamic(act, "局域网地址已复制"));
-                Toast.makeText(act, UiLanguage.dynamic(act, "局域网地址已复制"),
-                        Toast.LENGTH_SHORT).show();
+                if (copyText(act, "LAN API URL", lan)) {
+                    feedback.setText(UiLanguage.dynamic(act, "局域网地址已复制"));
+                    Toast.makeText(act, UiLanguage.dynamic(act, "局域网地址已复制"),
+                            Toast.LENGTH_SHORT).show();
+                }
             }
         });
         saveKey.setOnClickListener(new View.OnClickListener() {
@@ -4073,11 +4078,36 @@ public final class DeekseepUi {
         return params;
     }
 
-    private static void copyText(Context context, String label, String value) {
-        android.content.ClipboardManager clipboard = (android.content.ClipboardManager)
-                context.getSystemService(Context.CLIPBOARD_SERVICE);
-        if (clipboard != null) clipboard.setPrimaryClip(
-                android.content.ClipData.newPlainText(label, value == null ? "" : value));
+    private static boolean copyText(Context context, String label, String value) {
+        if (context == null) return false;
+        String safeValue = value == null ? "" : value;
+        final int maxClipboardChars = 64 * 1024;
+        if (safeValue.length() > maxClipboardChars) {
+            safeValue = safeValue.substring(0, maxClipboardChars)
+                    + "\n[内容过长，已截断；请使用文件导出获取完整报告]";
+        }
+        try {
+            android.content.ClipboardManager clipboard =
+                    (android.content.ClipboardManager)
+                            context.getSystemService(Context.CLIPBOARD_SERVICE);
+            if (clipboard == null) {
+                showCopyFailure(context);
+                return false;
+            }
+            clipboard.setPrimaryClip(
+                    android.content.ClipData.newPlainText(label, safeValue));
+            return true;
+        } catch (Throwable failure) {
+            showCopyFailure(context);
+            return false;
+        }
+    }
+
+    private static void showCopyFailure(Context context) {
+        android.widget.Toast.makeText(context,
+                UiLanguage.text(context, "复制失败，请使用保存成文件",
+                        "Copy failed; use Save to file"),
+                android.widget.Toast.LENGTH_LONG).show();
     }
 
     /** 手工绘制的 API 连接面板，不使用 AlertDialog 或系统确认弹窗。 */
