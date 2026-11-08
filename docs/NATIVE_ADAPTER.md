@@ -938,7 +938,7 @@ Session bootstrap 的 `ch2.b -> bi5.e` 与 completion request 的 `jw3.g -> y60`
 - y60.b 收到的 Continuation 实例按弱身份引用继承该 flowTraceId；r3.c 只在第二参数与该 Continuation 为同一对象时关联 DeltaCommand 事件。未匹配时明确输出 `unlinked`，不按线程、时间或事件顺序推断。
 - Continuation 仅做身份关联，不再对其通用方法安装 callback Hook；旧设备日志显示该类方法会被 Session、Ktor 和 Challenge 等无关协程路径复用，扩大 Hook 面并产生大量噪声。collector 的具体实现类观察保持独立。
 - 每个返回的 Flow 都会登记；Continuation Hook 仍只对已确认的具体 Flow 实现类安装一次。
-- 每次显式重启诊断会话时递增 session generation 并清空旧 Flow 关联；旧会话中尚未返回的请求不能重新登记到新会话，observation ID 保持进程内单调递增。
+- 每次显式重启诊断会话时递增 session generation 并清空旧 Flow 关联；Flow 和 Continuation 登记都在映射锁内复核 session generation，防止会话重置与登记并发时旧请求重新写入；observation ID 保持进程内单调递增。
 - 不读取 Request 字段值、Prompt、消息内容、Token、Cookie、Authorization、PoW 或 Challenge 响应。
 - 报告 schema 更新为 7；新增 source-only 回归脚本 module/test-open-native-flow-correlation.sh 并接入主 CI。
 
