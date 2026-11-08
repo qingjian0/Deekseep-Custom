@@ -93,7 +93,8 @@ class HookLifecycleManager {
                 require(existing.spec == stableSpec) {
                     "hook target ID is already registered with a different specification: ${stableSpec.id}"
                 }
-                if (existing.state == State.ACTIVE || existing.state == State.SKIPPED ||
+                if (existing.state == State.ACTIVE ||
+                    (existing.state == State.SKIPPED && existing.detail == "disabled_by_policy") ||
                     (existing.state == State.FAILED && existing.handle != null)) {
                     return existing.snapshot()
                 }
