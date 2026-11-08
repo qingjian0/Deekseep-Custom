@@ -75,8 +75,21 @@ final class OpenNativeCompletionProbe {
     // with the originating Request without retaining host Flow instances.
     private static final ReferenceQueue<Object> FLOW_TRACE_QUEUE =
             new ReferenceQueue<Object>();
-    private static final Map<IdentityWeakReference, Long> FLOW_TRACE_IDS =
-            new HashMap<IdentityWeakReference, Long>();
+    private static final Map<IdentityWeakReference, FlowTraceLink> FLOW_TRACE_IDS =
+            new HashMap<IdentityWeakReference, FlowTraceLink>();
+    private static final java.util.concurrent.atomic.AtomicLong OBSERVATION_SESSION_IDS =
+            new java.util.concurrent.atomic.AtomicLong();
+    private static volatile long CURRENT_OBSERVATION_SESSION_ID;
+
+    private static final class FlowTraceLink {
+        final long sessionId;
+        final long observationId;
+
+        FlowTraceLink(long sessionId, long observationId) {
+            this.sessionId = sessionId;
+            this.observationId = observationId;
+        }
+    }
 
     private static final class IdentityWeakReference extends WeakReference<Object> {
         private final int identityHash;
@@ -107,12 +120,13 @@ final class OpenNativeCompletionProbe {
     private static void associateFlowWithObservation(Object flow) {
         if (flow == null) return;
         ObservationFrame frame = OBSERVATION_FRAME.get();
-        if (frame == null) return;
+        if (frame == null
+                || frame.sessionId != CURRENT_OBSERVATION_SESSION_ID) return;
         synchronized (FLOW_TRACE_IDS) {
             drainFlowTraceQueueLocked();
             FLOW_TRACE_IDS.put(
                     new IdentityWeakReference(flow, FLOW_TRACE_QUEUE),
-                    Long.valueOf(frame.id));
+                    new FlowTraceLink(frame.sessionId, frame.id));
         }
     }
 
@@ -120,7 +134,9 @@ final class OpenNativeCompletionProbe {
         if (flow == null) return null;
         synchronized (FLOW_TRACE_IDS) {
             drainFlowTraceQueueLocked();
-            return FLOW_TRACE_IDS.get(new IdentityWeakReference(flow, null));
+            FlowTraceLink link = FLOW_TRACE_IDS.get(new IdentityWeakReference(flow, null));
+            if (link == null || link.sessionId != CURRENT_OBSERVATION_SESSION_ID) return null;
+            return Long.valueOf(link.observationId);
         }
     }
 
@@ -148,11 +164,15 @@ final class OpenNativeCompletionProbe {
 
     private static final class ObservationFrame {
         final long id;
+        final long sessionId;
         final Deque<String> callStack = new ArrayDeque<String>();
         Object rootRequest;
         boolean hasRootRequest;
         int depth;
-        ObservationFrame(long id) { this.id = id; }
+        ObservationFrame(long id, long sessionId) {
+            this.id = id;
+            this.sessionId = sessionId;
+        }
     }
 
 
@@ -188,7 +208,7 @@ final class OpenNativeCompletionProbe {
         CALLBACK_ARGUMENT_SHAPES.clear();
         CALLBACK_RESULT_SHAPES.clear();
         API_TRACE_EVENTS.set(0);
-        OBSERVATION_IDS.set(0L);
+        CURRENT_OBSERVATION_SESSION_ID = OBSERVATION_SESSION_IDS.incrementAndGet();
         synchronized (FLOW_TRACE_IDS) {
             FLOW_TRACE_IDS.clear();
             while (FLOW_TRACE_QUEUE.poll() != null) {
@@ -663,7 +683,8 @@ final class OpenNativeCompletionProbe {
                         frame = OBSERVATION_FRAME.get();
                         root = frame == null;
                         if (root) {
-                            frame = new ObservationFrame(OBSERVATION_IDS.incrementAndGet());
+                            frame = new ObservationFrame(OBSERVATION_IDS.incrementAndGet(),
+                                    CURRENT_OBSERVATION_SESSION_ID);
                             OBSERVATION_FRAME.set(frame);
                         }
                         frame.depth++;
