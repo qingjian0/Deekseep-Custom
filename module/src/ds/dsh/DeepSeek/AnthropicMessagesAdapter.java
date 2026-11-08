@@ -159,6 +159,7 @@ final class AnthropicMessagesAdapter {
             throw invalid("invalid_messages", "messages must be a non-empty array");
         }
         Set<String> pendingToolIds = new HashSet<>();
+        Set<String> seenToolIds = new HashSet<>();
         for (int i = 0; i < messages.length(); i++) {
             JSONObject message = messages.optJSONObject(i);
             if (message == null) throw invalid("invalid_messages", "Every message must be an object");
@@ -218,7 +219,7 @@ final class AnthropicMessagesAdapter {
                     String name = ((String) rawName).trim();
                     JSONObject input = block.optJSONObject("input");
                     if (id.length() == 0 || id.length() > 128 || name.length() == 0
-                            || input == null || pendingToolIds.contains(id)
+                            || input == null || !seenToolIds.add(id)
                             || !containsTool(plan, name)) {
                         throw invalid("invalid_tool_use", "Invalid or undeclared tool_use block");
                     }

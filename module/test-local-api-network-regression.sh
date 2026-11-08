@@ -237,6 +237,8 @@ if 'block.opt("is_error") instanceof Boolean' not in anthropic:
     raise SystemExit("Anthropic tool_result.is_error must be type-checked as a boolean")
 if 'Message role must be a string' not in anthropic or 'Content block type must be a string' not in anthropic or 'tool_use id and name must be strings' not in anthropic or 'tool_use_id must be a string' not in anthropic:
     raise SystemExit("Anthropic message and tool block fields must be validated without coercion")
+if 'Set<String> seenToolIds = new HashSet<>()' not in anthropic or '!seenToolIds.add(id)' not in anthropic:
+    raise SystemExit("Anthropic history must reject reused tool_use IDs even after a prior result")
 if "if (!pendingToolIds.isEmpty())" not in anthropic or "Every tool_use must have a matching tool_result" not in anthropic:
     raise SystemExit("Anthropic history must reject tool_use blocks without matching tool_result blocks")
 if '"/v1/responses".equals(request.path)' not in source or "handleResponses(out, request)" not in source:
