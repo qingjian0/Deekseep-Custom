@@ -36,7 +36,11 @@ public final class HostCompatRegressionTest {
         check(HostCompat.supportsHostVersionName("2.3.6"), "2.3.6 supported");
         check(!HostCompat.supportsHostVersionName("2.3.3"), "2.3.3 rejected");
         check(HostCompat.isRetiredVersionName("2.3.1"), "2.3.1 retired");
-        check(!HostCompat.supportsHostVersionName("2.4.0"), "future host rejected");
+        check(!HostCompat.supportsHostVersionName("2.4.0"), "pre-2.7 unknown host rejected");
+        check(!HostCompat.supportsHostVersionName("2.6.9"), "2.6.x remains outside open-ended 2.7+ admission");
+        check(HostCompat.supportsHostVersionName("2.7.6"), "future 2.7.x host admitted");
+        check(HostCompat.supportsHostVersionName("2.8.0"), "future 2.8.x host admitted");
+        check(HostCompat.supportsHostVersionName("3.0.0"), "future major host admitted");
         equals("id0", HostCompat.localApiAuthInterceptorClass(),
                 "2.2.x account auth interceptor");
         equals("jk3", HostCompat.localApiHeaderBuilderClass(),
