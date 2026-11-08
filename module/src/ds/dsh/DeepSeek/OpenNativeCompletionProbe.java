@@ -130,11 +130,23 @@ final class OpenNativeCompletionProbe {
         }
     }
 
-    private static Long flowObservationId(Object flow) {
-        if (flow == null) return null;
+    private static void associateContinuationWithObservation(
+            Object continuation, Long observationId) {
+        if (continuation == null || observationId == null) return;
+        long sessionId = CURRENT_OBSERVATION_SESSION_ID;
+        synchronized (FLOW_TRACE_IDS) {
+            if (sessionId != CURRENT_OBSERVATION_SESSION_ID) return;
+            drainFlowTraceQueueLocked();
+            FLOW_TRACE_IDS.put(new IdentityWeakReference(continuation, FLOW_TRACE_QUEUE),
+                    new FlowTraceLink(sessionId, observationId.longValue()));
+        }
+    }
+
+    private static Long observationIdForObject(Object value) {
+        if (value == null) return null;
         synchronized (FLOW_TRACE_IDS) {
             drainFlowTraceQueueLocked();
-            FlowTraceLink link = FLOW_TRACE_IDS.get(new IdentityWeakReference(flow, null));
+            FlowTraceLink link = FLOW_TRACE_IDS.get(new IdentityWeakReference(value, null));
             if (link == null || link.sessionId != CURRENT_OBSERVATION_SESSION_ID) return null;
             return Long.valueOf(link.observationId);
         }
@@ -594,12 +606,18 @@ final class OpenNativeCompletionProbe {
                     final long started = System.nanoTime();
                     String eventClass = "null";
                     String eventName = "unavailable";
+                    Long deltaTraceId = null;
                     try {
                         List<?> args = chain.getArgs();
                         Object event = args != null && !args.isEmpty() ? args.get(0) : null;
+                        Object continuation = args != null && args.size() > 1 ? args.get(1) : null;
+                        deltaTraceId = observationIdForObject(continuation);
                         eventClass = event == null ? "null" : event.getClass().getName();
                         eventName = safeDeltaEventName(event);
                         safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] delta-dispatch-enter"
+                                + " flowTraceId=" + (deltaTraceId == null ? "unlinked" : deltaTraceId)
+                                + " continuationIdentity=" + (continuation == null ? 0
+                                        : System.identityHashCode(continuation))
                                 + " eventClass=" + eventClass + " eventName=" + eventName);
                     } catch (VirtualMachineError fatal) {
                         throw fatal;
@@ -612,12 +630,14 @@ final class OpenNativeCompletionProbe {
                     try {
                         Object value = chain.proceed();
                         safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] delta-dispatch-exit"
+                                + " flowTraceId=" + (deltaTraceId == null ? "unlinked" : deltaTraceId)
                                 + " eventClass=" + eventClass + " eventName=" + eventName
                                 + " durationMs=" + ((System.nanoTime() - started) / 1_000_000L)
                                 + " result=" + observedResultType(value));
                         return value;
                     } catch (Throwable hostError) {
                         safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] delta-dispatch-throw"
+                                + " flowTraceId=" + (deltaTraceId == null ? "unlinked" : deltaTraceId)
                                 + " eventClass=" + eventClass + " eventName=" + eventName
                                 + " exception=" + hostError.getClass().getName());
                         throw hostError;
@@ -830,7 +850,8 @@ final class OpenNativeCompletionProbe {
                         Object first = args != null && args.size() > 0 ? args.get(0) : null;
                         Object second = args != null && args.size() > 1 ? args.get(1) : null;
                         Object flow = chain.getThisObject();
-                        Long flowTraceId = flowObservationId(flow);
+                        Long flowTraceId = observationIdForObject(flow);
+                        associateContinuationWithObservation(second, flowTraceId);
                         safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-enter method="
                                 + observedMethodDescriptor(target)
                                 + " flowTraceId=" + (flowTraceId == null ? "unlinked" : flowTraceId)
