@@ -42,6 +42,8 @@ final class OpenNativeCompletionProbe {
             new java.util.concurrent.atomic.AtomicBoolean();
     private static final java.util.concurrent.atomic.AtomicBoolean OBSERVATION_R3 =
             new java.util.concurrent.atomic.AtomicBoolean();
+    private static final java.util.concurrent.atomic.AtomicBoolean OBSERVATION_275_NW3 =
+            new java.util.concurrent.atomic.AtomicBoolean();
     private static final java.util.concurrent.ConcurrentHashMap<String, Boolean>
             OBSERVED_CALLBACK_CLASSES = new java.util.concurrent.ConcurrentHashMap<String, Boolean>();
     private static final java.util.concurrent.ConcurrentHashMap<String, Boolean>
@@ -563,10 +565,23 @@ final class OpenNativeCompletionProbe {
     private static void installRuntimeObservation(ClassLoader loader) {
         if (!"Open".equals(BuildInfo.BUILD_EDITION) || BuildInfo.LOCAL_API_INCLUDED
                 || !Main.isOpenNativeCompletionProbeEnabled()
-                || HostCompat.hostCode271() != 289 || loader == null || Main.MODULE == null) {
+                || loader == null || Main.MODULE == null) {
             return;
         }
         try {
+            // code295 / DeepSeek 2.7.5 has an independently audited request-route boundary.
+            // This is diagnostic-only: it does not enable feature hooks or execute completions.
+            if (HostCompat.isV275StaticOnly()) {
+                Class<?> requestMarker = Class.forName("yu1", false, loader);
+                if (!requestMarker.isInterface()) return;
+                installObservedMethod(loader, "nw3", "e", requestMarker,
+                        OBSERVATION_275_NW3, "transport-dispatch");
+                observerLog("[OPEN_NATIVE_CALL_OBSERVER] profile=2.7.5/code295"
+                        + " mode=passive requestRoute=nw3.e(yu1,Long)->b70"
+                        + " staticEvidenceOnly=true runtimeConfirmed=false");
+                return;
+            }
+            if (HostCompat.hostCode271() != 289) return;
             Class<?> requestType = Class.forName("ly1", false, loader);
             Class<?> requestMarker = Class.forName("wu1", false, loader);
             if (!requestMarker.isAssignableFrom(requestType)) return;
