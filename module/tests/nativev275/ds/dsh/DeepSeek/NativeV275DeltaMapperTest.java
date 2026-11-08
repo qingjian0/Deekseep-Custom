@@ -44,9 +44,13 @@ public final class NativeV275DeltaMapperTest {
         check(append.accepted && "Replaced text".equals(append.text),
                 "RESPONSE APPEND concatenates content");
         NativeV275DeltaMapper.Result think = apply(state, delta(
-                "response/fragments/1/content", "APPEND", " more"));
+                "response//fragments/1/content", "APPEND", " more"));
         check(think.accepted && "private more".equals(think.reasoning),
-                "THINK APPEND concatenates reasoning");
+                "THINK APPEND concatenates reasoning and ignores empty path segments");
+        NativeV275DeltaMapper.Result negativeIndex = apply(state, delta(
+                "response/fragments/-1/content", "APPEND", " tail"));
+        check(negativeIndex.accepted && "private more tail".equals(negativeIndex.reasoning),
+                "negative fragment indices resolve from the end as in the host list");
     }
 
     private static void setAndAppendFragmentLists() {
