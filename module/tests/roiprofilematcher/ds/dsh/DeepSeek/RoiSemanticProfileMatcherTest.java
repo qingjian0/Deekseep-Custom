@@ -15,6 +15,7 @@ public final class RoiSemanticProfileMatcherTest {
         testAmbiguousMethodRoleFailsClosed();
         testMissingEvidenceDimensionsDoNotInflateScore();
         testProfilesWithoutMethodRolesAreNotMatchable();
+        testDetachedMethodRoleEvidenceIsNotMatchable();
         System.out.println("ROI semantic profile matcher tests passed");
     }
 
@@ -141,6 +142,23 @@ public final class RoiSemanticProfileMatcherTest {
                 Collections.<String, String>emptyMap());
         check(RoiSemanticProfileMatcher.rank(source, Collections.singletonList(noRoles)).isEmpty(),
                 "class-only profile without semantic method roles must not be reported as matched");
+    }
+
+
+    private static void testDetachedMethodRoleEvidenceIsNotMatchable() {
+        RoiSemanticProfileMatcher.ClassProfile source = sourceProfile();
+        RoiSemanticProfileMatcher.ClassProfile detachedRole = new RoiSemanticProfileMatcher.ClassProfile(
+                "2.7.5", "transport.dispatch", "Lcandidate;", "Ljava/lang/Object;",
+                Arrays.asList("Liface;", "Ljava/lang/AutoCloseable;"),
+                Arrays.asList("Lhttp;", "Lcfg;"),
+                Arrays.asList("<init>(Lcfg;)V", "dispatch(Lreq;Ljava/lang/Long;)Lresp;", "close()V"),
+                Collections.singletonList(
+                        "Ljava/util/concurrent/ForkJoinPool;->commonPool()Ljava/util/concurrent/ForkJoinPool;"),
+                Arrays.asList("/api/v0/chat/completion", "/api/v0/chat/regenerate"),
+                Collections.singletonMap("transport.dispatch",
+                        "missing(Lreq;Ljava/lang/Long;)Lresp;"));
+        check(RoiSemanticProfileMatcher.rank(source, Collections.singletonList(detachedRole)).isEmpty(),
+                "method role must map to exactly one declared method prototype");
     }
 
     private static RoiSemanticProfileMatcher.ClassProfile sourceProfile() {
