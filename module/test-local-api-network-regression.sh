@@ -315,8 +315,8 @@ if 'native_adapter_unavailable' in security:
 overlay = (pathlib.Path(sys.argv[1]).parent / "LocalApiFloatingOverlay.java").read_text(encoding="utf-8")
 ui = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
 bridge = (pathlib.Path(sys.argv[1]).parent / "z20.java").read_text(encoding="utf-8")
-if 'installBestEffortHook("agent.tool-log.rounded-rect"' not in main:
-    raise SystemExit("Optional Agent renderer failure must not abort the feature Hook batch")
+if 'installOptionalAgentRenderHook("agent.tool-log-rounded-rect"' not in main:
+    raise SystemExit("Optional Agent renderer must be isolated as an independent best-effort boundary")
 heartbeat = main[main.index("private static void reportActivationHeartbeat"):main.index("static boolean setExpertRelayEnabled")]
 if "if (act == null) return;" not in heartbeat or "!BuildInfo.PROTECTED_BUILD" in heartbeat:
     raise SystemExit("Target activation heartbeat must be reported in Open and protected builds")
