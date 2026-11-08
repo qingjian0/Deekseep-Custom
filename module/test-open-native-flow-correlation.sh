@@ -13,6 +13,8 @@ checks = {
     "transport observation associates each returned Flow": "associateFlowWithObservation(result);" in source and source.index("associateFlowWithObservation(result);") < source.index("OBSERVATION_Y60.compareAndSet(false, true)"),
     "Flow callback resolves its originating trace": "Object flow = chain.getThisObject();" in source and "Long flowTraceId = flowObservationId(flow);" in source and '" flowTraceId="' in source,
     "new diagnostic sessions clear stale Flow identities": "FLOW_TRACE_IDS.clear();" in source and source.index("FLOW_TRACE_IDS.clear();") < source.index("SESSION_STARTED_AT_MS = System.currentTimeMillis();"),
+    "in-flight prior-session requests cannot repopulate current links": "frame.sessionId != CURRENT_OBSERVATION_SESSION_ID" in source and "link.sessionId != CURRENT_OBSERVATION_SESSION_ID" in source,
+    "observation ids remain monotonic across sessions": "OBSERVATION_IDS.set(0L)" not in source and "OBSERVATION_SESSION_IDS.incrementAndGet()" in source,
     "correlation is metadata-only": "flowIdentity=" in source and "observedObjectShape(flow)" not in source,
 }
 for name, passed in checks.items():
