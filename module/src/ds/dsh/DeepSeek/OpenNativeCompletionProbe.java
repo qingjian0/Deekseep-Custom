@@ -123,6 +123,9 @@ final class OpenNativeCompletionProbe {
         if (frame == null
                 || frame.sessionId != CURRENT_OBSERVATION_SESSION_ID) return;
         synchronized (FLOW_TRACE_IDS) {
+            // Recheck after acquiring the map lock: resetRuntimeTrace() may have advanced
+            // the session between the optimistic check above and this critical section.
+            if (frame.sessionId != CURRENT_OBSERVATION_SESSION_ID) return;
             drainFlowTraceQueueLocked();
             FLOW_TRACE_IDS.put(
                     new IdentityWeakReference(flow, FLOW_TRACE_QUEUE),
