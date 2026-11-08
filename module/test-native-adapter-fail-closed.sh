@@ -133,6 +133,11 @@ require(
 )
 require(
     probe,
+    r'installCode295SseDispatchObserver\(loader\).*?Class\.forName\("pv1", false, loader\).*?Class\.forName\("bia", false, loader\).*?Class\.forName\("ec3", false, loader\).*?getDeclaredMethod\("a".*?code295 sse-dispatch',
+    "code295 observes the exact audited SSE dispatcher without reading event payloads",
+)
+require(
+    probe,
     r'HostCompat\.isV275StaticOnly\(\)\s*\?\s*Class\.forName\("yu1", false, loader\)\s*:\s*HostCompat\.load\(loader, "ew0"\)',
     "code295 inventory must not resolve the legacy 2.2 request symbol",
 )
