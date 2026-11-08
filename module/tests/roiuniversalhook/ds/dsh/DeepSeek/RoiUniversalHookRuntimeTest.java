@@ -1,14 +1,68 @@
 package ds.dsh.DeepSeek;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 public final class RoiUniversalHookRuntimeTest {
  public static final class Sample {public static final class Nested{} public Sample(String s){} private String convert(int i){return ""+i;} public void ping(){} public int[] arrays(byte[] b,char[] c,int[][] matrix,String[][] labels){return new int[0];} public Nested[] nested(Nested[] values){return values;}}
  static void ok(boolean b,String m){if(!b)throw new AssertionError(m);}
+ static void assertStateObservableFromWorker(final RoiUniversalHookRuntime.Installer installer,
+      final String id,final RoiUniversalHookRuntime.State expectedState,final int expectedActiveCount)
+      throws Exception {
+  final CountDownLatch completed=new CountDownLatch(1);
+  final AtomicReference<Throwable> failure=new AtomicReference<Throwable>();
+  Thread observer=new Thread(new Runnable(){public void run(){
+   try{
+    ok(installer.state(id)==expectedState,"worker observed wrong in-flight Hook state");
+    ok(installer.activeCount()==expectedActiveCount,"worker observed wrong active Hook count");
+   }catch(Throwable error){failure.set(error);}finally{completed.countDown();}
+  }},"roi-runtime-state-observer");
+  observer.start();
+  if(!completed.await(2,TimeUnit.SECONDS))
+   throw new Exception("state observers must not block behind backend/health/unhook callbacks");
+  observer.join(2000L);
+  if(observer.isAlive())throw new Exception("state observer did not terminate");
+  if(failure.get()!=null)throw new Exception("state observer assertion failed",failure.get());
+ }
  static RoiUniversalHookRuntime.Callback cb(){return new RoiUniversalHookRuntime.Callback(){public void before(RoiUniversalHookRuntime.Invocation i){}public void after(RoiUniversalHookRuntime.Invocation i){}};}
  static RoiUniversalHookRuntime.Spec method(String id,String name,String ret,String...p){return RoiUniversalHookRuntime.Spec.builder(id).role("chat").className(Sample.class.getName()).method(name).params(p).returns(ret).fingerprint("fp").callback(cb()).build();}
+ static void testStateQueriesRemainAvailableDuringCallbacks()throws Exception{
+  final RoiUniversalHookRuntime.Installer[] holder=new RoiUniversalHookRuntime.Installer[1];
+  RoiUniversalHookRuntime.Backend backend=new RoiUniversalHookRuntime.Backend(){
+   public RoiUniversalHookRuntime.Handle install(final RoiUniversalHookRuntime.Target target,
+       RoiUniversalHookRuntime.Callback callback)throws Exception{
+    assertStateObservableFromWorker(holder[0],target.spec.id,RoiUniversalHookRuntime.State.INSTALLING,0);
+    return new RoiUniversalHookRuntime.Handle(){public void unhook()throws Exception{
+     assertStateObservableFromWorker(holder[0],target.spec.id,RoiUniversalHookRuntime.State.ACTIVE,1);
+    }};
+   }
+  };
+  RoiUniversalHookRuntime.Health health=new RoiUniversalHookRuntime.Health(){
+   public boolean verify(RoiUniversalHookRuntime.Target target,RoiUniversalHookRuntime.Handle handle)
+       throws Exception{
+    assertStateObservableFromWorker(holder[0],target.spec.id,RoiUniversalHookRuntime.State.INSTALLING,0);
+    return true;
+   }
+  };
+  RoiUniversalHookRuntime.ActivationGate gate=new RoiUniversalHookRuntime.ActivationGate(){
+   public boolean authorized(RoiUniversalHookRuntime.Spec spec,ClassLoader loader){return true;}
+  };
+  holder[0]=new RoiUniversalHookRuntime.Installer(new RoiUniversalHookRuntime.Resolver(),
+      backend,health,gate);
+  RoiUniversalHookRuntime.Adapters adapters=new RoiUniversalHookRuntime.Adapters();
+  adapters.approve("fp",Collections.singleton("chat"));
+  RoiUniversalHookRuntime.Spec spec=method("callback-query","ping","void");
+  ok(holder[0].install(Collections.singletonList(spec),Sample.class.getClassLoader(),"fp",adapters).success,
+      "backend/health callbacks must allow cross-thread state observation");
+  ok(holder[0].uninstall("callback-query"),
+      "unhook callback must allow cross-thread state observation");
+  ok(holder[0].activeCount()==0,"callback query test must leave no active hooks");
+ }
  static final class Fake implements RoiUniversalHookRuntime.Backend {AtomicInteger adds=new AtomicInteger(),removes=new AtomicInteger();int failAt=-1,failUnhookAt=-1,failUnhookErrorAt=-1;
  public RoiUniversalHookRuntime.Handle install(RoiUniversalHookRuntime.Target t,RoiUniversalHookRuntime.Callback c)throws Exception{if(adds.incrementAndGet()==failAt)throw new Exception("injected");return new RoiUniversalHookRuntime.Handle(){public void unhook()throws Exception{int n=removes.incrementAndGet();if(n==failUnhookErrorAt)throw new AssertionError("fatal unhook injected");if(n==failUnhookAt)throw new Exception("unhook injected");}};}}
  public static void main(String[]z)throws Exception{
+  testStateQueriesRemainAvailableDuringCallbacks();
   RoiUniversalHookRuntime.Resolver r=new RoiUniversalHookRuntime.Resolver();
   ok(r.resolve(method("m","convert","java.lang.String","int"),Sample.class.getClassLoader()).member.getName().equals("convert"),"exact private method");
   RoiUniversalHookRuntime.Spec arrays=RoiUniversalHookRuntime.Spec.builder("arrays").role("chat").className(Sample.class.getName()).method("arrays").params("byte[]","char[]","int[][]","java.lang.String[][]").returns("int[]").fingerprint("fp").callback(cb()).build();
