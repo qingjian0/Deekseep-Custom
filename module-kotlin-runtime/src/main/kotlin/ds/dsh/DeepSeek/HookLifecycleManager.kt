@@ -210,6 +210,14 @@ class HookLifecycleManager {
                 return entry.snapshot()
             }
             if (entry.state == State.FAILED && entry.handle == null) return entry.snapshot()
+            if (entry.state == State.INSTALLING) {
+                return Status(id, State.INSTALLING, entry.attempts, entry.spec.required,
+                    "install_in_progress")
+            }
+            if (entry.state == State.UNINSTALLING) {
+                return Status(id, State.UNINSTALLING, entry.attempts, entry.spec.required,
+                    "uninstall_in_progress")
+            }
             if (entry.state != State.ACTIVE && entry.state != State.FAILED) return entry.snapshot()
 
             // A dependent protects its prerequisite from the moment installation starts
