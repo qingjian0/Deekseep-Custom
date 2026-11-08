@@ -1070,3 +1070,20 @@ This is an independently testable state-tree primitive, not a completed code289 
 - 真正的完成语义仍须分别观察 suspend Continuation 恢复结果、Flow 完成/异常/取消，以及 reducer 状态快照；当前没有引入通用 Continuation Hook，也没有新增宿主 Hook 目标。
 
 该改动只修正诊断事件命名，不改变宿主参数、返回值、调用次数、Flow 身份或执行路径。
+
+
+## 2026-11-08：Flow 生命周期纯逻辑模型
+
+新增 `NativeFlowLifecycle`，用于独立表达 collection、callback、suspension、continuation resume 与 Flow terminal signal 的不同阶段，并提供 JVM 可执行回归测试。
+
+边界约束：
+
+- callback 的同步返回只更新 callback 计数，不会将 Flow 标记为完成。
+- 返回挂起标记只登记 pending continuation；必须收到独立 resume 信号后才能清除。
+- continuation 恢复失败只记录 continuation failure，不自动等同于 Flow failure。
+- Flow 的 completed / failed / cancelled 必须由独立终止信号设置；completed 拒绝仍有活动 callback 或 pending continuation 的状态。
+- 非法顺序 fail-closed，且不应改变既有计数或阶段。
+
+该类目前是**未接入运行时的纯逻辑契约**，不 Hook 通用 Continuation，不从现有 `*-return` 日志推断异步完成，也不声称当前探针已能观察到所有 resume / terminal 信号。后续只有在 code289 真实观察点被单独证实后，才允许接入采集层。
+
+回归入口：`module/test-native-flow-lifecycle.sh`，已加入 CI Regression job。
