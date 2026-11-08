@@ -44,6 +44,8 @@ final class OpenNativeCompletionProbe {
             new java.util.concurrent.atomic.AtomicBoolean();
     private static final java.util.concurrent.atomic.AtomicBoolean OBSERVATION_275_NW3 =
             new java.util.concurrent.atomic.AtomicBoolean();
+    private static final java.util.concurrent.atomic.AtomicBoolean OBSERVATION_275_PV1 =
+            new java.util.concurrent.atomic.AtomicBoolean();
     private static final java.util.concurrent.ConcurrentHashMap<String, Boolean>
             OBSERVED_CALLBACK_CLASSES = new java.util.concurrent.ConcurrentHashMap<String, Boolean>();
     private static final java.util.concurrent.ConcurrentHashMap<String, Boolean>
@@ -578,6 +580,7 @@ final class OpenNativeCompletionProbe {
                 if (!requestMarker.isInterface()) return;
                 installObservedMethod(loader, "nw3", "e", requestMarker,
                         OBSERVATION_275_NW3, "transport-dispatch");
+                installCode295SseDispatchObserver(loader);
                 observerLog("[OPEN_NATIVE_CALL_OBSERVER] profile=2.7.5/code295"
                         + " mode=passive requestRoute=nw3.e(yu1,Long)->b70"
                         + " staticEvidenceOnly=true runtimeConfirmed=false");
@@ -606,6 +609,71 @@ final class OpenNativeCompletionProbe {
      * Observe the code289 DeltaCommand dispatch boundary. Only the whitelisted SSE event name
      * is read; the sha.b data payload is never accessed or logged.
      */
+
+    /**
+     * Passive code295 SSE event-dispatch observer. The exact descriptor comes from the
+     * independent 2.7.5 DEX audit; argument and return values are never serialized.
+     */
+    private static void installCode295SseDispatchObserver(ClassLoader loader) {
+        if (OBSERVATION_275_PV1.get() || loader == null || Main.MODULE == null) return;
+        try {
+            Class<?> owner = Class.forName("pv1", false, loader);
+            Class<?> eventType = Class.forName("bia", false, loader);
+            Class<?> continuationType = Class.forName("ec3", false, loader);
+            final Method target = owner.getDeclaredMethod("a",
+                    owner, eventType, continuationType);
+            if (!Modifier.isStatic(target.getModifiers())
+                    || target.getReturnType() != Object.class) {
+                observerLog("[OPEN_NATIVE_CALL_OBSERVER] code295 sse-dispatch signature-unavailable");
+                return;
+            }
+            if (!OBSERVATION_275_PV1.compareAndSet(false, true)) return;
+            Main.MODULE.hook(target).intercept(new LegacyXposedModule.Hooker() {
+                @Override public Object intercept(LegacyXposedModule.Chain chain)
+                        throws Throwable {
+                    if (!Main.isOpenNativeCompletionProbeEnabled()) return chain.proceed();
+                    final long started = System.nanoTime();
+                    String args = "unavailable";
+                    String continuationId = "unlinked";
+                    try {
+                        List<?> values = chain.getArgs();
+                        args = observedArgumentTypes(values);
+                        Object continuation = values != null && values.size() > 2
+                                ? values.get(2) : null;
+                        Long linked = observationIdForObject(continuation);
+                        if (linked != null) continuationId = String.valueOf(linked);
+                    } catch (Throwable ignored) {}
+                    safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] code295 sse-dispatch-enter"
+                            + " method=" + observedMethodDescriptor(target)
+                            + " continuationTraceId=" + continuationId
+                            + " args=" + args);
+                    try {
+                        Object result = chain.proceed();
+                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] code295 sse-dispatch-exit"
+                                + " continuationTraceId=" + continuationId
+                                + " result=" + observedResultType(result)
+                                + " durationMs=" + ((System.nanoTime() - started) / 1_000_000L));
+                        return result;
+                    } catch (Throwable hostError) {
+                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] code295 sse-dispatch-throw"
+                                + " continuationTraceId=" + continuationId
+                                + " exception=" + hostError.getClass().getName());
+                        throw hostError;
+                    }
+                }
+            });
+            observerLog("[OPEN_NATIVE_CALL_OBSERVER] code295 sse-dispatch-installed method="
+                    + observedMethodDescriptor(target));
+        } catch (VirtualMachineError fatal) {
+            throw fatal;
+        } catch (ThreadDeath fatal) {
+            throw fatal;
+        } catch (Throwable error) {
+            safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] code295 sse-dispatch-install-failed exception="
+                    + error.getClass().getName());
+        }
+    }
+
     private static void installDeltaDispatchObserver(ClassLoader loader) {
         if (OBSERVATION_R3.get() || loader == null || Main.MODULE == null) return;
         try {
