@@ -519,3 +519,10 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - Corrected the registry KDoc to describe the new lock contract accurately. Expanded the active regression test to prove `markSkipped()` and `markDegraded()` cannot overwrite an in-progress `INSTALLING` reservation. Follow-up commits: `8d760565f2eac03315997494580ef47b2e7784bc` (KDoc) and `df56b987658336392a7674f52c824dc94f52d4be` (state-transition test). CI pending.
 
 - Run #277 found a test-only compile error in the new Feature Registry regression (`check()` helper did not exist). Production Kotlin compilation and `module-kotlin-runtime:test` succeeded. Replaced the three invalid calls with the existing `assertTrue()` helper in `a9d34838ca789b09107f39021a2d7480673f5159`; ROI run #278 and YunSeek run #2185 are queued for verification.
+
+## Runtime evidence ClassLoader-scope isolation (2026-11-08)
+
+- Audit found `snapshotChains()` grouped by host + request key and `snapshotEvidence()` exported every matching event with the chain's confirmation flags, even when an event came from another ClassLoader scope. A valid chain in loader A could therefore incorrectly mark an unrelated loader B descriptor as confirmed.
+- Fixed chain partitioning to include `sourceScope`, filtered chain events by exact scope, stored scope on the chain, and filtered evidence export by exact scope. This preserves independent evidence from each loader while preventing cross-loader confirmation leakage.
+- Added regression coverage with a complete confirmed chain in one loader and a decoy event using the same host/request key in another loader; the decoy must remain unconfirmed. Strengthened the existing cross-loader phase test to check every resulting chain.
+- Production commit `1f597d05961a16e32be2721098ce56a752cc6940`; test commit `91d789fb3d49d608bc6836e244cd2d74a8dc9651`. ROI run triggered; verification pending.
