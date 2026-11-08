@@ -166,7 +166,7 @@ public final class RoiSemanticProfileMatcherTest {
                 Arrays.asList("Liface;", "Ljava/lang/AutoCloseable;"),
                 Arrays.asList("Lhttp;", "Lcfg;"),
                 Arrays.asList("<init>(Lcfg;)V", "dispatch(Lreq;Ljava/lang/Long;)Lresp;",
-                        "route(Lreq;Ljava/lang/Long;)Lresp;", "close()V"),
+                        "route(Lreq;Ljava/lang/Integer;)Lresp;", "close()V"),
                 Collections.singletonList(
                         "Ljava/util/concurrent/ForkJoinPool;->commonPool()Ljava/util/concurrent/ForkJoinPool;"),
                 Arrays.asList("/api/v0/chat/completion", "/api/v0/chat/regenerate"),
