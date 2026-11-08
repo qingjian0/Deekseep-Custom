@@ -27,6 +27,13 @@ The following source-level hardening was committed on the stacked implementation
 - **Serializer / Provenance (PR #11):** source audit is still in progress. No blanket integration or merge is approved; its shared CI workflow changes remain outside this phase.
 - **Validation boundary:** no CI, JVM test suite, APK build, emulator, or physical-device validation is performed until the explicitly requested final validation phase. Source edits and static review must not be described as passing runtime tests.
 
+
+### Serializer registration discovery hardening (PR #11, 2026-11-08)
+
+A second-pass audit found that `inspectAddElementCall` returned immediately after the first recognized `addElement(String, boolean)` invoke. That could hide a later unresolved invoke in the same method and incorrectly treat registration-candidate discovery as complete/unique. The scanner now continues through every invoke and returns incomplete if any invoke decode or method resolution failed, regardless of whether a registration call was already found. A deterministic decision-helper regression test covers all found/absent × complete/incomplete combinations.
+
+This change is source-reviewed only. The serializer test suite, CI, APK build, emulator, and physical-device checks remain deferred to the final validation phase.
+
 ## 2. Actual call chains
 
 ### 2.1 Existing feature-hook path
