@@ -119,8 +119,9 @@ final class NativeV275DeltaCommandDecoder {
         Object value = wire.get("v"); // null is valid JSON null because presence was checked above.
         if (!state.initialized) {
             // pv1.e(i == 0) calls coc.c0(v), whose host implementation resets p="" and o=SET.
-            if (!(value instanceof Map<?, ?>) || !((Map<?, ?>) value).containsKey("response")) {
-                return Result.rejected("first v must be an SseMessageRoot object containing response");
+            if (!(value instanceof Map<?, ?>)
+                    || !(((Map<?, ?>) value).get("response") instanceof Map<?, ?>)) {
+                return Result.rejected("first v must contain an object-valued SseMessageRoot response");
             }
             state.initialized = true;
             state.lastPath = "";
