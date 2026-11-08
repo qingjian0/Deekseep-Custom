@@ -444,4 +444,55 @@ class HookLifecycleManagerTest {
         assertEquals("disabled_by_policy", status.detail)
         assertEquals(0, installs.get())
     }
+
+
+    @Test
+    fun uninstallDuringInstallReturnsExplicitInProgressStatus() {
+        val manager = HookLifecycleManager()
+        val installStarted = CountDownLatch(1)
+        val allowInstallToFinish = CountDownLatch(1)
+        val installResult = java.util.concurrent.atomic.AtomicReference<HookLifecycleManager.Status>()
+        val installer = HookLifecycleManager.Installer {
+            installStarted.countDown()
+            check(allowInstallToFinish.await(5, TimeUnit.SECONDS))
+            HookLifecycleManager.Unhook { }
+        }
+        val thread = Thread {
+            installResult.set(manager.install(
+                HookLifecycleManager.Spec("chat.transport"),
+                installer,
+                HookLifecycleManager.Verifier { true }
+            ))
+        }
+        thread.start()
+        try {
+            assertTrue(installStarted.await(5, TimeUnit.SECONDS))
+            val blocked = manager.uninstall("chat.transport")
+            assertEquals(HookLifecycleManager.State.INSTALLING, blocked.state)
+            assertEquals("install_in_progress", blocked.detail)
+        } finally {
+            allowInstallToFinish.countDown()
+            thread.join(5000)
+        }
+        assertFalse(thread.isAlive)
+        assertEquals(HookLifecycleManager.State.ACTIVE, installResult.get().state)
+    }
+
+    @Test
+    fun candidateSideConflictDeclarationBlocksAgainstActiveTarget() {
+        val manager = HookLifecycleManager()
+        manager.install(
+            HookLifecycleManager.Spec("transport.v1"),
+            HookLifecycleManager.Installer { HookLifecycleManager.Unhook { } },
+            HookLifecycleManager.Verifier { true }
+        )
+        val blocked = manager.install(
+            HookLifecycleManager.Spec("transport.v2", conflicts = setOf("transport.v1")),
+            HookLifecycleManager.Installer { error("candidate-declared conflict must block install") },
+            HookLifecycleManager.Verifier { true }
+        )
+        assertEquals(HookLifecycleManager.State.SKIPPED, blocked.state)
+        assertEquals("conflicts_with_active_target:transport.v1", blocked.detail)
+    }
+
 }
