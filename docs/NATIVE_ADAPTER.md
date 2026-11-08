@@ -348,7 +348,7 @@ collecting it, subscribe to it, invoke methods on the result, or alter the origi
 - The observer is enabled only for code289. It must not be generalized to code287 or code290
   without their own APK-derived exact descriptors and evidence.
 - Real-device evidence is available on the diagnostic branch [fix/native-probe-concrete-callback-hooks](https://github.com/qingjian0/Deekseep-Custom/tree/fix/native-probe-concrete-callback-hooks): [open-native-1793943559724.log](https://github.com/qingjian0/Deekseep-Custom/blob/fix/native-probe-concrete-callback-hooks/open-native-1793943559724.log). The 1,676-line capture records four Request/Transport entries, nested `zn3.o -> jw3.g` calls using the same `ly1` object, and three observed continuation callback pairs: `cr9/k41`, `ec0/mm4`, `s5/g0`.
-- That capture records 833 callback-enter, 823 callback-exit, and zero callback-throw events; ten enter events have no matching terminal event in this file, so the capture is not a fully closed callback ledger. Most recorded calls came from inherited `zb3` / `rj0` methods, demonstrating that the former superclass-wide observer generated substantial unrelated traffic. The bounded concrete-class-only observer is a corrective diagnostic change, not new runtime evidence.
+- That capture records 833 callback-enter, 823 callback-return, and zero callback-throw events; ten enter events have no matching terminal event in this file, so the capture is not a fully closed callback ledger. Most recorded calls came from inherited `zb3` / `rj0` methods, demonstrating that the former superclass-wide observer generated substantial unrelated traffic. The bounded concrete-class-only observer is a corrective diagnostic change, not new runtime evidence.
 - Re-reading the capture at event granularity shows three `y60.b(fl4,yb3)` collect invocations: `cr9/k41`, `ec0/mm4`, and `s5/g0`. `cr9` and `ec0` implement `fl4`; their observed `a(Object,yb3)` calls received argument types `av1/jf9` and `vd6/kl4`, respectively, and both returned `zgb` (suspended). The first `y60.b` later reported `zgb`; another reported `cd3`; the third collect window has no matching exit in this capture.
 - The capture contains no direct `cv1`, `sha`, or `r3.c` dispatch record. It proves that the returned Flow is collected and that concrete collector/continuation pairs execute; it does **not** prove that the DeltaCommand reducer received `ready` / `delta` events or completed message assembly. This is the specific gap addressed by the new code289-only `r3.c` observer, which records allowlisted event names and never reads `sha.b`.
 - Runtime evidence does not prove that a complete HTTP response was decoded into UI messages or that a Local API request can drive the host. Source presence and CI success are not runtime evidence.
@@ -602,7 +602,7 @@ nn0 repository request factory
 - Git blob：`b9b2acff5df7a1981af9cc0ccbab0f9cfb3a8a59`
 - 文件长度：532,434 bytes；1,676 行。
 - 该日志可支持此前记录的 Request / Transport 关联、`y60.b(fl4,yb3)` collect 边界和三个具体 continuation/callback 对的观察结论。
-- 该文件属于 schema 5；其中没有 `delta-dispatch-enter`、`delta-dispatch-exit` 或 `delta-dispatch-throw` 事件。因此它不能证明 `r3.c(dv1,yb3)` Delta dispatch 观察器已经运行，也不能证明 `ready → delta* → close` 的事件序列。
+- 该文件属于 schema 5；其中没有 `delta-dispatch-enter`、`delta-dispatch-return` 或 `delta-dispatch-throw` 事件。因此它不能证明 `r3.c(dv1,yb3)` Delta dispatch 观察器已经运行，也不能证明 `ready → delta* → close` 的事件序列。
 
 ### 当前 schema-6 源码能力
 
@@ -1058,7 +1058,7 @@ This is an independently testable state-tree primitive, not a completed code289 
 
 源码审计发现，`y60.b(fl4, Continuation)` 与 `r3.c(dv1, Continuation)` 都是 Kotlin suspend 形态：方法体可以先返回 `COROUTINE_SUSPENDED`，后续工作再由协程恢复继续。因此诊断日志中的同步调用返回不能命名或解释为 reducer/Flow 已完成。
 
-- 将 `continuation-exit`、`delta-dispatch-exit`、`callback-exit` 统一改名为 `*-return`，准确表示被观察方法本次同步调用已经返回。
+- 将 `continuation-return`、`delta-dispatch-return`、`callback-return` 统一改名为 `*-return`，准确表示被观察方法本次同步调用已经返回。
 - `*-return` 不代表 Flow collect 正常结束、Continuation 已成功恢复、Delta patch 已应用、response snapshot 已完整或客户端可安全发送终止 chunk。
 - `*-throw` 仍表示本次同步调用直接抛出异常；若 suspend 方法先返回挂起标记，后续异步失败不一定会在该调用边界表现为同步 throw。
 - 真正的完成语义仍须分别观察 suspend Continuation 恢复结果、Flow 完成/异常/取消，以及 reducer 状态快照；当前没有引入通用 Continuation Hook，也没有新增宿主 Hook 目标。
