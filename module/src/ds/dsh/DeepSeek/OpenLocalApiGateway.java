@@ -1413,7 +1413,9 @@ final class OpenLocalApiGateway {
             } else {
                 throw new IllegalArgumentException("Unsupported Responses input item type");
             }
-            if (prompt.length() > MAX_PROMPT_CHARS) return prompt.toString();
+            if (prompt.length() > MAX_PROMPT_CHARS) {
+                throw new IllegalArgumentException("Responses input exceeds the prompt size limit");
+            }
         }
         return prompt.toString();
     }
@@ -1808,7 +1810,9 @@ final class OpenLocalApiGateway {
             }
             if (text.length() > 0) text.append("\n");
             text.append((String) value);
-            if (text.length() > MAX_PROMPT_CHARS) return text.toString();
+            if (text.length() > MAX_PROMPT_CHARS) {
+                throw new IllegalArgumentException("Message content exceeds the prompt size limit");
+            }
         }
         return text.toString();
     }
