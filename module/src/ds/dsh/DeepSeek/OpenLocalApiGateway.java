@@ -7,6 +7,7 @@ import android.net.LinkProperties;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
+import android.os.SystemClock;
 import android.util.AtomicFile;
 
 import org.json.JSONArray;
@@ -945,15 +946,19 @@ final class OpenLocalApiGateway {
         final StringBuilder streamedText = new StringBuilder();
         final int[] nextBlock = {0};
         final int[] textBlock = {-1};
-        sendAnthropicEvent(out, "message_start", new JSONObject().put("type", "message_start")
-                .put("message", new JSONObject().put("id", requestId)
-                        .put("type", "message").put("role", "assistant")
-                        .put("model", normalized.model).put("content", new JSONArray())
-                        .put("stop_reason", JSONObject.NULL).put("stop_sequence", JSONObject.NULL)
-                        .put("usage", new JSONObject()
-                                .put("input_tokens", estimateTokens(completion.prompt))
-                                .put("output_tokens", 0).put("dsh_usage_estimated", true))));
-        sendAnthropicEvent(out, "ping", new JSONObject().put("type", "ping"));
+        try {
+            sendAnthropicEvent(out, "message_start", new JSONObject().put("type", "message_start")
+                    .put("message", new JSONObject().put("id", requestId)
+                            .put("type", "message").put("role", "assistant")
+                            .put("model", normalized.model).put("content", new JSONArray())
+                            .put("stop_reason", JSONObject.NULL).put("stop_sequence", JSONObject.NULL)
+                            .put("usage", new JSONObject()
+                                    .put("input_tokens", estimateTokens(completion.prompt))
+                                    .put("output_tokens", 0).put("dsh_usage_estimated", true))));
+            sendAnthropicEvent(out, "ping", new JSONObject().put("type", "ping"));
+        } catch (Exception disconnectedDuringStart) {
+            return;
+        }
         z2.DeltaSink sink = new z2.DeltaSink() {
             private boolean emitText(String delta) throws Exception {
                 if (disconnected.get() || delta == null || delta.length() == 0) return !disconnected.get();
@@ -987,6 +992,7 @@ final class OpenLocalApiGateway {
             if (disconnected.get()) return;
             if (streamedText.length() == 0 && result.text.length() > 0) {
                 sink.onText(result.text);
+                if (disconnected.get()) return;
             }
             if (textBlock[0] >= 0) {
                 sendAnthropicEvent(out, "content_block_stop",
@@ -1445,22 +1451,28 @@ final class OpenLocalApiGateway {
         final AtomicBoolean disconnected = new AtomicBoolean(false);
         final StringBuilder streamed = new StringBuilder();
         final int[] sequence = {0};
-        sendResponsesEvent(out, "response.created", ++sequence[0],
-                new JSONObject().put("response", responsesEnvelope(requestId, model,
-                        "in_progress", new JSONArray(), "")));
-        sendResponsesEvent(out, "response.in_progress", ++sequence[0],
-                new JSONObject().put("response", responsesEnvelope(requestId, model,
-                        "in_progress", new JSONArray(), "")));
-        JSONObject item = new JSONObject().put("id", messageId).put("type", "message")
-                .put("status", "in_progress").put("role", "assistant")
-                .put("content", new JSONArray());
-        sendResponsesEvent(out, "response.output_item.added", ++sequence[0],
-                new JSONObject().put("output_index", 0).put("item", item));
-        JSONObject part = new JSONObject().put("type", "output_text")
-                .put("text", "").put("annotations", new JSONArray());
-        sendResponsesEvent(out, "response.content_part.added", ++sequence[0],
-                new JSONObject().put("item_id", messageId).put("output_index", 0)
-                        .put("content_index", 0).put("part", part));
+        JSONObject item;
+        JSONObject part;
+        try {
+            sendResponsesEvent(out, "response.created", ++sequence[0],
+                    new JSONObject().put("response", responsesEnvelope(requestId, model,
+                            "in_progress", new JSONArray(), "")));
+            sendResponsesEvent(out, "response.in_progress", ++sequence[0],
+                    new JSONObject().put("response", responsesEnvelope(requestId, model,
+                            "in_progress", new JSONArray(), "")));
+            item = new JSONObject().put("id", messageId).put("type", "message")
+                    .put("status", "in_progress").put("role", "assistant")
+                    .put("content", new JSONArray());
+            sendResponsesEvent(out, "response.output_item.added", ++sequence[0],
+                    new JSONObject().put("output_index", 0).put("item", item));
+            part = new JSONObject().put("type", "output_text")
+                    .put("text", "").put("annotations", new JSONArray());
+            sendResponsesEvent(out, "response.content_part.added", ++sequence[0],
+                    new JSONObject().put("item_id", messageId).put("output_index", 0)
+                            .put("content_index", 0).put("part", part));
+        } catch (Exception disconnectedDuringStart) {
+            return;
+        }
         z2.DeltaSink sink = new z2.DeltaSink() {
             @Override public boolean onText(String delta) throws Exception {
                 if (disconnected.get()) return false;
@@ -2142,12 +2154,12 @@ final class OpenLocalApiGateway {
     }
 
     private static synchronized ResponseState loadResponseState(String id) {
-        long now = System.currentTimeMillis();
+        long now = SystemClock.elapsedRealtime();
         java.util.Iterator<java.util.Map.Entry<String, ResponseState>> iterator =
                 RESPONSE_STATES.entrySet().iterator();
         while (iterator.hasNext()) {
             ResponseState state = iterator.next().getValue();
-            if (now - state.updatedAtMs > RESPONSE_STATE_TTL_MS) iterator.remove();
+            if (now - state.updatedAtElapsedMs > RESPONSE_STATE_TTL_MS) iterator.remove();
         }
         return RESPONSE_STATES.get(id);
     }
@@ -2169,14 +2181,14 @@ final class OpenLocalApiGateway {
     private static final class ResponseState {
         final String transcript;
         final java.util.HashSet<String> pendingToolCallIds;
-        final long updatedAtMs;
+        final long updatedAtElapsedMs;
 
         ResponseState(String transcript, java.util.Set<String> pendingToolCallIds) {
             this.transcript = transcript;
             this.pendingToolCallIds = pendingToolCallIds == null
                     ? new java.util.HashSet<String>()
                     : new java.util.HashSet<String>(pendingToolCallIds);
-            this.updatedAtMs = System.currentTimeMillis();
+            this.updatedAtElapsedMs = SystemClock.elapsedRealtime();
         }
     }
 

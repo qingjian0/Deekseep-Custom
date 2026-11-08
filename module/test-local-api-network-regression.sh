@@ -277,6 +277,12 @@ if '"/v1/messages".equals(request.path)' not in source or "handleAnthropicMessag
     raise SystemExit("Anthropic Messages endpoint is not registered")
 if 'Responses streaming tool calls are not implemented yet; use stream=false' not in source:
     raise SystemExit("Responses streaming must reject tool calls until structured tool events are implemented")
+if "SystemClock.elapsedRealtime()" not in source or "updatedAtElapsedMs" not in source:
+    raise SystemExit("Responses state TTL must use monotonic elapsed realtime")
+if "catch (Exception disconnectedDuringStart)" not in source:
+    raise SystemExit("SSE initial event writes must stop cleanly on client disconnect")
+if "sink.onText(result.text);\n                if (disconnected.get()) return;" not in source:
+    raise SystemExit("Anthropic fallback text write must stop before terminal events after disconnect")
 if 'Streaming tool_use is not implemented yet; use stream=false' not in source:
     raise SystemExit("Anthropic streaming must reject tool_use until structured tool events are implemented")
 if 'throw new z2.GatewayException(503, "engine_missing"' not in security:
