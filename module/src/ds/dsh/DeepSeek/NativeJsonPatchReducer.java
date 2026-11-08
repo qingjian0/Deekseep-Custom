@@ -3,7 +3,6 @@ package ds.dsh.DeepSeek;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.json.JSONTokener;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -227,7 +226,13 @@ public final class NativeJsonPatchReducer {
     private static boolean jsonEquals(Object left, Object right) {
         if (left == right) return true;
         if (left == null || right == null) return false;
-        return left.toString().equals(right.toString());
+        if (left instanceof JSONObject && right instanceof JSONObject) {
+            return ((JSONObject) left).similar(right);
+        }
+        if (left instanceof JSONArray && right instanceof JSONArray) {
+            return ((JSONArray) left).similar(right);
+        }
+        return left.equals(right);
     }
 
     private static Object copy(Object value) throws JSONException {
