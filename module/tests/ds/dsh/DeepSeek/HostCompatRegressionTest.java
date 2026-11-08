@@ -223,8 +223,10 @@ public final class HostCompatRegressionTest {
                 "unverified 2.7.5 channel must block ROI identity capture");
         check(!HostCompat.supportsMaintainedFeatureRuntime(),
                 "2.7.5 static reconnaissance must not authorize legacy feature hooks");
-        check(!HostCompat.supportsHostVersionName("2.7.5"),
-                "2.7.5 remains unsupported until exact build identity and HookSpecs are reviewed");
+        check(HostCompat.supportsHostVersionName("2.7.5"),
+                "2.7.5 version name is recognized independently of feature-hook support");
+        check(!HostCompat.supportsMaintainedFeatureRuntime(),
+                "recognizing 2.7.5 must not enable unreviewed feature hooks");
         System.out.println("Host compatibility regression tests passed");
     }
 
