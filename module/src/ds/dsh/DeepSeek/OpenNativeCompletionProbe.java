@@ -632,7 +632,7 @@ final class OpenNativeCompletionProbe {
                     }
                     try {
                         Object value = chain.proceed();
-                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] delta-dispatch-exit"
+                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] delta-dispatch-return"
                                 + " flowTraceId=" + (deltaTraceId == null ? "unlinked" : deltaTraceId)
                                 + " eventClass=" + eventClass + " eventName=" + eventName
                                 + " durationMs=" + ((System.nanoTime() - started) / 1_000_000L)
@@ -891,7 +891,7 @@ final class OpenNativeCompletionProbe {
                         throw hostError;
                     }
                     try {
-                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-exit method="
+                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-return method="
                                 + observedMethodDescriptor(target)
                                 + " flowTraceId=" + (flowTraceId == null ? "unlinked" : flowTraceId)
                                 + " result=" + observedResultType(value));
@@ -1042,7 +1042,7 @@ final class OpenNativeCompletionProbe {
                                 safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] callback-result-shape method="
                                         + callbackMethod + " result=" + observedObjectShape(value));
                             }
-                            safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] callback-exit method="
+                            safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] callback-return method="
                                     + callbackMethod + " receiverId=" + identity
                                     + " flowTraceId=" + (callbackTraceId == null ? "unlinked" : callbackTraceId)
                                     + " event=" + eventNumber + " durationMs="
