@@ -16,6 +16,7 @@ public final class RoiSemanticProfileMatcherTest {
         testMissingEvidenceDimensionsDoNotInflateScore();
         testProfilesWithoutMethodRolesAreNotMatchable();
         testDetachedMethodRoleEvidenceIsNotMatchable();
+        testTargetRoleDeclarationMustAgreeWithResolvedMethod();
         System.out.println("ROI semantic profile matcher tests passed");
     }
 
@@ -159,6 +160,29 @@ public final class RoiSemanticProfileMatcherTest {
                         "missing(Lreq;Ljava/lang/Long;)Lresp;"));
         check(RoiSemanticProfileMatcher.rank(source, Collections.singletonList(detachedRole)).isEmpty(),
                 "method role must map to exactly one declared method prototype");
+    }
+
+
+    private static void testTargetRoleDeclarationMustAgreeWithResolvedMethod() {
+        RoiSemanticProfileMatcher.ClassProfile source = sourceProfile();
+        RoiSemanticProfileMatcher.ClassProfile contradictoryRole = new RoiSemanticProfileMatcher.ClassProfile(
+                "2.7.5", "transport.dispatch", "Lcandidate;", "Ljava/lang/Object;",
+                Arrays.asList("Liface;", "Ljava/lang/AutoCloseable;"),
+                Arrays.asList("Lhttp;", "Lcfg;"),
+                Arrays.asList("<init>(Lcfg;)V", "dispatch(Lreq;Ljava/lang/Long;)Lresp;",
+                        "route(Lreq;Ljava/lang/Long;)Lresp;", "close()V"),
+                Collections.singletonList(
+                        "Ljava/util/concurrent/ForkJoinPool;->commonPool()Ljava/util/concurrent/ForkJoinPool;"),
+                Arrays.asList("/api/v0/chat/completion", "/api/v0/chat/regenerate"),
+                Collections.singletonMap("transport.dispatch",
+                        "route(Lreq;Ljava/lang/Long;)Lresp;"));
+        RoiSemanticProfileMatcher.Match match = RoiSemanticProfileMatcher.rank(
+                source, Collections.singletonList(contradictoryRole)).get(0);
+        equal(RoiSemanticProfileMatcher.State.LOW_CONFIDENCE, match.state,
+                "target's explicit role assignment must agree with source role resolution");
+        check(!match.resolvedMethodRoles.containsKey("transport.dispatch"),
+                "contradictory target role declaration must not resolve");
+        check(!match.activationAuthorized, "contradictory role evidence cannot authorize activation");
     }
 
     private static RoiSemanticProfileMatcher.ClassProfile sourceProfile() {
