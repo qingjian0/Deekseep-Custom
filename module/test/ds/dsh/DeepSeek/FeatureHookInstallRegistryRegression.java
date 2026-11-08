@@ -131,6 +131,9 @@ public final class FeatureHookInstallRegistryRegression {
         AtomicReference<Throwable> probeFailure = new AtomicReference<>();
 
         registry.install("callback.lock", () -> {
+            registry.markSkipped("callback.lock", "late skip must not override INSTALLING");
+            registry.markDegraded("callback.lock", new IllegalStateException(
+                    "late degradation must not override INSTALLING"));
             Thread probe = new Thread(() -> {
                 try {
                     FeatureHookInstallRegistry.Status found = null;
