@@ -93,6 +93,17 @@ main = (pathlib.Path(sys.argv[1]).parent / "Main.java").read_text(encoding="utf-
 security = (pathlib.Path(sys.argv[1]).parent / "HookAccountLoginSecurity.java").read_text(encoding="utf-8")
 if 'localApiFloatingWindowError = "";' not in security:
     raise SystemExit("Missing independent floating-window error storage")
+completion_entry = main[main.index("z2.CompletionResult executeLocalApiCompletion("):main.index("static void onRuntimeProtectionRecovered", main.index("z2.CompletionResult executeLocalApiCompletion("))]
+if "tlLocalApiDeadline.set(deadlineElapsedMs)" not in completion_entry:
+    raise SystemExit("Local API completion must bind a request-scoped deadline")
+if "tlLocalApiSink.set(sink)" not in completion_entry:
+    raise SystemExit("Local API completion must bind the client cancellation sink")
+if "finally {" not in completion_entry or "tlLocalApiDeadline.remove()" not in completion_entry or "tlLocalApiSink.remove()" not in completion_entry:
+    raise SystemExit("Local API completion must restore ThreadLocal scope on every exit")
+if "request.deadlineAtMs - System.currentTimeMillis()" not in completion_entry or "SystemClock.elapsedRealtime() + budgetMs" not in completion_entry:
+    raise SystemExit("Wall-clock request deadline must be converted once into a monotonic scoped deadline")
+if "deadline.longValue() - SystemClock.elapsedRealtime()" not in main:
+    raise SystemExit("Local API remaining-time checks must use the monotonic clock")
 if 'localApiFloatingWindowError = "小窗保活启动失败：" + safeThrowableMessage(error);' not in main:
     raise SystemExit("Floating-window launch failure is not stored independently")
 service = (pathlib.Path(sys.argv[1]).parent / "z21.java").read_text(encoding="utf-8")

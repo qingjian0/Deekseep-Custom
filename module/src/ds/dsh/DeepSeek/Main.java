@@ -701,7 +701,28 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
 
     z2.CompletionResult executeLocalApiCompletion(z2.CompletionRequest request, z2.DeltaSink sink)
             throws Exception {
-        return HookAccountLoginSecurity.INSTANCE.executeLocalApiCompletion(request, sink);
+        Long previousDeadline = tlLocalApiDeadline.get();
+        z2.DeltaSink previousSink = tlLocalApiSink.get();
+        long requestedRemaining = request == null
+                ? LOCAL_API_REQUEST_BUDGET_MS
+                : Math.max(0L, request.deadlineAtMs - System.currentTimeMillis());
+        long budgetMs = Math.min(LOCAL_API_REQUEST_BUDGET_MS, requestedRemaining);
+        if (previousDeadline != null) {
+            budgetMs = Math.min(budgetMs, Math.max(0L,
+                    previousDeadline.longValue() - SystemClock.elapsedRealtime()));
+        }
+        long deadlineElapsedMs = SystemClock.elapsedRealtime() + budgetMs;
+        tlLocalApiDeadline.set(deadlineElapsedMs);
+        tlLocalApiSink.set(sink);
+        try {
+            ensureLocalApiTime("starting native completion");
+            return HookAccountLoginSecurity.INSTANCE.executeLocalApiCompletion(request, sink);
+        } finally {
+            if (previousDeadline == null) tlLocalApiDeadline.remove();
+            else tlLocalApiDeadline.set(previousDeadline);
+            if (previousSink == null) tlLocalApiSink.remove();
+            else tlLocalApiSink.set(previousSink);
+        }
     }
     void deleteReusableApiSessions() { HookAccountLoginSecurity.INSTANCE.deleteReusableApiSessions(); }
     HookSessionManagement.NativeHeartbeatHistory fetchNativeHeartbeatHistory(String conversationId)
@@ -10194,7 +10215,7 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     private static long remainingLocalApiTimeMs() {
         Long deadline = tlLocalApiDeadline.get();
         if (deadline == null) return LOCAL_API_REQUEST_BUDGET_MS;
-        return Math.max(0L, deadline.longValue() - System.currentTimeMillis());
+        return Math.max(0L, deadline.longValue() - SystemClock.elapsedRealtime());
     }
 
     private static void ensureLocalApiClientActive(String stage)
