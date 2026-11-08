@@ -55,7 +55,7 @@ final class RoiSemanticProfileMatcher {
 
         boolean valid() {
             return !hostBuild.isEmpty() && !role.isEmpty() && !classDescriptor.isEmpty()
-                    && !methods.isEmpty();
+                    && !methods.isEmpty() && !methodRoles.isEmpty();
         }
     }
 
