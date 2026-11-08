@@ -94,9 +94,16 @@ class HookLifecycleManager {
                     "hook target ID is already registered with a different specification: ${stableSpec.id}"
                 }
                 if (existing.state == State.ACTIVE || existing.state == State.SKIPPED ||
-                    existing.state == State.INSTALLING || existing.state == State.UNINSTALLING ||
                     (existing.state == State.FAILED && existing.handle != null)) {
                     return existing.snapshot()
+                }
+                if (existing.state == State.INSTALLING) {
+                    return Status(stableSpec.id, State.INSTALLING, existing.attempts,
+                        stableSpec.required, "install_in_progress")
+                }
+                if (existing.state == State.UNINSTALLING) {
+                    return Status(stableSpec.id, State.UNINSTALLING, existing.attempts,
+                        stableSpec.required, "uninstall_in_progress")
                 }
             }
 
