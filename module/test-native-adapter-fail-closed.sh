@@ -128,8 +128,13 @@ require(
 
 require(
     probe,
-    r'HostCompat\.hostCode271\(\) != 289.*?Class\.forName\("ly1", false, loader\).*?Class\.forName\("wu1", false, loader\)',
-    "runtime call observer is gated to the verified mainland 2.7.2/code289 request contract",
+    r'HostCompat\.isV275StaticOnly\(\).*?Class\.forName\("yu1", false, loader\).*?installObservedMethod\(loader, "nw3", "e".*?2\.7\.5/code295',
+    "code295 uses its independently audited passive request-route observer",
+)
+require(
+    probe,
+    r'HostCompat\.hostCode271\(\) != 289.*?Class\.forName\("ly1", false, loader\).*?Class\.forName\("wu1", false, loader\).*?installObservedMethod\(loader, "jw3", "g".*?installObservedMethod\(loader, "zn3", "o"',
+    "code289 keeps its independently verified request and transport observer",
 )
 require(
     main,
