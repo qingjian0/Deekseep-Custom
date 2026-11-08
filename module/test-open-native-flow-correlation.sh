@@ -20,7 +20,7 @@ checks = {
     ),
     "Continuation is identity-linked but not method-hooked": "associateObjectWithObservation(second, flow);" in source and 'installCallbackObserver(second, "callback-1")' not in source,
     "collector callback receives the Flow trace identity": "associateObjectWithObservation(first, flow);" in source and "traceIdValue = observationIdForObject(receiver);" in source and 'flowTraceId=" + (traceIdValue == null ? "unlinked" : traceIdValue)' in source,
-    "collector callback enter exit and throw logs retain trace IDs": source.count('flowTraceId=" + (callbackTraceId == null ? "unlinked" : callbackTraceId)') >= 2 and "flowTraceId=" in source[source.index('callback-throw method='):],
+    "collector callback enter return and throw logs retain trace IDs": source.count('flowTraceId=" + (callbackTraceId == null ? "unlinked" : callbackTraceId)') >= 2 and "flowTraceId=" in source[source.index('callback-throw method='):],
     "continuation identity is weakly associated with the Flow trace": "associateObjectWithObservation(second, flow);" in source and "new IdentityWeakReference(continuation, FLOW_TRACE_QUEUE)" in source,
     "DeltaCommand reducer resolves the exact continuation identity": "Object continuation = args != null && args.size() > 1 ? args.get(1) : null;" in source and "deltaTraceId = observationIdForObject(continuation);" in source,
     "DeltaCommand events expose linked or explicitly unlinked trace IDs": source.count('" flowTraceId=" + (deltaTraceId == null ? "unlinked" : deltaTraceId)') >= 3 and "continuationIdentity=" in source,
