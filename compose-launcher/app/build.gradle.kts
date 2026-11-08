@@ -245,7 +245,7 @@ val stageRuntimeResources = tasks.register<Sync>("stageRuntimeResources") {
 
 android {
     namespace = "ds.dsh.DeepSeek"
-    compileSdk = providers.gradleProperty("androidCompileSdk").orElse("37").get().toInt()
+    compileSdk = providers.gradleProperty("androidCompileSdk").orElse("36").get().toInt()
 
     defaultConfig {
         applicationId = "ds.dsh.DeepSeek"
@@ -412,8 +412,8 @@ dependencies {
     implementation("org.luckypray:dexkit:2.3.0")
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.core:core:1.18.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3:1.4.0")
     implementation("androidx.compose.ui:ui")
