@@ -340,7 +340,7 @@ final class RoiSemanticProfileMatcher {
         if (arrow <= 0 || arrow != value.lastIndexOf("->")) return false;
         String owner = value.substring(0, arrow);
         String method = value.substring(arrow + 2);
-        return isClassDescriptor(owner) && !methodShape(method).isEmpty();
+        return isClassDescriptor(owner) && !isObfuscated(owner) && !methodShape(method).isEmpty();
     }
 
     private static int typeDescriptorEnd(String value, int start, boolean allowVoid) {
