@@ -7,7 +7,8 @@ import java.util.Map;
 
 public final class NativeV275DeltaCommandDecoderTest {
     public static void main(String[] args) {
-        defaultsAndCarryForward();
+        firstCommandInitializesSnapshot();
+        laterCommandsCarryPathAndOperation();
         batchHasIndependentDefaultsAndCarriesWithinBatch();
         nullJsonValueIsAllowedWhenPresent();
         malformedAndUnknownCommandsFailClosed();
@@ -15,15 +16,30 @@ public final class NativeV275DeltaCommandDecoderTest {
         System.out.println("2.7.5 DeltaCommand decoder regression checks passed");
     }
 
-    private static void defaultsAndCarryForward() {
+    private static void firstCommandInitializesSnapshot() {
         NativeV275DeltaCommandDecoder.State state =
                 new NativeV275DeltaCommandDecoder.State();
+        Map<String, Object> snapshot = new HashMap<String, Object>();
+        snapshot.put("response", new HashMap<String, Object>());
+        NativeV275DeltaCommandDecoder.Result first =
+                decode(state, command("ignored/path", "APPEND", snapshot));
+        check(first.accepted, "initial snapshot accepted");
+        check(first.command.isInitialSnapshot(), "first DeltaCommand is a snapshot");
+        check(first.command.path == null && first.command.operation == null,
+                "first command p/o are not applied as a patch");
+        check(state.initialized(), "stream initialized");
+        check("".equals(state.lastPath()), "snapshot resets path");
+        check("SET".equals(state.lastOperation()), "snapshot resets operation");
+    }
+
+    private static void laterCommandsCarryPathAndOperation() {
+        NativeV275DeltaCommandDecoder.State state = initializedState();
         NativeV275DeltaCommandDecoder.Result first = decode(state,
                 command("response/fragments/0/content", "APPEND", "A"));
-        check(first.accepted, "first command accepted");
-        check("response/fragments/0/content".equals(first.command.path), "path field p");
-        check("APPEND".equals(first.command.operation), "operation field o");
-        check("A".equals(first.command.value), "value field v");
+        check(first.accepted && !first.command.isInitialSnapshot(), "first patch accepted");
+        check("response/fragments/0/content".equals(first.command.path), "field p");
+        check("APPEND".equals(first.command.operation), "field o");
+        check("A".equals(first.command.value), "field v");
 
         NativeV275DeltaCommandDecoder.Result second = decode(state, command(null, null, "B"));
         check(second.accepted, "omitted p/o inherit");
@@ -33,8 +49,7 @@ public final class NativeV275DeltaCommandDecoderTest {
     }
 
     private static void batchHasIndependentDefaultsAndCarriesWithinBatch() {
-        NativeV275DeltaCommandDecoder.State state =
-                new NativeV275DeltaCommandDecoder.State();
+        NativeV275DeltaCommandDecoder.State state = initializedState();
         Map<String, Object> child1 = command("content", "APPEND", "hello");
         Map<String, Object> child2 = command(null, null, " world");
         Map<String, Object> outer = command("response/fragments/0", "BATCH",
@@ -51,33 +66,26 @@ public final class NativeV275DeltaCommandDecoderTest {
         check("APPEND".equals(result.command.batch.get(1).operation), "batch operation inheritance");
         check(" world".equals(result.command.batch.get(1).value), "batch child value");
 
-        // The outer stream state is independent of the BATCH child's local carry-forward state.
         check("response/fragments/0".equals(state.lastPath()), "outer path state retained");
         check("BATCH".equals(state.lastOperation()), "outer operation state retained");
-
-        NativeV275DeltaCommandDecoder.Result next = decode(state, command(null, null, "next"));
-        check(next.accepted && next.command.isBatch(),
-                "next top-level command inherits the outer BATCH operation");
-        check(!(next.command.value instanceof java.util.List),
-                "non-array inherited BATCH payload is rejected");
+        NativeV275DeltaCommandDecoder.Result next =
+                decode(state, command(null, null, "next"));
+        check(!next.accepted, "next command inherits BATCH and rejects non-array value");
     }
 
     private static void nullJsonValueIsAllowedWhenPresent() {
-        NativeV275DeltaCommandDecoder.State state =
-                new NativeV275DeltaCommandDecoder.State();
-        Map<String, Object> wire = command("response/fragments/0/content", "SET", null);
-        NativeV275DeltaCommandDecoder.Result result = decode(state, wire);
+        NativeV275DeltaCommandDecoder.State state = initializedState();
+        NativeV275DeltaCommandDecoder.Result result =
+                decode(state, command("response/fragments/0/content", "SET", null));
         check(result.accepted, "explicit JSON null is a present value");
         check(result.command.value == null, "null value preserved");
     }
 
     private static void malformedAndUnknownCommandsFailClosed() {
-        NativeV275DeltaCommandDecoder.State state =
-                new NativeV275DeltaCommandDecoder.State();
+        NativeV275DeltaCommandDecoder.State state = initializedState();
         Map<String, Object> missingValue = new HashMap<String, Object>();
         missingValue.put("p", "response/fragments");
         check(!decode(state, missingValue).accepted, "missing v rejected");
-
         check(!decode(state, command(Integer.valueOf(1), "SET", "x")).accepted,
                 "non-string p rejected");
         check(!decode(state, command("response", Integer.valueOf(1), "x")).accepted,
@@ -87,7 +95,7 @@ public final class NativeV275DeltaCommandDecoderTest {
                 decode(state, command("response", "REMOVE", "x"));
         check(!unknown.accepted, "unknown operation rejected");
         check("REMOVE".equals(state.lastOperation()),
-                "host-compatible operation carry-forward records the unsupported value");
+                "host-compatible carry-forward stores unsupported operation");
 
         check(!decode(state, command("response", "BATCH", "not-an-array")).accepted,
                 "BATCH requires an array");
@@ -101,8 +109,7 @@ public final class NativeV275DeltaCommandDecoderTest {
     }
 
     private static void limitsAreEnforced() {
-        NativeV275DeltaCommandDecoder.State state =
-                new NativeV275DeltaCommandDecoder.State();
+        NativeV275DeltaCommandDecoder.State state = initializedState();
         StringBuilder path = new StringBuilder();
         for (int i = 0; i < 4097; i++) path.append('x');
         check(!decode(state, command(path.toString(), "SET", "x")).accepted,
@@ -112,6 +119,15 @@ public final class NativeV275DeltaCommandDecoderTest {
         for (int i = 0; i < 4097; i++) many.add(command("content", "SET", "x"));
         check(!decode(state, command("response", "BATCH", many)).accepted,
                 "oversized batch rejected");
+    }
+
+    private static NativeV275DeltaCommandDecoder.State initializedState() {
+        NativeV275DeltaCommandDecoder.State state =
+                new NativeV275DeltaCommandDecoder.State();
+        Map<String, Object> snapshot = new HashMap<String, Object>();
+        snapshot.put("response", new HashMap<String, Object>());
+        check(decode(state, command(null, null, snapshot)).accepted, "snapshot setup");
+        return state;
     }
 
     private static NativeV275DeltaCommandDecoder.Result decode(
