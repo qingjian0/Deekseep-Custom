@@ -517,3 +517,5 @@ These commands are the intended local/JVM regression suite. They do not replace 
 - Production commit: `9db59c7ba14da45e7e84c993d859c7f37d89ea33`; active-runner test commit: `559f93e749333a2b1c64cfc1a03fd3b1247316f8`; additional test-source commit: `63033ecaa9034a1d7770f6c9db82851723f94091`. Dedicated ROI CI pending.
 
 - Corrected the registry KDoc to describe the new lock contract accurately. Expanded the active regression test to prove `markSkipped()` and `markDegraded()` cannot overwrite an in-progress `INSTALLING` reservation. Follow-up commits: `8d760565f2eac03315997494580ef47b2e7784bc` (KDoc) and `df56b987658336392a7674f52c824dc94f52d4be` (state-transition test). CI pending.
+
+- Run #277 found a test-only compile error in the new Feature Registry regression (`check()` helper did not exist). Production Kotlin compilation and `module-kotlin-runtime:test` succeeded. Replaced the three invalid calls with the existing `assertTrue()` helper in `a9d34838ca789b09107f39021a2d7480673f5159`; ROI run #278 and YunSeek run #2185 are queued for verification.
