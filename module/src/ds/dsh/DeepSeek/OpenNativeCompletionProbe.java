@@ -189,6 +189,12 @@ final class OpenNativeCompletionProbe {
         CALLBACK_RESULT_SHAPES.clear();
         API_TRACE_EVENTS.set(0);
         OBSERVATION_IDS.set(0L);
+        synchronized (FLOW_TRACE_IDS) {
+            FLOW_TRACE_IDS.clear();
+            while (FLOW_TRACE_QUEUE.poll() != null) {
+                // Drain stale weak references from the previous diagnostic session.
+            }
+        }
         SESSION_STARTED_AT_MS = System.currentTimeMillis();
         SESSION_LOG_FILE = createSessionLogFile(SESSION_STARTED_AT_MS);
         observerLog("[OPEN_NATIVE_CALL_OBSERVER] session-start schema=7 epochMs="
