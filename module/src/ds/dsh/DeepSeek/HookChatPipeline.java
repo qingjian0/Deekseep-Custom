@@ -1350,6 +1350,10 @@ final class HookChatPipeline {
                     @Override public Object intercept(Chain chain) throws Throwable {
                         Object r = chain.proceed();
                         try {
+                            if (r != null) {
+                                RoiRuntimeInvocationObserver.recordResponseParserCoverage(
+                                        (Method) chain.getExecutable());
+                            }
                             if (Main.isSrvLog() && r != null) Main.srvLog("[VV7] new mv " + dumpMv(r));
                         } catch (Throwable t) { Main.srvLog("[VV7] err " + t); }
                         return r;

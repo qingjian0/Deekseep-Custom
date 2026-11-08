@@ -12,9 +12,12 @@ public final class FeatureHookInstallRegistryRegressionTest {
         retriesDegradedBestEffortInstall();
         separatesRequiredFailuresFromBestEffortDegradation();
         serializesConcurrentInstallAttempts();
+        installerCallbackRunsOutsideEntryLock();
         installsDifferentIdsConcurrently();
         retriesPartialRegistrationWithoutDuplicateHooks();
         keepsSkippedInstallTerminal();
+        allowsExplicitUninstallAndReinstall();
+        allowsCleanupOfFailedInstall();
         System.out.println("FeatureHookInstallRegistryRegressionTest OK");
     }
 
@@ -147,6 +150,40 @@ public final class FeatureHookInstallRegistryRegressionTest {
                 "concurrent installation must end in INSTALLED");
     }
 
+    private static void installerCallbackRunsOutsideEntryLock() throws Throwable {
+        FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
+        CountDownLatch snapshotCompleted = new CountDownLatch(1);
+        AtomicReference<Throwable> probeFailure = new AtomicReference<>();
+
+        registry.install("test.callback-lock", () -> {
+            Thread probe = new Thread(() -> {
+                try {
+                    check(status(registry, "test.callback-lock").state
+                                    == FeatureHookInstallRegistry.State.INSTALLING,
+                            "callback observer must see INSTALLING while installer runs");
+                } catch (Throwable failure) {
+                    probeFailure.set(failure);
+                } finally {
+                    snapshotCompleted.countDown();
+                }
+            }, "feature-registry-callback-lock-probe");
+            probe.start();
+            check(snapshotCompleted.await(2, TimeUnit.SECONDS),
+                    "installer callback must not hold the entry lock");
+            probe.join(2000L);
+            check(!probe.isAlive(), "registry observer must finish during installer callback");
+            if (probeFailure.get() != null) {
+                throw new AssertionError("registry observer failed", probeFailure.get());
+            }
+        });
+
+        check(status(registry, "test.callback-lock").state
+                        == FeatureHookInstallRegistry.State.INSTALLED,
+                "callback lock probe install must complete");
+        check(status(registry, "test.callback-lock").attempts == 1,
+                "callback lock probe must execute exactly once");
+    }
+
     private static void installsDifferentIdsConcurrently() throws Throwable {
         FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
         CountDownLatch entered = new CountDownLatch(2);
@@ -240,6 +277,62 @@ public final class FeatureHookInstallRegistryRegressionTest {
         check(status(registry, "test.partial").state
                         == FeatureHookInstallRegistry.State.INSTALLED,
                 "partial retry must finish installed");
+    }
+
+    private static void allowsExplicitUninstallAndReinstall() throws Throwable {
+        FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
+        AtomicInteger attempts = new AtomicInteger();
+        registry.install("test.reinstallable", () -> attempts.incrementAndGet());
+        check(status(registry, "test.reinstallable").state
+                        == FeatureHookInstallRegistry.State.INSTALLED,
+                "first install state");
+
+        check(registry.markUninstalled("test.reinstallable"),
+                "installed group should transition to UNINSTALLED");
+        check(status(registry, "test.reinstallable").state
+                        == FeatureHookInstallRegistry.State.UNINSTALLED,
+                "uninstall state");
+        check(!registry.markUninstalled("test.reinstallable"),
+                "already uninstalled state must not transition twice");
+        check(!registry.hasFailures(), "uninstall is not an installation failure");
+
+        registry.install("test.reinstallable", () -> attempts.incrementAndGet());
+        check(attempts.get() == 2, "explicitly uninstalled group should be reinstallable");
+        check(status(registry, "test.reinstallable").state
+                        == FeatureHookInstallRegistry.State.INSTALLED,
+                "reinstalled group state");
+        check(status(registry, "test.reinstallable").attempts == 2,
+                "reinstall attempt count");
+
+        check(!registry.markUninstalled("test.missing"),
+                "missing registry entry must not be uninstalled");
+    }
+
+    private static void allowsCleanupOfFailedInstall() throws Throwable {
+        FeatureHookInstallRegistry registry = new FeatureHookInstallRegistry();
+        try {
+            registry.install("test.failed-cleanup", () -> {
+                throw new IllegalStateException("partial install");
+            });
+        } catch (IllegalStateException expected) {
+            // The caller must clean up any partial runtime handles before the transition.
+        }
+        check(status(registry, "test.failed-cleanup").state
+                        == FeatureHookInstallRegistry.State.FAILED,
+                "failed install remains FAILED until explicit cleanup");
+        check(!registry.markUninstalled("test.failed-cleanup"),
+                "ordinary uninstall transition must not accept a failed install");
+        check(registry.markFailedInstallCleaned("test.failed-cleanup"),
+                "verified cleanup may transition FAILED to UNINSTALLED");
+        check(status(registry, "test.failed-cleanup").state
+                        == FeatureHookInstallRegistry.State.UNINSTALLED,
+                "cleaned failed install state");
+        registry.install("test.failed-cleanup", () -> { });
+        check(status(registry, "test.failed-cleanup").state
+                        == FeatureHookInstallRegistry.State.INSTALLED,
+                "cleaned failed install may be retried");
+        check(!registry.markFailedInstallCleaned("test.failed-cleanup"),
+                "cleanup transition must not accept an installed entry");
     }
 
     private static void keepsSkippedInstallTerminal() throws Throwable {

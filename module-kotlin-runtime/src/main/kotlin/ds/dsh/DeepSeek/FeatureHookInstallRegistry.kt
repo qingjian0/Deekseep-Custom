@@ -7,14 +7,16 @@ import java.util.concurrent.ConcurrentHashMap
  * Process-local state for independently installed feature-hook groups.
  *
  * The registry tracks installer execution, not reflected members. An installer should represent
- * one stable, idempotent feature boundary. FAILED/DEGRADED boundaries may be retried; INSTALLED
- * and SKIPPED boundaries are terminal for the lifetime of this process.
+ * one stable, idempotent feature boundary. FAILED/DEGRADED boundaries may be retried; SKIPPED
+ * boundaries are terminal for the lifetime of this process. INSTALLED boundaries remain
+ * idempotent until an explicit uninstall transition makes the same stable ID installable again.
  */
 class FeatureHookInstallRegistry {
     enum class State {
         NEW,
         INSTALLING,
         INSTALLED,
+        UNINSTALLED,
         SKIPPED,
         DEGRADED,
         FAILED,
@@ -46,7 +48,8 @@ class FeatureHookInstallRegistry {
 
     /**
      * Runs an installer once per stable ID. A failed installer is eligible for another attempt.
-     * The entry lock is held across installation so concurrent callers cannot double-register it.
+     * The entry lock protects state transitions only; INSTALLING reserves the ID while the
+     * injected installer callback executes outside the lock.
      */
     @Throws(Throwable::class)
     fun install(id: String?, installer: Installer?) {
@@ -64,17 +67,64 @@ class FeatureHookInstallRegistry {
             entry.startedAtMillis = System.currentTimeMillis()
             entry.completedAtMillis = 0L
             entry.detail = null
+        }
 
-            try {
-                installer.install()
-                entry.state = State.INSTALLED
-                entry.completedAtMillis = System.currentTimeMillis()
-            } catch (failure: Throwable) {
-                entry.state = State.FAILED
-                entry.completedAtMillis = System.currentTimeMillis()
-                entry.detail = describe(failure)
-                throw failure
+        // Never hold the entry monitor while invoking feature code. The INSTALLING state
+        // reserves this ID against duplicate callers while allowing callbacks and observers
+        // to query the registry without cross-thread lock inversion.
+        try {
+            installer.install()
+            synchronized(entry) {
+                if (entry.state == State.INSTALLING) {
+                    entry.state = State.INSTALLED
+                    entry.completedAtMillis = System.currentTimeMillis()
+                }
             }
+        } catch (failure: Throwable) {
+            synchronized(entry) {
+                if (entry.state == State.INSTALLING) {
+                    entry.state = State.FAILED
+                    entry.completedAtMillis = System.currentTimeMillis()
+                    entry.detail = describe(failure)
+                }
+            }
+            throw failure
+        }
+    }
+
+    /**
+     * Marks a successfully installed group as logically uninstalled. The caller must first
+     * deactivate every owned runtime handle and verify that none remain active.
+     *
+     * The stable ID may be installed again after this transition. SKIPPED, FAILED, and
+     * INSTALLING entries cannot be converted to UNINSTALLED.
+     */
+    fun markUninstalled(id: String?): Boolean {
+        requireId(id)
+        val entry = entries[id!!] ?: return false
+        synchronized(entry) {
+            if (entry.state != State.INSTALLED) return false
+            entry.state = State.UNINSTALLED
+            entry.completedAtMillis = System.currentTimeMillis()
+            entry.detail = "logical hooks uninstalled"
+            return true
+        }
+    }
+
+    /**
+     * Completes cleanup of a FAILED install after the caller has deactivated every partial
+     * runtime handle and verified that none remain. This is deliberately separate from
+     * markUninstalled(), which is reserved for a successfully INSTALLED group.
+     */
+    fun markFailedInstallCleaned(id: String?): Boolean {
+        requireId(id)
+        val entry = entries[id!!] ?: return false
+        synchronized(entry) {
+            if (entry.state != State.FAILED) return false
+            entry.state = State.UNINSTALLED
+            entry.completedAtMillis = System.currentTimeMillis()
+            entry.detail = "failed install cleaned up"
+            return true
         }
     }
 
@@ -83,7 +133,7 @@ class FeatureHookInstallRegistry {
         requireId(id)
         val entry = entries.computeIfAbsent(id!!) { Entry() }
         synchronized(entry) {
-            if (entry.state == State.INSTALLED) return
+            if (entry.state == State.INSTALLED || entry.state == State.INSTALLING) return
             entry.state = State.SKIPPED
             entry.completedAtMillis = System.currentTimeMillis()
             entry.detail = reason ?: ""
@@ -95,7 +145,8 @@ class FeatureHookInstallRegistry {
         requireId(id)
         val entry = entries.computeIfAbsent(id!!) { Entry() }
         synchronized(entry) {
-            if (entry.state == State.INSTALLED || entry.state == State.SKIPPED) return
+            if (entry.state == State.INSTALLED || entry.state == State.SKIPPED
+                || entry.state == State.INSTALLING) return
             entry.state = State.DEGRADED
             entry.completedAtMillis = System.currentTimeMillis()
             entry.detail = failure?.let(::describe) ?: "best-effort installation incomplete"

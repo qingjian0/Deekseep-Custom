@@ -20,10 +20,19 @@ grep -q 'recordBuilt(chain.proceed(args)' "$CHAT"
 grep -q 'recordTransport(request, m)' "$CHAT"
 grep -q 'recordTransportResult(reqObj, r, m)' "$CHAT"
 grep -q 'wrapFlowCollector(' "$ROOT/module/src/ds/dsh/DeepSeek/HookAttachmentPipeline.java"
-grep -q 'self, collector, q03' "$ROOT/module/src/ds/dsh/DeepSeek/HookAttachmentPipeline.java"
+grep -q 'self, collector, q03, (Method) chain.getExecutable()' "$ROOT/module/src/ds/dsh/DeepSeek/HookAttachmentPipeline.java"
 grep -q 'collectorType.isInterface()' "$OBSERVER"
+grep -q 'UNSUPPORTED_COLLECTOR_TYPE' "$OBSERVER"
+grep -q 'recordCoverage(collectMethod' "$OBSERVER"
 grep -q '"emit".equals(method.getName())' "$OBSERVER"
-grep -q 'recordResponseReceived(key, method)' "$OBSERVER"
+grep -q 'recordResponseParserCoverage' "$OBSERVER"
+grep -q 'UNSUPPORTED_NON_SUSPEND_COLLECTOR' "$OBSERVER"
+if grep -q 'Proxy.newProxyInstance\|InvocationHandler\|recordResponseReceived' "$OBSERVER"; then
+  echo "ROI observer must not proxy or replace host FlowCollector identity" >&2
+  exit 1
+fi
+grep -q 'UNSUPPORTED_RESPONSE_PARSER_CORRELATION' "$OBSERVER"
+grep -q 'recordResponseParserCoverage' "$CHAT"
 grep -q 'rethrowFatal(ignored)' "$OBSERVER"
 grep -q 'RoiRuntimeInvocationObserver.initialize()' "$MAIN"
 
@@ -34,7 +43,7 @@ grep -q 'findSuspendingEmit(collectorType)' "$OBSERVER"
 grep -q 'UNSUPPORTED_SUSPEND_COLLECTOR' "$OBSERVER"
 grep -q 'recordCoverage(' "$OBSERVER"
 grep -q 'snapshotCoverage()' "$OBSERVER"
-grep -q 'Preserve collector identity' "$OBSERVER"
+grep -q 'Never replace the host collector' "$OBSERVER"
 # SSE event construction and session-message replacement are not request-correlated parser evidence.
 if grep -q 'Phase.RESPONSE_PARSED' "$CHAT"; then
   echo "Uncorrelated RESPONSE_PARSED event must not be emitted from HookChatPipeline" >&2
@@ -57,7 +66,6 @@ grep -q 'testDisabledCoverageIsNotReported' "$ROOT/module/tests/roiruntime/ds/ds
 # Runtime evidence must be bound to the exact process-local class-loader scope.
 grep -q 'RoiCandidateIdentity.forClassLoader(constructor.getDeclaringClass().getClassLoader())' "$OBSERVER"
 grep -q 'RoiCandidateIdentity.forClassLoader(method.getDeclaringClass().getClassLoader())' "$OBSERVER"
-grep -q 'RoiCandidateIdentity.forClassLoader(emitMethod.getDeclaringClass().getClassLoader())' "$OBSERVER"
 grep -q 'candidateSourceScope.equals(item.sourceScope)' "$ROOT/module/src/ds/dsh/DeepSeek/RoiDexKitDiscovery.java"
 grep -q 'builtScope.equals(event.sourceScope)' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
 grep -q 'transportScope.equals(event.sourceScope)' "$ROOT/module/src/ds/dsh/DeepSeek/RoiRuntimeInvocationRecorder.java"
@@ -94,4 +102,7 @@ DISCOVERY="$ROOT/module/src/ds/dsh/DeepSeek/RoiDexKitDiscovery.java"
 grep -q 'otherClassLoaderScopeEvidenceEntries' "$DISCOVERY"
 grep -q 'otherClassLoaderScopeCoverageEntries' "$DISCOVERY"
 grep -q 'exactScopeCoverage.unsupportedSuspendCollector' "$DISCOVERY"
+grep -q 'exactScopeCoverage.unsupportedCollectorType' "$DISCOVERY"
+grep -q 'exactScopeCoverage.unsupportedNonSuspendCollector' "$DISCOVERY"
+grep -q 'exactScopeCoverage.unsupportedResponseParserCorrelation' "$DISCOVERY"
 grep -q 'candidateSourceScope.startsWith("loader:")' "$DISCOVERY"

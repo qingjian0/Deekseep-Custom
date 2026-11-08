@@ -160,7 +160,7 @@ public final class RoiDexApkCli {
         }
         // Hop 1: include in-DEX helpers called directly by string/field anchor methods.
         for (RoiDexCandidateEvidence.MethodEvidence method : seedEvidence.methods) {
-            for (String callee : method.invokes) {
+            for (String callee : method.reachableInvokes) {
                 if (expandedMethods.size() >= MAX_FIRST_HOP_METHODS) break;
                 if (definedMethods.contains(callee) && expandedMethods.add(callee)) {
                     directCalleeMethods.add(callee);
@@ -197,7 +197,7 @@ public final class RoiDexApkCli {
         for (String callerKey : orderedDirectCallees) {
             RoiDexCandidateEvidence.MethodEvidence method = firstHopByKey.get(callerKey);
             if (method == null) continue;
-            for (String callee : method.invokes) {
+            for (String callee : method.reachableInvokes) {
                 if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;
                 if (definedMethods.contains(callee) && expandedMethods.add(callee)) {
                     transitiveCalleeMethods.add(callee);
@@ -234,7 +234,7 @@ public final class RoiDexApkCli {
                 if (callerKey.equals(candidate.methodKey)) { method = candidate; break; }
             }
             if (method == null) continue;
-            for (String callee : method.invokes) {
+            for (String callee : method.reachableInvokes) {
                 // Reserve bounded capacity for hops 4, 5, and 6 so broad helper fan-out
                 // cannot starve transport callbacks such as Lirc.a(...) and Lmmc.d(...).
                 if (expandedMethods.size() >= MAX_ANALYSIS_METHODS - MAX_FOURTH_HOP_RESERVE - MAX_FIFTH_HOP_RESERVE - MAX_SIXTH_HOP_RESERVE) break;
@@ -271,7 +271,7 @@ public final class RoiDexApkCli {
                 if (callerKey.equals(candidate.methodKey)) { method = candidate; break; }
             }
             if (method == null) continue;
-            for (String callee : method.invokes) {
+            for (String callee : method.reachableInvokes) {
                 if (expandedMethods.size() >= MAX_ANALYSIS_METHODS - MAX_FIFTH_HOP_RESERVE - MAX_SIXTH_HOP_RESERVE) break;
                 if (definedMethods.contains(callee) && expandedMethods.add(callee)) {
                     fourthLevelCalleeMethods.add(callee);
@@ -307,7 +307,7 @@ public final class RoiDexApkCli {
                 if (callerKey.equals(candidate.methodKey)) { method = candidate; break; }
             }
             if (method == null) continue;
-            for (String callee : method.invokes) {
+            for (String callee : method.reachableInvokes) {
                 if (expandedMethods.size() >= MAX_ANALYSIS_METHODS - MAX_SIXTH_HOP_RESERVE) break;
                 if (definedMethods.contains(callee) && expandedMethods.add(callee)) {
                     fifthLevelCalleeMethods.add(callee);
@@ -340,7 +340,7 @@ public final class RoiDexApkCli {
                 if (callerKey.equals(candidate.methodKey)) { method = candidate; break; }
             }
             if (method == null) continue;
-            for (String callee : method.invokes) {
+            for (String callee : method.reachableInvokes) {
                 if (expandedMethods.size() >= MAX_ANALYSIS_METHODS) break;
                 if (definedMethods.contains(callee) && expandedMethods.add(callee)) {
                     sixthLevelCalleeMethods.add(callee);
@@ -433,7 +433,7 @@ public final class RoiDexApkCli {
                 }
             });
             for (RoiDexCandidateEvidence.MethodEvidence method : crossDexCallers) {
-                for (String callee : method.invokes) {
+                for (String callee : method.reachableInvokes) {
                     RoiDexFileReader.DexFile targetDex = crossDexByMethod.get(callee);
                     if (targetDex == null || crossSelectedCount >= MAX_CROSS_DEX_METHODS) continue;
                     Set<String> targetSelection = crossDexSelections.get(targetDex);
@@ -548,6 +548,9 @@ public final class RoiDexApkCli {
             out.append(",\"invokes_complete\":")
                     .append(method.invokeAnalysisFailure.length() == 0);
             out.append(",\"invokes\":").append(stringArray(method.invokes));
+            out.append(",\"reachable_invokes\":").append(stringArray(method.reachableInvokes));
+            out.append(",\"unreachable_invokes\":").append(stringArray(method.unreachableInvokes));
+            out.append(",\"invoke_reachability_complete\":").append(method.invokeReachabilityComplete);
             if (method.analysis != null) {
                 out.append(",\"exception_edges_included\":")
                         .append(method.analysis.exceptionEdgesIncluded);

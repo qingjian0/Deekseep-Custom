@@ -213,7 +213,34 @@ public final class HostCompatRegressionTest {
                 "2.3.6 dynamic message accessor shift");
         equals("A", HostCompat.staticMessageField(new ew(), "z"),
                 "2.3.6 static message field shift");
+        setV275StaticOnly();
+        equals("2.7.5/code295-static-only", HostCompat.generationName(),
+                "2.7.5 must be identified as static-only");
+        check(HostCompat.isV275StaticOnly(), "2.7.5 static-only marker");
+        check(HostCompat.diagnosticSummary().contains("channel=unknown"),
+                "2.7.5 distribution channel must not be inferred from missing legacy markers");
+        equals("", HostCompat.reviewedDistributionChannel(),
+                "unverified 2.7.5 channel must block ROI identity capture");
+        check(!HostCompat.supportsMaintainedFeatureRuntime(),
+                "2.7.5 static reconnaissance must not authorize legacy feature hooks");
+        check(!HostCompat.supportsHostVersionName("2.7.5"),
+                "2.7.5 remains unsupported until exact build identity and HookSpecs are reviewed");
         System.out.println("Host compatibility regression tests passed");
+    }
+
+    private static void setV275StaticOnly() throws Exception {
+        setBoolean("initialized", true);
+        setBoolean("v230", false);
+        setBoolean("v234", false);
+        setBoolean("v236", false);
+        setBoolean("v241", false);
+        setBoolean("v250", false);
+        setBoolean("v275StaticOnly", true);
+        setBoolean("v271", false);
+        setBoolean("googlePlay", false);
+        Field hostCode = HostCompat.class.getDeclaredField("hostCode");
+        hostCode.setAccessible(true);
+        hostCode.setInt(null, 0);
     }
 
     private static void setV230(boolean enabled) throws Exception {

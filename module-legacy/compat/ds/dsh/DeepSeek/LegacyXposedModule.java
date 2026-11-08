@@ -249,6 +249,8 @@ abstract class LegacyXposedModule {
         private final CopyOnWriteArrayList<Hooker> hookers =
                 new CopyOnWriteArrayList<Hooker>();
         private final Set<String> scopedRegistrations = new HashSet<String>();
+        private final java.util.IdentityHashMap<Hooker, String> scopedRegistrationKeys =
+                new java.util.IdentityHashMap<Hooker, String>();
         private boolean registered;
         // XposedBridge implementations may publish a callback in their per-Member callback
         // registry before native hook installation completes. If hookMethod then throws, a
@@ -259,7 +261,16 @@ abstract class LegacyXposedModule {
 
         HookTarget(Member member) { this.member = member; }
 
-        synchronized void intercept(final Hooker hooker) {
+        void intercept(final Hooker hooker) {
+            interceptInternal(hooker, false);
+        }
+
+        synchronized boolean interceptAndReport(final Hooker hooker) {
+            return interceptInternal(hooker, true);
+        }
+
+        private synchronized boolean interceptInternal(final Hooker hooker,
+                                                        boolean removable) {
             if (hooker == null) throw new NullPointerException("hooker");
             if (registrationFailure != null) {
                 throw new IllegalStateException(
@@ -272,15 +283,16 @@ abstract class LegacyXposedModule {
                 // Replaying a completed occurrence in a fresh retry scope must still advance
                 // that scope's ordinal; otherwise a later same-class occurrence aliases it.
                 scope.commitKey(member, hooker);
-                return;
+                return false;
             }
             hookers.add(hooker);
             if (registered) {
                 if (registrationKey != null) {
                     scopedRegistrations.add(registrationKey);
+                    if (removable) scopedRegistrationKeys.put(hooker, registrationKey);
                     scope.commitKey(member, hooker);
                 }
-                return;
+                return true;
             }
             // Run after ordinary before callbacks, then publish our result so their matching
             // after callbacks still execute. A highest-priority replacement would silently
@@ -334,11 +346,81 @@ abstract class LegacyXposedModule {
             registered = true;
             if (registrationKey != null) {
                 scopedRegistrations.add(registrationKey);
+                if (removable) scopedRegistrationKeys.put(hooker, registrationKey);
                 scope.commitKey(member, hooker);
             }
             RawHookTrace.registered(member);
             JavaPluginRuntimeBridge.registered(member);
+            return true;
         }
+
+        synchronized void remove(Hooker hooker) {
+            if (hooker == null) return;
+            String registrationKey = scopedRegistrationKeys.get(hooker);
+            if (registrationKey != null) scopedRegistrations.remove(registrationKey);
+            scopedRegistrationKeys.remove(hooker);
+            hookers.remove(hooker);
+        }
+    }
+
+    /**
+     * Adapts the universal runtime to the existing per-Member callback chain. This deliberately
+     * does not call XposedBridge.hookMethod directly: HookTarget owns the single native callback
+     * and preserves ordering, original-call, argument and exception semantics for all features.
+     *
+     * Unhook disables this logical callback. The shared native Xposed callback remains installed
+     * while the process lives because removing it would also remove unrelated callbacks on the
+     * same Member.
+     */
+    final RoiUniversalHookRuntime.Backend universalHookBackend() {
+        return new RoiUniversalHookRuntime.Backend() {
+            @Override public RoiUniversalHookRuntime.Handle install(
+                    final RoiUniversalHookRuntime.Target target,
+                    final RoiUniversalHookRuntime.Callback callback) {
+                if (target == null || target.member == null || callback == null) {
+                    throw new IllegalArgumentException("target and callback are required");
+                }
+                final java.util.concurrent.atomic.AtomicBoolean enabled =
+                        new java.util.concurrent.atomic.AtomicBoolean(false);
+                final HookTarget hookTarget = hook(target.member);
+                final Hooker universalHooker = new Hooker() {
+                    @Override public Object intercept(Chain chain) throws Throwable {
+                        if (!enabled.get()) return chain.proceed();
+                        RoiUniversalHookRuntime.Invocation invocation =
+                                new RoiUniversalHookRuntime.Invocation(
+                                        target.member, chain.getThisObject(),
+                                        chain.getArgs().toArray(new Object[0]));
+                        callback.before(invocation);
+                        if (!invocation.skipOriginal && invocation.throwable == null) {
+                            try {
+                                invocation.result = chain.proceed(invocation.args);
+                            } catch (Throwable originalFailure) {
+                                invocation.throwable = originalFailure;
+                            }
+                        }
+                        callback.after(invocation);
+                        if (invocation.throwable != null) throw invocation.throwable;
+                        return invocation.result;
+                    }
+                    @Override public boolean isRequired() { return target.spec.required; }
+                };
+                final RoiUniversalHookRuntime.Handle handle =
+                        new RoiUniversalHookRuntime.Handle() {
+                            @Override public void unhook() {
+                                enabled.set(false);
+                                hookTarget.remove(universalHooker);
+                            }
+                        };
+                if (!hookTarget.interceptAndReport(universalHooker)) {
+                    throw new IllegalStateException(
+                            "universal interceptor registration was already present for " + target.member);
+                }
+                // Activate only after HookTarget confirms successful registration.
+                // A partially published Xposed callback remains a disabled pass-through.
+                enabled.set(true);
+                return handle;
+            }
+        };
     }
 
     HookTarget hook(Member member) {

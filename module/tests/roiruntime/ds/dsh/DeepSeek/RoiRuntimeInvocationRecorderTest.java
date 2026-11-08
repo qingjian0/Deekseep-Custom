@@ -22,6 +22,7 @@ public final class RoiRuntimeInvocationRecorderTest {
         testSanitizedEvidenceSnapshot();
         testSameDescriptorDifferentLoaderScopesRemainDistinct();
         testCrossLoaderPhasesDoNotConfirm();
+        testEvidenceFlagsStayWithinClassLoaderScope();
         testDisabledAndExpiredEvidenceSnapshotsAreEmpty();
         testCoverageDiagnosticsAreBoundedSanitizedAndExpire();
         testDisabledCoverageIsNotReported();
@@ -241,8 +242,49 @@ public final class RoiRuntimeInvocationRecorderTest {
                 "loader:process-1:HostLoader", "LResp;->emit()V",
                 RoiRuntimeInvocationRecorder.Phase.RESPONSE_RECEIVED, 120, 3,
                 RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 120);
-        check(!r.snapshotChains(120).get(0).confirmsRequestTransportResponse(),
-                "cross-loader phases incorrectly confirmed one scoped chain");
+        for (RoiRuntimeInvocationRecorder.Chain chain : r.snapshotChains(120)) {
+            check(!chain.confirmsRequestTransportResponse(),
+                    "cross-loader phases incorrectly confirmed one scoped chain");
+        }
+    }
+
+    private static void testEvidenceFlagsStayWithinClassLoaderScope() {
+        RoiRuntimeInvocationRecorder r = recorder(8, 1000);
+        String key = "same-request-key-multiple-loaders";
+        String adapter = "adapter:generation-27:mainland";
+        String trustedScope = "loader:process-1:HostLoader";
+        String unrelatedScope = "loader:process-2:HostLoader";
+
+        r.record(new RoiRuntimeInvocationRecorder.Event(key, adapter, trustedScope,
+                "LReq;->build()V", RoiRuntimeInvocationRecorder.Phase.REQUEST_BUILT,
+                100, 1, RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 100);
+        r.record(new RoiRuntimeInvocationRecorder.Event(key, adapter, trustedScope,
+                "LNet;->execute()V", RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED,
+                110, 2, RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 110);
+        r.record(new RoiRuntimeInvocationRecorder.Event(key, adapter, unrelatedScope,
+                "LDecoy;->observe()V", RoiRuntimeInvocationRecorder.Phase.TRANSPORT_ENTERED,
+                115, 4, RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 115);
+        r.record(new RoiRuntimeInvocationRecorder.Event(key, adapter, trustedScope,
+                "LResp;->receive()V", RoiRuntimeInvocationRecorder.Phase.RESPONSE_RECEIVED,
+                120, 3, RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), 120);
+
+        List<RoiRuntimeInvocationRecorder.EvidenceSnapshot> snapshots = r.snapshotEvidence(120);
+        check(snapshots.size() == 4, "all per-scope evidence entries must remain visible");
+        boolean sawUnrelatedScope = false;
+        for (RoiRuntimeInvocationRecorder.EvidenceSnapshot item : snapshots) {
+            if (unrelatedScope.equals(item.sourceScope)) {
+                sawUnrelatedScope = true;
+                check(!item.orderedRequestTransportResponse,
+                        "unrelated ClassLoader inherited another scope's confirmed chain");
+                check(!item.orderedParsedResponse,
+                        "unrelated ClassLoader inherited another scope's parsed-chain flag");
+            } else {
+                check(trustedScope.equals(item.sourceScope), "unexpected evidence scope");
+                check(item.orderedRequestTransportResponse,
+                        "valid same-scope request/transport/response chain lost confirmation");
+            }
+        }
+        check(sawUnrelatedScope, "unrelated ClassLoader evidence was dropped");
     }
 
     private static void testDisabledAndExpiredEvidenceSnapshotsAreEmpty() {
@@ -258,18 +300,27 @@ public final class RoiRuntimeInvocationRecorderTest {
     }
 
     private static void testCoverageDiagnosticsAreBoundedSanitizedAndExpire() {
-        RoiRuntimeInvocationRecorder r = recorder(2, 50);
-        check(r.recordCoverage(HOST, "loader:process-1:HostLoader", "LFlow;->emit(Lkotlin/coroutines/Continuation;)Ljava/lang/Object;",
+        RoiRuntimeInvocationRecorder r = recorder(3, 50);
+        check(r.recordCoverage(HOST, "loader:process-1:HostLoader", "Lb41;->b(Lq03;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;",
                 RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_SUSPEND_COLLECTOR, 100),
                 "unsupported suspend coverage rejected");
-        check(r.recordCoverage(HOST, "loader:process-1:HostLoader", "LFlow;->emit()V",
-                RoiRuntimeInvocationRecorder.CoverageStatus.RESPONSE_OBSERVED, 101),
-                "observed coverage rejected");
-        List<RoiRuntimeInvocationRecorder.CoverageSnapshot> items = r.snapshotCoverage(101);
-        check(items.size() == 2, "coverage diagnostics missing");
+        check(r.recordCoverage(HOST, "loader:process-1:HostLoader", "LParser;->rebuild(Ljava/lang/Object;)Lmv;",
+                RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_RESPONSE_PARSER_CORRELATION, 101),
+                "uncorrelated parser coverage rejected");
+        check(r.recordCoverage(HOST, "loader:process-1:HostLoader", "Lb41;->b(Lq03;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;",
+                RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_NON_SUSPEND_COLLECTOR, 102),
+                "unsupported non-suspend coverage rejected");
+        List<RoiRuntimeInvocationRecorder.CoverageSnapshot> items = r.snapshotCoverage(102);
+        check(items.size() == 3, "coverage diagnostics missing");
         check(items.get(0).status
                 == RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_SUSPEND_COLLECTOR,
                 "unsupported suspend status lost");
+        check(items.get(1).status
+                == RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_RESPONSE_PARSER_CORRELATION,
+                "uncorrelated parser status lost");
+        check(items.get(2).status
+                == RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_NON_SUSPEND_COLLECTOR,
+                "unsupported non-suspend status lost");
         for (Field field : RoiRuntimeInvocationRecorder.CoverageSnapshot.class.getDeclaredFields()) {
             check(!field.getName().toLowerCase(java.util.Locale.ROOT).contains("requestkey"),
                     "coverage diagnostics expose request key");
@@ -280,7 +331,7 @@ public final class RoiRuntimeInvocationRecorderTest {
         } catch (UnsupportedOperationException expected) {
             // immutable coverage contract
         }
-        check(r.snapshotCoverage(152).isEmpty(), "expired coverage diagnostics remained visible");
+        check(r.snapshotCoverage(153).isEmpty(), "expired coverage diagnostics remained visible");
         r.recordCoverage(HOST, "loader:process-1:HostLoader", "LFlow;->emit()V",
                 RoiRuntimeInvocationRecorder.CoverageStatus.RESPONSE_OBSERVED, 200);
         r.clear();

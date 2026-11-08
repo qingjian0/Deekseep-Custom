@@ -3,9 +3,6 @@ package ds.dsh.DeepSeek;
 import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Proxy;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -149,58 +146,36 @@ final class RoiRuntimeInvocationObserver {
     }
 
     static Object wrapFlowCollector(final Object flow, final Object collector,
-                                    Class<?> collectorType) {
+                                    Class<?> collectorType, Method collectMethod) {
         try {
             RoiRuntimeInvocationRecorder active = recorder;
-            if (flow == null || collector == null || collectorType == null
-                    || !collectorType.isInterface() || !collectorType.isInstance(collector)
+            if (flow == null || collectMethod == null
                     || active == null || !activeEnabled(active)) return collector;
-            final String key;
+            final String requestKey;
             synchronized (FLOW_REQUEST_KEYS) {
                 pruneFlowBindings(System.currentTimeMillis());
-                key = FLOW_REQUEST_KEYS.get(flow);
+                requestKey = FLOW_REQUEST_KEYS.get(flow);
             }
-            if (key == null) return collector;
-            // Kotlin FlowCollector.emit is a suspend method. Preserve collector identity and
-            // record the exact unsupported capability instead of silently losing coverage.
-            Method suspendingEmit = findSuspendingEmit(collectorType);
-            if (suspendingEmit != null) {
-                recordCoverage(suspendingEmit, RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_SUSPEND_COLLECTOR);
+            if (requestKey == null) return collector;
+            // Never replace the host collector. Proxy identity can affect equality, buffering,
+            // operator fusion, and coroutine ownership even when emit is not suspend-shaped.
+            if (collector == null || collectorType == null
+                    || !collectorType.isInterface() || !collectorType.isInstance(collector)) {
+                recordCoverage(collectMethod,
+                        RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_COLLECTOR_TYPE);
                 return collector;
             }
-            ClassLoader loader = collectorType.getClassLoader();
-            if (loader == null) loader = collector.getClass().getClassLoader();
-            return Proxy.newProxyInstance(loader, new Class<?>[]{collectorType},
-                    new InvocationHandler() {
-                        @Override public Object invoke(Object proxy, Method method, Object[] args)
-                                throws Throwable {
-                            if (method.getDeclaringClass() == Object.class) {
-                                if ("equals".equals(method.getName())) {
-                                    return Boolean.valueOf(proxy == (args == null ? null : args[0]));
-                                }
-                                if ("hashCode".equals(method.getName())) {
-                                    return Integer.valueOf(System.identityHashCode(proxy));
-                                }
-                                if ("toString".equals(method.getName())) {
-                                    return "RoiObservedFlowCollector";
-                                }
-                            }
-                            try {
-                                Object result = method.invoke(collector, args);
-                                if ("emit".equals(method.getName()) && args != null
-                                        && args.length > 0
-                                        && !hasContinuationParameter(method)) {
-                                    // A Kotlin suspend emit may return COROUTINE_SUSPENDED before
-                                    // delivery completes. Without observing continuation success,
-                                    // that return is not response-receipt evidence.
-                                    recordResponseReceived(key, method);
-                                }
-                                return result;
-                            } catch (InvocationTargetException error) {
-                                throw error.getCause() == null ? error : error.getCause();
-                            }
-                        }
-                    });
+            Method suspendingEmit = findSuspendingEmit(collectorType);
+            if (suspendingEmit != null) {
+                recordCoverage(collectMethod,
+                        RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_SUSPEND_COLLECTOR);
+                return collector;
+            }
+            // A non-suspending collector is also left untouched until its identity and lifecycle
+            // contract are reviewed on-device. This records the gap without inventing receipt.
+            recordCoverage(collectMethod,
+                    RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_NON_SUSPEND_COLLECTOR);
+            return collector;
         } catch (Throwable ignored) {
             rethrowFatal(ignored);
             return collector;
@@ -212,6 +187,16 @@ final class RoiRuntimeInvocationObserver {
             if ("emit".equals(method.getName()) && hasContinuationParameter(method)) return method;
         }
         return null;
+    }
+
+    /**
+     * Records that the host response parser ran, but deliberately does not claim it belongs to
+     * a request: vv7.e has no proven request/Flow identity parameter at this boundary.
+     */
+    static void recordResponseParserCoverage(Method parserMethod) {
+        if (parserMethod == null) return;
+        recordCoverage(parserMethod,
+                RoiRuntimeInvocationRecorder.CoverageStatus.UNSUPPORTED_RESPONSE_PARSER_CORRELATION);
     }
 
     private static void recordCoverage(Method method,
@@ -232,29 +217,6 @@ final class RoiRuntimeInvocationObserver {
             if ("kotlin.coroutines.Continuation".equals(parameter.getName())) return true;
         }
         return false;
-    }
-
-    private static void recordResponseReceived(String key, Method emitMethod) {
-        try {
-            RoiRuntimeInvocationRecorder active = recorder;
-            if (active == null || !activeEnabled(active)) return;
-            long now = System.currentTimeMillis();
-            boolean recorded = active.record(new RoiRuntimeInvocationRecorder.Event(key, hostFingerprint,
-                    RoiCandidateIdentity.forClassLoader(emitMethod.getDeclaringClass().getClassLoader()),
-                    methodDescriptor(emitMethod),
-                    RoiRuntimeInvocationRecorder.Phase.RESPONSE_RECEIVED, now,
-                    Thread.currentThread().getId(),
-                    RoiRuntimeInvocationRecorder.Source.TRUSTED_EXISTING_CALLBACK), now);
-            if (recorded) {
-                active.recordCoverage(hostFingerprint,
-                        RoiCandidateIdentity.forClassLoader(emitMethod.getDeclaringClass().getClassLoader()),
-                        methodDescriptor(emitMethod),
-                        RoiRuntimeInvocationRecorder.CoverageStatus.RESPONSE_OBSERVED, now);
-            }
-        } catch (Throwable ignored) {
-            rethrowFatal(ignored);
-            // Response observation is strictly best effort.
-        }
     }
 
     private static void rethrowFatal(Throwable error) {
