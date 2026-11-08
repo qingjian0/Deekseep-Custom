@@ -107,8 +107,15 @@ final class NativeV275RuntimeProbe {
     }
 
     private static void log(String event) {
-        if (Main.isOpenNativeCompletionProbeEnabled()) {
+        if (!Main.isOpenNativeCompletionProbeEnabled()) return;
+        try {
             OpenNativeCompletionProbe.apiTrace("[NATIVE_V275_RUNTIME_PROBE] " + event);
+        } catch (VirtualMachineError fatal) {
+            throw fatal;
+        } catch (ThreadDeath fatal) {
+            throw fatal;
+        } catch (Throwable ignored) {
+            // Log I/O and formatting failures must not affect host execution or hook registration.
         }
     }
 
