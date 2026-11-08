@@ -936,6 +936,7 @@ Session bootstrap 的 `ch2.b -> bi5.e` 与 completion request 的 `jw3.g -> y60`
 - 使用 ReferenceQueue + identity-based weak reference，按对象身份而不是 equals() 关联；Flow 被释放后映射自动清理，不长期持有宿主 Flow。
 - y60.b collector 观察点记录 Flow 的 identity hash 与原始 flowTraceId，使跨线程收集事件能够回溯到产生该 Flow 的请求观察帧。
 - 每个返回的 Flow 都会登记；Continuation Hook 仍只对已确认的具体 Flow 实现类安装一次。
+- 每次显式重启诊断会话时清空旧 Flow 关联，避免旧请求 ID 与新会话的 ID 重用造成跨会话误关联。
 - 不读取 Request 字段值、Prompt、消息内容、Token、Cookie、Authorization、PoW 或 Challenge 响应。
 - 报告 schema 更新为 7；新增 source-only 回归脚本 module/test-open-native-flow-correlation.sh 并接入主 CI。
 
