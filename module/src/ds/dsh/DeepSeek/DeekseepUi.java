@@ -3298,7 +3298,20 @@ public final class DeekseepUi {
                 if (floatingStatus != null) floatingStatus.setText(UiLanguage.dynamic(
                         act, Main.localApiFloatingWindowStatus()));
                 connectionInfo.setText(UiLanguage.dynamic(act, Main.localApiConnectionInfo()));
-                runtime.setText(UiLanguage.dynamic(act, Main.localApiRuntimeStatus()));
+                String runtimeStatus = Main.localApiRuntimeStatus();
+                runtime.setText(UiLanguage.dynamic(act, runtimeStatus));
+                CharSequence operationFeedback = feedback.getText();
+                if ("正在启动监听…".contentEquals(operationFeedback)) {
+                    if (runtimeStatus.startsWith("Running")) {
+                        feedback.setText(UiLanguage.dynamic(act, "监听已启动"));
+                    } else if (runtimeStatus.startsWith("Stopped")) {
+                        feedback.setText(UiLanguage.dynamic(act,
+                                "监听启动失败，请查看运行状态"));
+                    }
+                } else if ("服务已关闭，正在清理复用会话…".contentEquals(operationFeedback)
+                        && runtimeStatus.startsWith("Stopped")) {
+                    feedback.setText(UiLanguage.dynamic(act, "监听已停止"));
+                }
                 runtime.postDelayed(this, 1000L);
             }
         };
