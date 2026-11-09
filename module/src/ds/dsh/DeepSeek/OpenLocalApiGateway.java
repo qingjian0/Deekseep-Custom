@@ -1640,6 +1640,8 @@ final class OpenLocalApiGateway {
                 new java.util.concurrent.atomic.AtomicInteger();
         final java.util.concurrent.atomic.AtomicInteger reasoningChars =
                 new java.util.concurrent.atomic.AtomicInteger();
+        LocalApiDiagnostics.stage(requestId, "response_delivery", "running", "",
+                "Streaming response to client");
         OpenNativeCompletionProbe.apiTrace("completion-start requestId=" + requestId
                 + " mode=stream");
         z2.DeltaSink sink = new z2.DeltaSink() {
@@ -1721,6 +1723,9 @@ final class OpenLocalApiGateway {
                 }
                 out.write("data: [DONE]\n\n".getBytes(StandardCharsets.UTF_8));
                 out.flush();
+                LocalApiDiagnostics.stage(requestId, "response_delivery", "succeeded", "",
+                        "SSE stream completed");
+                LocalApiDiagnostics.finish(requestId, "succeeded", "", "Completion stream finished");
                 OpenNativeCompletionProbe.apiTrace("stream-complete requestId=" + requestId
                         + " events=" + eventCount.get()
                         + " textChars=" + textChars.get()
@@ -1732,6 +1737,11 @@ final class OpenLocalApiGateway {
             boolean gatewayFailure = failure instanceof z2.GatewayException;
             z2.GatewayException traceRejected = gatewayFailure
                     ? (z2.GatewayException) failure : null;
+            LocalApiDiagnostics.finish(requestId,
+                    failure instanceof java.util.concurrent.CancellationException
+                            ? "cancelled" : "failed",
+                    gatewayFailure ? traceRejected.code : "upstream_error",
+                    failure.getClass().getSimpleName());
             OpenNativeCompletionProbe.apiTrace("stream-failed requestId=" + requestId
                     + " status=" + (gatewayFailure ? traceRejected.status : 502)
                     + " code=" + (gatewayFailure ? traceRejected.code : "upstream_error")
