@@ -184,7 +184,15 @@ gateway_checks = {
     "max_completion_tokens alias is supported": 'body.has("max_completion_tokens")' in source,
     "max_tokens accepts numeric strings from compatible clients": "raw instanceof String" in source and "new java.math.BigDecimal(value)" in source,
     "null max_tokens uses the gateway default": "rawMaxTokens == JSONObject.NULL" in source and "default=4096" in source,
-    "max_tokens above the supported ceiling is bounded": "requested.compareTo(java.math.BigDecimal.valueOf(8192L)) > 0" in source and "return 8192;" in source,
+    "max_tokens above the supported ceiling is rejected without silent clamping": (
+        "requested.compareTo(java.math.BigDecimal.valueOf(8192L)) > 0" in source
+        and "return -1;" in source.split("private static int normalizeMaxTokens", 1)[1].split(
+            "private static int estimateTokens", 1
+        )[0]
+        and "return 8192;" not in source.split("private static int normalizeMaxTokens", 1)[1].split(
+            "private static int estimateTokens", 1
+        )[0]
+    ),
     "fractional, zero and negative max_tokens remain invalid": "requested.signum() <= 0 || requested.stripTrailingZeros().scale() > 0" in source,
     "invalid max_tokens emits a typed diagnostic without logging its raw value": "rawType=" in source and "code=invalid_max_tokens" in source,
     "reasoning is returned in non-stream completions": 'message.put("reasoning_content", result.reasoning)' in source,
