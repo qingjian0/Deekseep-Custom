@@ -5,6 +5,7 @@
     android:versionName="1.8.0-port">
 
     <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="34" />
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
@@ -29,6 +30,7 @@
     </queries>
 
     <application
+        android:usesCleartextTraffic="true"
         android:label="Deekseep"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
