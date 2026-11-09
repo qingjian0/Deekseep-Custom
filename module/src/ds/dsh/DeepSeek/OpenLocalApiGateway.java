@@ -658,6 +658,7 @@ final class OpenLocalApiGateway {
             }
             boolean stream = body.optBoolean("stream", false);
             String maxTokenField = body.has("max_completion_tokens")
+                    && body.opt("max_completion_tokens") != JSONObject.NULL
                     ? "max_completion_tokens" : "max_tokens";
             int maxTokens = 4096;
             if (body.has(maxTokenField)) {
