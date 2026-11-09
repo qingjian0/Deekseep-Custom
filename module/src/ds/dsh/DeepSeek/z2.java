@@ -38,6 +38,9 @@ public final class z2 {
     public interface DeltaSink {
         /** Called once the native completion Flow has actually been entered. */
         public default void onUpstreamStarted() throws Exception {}
+        /** Value-free execution stage notification for live Local API diagnostics. */
+        public default void onStage(String stage, String status, String code, String detail)
+                throws Exception {}
         /** Return false when the client connection is gone and upstream collection should stop. */
         public boolean onText(String delta) throws Exception;
         public boolean onReasoning(String delta) throws Exception;
