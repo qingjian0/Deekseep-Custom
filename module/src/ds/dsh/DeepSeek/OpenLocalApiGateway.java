@@ -760,7 +760,8 @@ final class OpenLocalApiGateway {
             OpenNativeCompletionProbe.apiTrace("model-routing requestId=" + requestId
                     + " model=" + model + " backendPresent=" + (current != null));
             boolean ready = current != null && current.isReady();
-            LocalApiDiagnostics.stage(requestId, "backend_readiness", "succeeded", "",
+            LocalApiDiagnostics.stage(requestId, "backend_readiness",
+                    ready ? "succeeded" : "failed", ready ? "" : "model_not_ready",
                     "backend_present=" + (current != null) + " ready=" + ready);
             OpenNativeCompletionProbe.apiTrace("backend-readiness requestId=" + requestId
                     + " ready=" + ready);
