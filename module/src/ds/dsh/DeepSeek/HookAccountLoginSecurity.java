@@ -3341,6 +3341,9 @@ Main.log("[RISK] Android ID spoof installed");
             request = request.withClientSessionScope(
                     "local-api-" + request.requestId);
         }
+        if (HostCompat.isV275StaticOnly()) {
+            return Code295NativeCompletionAdapter.executeLocalApiCompletion(request, sink);
+        }
         try {
             Class<?> cls = z14.payloadClass(Main.hostApplicationContext, "ds.dsh.DeepSeek.z18");
             java.lang.reflect.Method m = cls == null ? null
