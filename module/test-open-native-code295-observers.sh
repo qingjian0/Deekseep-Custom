@@ -98,9 +98,19 @@ checks = {
     "Local API can install code295 capture hooks without the diagnostic toggle":
         "Main.isOpenNativeCompletionProbeEnabled() || Main.isLocalApiEnabled()" in source
         and "Main.isLocalApiEnabled())" in section("static void inspectHost", "private static void installCode295PowManagerObserver"),
-    "code295 PoW manager is captured at the host suspend boundary":
-        'owner.getDeclaredMethod("j", continuationType)' in source
-        and "Main.live275PowManager = chain.getThisObject()" in source,
+    "code295 PoW manager is captured only by its own suspend boundary observer":
+        'owner.getDeclaredMethod("j", continuationType)' in section(
+            "private static void installCode295PowManagerObserver",
+            "private static void installCode295PowObserver")
+        and "OBSERVATION_275_POW_MANAGER.compareAndSet(false, true)" in section(
+            "private static void installCode295PowManagerObserver",
+            "private static void installCode295PowObserver")
+        and "Main.live275PowManager = chain.getThisObject()" in section(
+            "private static void installCode295PowManagerObserver",
+            "private static void installCode295PowObserver")
+        and "Main.live275PowManager = chain.getThisObject()" not in section(
+            "private static void installCode295DeltaDispatchObserver",
+            "private static void installCode295PowManagerObserver"),
     "transport and sanitized request template are captured only while Local API is enabled":
         "Main.captureCode295NativeRuntime(chain.getThisObject(), requestArg)" in source
         and "if (!isLocalApiEnabled()) return;" in main
