@@ -11,7 +11,8 @@ Each event includes a monotonic sequence within the retained event list, stage, 
 
 The current code295 native stages are:
 
-1. `native_runtime` — captured runtime dependencies.
+1. `native_input_validation` — verify that the request uses capabilities supported by the adapter.
+2. `native_runtime` — captured runtime dependencies.
 2. `pow` — host PoW generation.
 3. `session_create` — temporary native chat session.
 4. `request_build` — clone and populate the native request template.
