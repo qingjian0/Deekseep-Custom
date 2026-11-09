@@ -587,7 +587,7 @@ final class OpenNativeCompletionProbe {
                 installCode295PowObserver(loader);
                 observerLog("[OPEN_NATIVE_CALL_OBSERVER] profile=2.7.5/code295"
                         + " mode=passive requestRoute=nw3.e(yu1,Long)->b70"
-                        + " staticEvidenceOnly=true runtimeConfirmed=false");
+                        + " staticEvidenceOnly=true runtimeConfirmed=pending");
                 return;
             }
             if (HostCompat.hostCode271() != 289) return;
@@ -939,6 +939,13 @@ final class OpenNativeCompletionProbe {
                                     + " thread=" + thread + " depth=" + depth + " args=" + args
                                     + " requestShape=" + observedObjectShape(requestArg)
                                     + " stack=" + observedStack());
+                            if ("transport-dispatch".equals(role)) {
+                                observerLog("[OPEN_NATIVE_CALL_OBSERVER] runtime-confirmed"
+                                        + " observationId=" + frame.id + " role=" + role
+                                        + " method=" + currentMethod + " requestType="
+                                        + (requestArg == null ? "null"
+                                                : requestArg.getClass().getName()));
+                            }
                         } else {
                             observerLog("[OPEN_NATIVE_CALL_OBSERVER] enter id=" + frame.id
                                     + " role=" + role + " method=" + currentMethod
@@ -986,7 +993,8 @@ final class OpenNativeCompletionProbe {
                                     + " parent=" + parentMethod
                                     + " sameRequestObjectAsRoot=" + sameRequestObjectAsRoot
                                     + " depth=" + depth + " exception="
-                                    + original.getClass().getName());
+                                    + original.getClass().getName()
+                                    + " stack=" + observedThrowableStack(original));
                         } catch (Throwable ignored) {}
                         throw original;
                     } finally {
