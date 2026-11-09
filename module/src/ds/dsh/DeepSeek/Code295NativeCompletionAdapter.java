@@ -145,9 +145,12 @@ final class Code295NativeCompletionAdapter {
             if (sessionId != null) {
                 stage(request.requestId, sink, "session_cleanup", "running", "",
                         "Deleting temporary native chat session");
-                deleteThrowawaySession(loader, transport, sessionId);
-                stage(request.requestId, sink, "session_cleanup", "succeeded", "",
-                        "Session cleanup attempted; cleanup endpoint is best-effort");
+                boolean cleaned = deleteThrowawaySession(loader, transport, sessionId);
+                stage(request.requestId, sink, "session_cleanup",
+                        cleaned ? "succeeded" : "failed",
+                        cleaned ? "" : "session_cleanup_failed",
+                        cleaned ? "Temporary session deleted"
+                                : "Temporary session deletion failed; best-effort cleanup");
             } else {
                 stage(request.requestId, sink, "session_cleanup", "skipped", "",
                         "No temporary session was created");
@@ -216,8 +219,8 @@ final class Code295NativeCompletionAdapter {
         }
     }
 
-    private static void deleteThrowawaySession(ClassLoader loader, Object transport,
-                                               String sessionId) {
+    private static boolean deleteThrowawaySession(ClassLoader loader, Object transport,
+                                                   String sessionId) {
         try {
             Object httpEngine = MainReflectionSupport.fieldByName(transport, "d");
             Class<?> engineType = Class.forName("gi5", false, loader);
@@ -236,8 +239,10 @@ final class Code295NativeCompletionAdapter {
             delete.setAccessible(true);
             HookAccountLoginSecurity.INSTANCE.driveSuspend(
                     loader, delete, service, new Object[]{deleteRequest});
+            return true;
         } catch (Throwable ignored) {
             // Session cleanup is best-effort and must not mask the completion result.
+            return false;
         }
     }
 
