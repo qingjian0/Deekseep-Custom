@@ -5,9 +5,12 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 GATEWAY="$ROOT/module/src/ds/dsh/DeepSeek/OpenLocalApiGateway.java"
 API_CONTRACT="$ROOT/module/src/ds/dsh/DeepSeek/z2.java"
 LOCAL_API_UI="$ROOT/module/src/ds/dsh/DeepSeek/DeekseepUi.java"
+LOCAL_API_OVERLAY="$ROOT/module/src/ds/dsh/DeepSeek/LocalApiFloatingOverlay.java"
 COMPOSE_MANIFEST="$ROOT/compose-launcher/app/src/main/AndroidManifest.xml"
 BUILD_GRADLE="$ROOT/compose-launcher/app/build.gradle.kts"
 for manifest in "$ROOT/module-universal/AndroidManifest.xml" "$ROOT/module-legacy/AndroidManifest.xml" "$COMPOSE_MANIFEST"; do
+    grep -Fq 'android.permission.INTERNET' "$manifest"
+    grep -Fq 'android:usesCleartextTraffic="true"' "$manifest"
     grep -Fq 'android.permission.ACCESS_NETWORK_STATE' "$manifest"
     grep -Fq 'android.permission.SYSTEM_ALERT_WINDOW' "$manifest"
     grep -Fq 'android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS' "$manifest"
@@ -28,7 +31,7 @@ grep -Fq -- '-keep class ds.dsh.DeepSeek.** { *; }' "$ROOT/compose-launcher/app/
 grep -Fq 'android:name="ds.dsh.DeepSeek.z21"' "$COMPOSE_MANIFEST"
 grep -Fq 'android:enabled="${localApiComponentEnabled}"' "$COMPOSE_MANIFEST"
 
-python - "$GATEWAY" "$LOCAL_API_UI" "$BUILD_GRADLE" "$API_CONTRACT" <<'PY'
+python - "$GATEWAY" "$LOCAL_API_UI" "$BUILD_GRADLE" "$API_CONTRACT" "$LOCAL_API_OVERLAY" <<'PY'
 import pathlib
 import re
 import sys
@@ -36,6 +39,7 @@ import sys
 source = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
 build_gradle = pathlib.Path(sys.argv[3]).read_text(encoding="utf-8")
 api_contract = pathlib.Path(sys.argv[4]).read_text(encoding="utf-8")
+overlay = pathlib.Path(sys.argv[5]).read_text(encoding="utf-8")
 if '(!protectedDistribution || localApiIncluded).toString()' not in build_gradle:
     raise SystemExit("Open builds must enable the declared Local API companion components")
 required = {
@@ -418,5 +422,17 @@ for forbidden in ("request.prompt", "sessionId", "powValue", "authorization", "c
         raise SystemExit("Diagnostics store must not contain sensitive request values: " + forbidden)
 if "public default void onStage(" not in api_contract:
     raise SystemExit("DeltaSink must expose stage callbacks for live stream diagnostics")
-print("LAN lifecycle, API protocol, value-free live diagnostics, and truthful Open capability checks passed")
+
+# The companion overlay must poll the authenticated loopback endpoints off the UI thread,
+# render stage/status/timing only, and support the exact 2.7.5/code295 host identity.
+for required in ("startDiagnosticsPolling()", "DIAGNOSTICS_EXECUTOR.execute(",
+                 "/v1/diagnostics/requests", "Authorization", "event.optString(\"stage\"",
+                 "event.optString(\"status\""):
+    if required not in overlay:
+        raise SystemExit("Floating console is missing live diagnostics UI behavior: " + required)
+if "code == 295L && \"2.7.5\".equals(info.versionName)" not in overlay:
+    raise SystemExit("Floating console must support the 2.7.5/code295 host")
+if "request.prompt" in overlay or "powValue" in overlay or "sessionId" in overlay:
+    raise SystemExit("Floating diagnostics UI must not expose prompt, PoW or session values")
+print("LAN lifecycle, API protocol, value-free diagnostics API and live floating-console checks passed")
 PY
