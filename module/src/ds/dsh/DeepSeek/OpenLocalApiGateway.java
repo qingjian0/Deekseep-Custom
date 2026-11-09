@@ -550,6 +550,13 @@ final class OpenLocalApiGateway {
                 supplied = bearer(request.headers.get("authorization"));
             }
             if (token == null || !constantTimeEquals(token, supplied)) {
+                String authRequestId = "auth-" + UUID.randomUUID().toString();
+                LocalApiDiagnostics.begin(authRequestId,
+                        anthropicRoute ? "anthropic_messages" : "openai", "authentication");
+                LocalApiDiagnostics.stage(authRequestId, "authentication", "failed",
+                        "invalid_api_key", "Credential rejected; supplied value is not retained");
+                LocalApiDiagnostics.finish(authRequestId, "failed", "invalid_api_key",
+                        "Authentication failed");
                 if (anthropicRoute) sendAnthropicError(out, 401, "authentication_error",
                         "Invalid API key");
                 else sendError(out, 401, "invalid_api_key", "Invalid bearer token");
@@ -748,8 +755,10 @@ final class OpenLocalApiGateway {
             JSONArray diagnosticMessages = body.optJSONArray("messages");
             LocalApiDiagnostics.inputShape(requestId, prompt.length(),
                     diagnosticMessages == null ? 1 : diagnosticMessages.length());
+            LocalApiDiagnostics.stage(requestId, "authentication", "succeeded", "",
+                    "Bearer credential accepted; credential value is not retained");
             LocalApiDiagnostics.stage(requestId, "http_validation", "succeeded", "",
-                    "HTTP request and authentication accepted");
+                    "HTTP request accepted");
             LocalApiDiagnostics.stage(requestId, "parameter_validation", "succeeded", "",
                     "Model, messages and generation options validated");
             OpenNativeCompletionProbe.apiTrace("request-accepted requestId=" + requestId
@@ -935,8 +944,10 @@ final class OpenLocalApiGateway {
         JSONArray diagnosticMessages = body.optJSONArray("messages");
         LocalApiDiagnostics.inputShape(requestId, normalized.prompt.length(),
                 diagnosticMessages == null ? 1 : diagnosticMessages.length());
+        LocalApiDiagnostics.stage(requestId, "authentication", "succeeded", "",
+                "Bearer credential accepted; credential value is not retained");
         LocalApiDiagnostics.stage(requestId, "http_validation", "succeeded", "",
-                "HTTP request and authentication accepted");
+                "HTTP request accepted");
         LocalApiDiagnostics.stage(requestId, "parameter_validation", "succeeded", "",
                 "Anthropic Messages input and generation options validated");
         z2.Backend current = backend;
@@ -1419,8 +1430,10 @@ final class OpenLocalApiGateway {
         LocalApiDiagnostics.begin(requestId, "openai_responses", stream ? "stream" : "non_stream");
         LocalApiDiagnostics.inputShape(requestId, prompt.length(),
                 rawInput instanceof JSONArray ? ((JSONArray) rawInput).length() : 1);
+        LocalApiDiagnostics.stage(requestId, "authentication", "succeeded", "",
+                "Anthropic API credential accepted; value is not retained");
         LocalApiDiagnostics.stage(requestId, "http_validation", "succeeded", "",
-                "HTTP request and authentication accepted");
+                "HTTP request accepted");
         LocalApiDiagnostics.stage(requestId, "parameter_validation", "succeeded", "",
                 "Responses input and generation options validated");
         z2.Backend current = backend;
