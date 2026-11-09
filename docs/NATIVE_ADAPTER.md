@@ -1193,3 +1193,40 @@ PoW 静态链包含 `nw3.c`、`of2`、`oq1`、`PowCalculator JNI` 与 `librscryp
 
 
 **静态证据纠偏：** 候选方法表中的 `pv1.a` 曾被粗略标记为 `sse_dispatch`，但更高置信度的 smali 调用链明确给出 `vs1.z → bia → t5.a → ev1 → r3.c(fv1, dc3) → DeltaCommand`。因此代码已改为观察 `r3.c(fv1, dc3)`，不再 Hook `pv1.a`；`pv1` 仅保留为上游 Flow 收集/适配相关类，不将其误称为最终 DeltaCommand dispatcher。
+
+
+## 2026-11-09 code295 / DeepSeek 2.7.5 source audit
+
+This section supersedes any assumption that the presence of `Code295NativeCompletionAdapter` means code295 is wired for execution. It is a source audit of the current `dev` tree, not a device-validation claim.
+
+### Confirmed dispatch and readiness gap
+
+- `HostCompat.initialize()` recognizes code295 only through the static markers `qy1`, `nw3`, `pv1`, and `b70`. The corresponding state is explicitly named `v275StaticOnly`; its comments say that no HostRemap table or reviewed ROI activation catalog exists and that hooks remain disabled.
+- `HookAccountLoginSecurity.executeLocalApiCompletion()` nevertheless dispatches requests in this state to `Code295NativeCompletionAdapter.executeLocalApiCompletion()`. This is an execution dispatch, not proof that its runtime dependencies are populated.
+- The adapter immediately requires all four values: `Main.hostClassLoader`, `Main.live275Transport`, `Main.live275PowManager`, and `Main.live275RequestTemplate`. If any is null, it returns HTTP 503 / `host_not_ready`.
+- `Main.captureCode295NativeRuntime(Object transport, Object request)` currently stores a transport and, for a request whose runtime class name is exactly `qy1`, stores a sanitized clone as the request template. It does **not** assign `live275PowManager`.
+- A repository-wide source check of the relevant runtime files found no call site for `captureCode295NativeRuntime` in `Main.java`, `HookChatPipeline.java`, or `HookAttachmentPipeline.java`. The method is currently an unconnected capture helper, not an installed Hook.
+- Therefore the adapter's readiness precondition cannot be satisfied by the visible code295 capture path. The current source does not establish a working 2.7.5 native completion route. A successful APK build or source-level CI run cannot change this conclusion.
+
+### Unverified symbols and contracts inside the adapter
+
+The adapter currently reflects the following code295-specific symbols/contracts: request class `qy1`; request fields `a` through `l`; transport marker `yu1`; transport method `e(yu1, Long)`; PoW method `j(ec3)`; session coroutine classes/methods `dc3`, `sz0(int, dc3, int)`, and `sz0.q(Object, Object)`; session cleanup types `gi5`, `hh2`, and `al2`; Flow suspended marker `hd3.a`; and cancellation Job class `c74(boolean)`.
+
+The static marker check (`qy1/nw3/pv1/b70`) does not by itself validate these additional symbols, field meanings, method descriptors, coroutine labels, endpoint behavior, or object relationships. In particular, the existing `HostCompat` legacy remap maps logical `c74` to `r94` for its older mapping family; that is not evidence that either name is correct for code295.
+
+### Coroutine/Flow audit boundary
+
+The adapter locates a two-argument Flow collection method, proxies the collector and continuation, and returns the host Unit value from collector callbacks. This is plausible only if the selected Flow/collector contracts match the assumptions and each `emit` callback completes synchronously. Its current source does not contain a code295 runtime trace proving the selected interfaces, the `hd3.a` suspended marker, the Continuation result encoding, or cancellation propagation through the selected Job implementation. The fallback empty-context proxy is not equivalent to a cancellable Job.
+
+Do not treat the current cancellation code as verified merely because the Java source compiles or static tests find the expected strings. The next verification must prove, on the exact code295 APK, the actual Flow interface and descriptors, collector callback contract, Continuation context type, Job implementation, resume/failure behavior, and cancellation on client disconnect.
+
+### Required next implementation sequence
+
+1. Obtain exact code295 APK-derived evidence for the request constructor/fields, actual transport invocation, PoW manager, session create/delete path, and response Flow. Keep every symbol tied to its APK/channel fingerprint.
+2. Add a reviewed code295-only HookSpec/activation gate. Do not reuse 287/289/290 obfuscated names or infer runtime support from static marker presence.
+3. Install narrowly scoped, pass-through capture Hooks at verified request/transport/PoW construction and invocation boundaries. Capture object identity and type metadata only; never log prompt, token, headers, session IDs, PoW values, or response content.
+4. Wire the verified live PoW manager into `live275PowManager`, and connect the capture helper to the actual verified Hook entry points. Add regression tests proving capture installation, lifecycle replacement, and fail-closed behavior.
+5. Validate the Flow adapter on-device, including normal completion, reasoning deltas, timeout, client disconnect, upstream cancellation, and session cleanup.
+6. Only after a real code295 request returns HTTP 200 with authentic native text and correct SSE termination may the feature be marked complete.
+
+**Current disposition:** code295 adapter source exists, but runtime capture wiring and symbol validation are incomplete. Keep the Local API fail-closed with `host_not_ready`; do not report 2.7.5 native completion as connected.
