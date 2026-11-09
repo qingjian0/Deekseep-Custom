@@ -2296,6 +2296,14 @@ final class HookAttachmentPipeline {
         return a;
     }
 
+    static Object cloneNativeRequestTemplate(Object src) {
+        return INSTANCE.shallowCloneEw0(src);
+    }
+
+    static void setNativeRequestField(Object target, String name, Object value) {
+        setFieldByName(target, name, value);
+    }
+
     private Object shallowCloneEw0(Object src) {
         if (src == null) return null;
         try {
