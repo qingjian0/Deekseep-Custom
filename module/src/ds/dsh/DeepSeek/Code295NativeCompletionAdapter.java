@@ -49,8 +49,7 @@ final class Code295NativeCompletionAdapter {
         ClassLoader loader = Main.hostClassLoader;
         Object transport = Main.live275Transport;
         Object powManager = Main.live275PowManager;
-        java.lang.ref.WeakReference<Object> templateRef = Main.live275RequestTemplate;
-        Object template = templateRef == null ? null : templateRef.get();
+        Object template = Main.live275RequestTemplate;
         if (loader == null || transport == null || powManager == null || template == null) {
             throw new z2.GatewayException(503, "host_not_ready", "server_error",
                     "Open DeepSeek and send one normal message before using the code295 Local API");
