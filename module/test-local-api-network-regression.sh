@@ -422,6 +422,11 @@ for forbidden in ("request.prompt", "sessionId", "powValue", "authorization", "c
         raise SystemExit("Diagnostics store must not contain sensitive request values: " + forbidden)
 if "public default void onStage(" not in api_contract:
     raise SystemExit("DeltaSink must expose stage callbacks for live stream diagnostics")
+if "void inputShape(" not in diag or '"prompt_chars"' not in diag or '"message_count"' not in diag:
+    raise SystemExit("Diagnostics must expose only prompt length and message count, never prompt content")
+for protocol in ('"openai_responses"', '"anthropic_messages"'):
+    if protocol not in source:
+        raise SystemExit("Missing request diagnostics for protocol: " + protocol)
 
 # The companion overlay must poll the authenticated loopback endpoints off the UI thread,
 # render stage/status/timing only, and support the exact 2.7.5/code295 host identity.
