@@ -9,6 +9,9 @@ from pathlib import Path
 import sys
 
 source = Path(sys.argv[1]).read_text(encoding="utf-8")
+adapter = Path("module/src/ds/dsh/DeepSeek/Code295NativeCompletionAdapter.java").read_text(encoding="utf-8")
+main = Path("module/src/ds/dsh/DeepSeek/Main.java").read_text(encoding="utf-8")
+hook = Path("module/src/ds/dsh/DeepSeek/HookAccountLoginSecurity.java").read_text(encoding="utf-8")
 
 def section(start, end):
     a = source.index(start)
@@ -91,6 +94,39 @@ checks = {
         and "hostError.getMessage()" not in section(
             "private static void installContinuationObserver",
             "private static void installCallbackObserver"),
+    "Local API can install code295 capture hooks without the diagnostic toggle":
+        "Main.isOpenNativeCompletionProbeEnabled() || Main.isLocalApiEnabled()" in source
+        and "Main.isLocalApiEnabled())" in section("static void inspectHost", "private static void installCode295PowManagerObserver"),
+    "code295 PoW manager is captured at the host suspend boundary":
+        'owner.getDeclaredMethod("j", continuationType)' in source
+        and "Main.live275PowManager = chain.getThisObject()" in source,
+    "transport and sanitized request template are captured only while Local API is enabled":
+        "Main.captureCode295NativeRuntime(chain.getThisObject(), requestArg)" in source
+        and "if (!isLocalApiEnabled()) return;" in main
+        and 'setNativeRequestField(template, "c", "")' in main
+        and 'setNativeRequestField(template, "k", "")' in main,
+    "Open code295 Local API dispatch uses the version-specific adapter":
+        "return Code295NativeCompletionAdapter.executeLocalApiCompletion(request, sink);" in hook,
+    "adapter reuses host PoW manager and challenge-backed transport":
+        'getDeclaredMethod("j", continuationType)' in adapter
+        and 'getDeclaredMethod("e", requestMarker, Long.class)' in adapter,
+    "adapter creates and deletes a throwaway native session":
+        'newInstance(2, null, 2)' in adapter
+        and 'Class.forName("hh2", false, loader)' in adapter
+        and 'getDeclaredMethod("d", requestType, continuationType)' in adapter,
+    "adapter clones qy1 and maps audited request fields":
+        'cloneNativeRequestTemplate(template)' in adapter
+        and 'setAndVerify(clone, "a", sessionId)' in adapter
+        and 'setAndVerify(clone, "c", request.prompt)' in adapter
+        and 'setAndVerify(clone, "k", pow)' in adapter
+        and 'setAndVerify(clone, "l"' not in adapter,
+    "adapter collects the native Flow with bounded waiting and delta delivery":
+        "collectFlow(loader, flow, sink" in adapter
+        and "done.await(timeoutMs, TimeUnit.MILLISECONDS)" in adapter
+        and "sink.onText(delta)" in adapter
+        and "sink.onReasoning(delta)" in adapter,
+    "unsupported image input fails closed rather than being silently dropped":
+        "unsupported_input_images" in adapter,
 }
 for name, passed in checks.items():
     print(("PASS " if passed else "FAIL ") + name)
