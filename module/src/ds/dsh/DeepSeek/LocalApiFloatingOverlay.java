@@ -397,7 +397,7 @@ final class LocalApiFloatingOverlay {
         startDiagnosticsPolling();
         DisplayMetrics metrics = app.getResources().getDisplayMetrics();
         int width = Math.min(dp(304), metrics.widthPixels - dp(32));
-        int height = Math.min(dp(528), metrics.heightPixels - dp(96));
+        int height = Math.min(dp(620), metrics.heightPixels - dp(96));
         panelParams = new WindowManager.LayoutParams(width, height, overlayType(),
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
                         | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
@@ -545,7 +545,9 @@ final class LocalApiFloatingOverlay {
         out.append("请求：").append(requestId).append('\n')
                 .append("状态：").append(snapshot.optString("status", "unknown"))
                 .append("  阶段数：").append(events == null ? 0 : events.length())
-                .append("  总耗时：").append(snapshot.optLong("duration_ms", 0L)).append(" ms");
+                .append("  总耗时：").append(snapshot.optLong("duration_ms", 0L)).append(" ms")
+                .append("\n输入：").append(snapshot.optInt("prompt_chars", 0))
+                .append(" 字符 / ").append(snapshot.optInt("message_count", 0)).append(" 条消息");
         if (events == null || events.length() == 0) return out.toString();
         for (int i = 0; i < events.length(); i++) {
             JSONObject event = events.optJSONObject(i);
