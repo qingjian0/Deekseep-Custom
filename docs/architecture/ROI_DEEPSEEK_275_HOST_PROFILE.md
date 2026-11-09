@@ -96,6 +96,58 @@ Request model candidates:
 - `rx1`: Edit request
 - `yf2`: Resume request
 
+#### qy1 / ChatFullCompletionRequest source contract
+
+The 2.7.5 static evidence artifact from qingjian0/apps (APK SHA-256
+`ddc52ef868b991fd33e634de834a3e2c022b0cd7ff9e854f4f141996aaeadb70`, versionCode 295)
+contains the decompiled qy1 model, oy1 serializer, nw3 transport router, of2 PoW manager,
+and oq1 challenge plugin.
+
+The qy1 model implements yu1 and exposes this constructor descriptor:
+
+```text
+qy1.<init>(
+  String, Integer, String, ArrayList,
+  boolean, boolean, String, boolean,
+  String, String, String, int
+) -> void
+```
+
+The serializer oy1 identifies the wire fields:
+
+| qy1 field | Serialized field | Meaning |
+|---|---|---|
+| a | chat_session_id | Conversation/session ID |
+| b | parent_message_id | Parent message ID |
+| c | prompt | User prompt |
+| d | ref_file_ids | Referenced file IDs |
+| e | thinking_enabled | Thinking mode |
+| f | search_enabled | Search mode |
+| g | audio_id | Audio attachment ID |
+| h | preempt | Preempt/interrupt behavior |
+| i | model_type | Model selection |
+| j | action | Request action |
+| k | not serialized | Serialized PoW solution passed separately |
+| l | shumei_device_id | Device identity field |
+
+nw3.e(yu1, Long) selects the qy1 serializer and POST /api/v0/chat/completion route. It reads qy1.k
+and attaches it as X-DS-PoW-Response; the qy1 serializer deliberately does not emit k in the JSON
+body. The transport creates an sg5 request, applies the mdb serializer, and returns b70 (Flow).
+The optional Long is used as a request-timeout override; absent values fall back to the host's
+completion_request_timeout_ms setting.
+
+The PoW path is separate from request JSON construction: of2 obtains a ServerChatChallenge,
+of2.k selects the algorithm, and DeepSeekHashV1 delegates to PowCalculator. of2 serializes the
+resulting AuthedPowSolution (hf0) for the request's PoW header. oq1 ChallengePlugin is the
+separate challenge-header boundary; X-DS-Challenge-Response and X-DS-PoW-Response must not be
+collapsed into one synthetic value.
+
+This is a source-level contract, not an approved production HookSpec. In particular, the request
+constructor's positional arguments must not be guessed from obfuscated parameter names; use the
+oy1 serializer mapping and the real constructor descriptor together. Session creation, parent
+message semantics, account-bound challenge state, ChallengePlugin context, and Flow collection /
+cancellation still require explicit adapter contracts and tests.
+
 ### SSE
 
 ```text
