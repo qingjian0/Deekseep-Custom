@@ -33,9 +33,9 @@ the API surface.
 - **OpenAI Chat Completions:** validates messages, model IDs, token budgets, response format
   and tool schemas; supports non-streaming and SSE text/reasoning deltas. Tool-call decoding is
   non-streaming only. Missing/null token budgets default to 4096; positive integer numeric strings
-  are accepted for compatibility, values above 8192 are bounded to 8192, and fractional,
-  zero, negative or non-numeric values are rejected. Diagnostics record only the input type and
-  applied budget, never the raw value or request body.
+  are accepted for compatibility, values above 8192 are rejected rather than silently clamped,
+  and fractional, zero, negative or non-numeric values are rejected. Diagnostics record only the
+  input type and applied budget, never the raw value or request body.
 - **OpenAI Responses:** accepts string/array input, instructions, text output format, tools and
   `previous_response_id`; emits Responses-style output and SSE lifecycle/delta events. Continuation
   state is process-local, bounded to 64 entries with a 30-minute TTL, and cleared on service stop.
