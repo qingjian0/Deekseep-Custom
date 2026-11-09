@@ -246,8 +246,14 @@ readiness_end = source.index("boolean includeUsage", readiness_start)
 readiness_block = source[readiness_start:readiness_end]
 if "backend-not-ready-dispatching" not in readiness_block:
     raise SystemExit("A non-ready backend must be traced and dispatched to its execution facade")
-if "if (!ready) {" in readiness_block and "sendError(" in readiness_block:
-    raise SystemExit("Backend readiness must not preempt the per-request native execution result")
+not_ready_start = readiness_block.find("if (!ready) {")
+if not_ready_start >= 0:
+    not_ready_end = readiness_block.find("\n            }", not_ready_start)
+    if not_ready_end < 0:
+        raise SystemExit("Backend readiness diagnostic branch is not structurally closed")
+    not_ready_branch = readiness_block[not_ready_start:not_ready_end]
+    if "sendError(" in not_ready_branch or "return;" in not_ready_branch:
+        raise SystemExit("Backend readiness must not preempt the per-request native execution result")
 if "current.complete(completion, null)" not in source:
     raise SystemExit("Non-streaming completion must enter Backend.complete()")
 if "streamCompletion(out, current, completion" not in source:
