@@ -41,6 +41,11 @@ final class LocalApiDiagnostics {
         if (trace != null) trace.add(name, status, code, detail);
     }
 
+    static void inputShape(String requestId, int promptChars, int messageCount) {
+        Trace trace = empty(requestId) ? null : TRACES.get(requestId);
+        if (trace != null) trace.setInputShape(promptChars, messageCount);
+    }
+
     static void finish(String requestId, String status, String code, String detail) {
         stage(requestId, "request", status, code, detail);
     }
@@ -113,12 +118,20 @@ final class LocalApiDiagnostics {
         volatile long updatedAt = startedAt;
         volatile String status = "running";
         volatile String errorCode = "";
+        volatile int promptChars;
+        volatile int messageCount;
         int nextSequence = 1;
 
         Trace(String requestId, String protocol, String mode) {
             this.requestId = requestId;
             this.protocol = protocol;
             this.mode = mode;
+        }
+
+        synchronized void setInputShape(int chars, int messages) {
+            promptChars = Math.max(0, Math.min(chars, 128 * 1024));
+            messageCount = Math.max(0, Math.min(messages, 256));
+            updatedAt = System.currentTimeMillis();
         }
 
         synchronized void add(String stage, String nextStatus, String code, String detail) {
@@ -160,6 +173,8 @@ final class LocalApiDiagnostics {
                 value.put("updated_at", updatedAt);
                 value.put("duration_ms", Math.max(0L, updatedAt - startedAt));
                 value.put("event_count", events.size());
+                value.put("prompt_chars", promptChars);
+                value.put("message_count", messageCount);
                 if (!events.isEmpty()) {
                     JSONObject last = events.get(events.size() - 1);
                     value.put("last_stage", last.optString("stage", ""));
