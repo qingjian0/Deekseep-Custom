@@ -659,7 +659,8 @@ final class OpenNativeCompletionProbe {
                     } catch (Throwable hostError) {
                         safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] code295 delta-dispatch-throw"
                                 + " continuationTraceId=" + continuationId
-                                + " exception=" + hostError.getClass().getName());
+                                + " exception=" + hostError.getClass().getName()
+                                + " stack=" + observedThrowableStack(hostError));
                         throw hostError;
                     }
                 }
@@ -1087,7 +1088,8 @@ final class OpenNativeCompletionProbe {
                     } catch (Throwable hostError) {
                         safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] continuation-throw flowTraceId="
                                 + (flowTraceId == null ? "unlinked" : flowTraceId)
-                                + " exception=" + hostError.getClass().getName());
+                                + " exception=" + hostError.getClass().getName()
+                                + " stack=" + observedThrowableStack(hostError));
                         throw hostError;
                     }
                     try {
@@ -1396,6 +1398,29 @@ final class OpenNativeCompletionProbe {
         } catch (LinkageError | RuntimeException metadataError) {
             out.append(" methods=<unavailable:")
                     .append(metadataError.getClass().getName()).append('>');
+        }
+        return out.toString();
+    }
+
+    /**
+     * Returns exception stack metadata without exception messages or argument values.
+     * Obfuscated host frames are retained because they are essential for mapping failures.
+     */
+    private static String observedThrowableStack(Throwable error) {
+        if (error == null) return "[]";
+        StringBuilder out = new StringBuilder("[");
+        StackTraceElement[] stack = error.getStackTrace();
+        int count = 0;
+        for (StackTraceElement element : stack) {
+            if (count > 0) out.append(',');
+            out.append(element.getClassName()).append('#').append(element.getMethodName());
+            if (element.getLineNumber() >= 0) out.append(':').append(element.getLineNumber());
+            if (++count >= 8) break;
+        }
+        out.append(']');
+        Throwable cause = error.getCause();
+        if (cause != null && cause != error) {
+            out.append(" causeType=").append(cause.getClass().getName());
         }
         return out.toString();
     }
