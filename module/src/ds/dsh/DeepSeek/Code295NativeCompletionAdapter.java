@@ -65,7 +65,7 @@ final class Code295NativeCompletionAdapter {
             try {
                 pow = mintPow(loader, powManager);
                 stage(request.requestId, sink, "pow", "succeeded", "", "Host PoW generated");
-            } catch (Throwable failure) {
+            } catch (Exception failure) {
                 stage(request.requestId, sink, "pow", "failed", "pow_failed",
                         failure.getClass().getSimpleName());
                 throw failure;
@@ -80,7 +80,7 @@ final class Code295NativeCompletionAdapter {
                 }
                 stage(request.requestId, sink, "session_create", "succeeded", "",
                         "Temporary native chat session created");
-            } catch (Throwable failure) {
+            } catch (Exception failure) {
                 stage(request.requestId, sink, "session_create", "failed", "session_create_failed",
                         failure.getClass().getSimpleName());
                 throw failure;
@@ -93,7 +93,7 @@ final class Code295NativeCompletionAdapter {
                 nativeRequest = buildRequest(template, request, sessionId, pow);
                 stage(request.requestId, sink, "request_build", "succeeded", "",
                         "Native request template populated");
-            } catch (Throwable failure) {
+            } catch (Exception failure) {
                 stage(request.requestId, sink, "request_build", "failed", "request_template_invalid",
                         failure.getClass().getSimpleName());
                 throw failure;
@@ -110,7 +110,7 @@ final class Code295NativeCompletionAdapter {
                 }
                 stage(request.requestId, sink, "transport", "succeeded", "",
                         "Native transport returned a Flow");
-            } catch (Throwable failure) {
+            } catch (Exception failure) {
                 stage(request.requestId, sink, "transport", "failed", "transport_failed",
                         failure.getClass().getSimpleName());
                 throw failure;
@@ -125,7 +125,7 @@ final class Code295NativeCompletionAdapter {
                         Math.max(1L, Math.min(timeoutMs, DEFAULT_FLOW_TIMEOUT_MS)));
                 stage(request.requestId, sink, "flow_collect", "succeeded", "",
                         "Native response Flow completed");
-            } catch (Throwable failure) {
+            } catch (Exception failure) {
                 String code = failure instanceof z2.GatewayException
                         ? ((z2.GatewayException) failure).code : "flow_failed";
                 stage(request.requestId, sink, "flow_collect",
