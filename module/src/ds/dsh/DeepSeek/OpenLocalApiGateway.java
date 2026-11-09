@@ -718,6 +718,11 @@ final class OpenLocalApiGateway {
                     + " stream=" + stream + " promptChars=" + prompt.length()
                     + " maxTokens=" + maxTokens);
             z2.Backend current = backend;
+            OpenNativeCompletionProbe.apiTrace("model-routing requestId=" + requestId
+                    + " model=" + model + " backendPresent=" + (current != null));
+            boolean ready = current != null && current.isReady();
+            OpenNativeCompletionProbe.apiTrace("backend-readiness requestId=" + requestId
+                    + " ready=" + ready);
             if (current == null) {
                 sendError(out, 503, "model_not_ready", "server_error",
                         "Model backend unavailable");
@@ -725,9 +730,6 @@ final class OpenLocalApiGateway {
                         + " stage=backend-missing status=503");
                 return;
             }
-            boolean ready = current.isReady();
-            OpenNativeCompletionProbe.apiTrace("backend-readiness requestId=" + requestId
-                    + " ready=" + ready);
             if (!ready) {
                 // Readiness is diagnostic, not a dispatch gate. The backend execution facade
                 // owns the per-request failure code (for Open this is engine_missing). This
