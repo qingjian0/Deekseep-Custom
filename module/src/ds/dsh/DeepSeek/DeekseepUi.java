@@ -3301,14 +3301,17 @@ public final class DeekseepUi {
                 String runtimeStatus = Main.localApiRuntimeStatus();
                 runtime.setText(UiLanguage.dynamic(act, runtimeStatus));
                 CharSequence operationFeedback = feedback.getText();
-                if ("正在启动监听…".contentEquals(operationFeedback)) {
+                String startupNotice = UiLanguage.dynamic(act, "正在启动监听…");
+                String shutdownNotice = UiLanguage.dynamic(act,
+                        "服务已关闭，正在清理复用会话…");
+                if (startupNotice.contentEquals(operationFeedback)) {
                     if (runtimeStatus.startsWith("Running")) {
                         feedback.setText(UiLanguage.dynamic(act, "监听已启动"));
                     } else if (runtimeStatus.startsWith("Stopped")) {
                         feedback.setText(UiLanguage.dynamic(act,
                                 "监听启动失败，请查看运行状态"));
                     }
-                } else if ("服务已关闭，正在清理复用会话…".contentEquals(operationFeedback)
+                } else if (shutdownNotice.contentEquals(operationFeedback)
                         && runtimeStatus.startsWith("Stopped")) {
                     feedback.setText(UiLanguage.dynamic(act, "监听已停止"));
                 }
