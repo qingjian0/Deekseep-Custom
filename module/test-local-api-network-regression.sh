@@ -403,10 +403,10 @@ for route in ('"/v1/diagnostics/requests"', 'diagnosticsPrefix = "/v1/diagnostic
               "LocalApiDiagnostics.recent(24)", "LocalApiDiagnostics.snapshot(diagnosticId)"):
     if route not in source:
         raise SystemExit("Missing authenticated live diagnostics route: " + route)
-for method in ("begin(", "stage(", "finish(", "snapshot(", "recent("):
-    if "static " + ("void " if method in ("begin(", "stage(", "finish(") else "") + method not in diag:
-        if method not in diag:
-            raise SystemExit("Missing diagnostics store operation: " + method)
+for method in ("void begin(", "void stage(", "void finish(",
+               "JSONObject snapshot(", "JSONArray recent("):
+    if method not in diag:
+        raise SystemExit("Missing diagnostics store operation: " + method)
 for stage in ('"native_runtime"', '"pow"', '"session_create"', '"request_build"',
               '"transport"', '"flow_collect"', '"session_cleanup"'):
     if stage not in adapter:
