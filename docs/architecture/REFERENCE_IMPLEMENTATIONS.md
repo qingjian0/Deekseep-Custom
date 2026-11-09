@@ -83,6 +83,29 @@ deepseek-dekk 的热更新壳展示了远端拉取 DEX 并在宿主进程加载�
 
 状态面板不得用单一“正在启动监听”覆盖上述状态。HTTP 错误、心跳 ACK 缺失和 Native Flow 异常应分别显示。
 
+### 2026-11-09：code295 运行时日志补充
+
+本次检查 deekseep_vision.log（dev 分支，schema 7）后，证据等级需要进一步细分：
+
+- 04:58:46.211：nw3.e(yu1, Long)->b70 以根调用 id=1 实际进入，运行时请求对象为 qy1，参数类型符合 yu1 接口；日志标记 sameRequestObjectAsRoot=true。
+- 04:58:46.225：同一根调用正常返回 b70。
+- 04:58:46.229：返回对象对应的 b70.b(jl4, dc3) Continuation 以 flowTraceId=1 进入。
+- 04:58:46.266：该关联 Continuation 正常退出，结果类型为 hd3。
+- 04:58:47.384：同一 flowTraceId=1 再次进入并于 04:58:47.388 正常退出，结果类型为 ghb。
+
+这证明 code295 的 nw3.e 请求路由和至少一条与根请求关联的 b70 Continuation 在该次宿主交互中真实运行；不再只是静态候选。但它仍然**不证明 Local API 已经调用这条链，也不证明已经解码出最终文本 Delta 或完成 HTTP 响应**。
+
+同一日志中的 continuation-throw exception=ys4 记录对应 flowTraceId=unlinked 的其他 Flow/Continuation。根调用关联的 flowTraceId=1 有正常 exit 记录，因此不能把这些未关联的 ys4 异常归因于该根请求。后续诊断已补充异常栈的类名/方法名元数据，不记录异常消息、请求参数或正文，以便区分不同协程路径。
+
+另一个明确的源码边界：Open 版 z14.payloadClass(...) 当前是返回 null 的 stub；HookAccountLoginSecurity.executeLocalApiCompletion(...) 仍通过它查找 ds.dsh.DeepSeek.z18 执行引擎。因此，即使修正 max_tokens 后请求通过 HTTP 参数校验，Open 版仍不能据此认为 Native Adapter 已就绪；当前执行入口会返回 engine_missing（HTTP 503）。Baidaofu/deekseep-onlyapi 的 LocalApiEngine 是独立重实现，但其 README 验证目标为 2.4.1/code257，不能直接把其 ew0 请求构造、PoW 或 transport 符号移植到 code295。
+
+### 当前修复与待验收边界
+
+- max_tokens / max_completion_tokens：缺失或 null 使用 4096；整数型数值和整数字符串可接受；非整数、零、负数、非数字以及超过 8192 均返回 400，不静默截断。
+- UI 的“正在启动监听”反馈现在依据真实 runtime status 更新；比较时使用 UiLanguage.dynamic(...) 生成当前语言的提示文本，避免英文界面永远匹配不到中文字面量。
+- code295 观察器仍然是只读、pass-through 诊断；观察到 nw3.e 不会自动启用 HostRemap、Native Adapter 或 Feature Hook。
+- 当前代码改动必须等待 dev CI 的 regression、Android build/lint 和 APK job 完成；CI 通过也不等同于真机 API 完成验证。
+
 ## 7. 后续验证清单
 
 - [ ] 为 token parser 增加可执行测试：缺失、null、整数、整数字符串、小数、空字符串、布尔、零、负数、8192、8193、字段同时出现。
