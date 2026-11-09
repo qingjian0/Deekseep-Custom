@@ -674,7 +674,7 @@ final class OpenLocalApiGateway {
                                 + " parameter=" + maxTokenField + " rawType=" + rawType
                                 + " status=400 code=invalid_max_tokens");
                         sendError(out, 400, "invalid_max_tokens",
-                                maxTokenField + " must be a positive integer");
+                                maxTokenField + " must be an integer from 1 to 8192");
                         return;
                     }
                     maxTokens = normalizedMaxTokens;
@@ -1062,7 +1062,7 @@ final class OpenLocalApiGateway {
             return -1;
         }
         if (requested.compareTo(java.math.BigDecimal.valueOf(8192L)) > 0) {
-            return 8192;
+            return -1;
         }
         return requested.intValue();
     }
