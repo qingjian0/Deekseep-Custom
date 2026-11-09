@@ -411,7 +411,7 @@ for method in ("void begin(", "void stage(", "void finish(",
                "JSONObject snapshot(", "JSONArray recent("):
     if method not in diag:
         raise SystemExit("Missing diagnostics store operation: " + method)
-for stage in ('"native_input_validation"', '"native_runtime"', '"pow"', '"session_create"', '"request_build"',
+for stage in ('"native_input_validation"', '"native_runtime"', '"pow"', '"session_create"', '"request_build"', '"native_response_validation"',
               '"transport"', '"flow_collect"', '"session_cleanup"'):
     if stage not in adapter:
         raise SystemExit("Missing native execution stage: " + stage)
