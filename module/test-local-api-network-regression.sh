@@ -166,8 +166,9 @@ ui_required = {
     "Anthropic URL copy retains root endpoint": "Main.localApiRootEndpoint()",
     "listener startup feedback checks the running state": 'runtimeStatus.startsWith("Running")',
     "listener startup feedback checks the stopped state": 'runtimeStatus.startsWith("Stopped")',
-    "listener feedback refresh is language-aware": 'String startupNotice = UiLanguage.dynamic(act, "正在启动监听…");' + 'String shutdownNotice = UiLanguage.dynamic(act,',
 }
+if not re.search(r'String startupNotice = UiLanguage\.dynamic\(act, "正在启动监听…";\)\s*String shutdownNotice = UiLanguage\.dynamic\(act,', ui):
+    raise SystemExit("Missing local API UI contract: listener feedback refresh is language-aware")
 missing_ui = [label for label, token in ui_required.items() if token not in ui]
 if missing_ui:
     raise SystemExit("Missing local API UI contract: " + ", ".join(missing_ui))
