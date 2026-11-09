@@ -164,7 +164,8 @@ ui_required = {
     "connection details allow long-press text selection": "connectionInfo.setTextIsSelectable(true);",
     "OpenAI URL copy includes /v1": "Main.localApiCopyEndpoint()",
     "Anthropic URL copy retains root endpoint": "Main.localApiRootEndpoint()",
-    "listener startup feedback follows the actual running state": 'runtimeStatus.startsWith("Running")' + 'runtimeStatus.startsWith("Stopped")',
+    "listener startup feedback checks the running state": 'runtimeStatus.startsWith("Running")',
+    "listener startup feedback checks the stopped state": 'runtimeStatus.startsWith("Stopped")',
     "listener feedback refresh is language-aware": 'String startupNotice = UiLanguage.dynamic(act, "正在启动监听…");' + 'String shutdownNotice = UiLanguage.dynamic(act,',
 }
 missing_ui = [label for label, token in ui_required.items() if token not in ui]
