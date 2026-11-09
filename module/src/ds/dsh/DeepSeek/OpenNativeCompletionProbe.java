@@ -277,7 +277,7 @@ final class OpenNativeCompletionProbe {
      */
     private static void runBoundedInspection(ClassLoader loader) {
         while (!REPORTED.get() && ATTEMPTS.get() < MAX_ATTEMPTS
-                && Main.isOpenNativeCompletionProbeEnabled()) {
+                && (Main.isOpenNativeCompletionProbeEnabled() || Main.isLocalApiEnabled())) {
             int completedAttempts = ATTEMPTS.get();
             if (completedAttempts > 0) {
                 try {
@@ -300,7 +300,8 @@ final class OpenNativeCompletionProbe {
     @SuppressWarnings("unchecked")
     static void inspectHost(ClassLoader loader) {
         if (!"Open".equals(BuildInfo.BUILD_EDITION)
-                || BuildInfo.LOCAL_API_INCLUDED || !Main.isOpenNativeCompletionProbeEnabled()
+                || BuildInfo.LOCAL_API_INCLUDED
+                || (!Main.isOpenNativeCompletionProbeEnabled() && !Main.isLocalApiEnabled())
                 || loader == null || REPORTED.get()
                 || !INSPECTING.compareAndSet(false, true)) {
             return;
