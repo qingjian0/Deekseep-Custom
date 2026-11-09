@@ -182,6 +182,11 @@ gateway_checks = {
     "completion readiness uses backend-specific error codes": 'current.readinessCode()' in source,
     "backend readiness defaults to model_not_ready": 'readinessCode() { return "model_not_ready"; }' in api_contract,
     "max_completion_tokens alias is supported": 'body.has("max_completion_tokens")' in source,
+    "max_completion_tokens takes precedence and null falls back to max_tokens": (
+        'body.has("max_completion_tokens")' in source
+        and 'body.opt("max_completion_tokens") != JSONObject.NULL' in source
+        and '? "max_completion_tokens" : "max_tokens"' in source
+    ),
     "max_tokens accepts numeric strings from compatible clients": "raw instanceof String" in source and "new java.math.BigDecimal(value)" in source,
     "null max_tokens uses the gateway default": "rawMaxTokens == JSONObject.NULL" in source and "default=4096" in source,
     "max_tokens above the supported ceiling is rejected without silent clamping": (
