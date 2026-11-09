@@ -1,6 +1,6 @@
-09:15:36.374  unknown/unmaintained host: isolated opt-in lanes unknownVersionAttempts=false, diagnosticProbes=false, featureHooksAuthorized=false, discovery version=2.7.5, detected=2.7.5/code295-static-only
-09:15:36.376  host symbol table is not maintained; all opt-in ROI lanes are disabled
-09:15:36.390  [ROI_DISCOVERY]
+04:54:12.475  unknown/unmaintained host: isolated opt-in lanes unknownVersionAttempts=false, diagnosticProbes=false, featureHooksAuthorized=false, discovery version=2.7.5, detected=2.7.5/code295-static-only
+04:54:12.478  host symbol table is not maintained; all opt-in ROI lanes are disabled
+04:54:12.496  [ROI_DISCOVERY]
 schema=1
 mode=read_only_unknown_host
 host=channel=unknown generation=2.7.5/code295 (static-only; hooks disabled) legacyUnit=ui8
@@ -23,11 +23,11 @@ dex.readFailures=0
 dex.classNameCount=15364
 dex.uniqueClassNames=15364
 dex.classNameLimitReached=false
-discovery.elapsedMs=11
+discovery.elapsedMs=15
 hooksInstalled=false
 classesInitialized=false
 
-09:15:36.408  [ROI_DEXKIT]
+04:54:12.567  [ROI_DEXKIT]
 pass=1
 scan.apkPathsIncluded=true
 artifactIdentity.status=verified
@@ -49,11 +49,15 @@ hostClassesLoaded=false
 dexkit.available=false
 dexkit.loadError=java.lang.UnsatisfiedLinkError
 
-09:15:36.432  unknown-host activation observer registered (read-only)
-09:15:36.441  unknown-host loaded marker unavailable: ErrnoException: open failed: EPERM (Operation not permitted)
-09:15:36.491  activation heartbeat unavailable: java.lang.IllegalArgumentException: Unknown authority ds.dsh.DeepSeek.XposedService
-09:15:36.495  activation heartbeat dispatched through explicit broadcast fallback
-09:15:41.421  [ROI_DEXKIT]
+04:54:12.626  unknown-host activation observer registered (read-only)
+04:54:12.636  unknown-host loaded marker unavailable: ErrnoException: open failed: EPERM (Operation not permitted)
+04:54:12.638  unknown-host generic menu fallback registered
+04:54:12.672  activation heartbeat unavailable: java.lang.IllegalArgumentException: Unknown authority ds.dsh.DeepSeek.XposedService
+04:54:12.675  activation heartbeat dispatched through explicit broadcast fallback
+04:54:12.677  unknown-host menu: MainActivity resumed, scheduling generic entry
+04:54:12.926  button added on com.deepseek.chat.MainActivity, unknownHostFallback=true
+04:54:15.040  unknown-host menu: MainActivity resumed, scheduling generic entry
+04:54:17.576  [ROI_DEXKIT]
 pass=2
 scan.apkPathsIncluded=false
 artifactIdentity.status=not_recomputed_runtime_rescan
@@ -68,7 +72,26 @@ hostClassesLoaded=false
 dexkit.available=false
 dexkit.loadError=java.lang.UnsatisfiedLinkError
 
-09:17:17.708  [ROI_DEXKIT]
+04:54:26.806  heartbeat hidden-tool response hooks live=2 static=0
+04:54:26.810  optional Agent render hook unavailable [heartbeat.responses]: IllegalStateException: heartbeat response hook discovery returned no hooks: live=2 static=0
+04:54:26.813  optional Agent render hook installed: heartbeat.patch-dispatcher
+04:54:26.814  optional Agent render hook installed: heartbeat.state-writes
+04:54:26.816  optional Agent render hook installed: heartbeat.fragment-render
+04:54:26.818  optional Agent render hook installed: heartbeat.markdown-input
+04:54:26.820  heartbeat native Markdown privacy hooks parser=0 renderer=0 owner=t25
+04:54:26.822  heartbeat native Markdown privacy hook unavailable owner=t25: IllegalStateException: native Markdown parser discovery returned no methods for t25
+04:54:26.824  optional Agent render hook unavailable [heartbeat.native-markdown-parser]: IllegalStateException: native Markdown parser discovery returned no methods for t25
+04:54:26.826  optional Agent render hook installed: agent.tool-log-rounded-rect
+04:54:26.827  optional Agent render hook installed: attachment.model-file-cards
+04:54:26.829  heartbeat tool status renderer unavailable i68: NoSuchMethodException: h78.e(TextStyle copy)
+04:54:26.831  optional Agent render hook unavailable [agent.tool-status-style]: NoSuchMethodException: h78.e(TextStyle copy)
+04:54:26.833  heartbeat tool status BasicText renderer unavailable yg8.b: NoSuchMethodException: h78.e(TextStyle copy)
+04:54:26.835  optional Agent render hook unavailable [agent.tool-status-basic-text]: NoSuchMethodException: h78.e(TextStyle copy)
+04:54:26.841  model file native-message link hooks installed=2
+04:54:26.843  optional Agent render hook installed: attachment.model-file-links
+04:54:26.911  public tunnel Binder bridge connected, status=true, binary=false
+04:54:26.936  unknown-host menu: MainActivity resumed, scheduling generic entry
+04:54:27.590  [ROI_DEXKIT]
 pass=3
 scan.apkPathsIncluded=false
 artifactIdentity.status=not_recomputed_runtime_rescan
@@ -83,5 +106,18 @@ hostClassesLoaded=false
 dexkit.available=false
 dexkit.loadError=java.lang.UnsatisfiedLinkError
 
-09:17:17.716  activation heartbeat unavailable: java.lang.IllegalArgumentException: Unknown authority ds.dsh.DeepSeek.XposedService
-09:17:17.730  activation heartbeat dispatched through explicit broadcast fallback
+04:55:56.556  activation heartbeat unavailable: java.lang.IllegalArgumentException: Unknown authority ds.dsh.DeepSeek.XposedService
+04:55:56.562  activation heartbeat dispatched through explicit broadcast fallback
+04:55:56.565  unknown-host menu: MainActivity resumed, scheduling generic entry
+04:56:58.891  activation heartbeat unavailable: java.lang.IllegalArgumentException: Unknown authority ds.dsh.DeepSeek.XposedService
+04:56:58.899  activation heartbeat dispatched through explicit broadcast fallback
+04:56:58.913  unknown-host menu: MainActivity resumed, scheduling generic entry
+04:57:04.266  unknown-host menu: MainActivity resumed, scheduling generic entry
+04:57:04.919  unknown-host menu: MainActivity resumed, scheduling generic entry
+04:57:35.785  unknown-host menu: MainActivity resumed, scheduling generic entry
+04:57:39.967  unknown-host menu: MainActivity resumed, scheduling generic entry
+04:57:43.916  unknown-host menu: MainActivity resumed, scheduling generic entry
+04:58:34.870  activation heartbeat unavailable: java.lang.IllegalArgumentException: Unknown authority ds.dsh.DeepSeek.XposedService
+04:58:34.874  activation heartbeat dispatched through explicit broadcast fallback
+04:58:34.881  unknown-host menu: MainActivity resumed, scheduling generic entry
+04:58:39.483  unknown-host menu: MainActivity resumed, scheduling generic entry
