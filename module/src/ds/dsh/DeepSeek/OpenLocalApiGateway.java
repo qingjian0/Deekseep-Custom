@@ -662,19 +662,27 @@ final class OpenLocalApiGateway {
             int maxTokens = 4096;
             if (body.has(maxTokenField)) {
                 Object rawMaxTokens = body.opt(maxTokenField);
-                if (!(rawMaxTokens instanceof Number)) {
-                    sendError(out, 400, "invalid_max_tokens",
-                            maxTokenField + " must be an integer from 1 to 8192");
-                    return;
+                if (rawMaxTokens == JSONObject.NULL) {
+                    OpenNativeCompletionProbe.apiTrace("token-budget-defaulted parameter="
+                            + maxTokenField + " reason=null default=4096");
+                } else {
+                    int normalizedMaxTokens = normalizeMaxTokens(rawMaxTokens);
+                    if (normalizedMaxTokens < 1) {
+                        String rawType = rawMaxTokens == null ? "null"
+                                : rawMaxTokens.getClass().getSimpleName();
+                        OpenNativeCompletionProbe.apiTrace("request-rejected stage=parameter-validation"
+                                + " parameter=" + maxTokenField + " rawType=" + rawType
+                                + " status=400 code=invalid_max_tokens");
+                        sendError(out, 400, "invalid_max_tokens",
+                                maxTokenField + " must be a positive integer");
+                        return;
+                    }
+                    maxTokens = normalizedMaxTokens;
+                    String rawType = rawMaxTokens.getClass().getSimpleName();
+                    OpenNativeCompletionProbe.apiTrace("token-budget-normalized parameter="
+                            + maxTokenField + " inputType=" + rawType
+                            + " applied=" + maxTokens + " limit=8192");
                 }
-                double numericMaxTokens = ((Number) rawMaxTokens).doubleValue();
-                if (numericMaxTokens < 1 || numericMaxTokens > 8192
-                        || numericMaxTokens != Math.rint(numericMaxTokens)) {
-                    sendError(out, 400, "invalid_max_tokens",
-                            maxTokenField + " must be an integer from 1 to 8192");
-                    return;
-                }
-                maxTokens = (int) numericMaxTokens;
             }
             JSONArray rawTools = body.optJSONArray("tools");
             if (body.has("tools") && body.opt("tools") != JSONObject.NULL && rawTools == null) {
@@ -1034,6 +1042,31 @@ final class OpenLocalApiGateway {
      * Rough protocol-compatible usage estimate only. DeepSeek's tokenizer is not exposed by
      * z2.Backend; callers can distinguish these values through dsh_usage_estimated.
      */
+    /**
+     * Accepts numeric values and numeric strings emitted by some OpenAI-compatible clients.
+     * Null means "use the gateway default"; positive values above the supported ceiling are
+     * bounded to 8192. Fractional, zero, negative and non-numeric values remain invalid.
+     * Never log the raw value or request body.
+     */
+    private static int normalizeMaxTokens(Object raw) {
+        if (!(raw instanceof Number) && !(raw instanceof String)) return -1;
+        String value = raw.toString().trim();
+        if (value.length() == 0) return -1;
+        final java.math.BigDecimal requested;
+        try {
+            requested = new java.math.BigDecimal(value);
+        } catch (NumberFormatException invalid) {
+            return -1;
+        }
+        if (requested.signum() <= 0 || requested.stripTrailingZeros().scale() > 0) {
+            return -1;
+        }
+        if (requested.compareTo(java.math.BigDecimal.valueOf(8192L)) > 0) {
+            return 8192;
+        }
+        return requested.intValue();
+    }
+
     private static int estimateTokens(String value) {
         if (value == null || value.length() == 0) return 0;
         int tokens = 0;
