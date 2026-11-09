@@ -32,7 +32,7 @@ grep -Fq -- '-keep class ds.dsh.DeepSeek.** { *; }' "$ROOT/compose-launcher/app/
 grep -Fq 'android:name="ds.dsh.DeepSeek.z21"' "$COMPOSE_MANIFEST"
 grep -Fq 'android:enabled="${localApiComponentEnabled}"' "$COMPOSE_MANIFEST"
 
-grep -Fq \x27(!Main.isOpenNativeCompletionProbeEnabled() && !Main.isLocalApiEnabled())\x27 "$NATIVE_PROBE"
+grep -Fq "(!Main.isOpenNativeCompletionProbeEnabled() && !Main.isLocalApiEnabled())" "$NATIVE_PROBE"
 python - "$GATEWAY" "$LOCAL_API_UI" "$BUILD_GRADLE" "$API_CONTRACT" "$LOCAL_API_OVERLAY" <<'PY'
 import pathlib
 import re
