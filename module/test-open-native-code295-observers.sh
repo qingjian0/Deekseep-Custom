@@ -109,8 +109,8 @@ checks = {
     "Open code295 Local API dispatch uses the version-specific adapter":
         "return Code295NativeCompletionAdapter.executeLocalApiCompletion(request, sink);" in hook,
     "adapter reuses host PoW manager and challenge-backed transport":
-        'getDeclaredMethod("j", continuationType)' in adapter
-        and 'getDeclaredMethod("e", requestMarker, Long.class)' in adapter,
+        re.search(r'getDeclaredMethod\\(\\s*"j"\\s*,\\s*continuationType\\s*\\)', adapter) is not None
+        and re.search(r'getDeclaredMethod\\(\\s*"e"\\s*,\\s*requestMarker\\s*,\\s*Long\\.class\\s*\\)', adapter) is not None,
     "adapter creates and deletes a throwaway native session":
         'newInstance(2, null, 2)' in adapter
         and 'Class.forName("hh2", false, loader)' in adapter
