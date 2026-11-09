@@ -427,6 +427,11 @@ if "void inputShape(" not in diag or '"prompt_chars"' not in diag or '"message_c
 for protocol in ('"openai_responses"', '"anthropic_messages"'):
     if protocol not in source:
         raise SystemExit("Missing request diagnostics for protocol: " + protocol)
+for required in ('"authentication", "failed"', '"invalid_api_key"',
+                 "Credential rejected; supplied value is not retained",
+                 "Bearer credential accepted; credential value is not retained"):
+    if required not in source:
+        raise SystemExit("Missing value-free authentication diagnostics: " + required)
 
 # The companion overlay must poll the authenticated loopback endpoints off the UI thread,
 # render stage/status/timing only, and support the exact 2.7.5/code295 host identity.
