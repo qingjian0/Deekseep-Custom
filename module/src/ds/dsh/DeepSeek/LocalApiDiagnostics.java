@@ -113,6 +113,7 @@ final class LocalApiDiagnostics {
         volatile long updatedAt = startedAt;
         volatile String status = "running";
         volatile String errorCode = "";
+        int nextSequence = 1;
 
         Trace(String requestId, String protocol, String mode) {
             this.requestId = requestId;
@@ -133,7 +134,7 @@ final class LocalApiDiagnostics {
             }
             JSONObject event = new JSONObject();
             try {
-                event.put("sequence", events.size() + 1);
+                event.put("sequence", nextSequence++);
                 event.put("stage", safe(stage, 48));
                 event.put("status", normalizedStatus);
                 event.put("code", safe(code, 64));
@@ -159,6 +160,11 @@ final class LocalApiDiagnostics {
                 value.put("updated_at", updatedAt);
                 value.put("duration_ms", Math.max(0L, updatedAt - startedAt));
                 value.put("event_count", events.size());
+                if (!events.isEmpty()) {
+                    JSONObject last = events.get(events.size() - 1);
+                    value.put("last_stage", last.optString("stage", ""));
+                    value.put("last_stage_status", last.optString("status", ""));
+                }
             } catch (Exception ignored) {
             }
             return value;
