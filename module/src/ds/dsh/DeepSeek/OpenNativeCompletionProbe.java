@@ -574,7 +574,7 @@ final class OpenNativeCompletionProbe {
      */
     private static void installRuntimeObservation(ClassLoader loader) {
         if (!"Open".equals(BuildInfo.BUILD_EDITION) || BuildInfo.LOCAL_API_INCLUDED
-                || !Main.isOpenNativeCompletionProbeEnabled()
+                || (!Main.isOpenNativeCompletionProbeEnabled() && !Main.isLocalApiEnabled())
                 || loader == null || Main.MODULE == null) {
             return;
         }
