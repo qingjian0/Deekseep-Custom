@@ -33,18 +33,32 @@ final class Code295NativeCompletionAdapter {
 
     static z2.CompletionResult executeLocalApiCompletion(
             z2.CompletionRequest request, z2.DeltaSink sink) throws Exception {
-        if (request == null || request.prompt == null) {
+        if (request == null) {
             throw new z2.GatewayException(400, "invalid_request", "invalid_request_error",
                     "A non-empty completion request is required");
         }
+        if (request.prompt == null) {
+            stage(request.requestId, sink, "native_input_validation", "failed",
+                    "invalid_request", "Completion prompt is missing");
+            throw new z2.GatewayException(400, "invalid_request", "invalid_request_error",
+                    "A non-empty completion request is required");
+        }
+        stage(request.requestId, sink, "native_input_validation", "running", "",
+                "Checking native adapter input capabilities");
         if (request.inputImages != null && !request.inputImages.isEmpty()) {
+            stage(request.requestId, sink, "native_input_validation", "failed",
+                    "unsupported_input_images", "Image input is not supported by this adapter");
             throw new z2.GatewayException(501, "unsupported_input_images", "server_error",
                     "Image input is not yet supported by the code295 Open native adapter");
         }
         if (request.knownToolCalls != null && !request.knownToolCalls.isEmpty()) {
+            stage(request.requestId, sink, "native_input_validation", "failed",
+                    "unsupported_tool_continuation", "Tool continuation is not supported");
             throw new z2.GatewayException(501, "unsupported_tool_continuation", "server_error",
                     "Tool continuation is not yet supported by the code295 Open native adapter");
         }
+        stage(request.requestId, sink, "native_input_validation", "succeeded", "",
+                "Native adapter input is supported");
 
         ClassLoader loader = Main.hostClassLoader;
         Object transport = Main.live275Transport;
