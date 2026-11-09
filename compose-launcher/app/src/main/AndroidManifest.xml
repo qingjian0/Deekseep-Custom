@@ -24,6 +24,7 @@
     </queries>
 
     <application
+        android:usesCleartextTraffic="true"
         android:allowBackup="false"
         android:description="@string/moddesc"
         android:forceQueryable="true"
