@@ -531,7 +531,7 @@ require(
 )
 require(
     probe,
-    r'root.*?requestShape=" \+ observedObjectShape\(requestArg\)',
+    r'root.*?requestShape=" \+ observedRequestShape\(requestArg\)',
     "runtime observer attaches a value-free request shape to the root transport call",
 )
 require(
