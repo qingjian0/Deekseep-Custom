@@ -150,10 +150,16 @@ final class Code295NativeCompletionAdapter {
                         failure.getClass().getSimpleName());
                 throw failure;
             }
+            stage(request.requestId, sink, "native_response_validation", "running", "",
+                    "Checking that the native Flow produced usable output");
             if (text.length() == 0 && reasoning.length() == 0) {
+                stage(request.requestId, sink, "native_response_validation", "failed",
+                        "empty_native_response", "Native Flow completed without output");
                 throw new z2.GatewayException(502, "empty_native_response", "server_error",
                         "The native Flow completed without text or reasoning fragments");
             }
+            stage(request.requestId, sink, "native_response_validation", "succeeded", "",
+                    "Native response contains text or reasoning");
             return new z2.CompletionResult(text.toString(), reasoning.toString(), "stop");
         } finally {
             if (sessionId != null) {
