@@ -922,10 +922,22 @@ final class OpenLocalApiGateway {
                 requestId, normalized.model, "default", normalized.prompt, normalized.prompt,
                 normalized.reasoning, false, normalized.maxTokens,
                 normalized.toolPlan, null, false);
+        LocalApiDiagnostics.begin(requestId, "anthropic_messages",
+                normalized.stream ? "stream" : "non_stream");
+        LocalApiDiagnostics.stage(requestId, "http_validation", "succeeded", "",
+                "HTTP request and authentication accepted");
+        LocalApiDiagnostics.stage(requestId, "parameter_validation", "succeeded", "",
+                "Anthropic Messages input and generation options validated");
         z2.Backend current = backend;
-        if (current == null || !current.isReady()) {
+        boolean ready = current != null && current.isReady();
+        LocalApiDiagnostics.stage(requestId, "backend_readiness", ready ? "succeeded" : "failed",
+                ready ? "" : "model_not_ready",
+                "backend_present=" + (current != null) + " ready=" + ready);
+        if (!ready) {
             sendAnthropicError(out, 503, "api_error",
                     current == null ? "Model backend unavailable" : current.readinessDetail());
+            LocalApiDiagnostics.finish(requestId, "failed", "model_not_ready",
+                    "Model backend unavailable");
             return;
         }
         if (normalized.stream) {
@@ -938,9 +950,13 @@ final class OpenLocalApiGateway {
             result = current.complete(completion, null);
         } catch (z2.GatewayException rejected) {
             sendAnthropicError(out, rejected.status, "api_error", rejected.getMessage());
+            LocalApiDiagnostics.finish(requestId, "failed", rejected.code,
+                    rejected.getClass().getSimpleName());
             return;
         } catch (Exception failure) {
             sendAnthropicError(out, 502, "api_error", "Native model execution failed");
+            LocalApiDiagnostics.finish(requestId, "failed", "upstream_error",
+                    failure.getClass().getSimpleName());
             OpenNativeCompletionProbe.apiTrace("anthropic-completion-failed requestId="
                     + requestId + " exception=" + failure.getClass().getName()
                     + " durationMs=" + ((System.nanoTime() - started) / 1000000L));
@@ -948,6 +964,8 @@ final class OpenLocalApiGateway {
         }
         if (result == null) {
             sendAnthropicError(out, 502, "api_error", "Native model returned no result");
+            LocalApiDiagnostics.finish(requestId, "failed", "empty_upstream_response",
+                    "Native model returned no result");
             return;
         }
         List<OpenAiToolBridge.Call> calls =
@@ -972,7 +990,12 @@ final class OpenLocalApiGateway {
                         .put("dsh_usage_estimated", true));
         // z2.Backend does not expose tokenizer counters. Return rough estimates and mark them
         // explicitly so clients do not mistake them for exact DeepSeek tokenizer usage.
+        LocalApiDiagnostics.stage(requestId, "response_delivery", "running", "",
+                "Writing Anthropic Messages JSON response");
         sendJson(out, 200, message);
+        LocalApiDiagnostics.stage(requestId, "response_delivery", "succeeded", "",
+                "Anthropic Messages JSON response delivered");
+        LocalApiDiagnostics.finish(requestId, "succeeded", "", "Anthropic request finished");
         OpenNativeCompletionProbe.apiTrace("anthropic-completion-complete requestId="
                 + requestId + " durationMs=" + ((System.nanoTime() - started) / 1000000L)
                 + " textChars=" + result.text.length()
@@ -1070,7 +1093,13 @@ final class OpenLocalApiGateway {
                                             ? streamedText.toString() : result.text))
                                     .put("dsh_usage_estimated", true)));
             sendAnthropicEvent(out, "message_stop", new JSONObject().put("type", "message_stop"));
+            LocalApiDiagnostics.stage(requestId, "response_delivery", "succeeded", "",
+                    "Anthropic SSE stream completed");
+            LocalApiDiagnostics.finish(requestId, "succeeded", "", "Anthropic stream finished");
         } catch (Exception failure) {
+            LocalApiDiagnostics.finish(requestId, disconnected.get() ? "cancelled" : "failed",
+                    disconnected.get() ? "client_disconnected" : "upstream_error",
+                    failure.getClass().getSimpleName());
             if (!disconnected.get()) {
                 sendAnthropicEvent(out, "error", new JSONObject().put("type", "error")
                         .put("error", new JSONObject().put("type", "api_error")
@@ -1368,10 +1397,21 @@ final class OpenLocalApiGateway {
                 reasoningRequested, searchRequested, maxTokens,
                 toolPlan, previousId.length() == 0 ? null : previousId, true)
                 .withOutputTextFormat(format);
+        LocalApiDiagnostics.begin(requestId, "openai_responses", stream ? "stream" : "non_stream");
+        LocalApiDiagnostics.stage(requestId, "http_validation", "succeeded", "",
+                "HTTP request and authentication accepted");
+        LocalApiDiagnostics.stage(requestId, "parameter_validation", "succeeded", "",
+                "Responses input and generation options validated");
         z2.Backend current = backend;
-        if (current == null || !current.isReady()) {
+        boolean ready = current != null && current.isReady();
+        LocalApiDiagnostics.stage(requestId, "backend_readiness", ready ? "succeeded" : "failed",
+                ready ? "" : "model_not_ready",
+                "backend_present=" + (current != null) + " ready=" + ready);
+        if (!ready) {
             sendError(out, 503, "model_not_ready",
                     current == null ? "Model backend unavailable" : current.readinessDetail());
+            LocalApiDiagnostics.finish(requestId, "failed", "model_not_ready",
+                    "Model backend unavailable");
             return;
         }
         if (stream) {
@@ -1384,13 +1424,19 @@ final class OpenLocalApiGateway {
             result = current.complete(completion, null);
         } catch (z2.GatewayException rejected) {
             sendError(out, rejected.status, rejected.code, rejected.type, rejected.getMessage());
+            LocalApiDiagnostics.finish(requestId, "failed", rejected.code,
+                    rejected.getClass().getSimpleName());
             return;
         } catch (Exception failure) {
             sendError(out, 502, "upstream_error", "Native model execution failed");
+            LocalApiDiagnostics.finish(requestId, "failed", "upstream_error",
+                    failure.getClass().getSimpleName());
             return;
         }
         if (result == null) {
             sendError(out, 502, "empty_upstream_response", "Native model returned no result");
+            LocalApiDiagnostics.finish(requestId, "failed", "empty_upstream_response",
+                    "Native model returned no result");
             return;
         }
         List<OpenAiToolBridge.Call> calls = OpenAiToolBridge.parseCalls(result.text, toolPlan);
@@ -1447,7 +1493,12 @@ final class OpenLocalApiGateway {
                 .put("status", "completed").put("error", JSONObject.NULL)
                 .put("incomplete_details", JSONObject.NULL).put("model", model)
                 .put("output", output).put("output_text", outputText);
+        LocalApiDiagnostics.stage(requestId, "response_delivery", "running", "",
+                "Writing Responses JSON response");
         sendJson(out, 200, response);
+        LocalApiDiagnostics.stage(requestId, "response_delivery", "succeeded", "",
+                "Responses JSON response delivered");
+        LocalApiDiagnostics.finish(requestId, "succeeded", "", "Responses request finished");
         OpenNativeCompletionProbe.apiTrace("responses-complete requestId=" + requestId
                 + " durationMs=" + ((System.nanoTime() - started) / 1000000L)
                 + " outputItems=" + output.length());
@@ -1601,7 +1652,13 @@ final class OpenLocalApiGateway {
             rememberResponseState(requestId,
                     request.basePrompt + (finalText.length() == 0 ? "" : "\nassistant: " + finalText),
                     pendingToolCallIds);
+            LocalApiDiagnostics.stage(requestId, "response_delivery", "succeeded", "",
+                    "Responses SSE stream completed");
+            LocalApiDiagnostics.finish(requestId, "succeeded", "", "Responses stream finished");
         } catch (Exception failure) {
+            LocalApiDiagnostics.finish(requestId, disconnected.get() ? "cancelled" : "failed",
+                    disconnected.get() ? "client_disconnected" : "upstream_error",
+                    failure.getClass().getSimpleName());
             if (!disconnected.get()) {
                 JSONObject error = new JSONObject().put("message", "Model execution failed")
                         .put("type", "server_error").put("code", "upstream_error");
