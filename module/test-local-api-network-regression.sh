@@ -168,7 +168,7 @@ ui_required = {
     "listener startup feedback checks the running state": 'runtimeStatus.startsWith("Running")',
     "listener startup feedback checks the stopped state": 'runtimeStatus.startsWith("Stopped")',
 }
-if not re.search(r'String startupNotice = UiLanguage\.dynamic\(act, "正在启动监听…";\)\s*String shutdownNotice = UiLanguage\.dynamic\(act,', ui):
+if not re.search(r'String startupNotice = UiLanguage\.dynamic\(act, "正在启动监听…";?\)\s*String shutdownNotice = UiLanguage\.dynamic\(act,', ui):
     raise SystemExit("Missing local API UI contract: listener feedback refresh is language-aware")
 missing_ui = [label for label, token in ui_required.items() if token not in ui]
 if missing_ui:
