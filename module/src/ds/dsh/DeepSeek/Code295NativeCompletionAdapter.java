@@ -51,6 +51,8 @@ final class Code295NativeCompletionAdapter {
         Object powManager = Main.live275PowManager;
         Object template = Main.live275RequestTemplate;
         if (loader == null || transport == null || powManager == null || template == null) {
+            stage(request.requestId, sink, "native_runtime", "failed", "host_not_ready",
+                    "One or more native runtime objects have not been captured");
             throw new z2.GatewayException(503, "host_not_ready", "server_error",
                     "Open DeepSeek and send one normal message before using the code295 Local API");
         }
