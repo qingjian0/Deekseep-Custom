@@ -58,25 +58,82 @@ final class Code295NativeCompletionAdapter {
         long timeoutMs = remainingBudget(request);
         String sessionId = null;
         try {
-            String pow = mintPow(loader, powManager);
-            sessionId = createThrowawaySession(loader, transport);
-            if (sessionId == null) {
-                throw new z2.GatewayException(502, "session_create_failed", "server_error",
-                        "The native chat-session endpoint returned no usable session ID");
+            stage(request.requestId, sink, "native_runtime", "succeeded", "",
+                    "Captured ClassLoader, Transport, PoW Manager and request template");
+            stage(request.requestId, sink, "pow", "running", "", "Generating host PoW");
+            final String pow;
+            try {
+                pow = mintPow(loader, powManager);
+                stage(request.requestId, sink, "pow", "succeeded", "", "Host PoW generated");
+            } catch (Throwable failure) {
+                stage(request.requestId, sink, "pow", "failed", "pow_failed",
+                        failure.getClass().getSimpleName());
+                throw failure;
+            }
+            stage(request.requestId, sink, "session_create", "running", "",
+                    "Creating temporary native chat session");
+            try {
+                sessionId = createThrowawaySession(loader, transport);
+                if (sessionId == null) {
+                    throw new z2.GatewayException(502, "session_create_failed", "server_error",
+                            "The native chat-session endpoint returned no usable session ID");
+                }
+                stage(request.requestId, sink, "session_create", "succeeded", "",
+                        "Temporary native chat session created");
+            } catch (Throwable failure) {
+                stage(request.requestId, sink, "session_create", "failed", "session_create_failed",
+                        failure.getClass().getSimpleName());
+                throw failure;
             }
 
-            Object nativeRequest = buildRequest(template, request, sessionId, pow);
-            Object flow = invokeTransport(loader, transport, nativeRequest,
-                    Math.max(1L, Math.min(timeoutMs, DEFAULT_FLOW_TIMEOUT_MS)));
-            if (flow == null) {
-                throw new z2.GatewayException(502, "transport_failed", "server_error",
-                        "The code295 native transport returned no Flow");
+            stage(request.requestId, sink, "request_build", "running", "",
+                    "Cloning and populating native request template");
+            final Object nativeRequest;
+            try {
+                nativeRequest = buildRequest(template, request, sessionId, pow);
+                stage(request.requestId, sink, "request_build", "succeeded", "",
+                        "Native request template populated");
+            } catch (Throwable failure) {
+                stage(request.requestId, sink, "request_build", "failed", "request_template_invalid",
+                        failure.getClass().getSimpleName());
+                throw failure;
+            }
+            stage(request.requestId, sink, "transport", "running", "",
+                    "Invoking DeepSeek native transport");
+            final Object flow;
+            try {
+                flow = invokeTransport(loader, transport, nativeRequest,
+                        Math.max(1L, Math.min(timeoutMs, DEFAULT_FLOW_TIMEOUT_MS)));
+                if (flow == null) {
+                    throw new z2.GatewayException(502, "transport_failed", "server_error",
+                            "The code295 native transport returned no Flow");
+                }
+                stage(request.requestId, sink, "transport", "succeeded", "",
+                        "Native transport returned a Flow");
+            } catch (Throwable failure) {
+                stage(request.requestId, sink, "transport", "failed", "transport_failed",
+                        failure.getClass().getSimpleName());
+                throw failure;
             }
 
             StringBuilder text = new StringBuilder();
             StringBuilder reasoning = new StringBuilder();
-            collectFlow(loader, flow, sink, text, reasoning,
-                    Math.max(1L, Math.min(timeoutMs, DEFAULT_FLOW_TIMEOUT_MS)));
+            stage(request.requestId, sink, "flow_collect", "running", "",
+                    "Collecting native response Flow");
+            try {
+                collectFlow(loader, flow, sink, text, reasoning,
+                        Math.max(1L, Math.min(timeoutMs, DEFAULT_FLOW_TIMEOUT_MS)));
+                stage(request.requestId, sink, "flow_collect", "succeeded", "",
+                        "Native response Flow completed");
+            } catch (Throwable failure) {
+                String code = failure instanceof z2.GatewayException
+                        ? ((z2.GatewayException) failure).code : "flow_failed";
+                stage(request.requestId, sink, "flow_collect",
+                        failure instanceof java.util.concurrent.CancellationException
+                                ? "cancelled" : "failed", code,
+                        failure.getClass().getSimpleName());
+                throw failure;
+            }
             if (text.length() == 0 && reasoning.length() == 0) {
                 throw new z2.GatewayException(502, "empty_native_response", "server_error",
                         "The native Flow completed without text or reasoning fragments");
@@ -84,8 +141,24 @@ final class Code295NativeCompletionAdapter {
             return new z2.CompletionResult(text.toString(), reasoning.toString(), "stop");
         } finally {
             if (sessionId != null) {
+                stage(request.requestId, sink, "session_cleanup", "running", "",
+                        "Deleting temporary native chat session");
                 deleteThrowawaySession(loader, transport, sessionId);
+                stage(request.requestId, sink, "session_cleanup", "succeeded", "",
+                        "Session cleanup attempted; cleanup endpoint is best-effort");
+            } else {
+                stage(request.requestId, sink, "session_cleanup", "skipped", "",
+                        "No temporary session was created");
             }
+        }
+    }
+
+    private static void stage(String requestId, z2.DeltaSink sink, String name,
+                              String status, String code, String detail) {
+        LocalApiDiagnostics.stage(requestId, name, status, code, detail);
+        if (sink != null) {
+            try { sink.onStage(name, status, code, detail); }
+            catch (Exception ignored) {}
         }
     }
 
