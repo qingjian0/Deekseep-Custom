@@ -258,8 +258,11 @@ final class Code295NativeCompletionAdapter {
                 break;
             }
         }
-        final Object context = contextType == null
-                ? null : Main.emptyContextProxy(loader, contextType);
+        final Object cancellationJob = contextType == null
+                ? null : Main.newLocalApiCancellationJob(loader, contextType);
+        final Object context = contextType == null ? null
+                : (cancellationJob == null
+                        ? Main.emptyContextProxy(loader, contextType) : cancellationJob);
         final CountDownLatch done = new CountDownLatch(1);
         final AtomicReference<Throwable> failure = new AtomicReference<Throwable>();
         final FragmentState fragmentState = new FragmentState();
@@ -293,33 +296,61 @@ final class Code295NativeCompletionAdapter {
                     return MainReflectionSupport.objectMethod(proxy, method, args);
                 }
                 if (method.getParameterTypes().length == 2 && args != null && args.length == 2) {
+                    if (sink != null && sink.isCancelled()) {
+                        Main.cancelLocalApiCancellationJob(cancellationJob);
+                        throw new java.util.concurrent.CancellationException(
+                                "local API client disconnected");
+                    }
                     try {
                         emitDelta(args[0], sink, text, reasoning, fragmentState);
                     } catch (Throwable error) {
                         failure.compareAndSet(null, error);
+                        throw error;
                     }
                 }
-                return null;
+                return Main.ui8Unit(loader);
             }
         };
         Object collector = Proxy.newProxyInstance(loader,
                 new Class<?>[]{collectorType}, collectorHandler);
 
         collect.setAccessible(true);
+        Main.ACTIVE_LOCAL_API_CANCEL_JOB = cancellationJob;
         try {
             Object returned = collect.invoke(flow, collector, continuation);
+            // The native cold Flow starts its upstream work when collect() is entered.
+            if (sink != null) sink.onUpstreamStarted();
             if (!isCoroutineSuspended(loader, returned)) done.countDown();
+
+            long deadline = System.currentTimeMillis() + Math.max(1L, timeoutMs);
+            while (done.getCount() != 0L) {
+                if (sink != null && sink.isCancelled()) {
+                    Main.cancelLocalApiCancellationJob(cancellationJob);
+                    throw new java.util.concurrent.CancellationException(
+                            "local API client disconnected");
+                }
+                long remaining = deadline - System.currentTimeMillis();
+                if (remaining <= 0L) {
+                    Main.cancelLocalApiCancellationJob(cancellationJob);
+                    throw new z2.GatewayException(504, "native_flow_timeout", "server_error",
+                            "The code295 native completion Flow exceeded the request deadline");
+                }
+                done.await(Math.min(100L, remaining), TimeUnit.MILLISECONDS);
+            }
+            Throwable error = failure.get();
+            if (error != null) {
+                throw gatewayFailure(502, "flow_failed", "Native Flow delivery failed", error);
+            }
         } catch (InvocationTargetException wrapped) {
             Throwable cause = wrapped.getCause() == null ? wrapped : wrapped.getCause();
+            if (cause instanceof java.util.concurrent.CancellationException) throw (Exception) cause;
             throw gatewayFailure(502, "flow_failed", "Native Flow collection failed", cause);
-        }
-        if (!done.await(timeoutMs, TimeUnit.MILLISECONDS)) {
-            throw new z2.GatewayException(504, "native_flow_timeout", "server_error",
-                    "The code295 native completion Flow exceeded the request deadline");
-        }
-        Throwable error = failure.get();
-        if (error != null) {
-            throw gatewayFailure(502, "flow_failed", "Native Flow delivery failed", error);
+        } finally {
+            Main.cancelLocalApiCancellationJob(
+                    sink != null && sink.isCancelled() ? cancellationJob : null);
+            if (Main.ACTIVE_LOCAL_API_CANCEL_JOB == cancellationJob) {
+                Main.ACTIVE_LOCAL_API_CANCEL_JOB = null;
+            }
         }
     }
 
@@ -395,12 +426,17 @@ final class Code295NativeCompletionAdapter {
     private static void deliver(z2.DeltaSink sink, StringBuilder text,
                                 StringBuilder reasoning, String delta, boolean think)
             throws Exception {
+        boolean keepGoing = true;
         if (think) {
             reasoning.append(delta);
-            if (sink != null) sink.onReasoning(delta);
+            if (sink != null) keepGoing = sink.onReasoning(delta);
         } else {
             text.append(delta);
-            if (sink != null) sink.onText(delta);
+            if (sink != null) keepGoing = sink.onText(delta);
+        }
+        if (!keepGoing) {
+            throw new java.util.concurrent.CancellationException(
+                    "local API client disconnected");
         }
     }
 
