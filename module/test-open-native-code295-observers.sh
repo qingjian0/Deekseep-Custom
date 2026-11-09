@@ -55,6 +55,14 @@ checks = {
         'if ("transport-dispatch".equals(role))' in source
         and '"[OPEN_NATIVE_CALL_OBSERVER] runtime-confirmed"' in source
         and '" requestType="' in source,
+    "runtime request metadata includes constructors and methods without field reads":
+        "observedRequestShape(requestArg)" in source
+        and "private static String observedRequestShape(Object value)" in source
+        and "getDeclaredConstructors()" in source
+        and "getDeclaredMethods()" in source
+        and "getDeclaredField(" not in section(
+            "private static String observedRequestShape", "private static String observedObjectShape"),
+
     "Flow identity uses weak references rather than retaining host Flow objects":
         "ReferenceQueue<Object> FLOW_TRACE_QUEUE" in source
         and "new IdentityWeakReference(flow, FLOW_TRACE_QUEUE)" in source,
