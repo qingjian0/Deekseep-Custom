@@ -770,16 +770,33 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     /** Runtime-captured 2.7.5/code295 native transport and PoW manager for the Open adapter. */
     public static volatile Object live275Transport;
     public static volatile Object live275PowManager;
-    /** Weak request template: the API adapter clones it and overwrites all request-scoped fields. */
-    public static volatile java.lang.ref.WeakReference<Object> live275RequestTemplate =
-            new java.lang.ref.WeakReference<Object>(null);
+    /** Sanitized qy1 template: prompt/session/PoW fields are cleared at capture time. */
+    public static volatile Object live275RequestTemplate;
     public static volatile Object ACTIVE_LOCAL_API_CANCEL_JOB;
 
     static void captureCode295NativeRuntime(Object transport, Object request) {
         if (!isLocalApiEnabled()) return;
         if (transport != null) live275Transport = transport;
         if (request != null && "qy1".equals(request.getClass().getName())) {
-            live275RequestTemplate = new java.lang.ref.WeakReference<Object>(request);
+            try {
+                Object template = HookAttachmentPipeline.cloneNativeRequestTemplate(request);
+                HookAttachmentPipeline.setNativeRequestField(template, "a", "");
+                HookAttachmentPipeline.setNativeRequestField(template, "b", null);
+                HookAttachmentPipeline.setNativeRequestField(template, "c", "");
+                HookAttachmentPipeline.setNativeRequestField(template, "d",
+                        new java.util.ArrayList<String>());
+                HookAttachmentPipeline.setNativeRequestField(template, "e", Boolean.FALSE);
+                HookAttachmentPipeline.setNativeRequestField(template, "f", Boolean.FALSE);
+                HookAttachmentPipeline.setNativeRequestField(template, "g", null);
+                HookAttachmentPipeline.setNativeRequestField(template, "h", Boolean.FALSE);
+                HookAttachmentPipeline.setNativeRequestField(template, "i", "default");
+                HookAttachmentPipeline.setNativeRequestField(template, "j", null);
+                HookAttachmentPipeline.setNativeRequestField(template, "k", "");
+                // Keep only l (host Shumei device identity) from the observed request.
+                live275RequestTemplate = template;
+            } catch (Throwable ignored) {
+                live275RequestTemplate = null;
+            }
         }
     }
 
