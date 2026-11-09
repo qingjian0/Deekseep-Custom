@@ -218,8 +218,6 @@ final class Code295NativeCompletionAdapter {
             Throwable cause = wrapped.getCause() == null ? wrapped : wrapped.getCause();
             throw gatewayFailure(502, "transport_failed",
                     "The code295 native transport rejected the request", cause);
-        } catch (z2.GatewayException error) {
-            throw error;
         } catch (Throwable error) {
             throw gatewayFailure(502, "transport_failed",
                     "The code295 native transport could not be invoked", error);
