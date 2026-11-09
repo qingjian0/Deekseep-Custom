@@ -122,9 +122,25 @@ checks = {
         and 'setAndVerify(clone, "l"' not in adapter,
     "adapter collects the native Flow with bounded waiting and delta delivery":
         "collectFlow(loader, flow, sink" in adapter
-        and "done.await(timeoutMs, TimeUnit.MILLISECONDS)" in adapter
+        and "done.await(Math.min(100L, remaining), TimeUnit.MILLISECONDS)" in adapter
         and "sink.onText(delta)" in adapter
         and "sink.onReasoning(delta)" in adapter,
+    "Flow uses the host cancellation Job in its coroutine context":
+        "Main.newLocalApiCancellationJob(loader, contextType)" in adapter
+        and "Main.emptyContextProxy(loader, contextType)" in adapter,
+    "active native Flow publishes its cancellation Job for host stop controls":
+        "Main.ACTIVE_LOCAL_API_CANCEL_JOB = cancellationJob;" in adapter
+        and "Main.ACTIVE_LOCAL_API_CANCEL_JOB = null;" in adapter,
+    "Flow collection notifies the protocol sink only after entering native collect":
+        "if (sink != null) sink.onUpstreamStarted();" in adapter,
+    "idle Flow collection polls disconnect state and cancels upstream":
+        "if (sink != null && sink.isCancelled())" in adapter
+        and "Main.cancelLocalApiCancellationJob(cancellationJob);" in adapter,
+    "Flow collector returns host Kotlin Unit":
+        "return Main.ui8Unit(loader);" in adapter,
+    "delta sink backpressure stops native Flow on client disconnect":
+        "if (!keepGoing)" in adapter
+        and "throw new java.util.concurrent.CancellationException(" in adapter,
     "unsupported image input fails closed rather than being silently dropped":
         "unsupported_input_images" in adapter,
 }
