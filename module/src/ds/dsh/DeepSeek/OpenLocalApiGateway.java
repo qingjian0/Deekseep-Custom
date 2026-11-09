@@ -557,6 +557,28 @@ final class OpenLocalApiGateway {
             }
             OpenNativeCompletionProbe.apiTrace("http-authenticated method=" + request.method
                     + " path=" + request.path);
+            if ("GET".equals(request.method)
+                    && "/v1/diagnostics/requests".equals(request.path)) {
+                sendJson(out, 200, new JSONObject().put("object", "list")
+                        .put("data", LocalApiDiagnostics.recent(24)));
+                return;
+            }
+            final String diagnosticsPrefix = "/v1/diagnostics/requests/";
+            if ("GET".equals(request.method) && request.path.startsWith(diagnosticsPrefix)) {
+                String diagnosticId = request.path.substring(diagnosticsPrefix.length());
+                if (diagnosticId.length() == 0 || diagnosticId.indexOf('/') >= 0
+                        || diagnosticId.length() > 96) {
+                    sendError(out, 400, "invalid_request_id", "Invalid diagnostic request ID");
+                    return;
+                }
+                JSONObject snapshot = LocalApiDiagnostics.snapshot(diagnosticId);
+                if (snapshot == null) {
+                    sendError(out, 404, "diagnostic_not_found", "Diagnostic request was not found");
+                } else {
+                    sendJson(out, 200, snapshot);
+                }
+                return;
+            }
             if ("GET".equals(request.method) && "/v1/models".equals(request.path)) {
                 // Model discovery describes the configured API surface, not live engine
                 // readiness. Keep it usable for client setup/diagnostics while completions
@@ -722,6 +744,11 @@ final class OpenLocalApiGateway {
                     requestId, model, "default", conversationPrompt, prompt,
                     "deepseek-reasoner".equals(model), false, maxTokens,
                     toolPlan, null, false);
+            LocalApiDiagnostics.begin(requestId, "openai", stream ? "stream" : "non_stream");
+            LocalApiDiagnostics.stage(requestId, "http_validation", "succeeded", "",
+                    "HTTP request and authentication accepted");
+            LocalApiDiagnostics.stage(requestId, "parameter_validation", "succeeded", "",
+                    "Model, messages and generation options validated");
             OpenNativeCompletionProbe.apiTrace("request-accepted requestId=" + requestId
                     + " requestedModel=" + requestedModel + " model=" + model
                     + " stream=" + stream + " promptChars=" + prompt.length()
@@ -730,10 +757,14 @@ final class OpenLocalApiGateway {
             OpenNativeCompletionProbe.apiTrace("model-routing requestId=" + requestId
                     + " model=" + model + " backendPresent=" + (current != null));
             boolean ready = current != null && current.isReady();
+            LocalApiDiagnostics.stage(requestId, "backend_readiness", "succeeded", "",
+                    "backend_present=" + (current != null) + " ready=" + ready);
             OpenNativeCompletionProbe.apiTrace("backend-readiness requestId=" + requestId
                     + " ready=" + ready);
             if (current == null) {
                 sendError(out, 503, "model_not_ready", "server_error",
+                        "Model backend unavailable");
+                LocalApiDiagnostics.finish(requestId, "failed", "model_not_ready",
                         "Model backend unavailable");
                 OpenNativeCompletionProbe.apiTrace("request-rejected requestId=" + requestId
                         + " stage=backend-missing status=503");
@@ -762,12 +793,16 @@ final class OpenLocalApiGateway {
                 } catch (z2.GatewayException rejected) {
                     sendError(out, rejected.status, rejected.code, rejected.type,
                             rejected.getMessage());
+                    LocalApiDiagnostics.finish(requestId, "failed", rejected.code,
+                            rejected.getClass().getSimpleName());
                     OpenNativeCompletionProbe.apiTrace("completion-failed requestId=" + requestId
                             + " status=" + rejected.status + " code=" + rejected.code
                             + " durationMs=" + ((System.nanoTime() - completionStartedNanos) / 1000000L));
                     return;
                 } catch (Exception upstreamFailure) {
                     sendError(out, 502, "upstream_error", "Native model execution failed");
+                    LocalApiDiagnostics.finish(requestId, "failed", "upstream_error",
+                            upstreamFailure.getClass().getSimpleName());
                     OpenNativeCompletionProbe.apiTrace("completion-failed requestId=" + requestId
                             + " status=502 exception=" + upstreamFailure.getClass().getName()
                             + " durationMs=" + ((System.nanoTime() - completionStartedNanos) / 1000000L));
@@ -779,6 +814,8 @@ final class OpenLocalApiGateway {
                             + " durationMs=" + ((System.nanoTime() - completionStartedNanos) / 1000000L));
                     return;
                 }
+                LocalApiDiagnostics.finish(requestId, "succeeded", "",
+                        "Native completion returned");
                 OpenNativeCompletionProbe.apiTrace("completion-complete requestId=" + requestId
                         + " durationMs=" + ((System.nanoTime() - completionStartedNanos) / 1000000L)
                         + " textChars=" + result.text.length()
