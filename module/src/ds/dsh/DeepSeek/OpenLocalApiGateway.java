@@ -813,6 +813,8 @@ final class OpenLocalApiGateway {
                 }
                 if (result == null) {
                     sendError(out, 502, "empty_upstream_response", "Native model returned no result");
+                    LocalApiDiagnostics.finish(requestId, "failed", "empty_upstream_response",
+                            "Native model returned no result");
                     OpenNativeCompletionProbe.apiTrace("completion-empty requestId=" + requestId
                             + " durationMs=" + ((System.nanoTime() - completionStartedNanos) / 1000000L));
                     return;
@@ -829,6 +831,8 @@ final class OpenLocalApiGateway {
                         || OpenAiToolBridge.resemblesCallSyntax(result.text, toolPlan))) {
                     sendError(out, 502, "invalid_tool_response",
                             "The model did not return a valid tool call matching the request schema");
+                    LocalApiDiagnostics.finish(requestId, "failed", "invalid_tool_response",
+                            "Native output did not match the requested tool schema");
                     return;
                 }
                 JSONObject message = new JSONObject().put("role", "assistant")
