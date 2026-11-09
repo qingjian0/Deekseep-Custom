@@ -814,8 +814,6 @@ final class OpenLocalApiGateway {
                             + " durationMs=" + ((System.nanoTime() - completionStartedNanos) / 1000000L));
                     return;
                 }
-                LocalApiDiagnostics.finish(requestId, "succeeded", "",
-                        "Native completion returned");
                 OpenNativeCompletionProbe.apiTrace("completion-complete requestId=" + requestId
                         + " durationMs=" + ((System.nanoTime() - completionStartedNanos) / 1000000L)
                         + " textChars=" + result.text.length()
@@ -861,6 +859,10 @@ final class OpenLocalApiGateway {
                         .put("object", "chat.completion").put("created", System.currentTimeMillis()/1000)
                         .put("model", model).put("choices", new JSONArray().put(choice))
                         .put("usage", usage));
+                LocalApiDiagnostics.stage(requestId, "response_delivery", "succeeded", "",
+                        "JSON completion response delivered");
+                LocalApiDiagnostics.finish(requestId, "succeeded", "",
+                        "Completion response finished");
             }
         } catch (Exception error) {
             Main.log("Open Local API request failed: " + error.getClass().getSimpleName());
