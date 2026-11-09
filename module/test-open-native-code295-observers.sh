@@ -49,6 +49,12 @@ checks = {
         .count("install") >= 3,
     "request and Flow observer preserve the original host return object":
         "installContinuationObserver(result);" in source and "return result;" in source,
+    "code295 runtime profile starts pending rather than falsely confirmed or denied":
+        "staticEvidenceOnly=true runtimeConfirmed=pending" in source,
+    "actual transport invocation emits a runtime-confirmed event":
+        'if ("transport-dispatch".equals(role))' in source
+        and '"[OPEN_NATIVE_CALL_OBSERVER] runtime-confirmed"' in source
+        and '" requestType="' in source,
     "Flow identity uses weak references rather than retaining host Flow objects":
         "ReferenceQueue<Object> FLOW_TRACE_QUEUE" in source
         and "new IdentityWeakReference(flow, FLOW_TRACE_QUEUE)" in source,
