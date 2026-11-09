@@ -225,7 +225,7 @@ if missing_gateway:
 # Backend readiness is diagnostic only. A missing Open native engine must reach
 # Backend.complete() so the execution facade can return its precise engine_missing
 # result instead of being short-circuited by the HTTP gateway.
-readiness_start = source.index("boolean ready = current.isReady();")
+readiness_start = source.index("boolean ready = current != null && current.isReady();")
 readiness_end = source.index("boolean includeUsage", readiness_start)
 readiness_block = source[readiness_start:readiness_end]
 if "backend-not-ready-dispatching" not in readiness_block:
