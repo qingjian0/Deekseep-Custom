@@ -689,7 +689,7 @@ final class OpenNativeCompletionProbe {
      * The exact method descriptor is checked at runtime; no challenge or solution values are read.
      */
     private static void installCode295PowManagerObserver(ClassLoader loader) {
-        if (OBSERVATION_275_POW_MANAGER.get() || loader == null || Main.MODULE == null) return;
+        if (OBSERVATION_275_POW.get() || loader == null || Main.MODULE == null) return;
         try {
             Class<?> owner = Class.forName("of2", false, loader);
             Class<?> continuationType = Class.forName("ec3", false, loader);
@@ -698,7 +698,7 @@ final class OpenNativeCompletionProbe {
                 observerLog("[OPEN_NATIVE_CALL_OBSERVER] code295 pow-manager signature-unavailable");
                 return;
             }
-            if (!OBSERVATION_275_POW_MANAGER.compareAndSet(false, true)) return;
+            if (!OBSERVATION_275_POW.compareAndSet(false, true)) return;
             Main.MODULE.hook(target).intercept(new LegacyXposedModule.Hooker() {
                 @Override public Object intercept(LegacyXposedModule.Chain chain)
                         throws Throwable {
