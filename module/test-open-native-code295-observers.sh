@@ -66,6 +66,17 @@ checks = {
     "legacy pv1 SSE observer is not installed for code295":
         "installCode295SseDispatchObserver(loader);" not in section(
             'if (HostCompat.isV275StaticOnly())', 'if (HostCompat.hostCode271() != 289)'),
+    "continuation failure captures sanitized stack frames":
+        "observedThrowableStack(hostError)" in source
+        and "private static String observedThrowableStack(Throwable error)" in source
+        and ".append(element.getClassName()).append('#').append(element.getMethodName())" in source,
+    "continuation diagnostics do not serialize exception messages":
+        "hostError.getMessage()" not in section(
+            "private static void installCode295DeltaDispatchObserver",
+            "private static void installCode295PowObserver")
+        and "hostError.getMessage()" not in section(
+            "private static void installContinuationObserver",
+            "private static void installCallbackObserver"),
 }
 for name, passed in checks.items():
     print(("PASS " if passed else "FAIL ") + name)
