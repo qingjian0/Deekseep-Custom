@@ -747,17 +747,23 @@ final class OpenNativeCompletionProbe {
                     String args = "unavailable";
                     try { args = observedArgumentTypes(chain.getArgs()); }
                     catch (Throwable ignored) {}
-                    safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] code295 pow-enter"
-                            + " method=" + observedMethodDescriptor(target) + " args=" + args);
+                    if (Main.isOpenNativeCompletionProbeEnabled()) {
+                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] code295 pow-enter"
+                                + " method=" + observedMethodDescriptor(target) + " args=" + args);
+                    }
                     try {
                         Object result = chain.proceed();
-                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] code295 pow-exit"
-                                + " result=" + observedResultType(result)
-                                + " durationMs=" + ((System.nanoTime() - started) / 1_000_000L));
+                        if (Main.isOpenNativeCompletionProbeEnabled()) {
+                            safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] code295 pow-exit"
+                                    + " result=" + observedResultType(result)
+                                    + " durationMs=" + ((System.nanoTime() - started) / 1_000_000L));
+                        }
                         return result;
                     } catch (Throwable hostError) {
-                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] code295 pow-throw"
-                                + " exception=" + hostError.getClass().getName());
+                        if (Main.isOpenNativeCompletionProbeEnabled()) {
+                            safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] code295 pow-throw"
+                                    + " exception=" + hostError.getClass().getName());
+                        }
                         throw hostError;
                     }
                 }
@@ -980,19 +986,20 @@ final class OpenNativeCompletionProbe {
                         frame.callStack.addLast(currentMethod);
                         stackPushed = true;
                         if (root) {
-                            observerLog("[OPEN_NATIVE_CALL_OBSERVER] enter id=" + frame.id
-                                    + " role=" + role + " method=" + currentMethod
-                                    + " parent=" + parentMethod
-                                    + " sameRequestObjectAsRoot=" + sameRequestObjectAsRoot
-                                    + " modifiers=" + Modifier.toString(target.getModifiers())
-                                    + " thread=" + thread + " depth=" + depth + " args=" + args
-                                    + " requestShape=" + observedRequestShape(requestArg)
-                                    + " stack=" + observedStack());
-                            if ("transport-dispatch".equals(role)) {
-                                if (HostCompat.isV275StaticOnly()) {
-                                    Main.captureCode295NativeRuntime(chain.getThisObject(), requestArg);
-                                }
-                                if (Main.isOpenNativeCompletionProbeEnabled()) {
+                            if ("transport-dispatch".equals(role)
+                                    && HostCompat.isV275StaticOnly()) {
+                                Main.captureCode295NativeRuntime(chain.getThisObject(), requestArg);
+                            }
+                            if (Main.isOpenNativeCompletionProbeEnabled()) {
+                                observerLog("[OPEN_NATIVE_CALL_OBSERVER] enter id=" + frame.id
+                                        + " role=" + role + " method=" + currentMethod
+                                        + " parent=" + parentMethod
+                                        + " sameRequestObjectAsRoot=" + sameRequestObjectAsRoot
+                                        + " modifiers=" + Modifier.toString(target.getModifiers())
+                                        + " thread=" + thread + " depth=" + depth + " args=" + args
+                                        + " requestShape=" + observedRequestShape(requestArg)
+                                        + " stack=" + observedStack());
+                                if ("transport-dispatch".equals(role)) {
                                     observerLog("[OPEN_NATIVE_CALL_OBSERVER] runtime-confirmed"
                                             + " observationId=" + frame.id + " role=" + role
                                             + " method=" + currentMethod + " requestType="
@@ -1000,7 +1007,7 @@ final class OpenNativeCompletionProbe {
                                                     : requestArg.getClass().getName()));
                                 }
                             }
-                        } else {
+                        } else if (Main.isOpenNativeCompletionProbeEnabled()) {
                             observerLog("[OPEN_NATIVE_CALL_OBSERVER] enter id=" + frame.id
                                     + " role=" + role + " method=" + currentMethod
                                     + " parent=" + parentMethod
@@ -1029,27 +1036,31 @@ final class OpenNativeCompletionProbe {
                                 || "transport-dispatch".equals(role)) {
                             installContinuationObserver(result);
                         }
-                        try {
-                            observerLog("[OPEN_NATIVE_CALL_OBSERVER] exit id="
-                                    + (frame == null ? "unknown" : frame.id)
-                                    + " role=" + role + " method=" + currentMethod
-                                    + " parent=" + parentMethod
-                                    + " sameRequestObjectAsRoot=" + sameRequestObjectAsRoot
-                                    + " depth=" + depth + " result="
-                                    + observedResultType(result));
-                        } catch (Throwable ignored) {}
+                        if (Main.isOpenNativeCompletionProbeEnabled()) {
+                            try {
+                                observerLog("[OPEN_NATIVE_CALL_OBSERVER] exit id="
+                                        + (frame == null ? "unknown" : frame.id)
+                                        + " role=" + role + " method=" + currentMethod
+                                        + " parent=" + parentMethod
+                                        + " sameRequestObjectAsRoot=" + sameRequestObjectAsRoot
+                                        + " depth=" + depth + " result="
+                                        + observedResultType(result));
+                            } catch (Throwable ignored) {}
+                        }
                         return result;
                     } catch (Throwable original) {
-                        try {
-                            observerLog("[OPEN_NATIVE_CALL_OBSERVER] throw id="
-                                    + (frame == null ? "unknown" : frame.id)
-                                    + " role=" + role + " method=" + currentMethod
-                                    + " parent=" + parentMethod
-                                    + " sameRequestObjectAsRoot=" + sameRequestObjectAsRoot
-                                    + " depth=" + depth + " exception="
-                                    + original.getClass().getName()
-                                    + " stack=" + observedThrowableStack(original));
-                        } catch (Throwable ignored) {}
+                        if (Main.isOpenNativeCompletionProbeEnabled()) {
+                            try {
+                                observerLog("[OPEN_NATIVE_CALL_OBSERVER] throw id="
+                                        + (frame == null ? "unknown" : frame.id)
+                                        + " role=" + role + " method=" + currentMethod
+                                        + " parent=" + parentMethod
+                                        + " sameRequestObjectAsRoot=" + sameRequestObjectAsRoot
+                                        + " depth=" + depth + " exception="
+                                        + original.getClass().getName()
+                                        + " stack=" + observedThrowableStack(original));
+                            } catch (Throwable ignored) {}
+                        }
                         throw original;
                     } finally {
                         if (frame != null) {
