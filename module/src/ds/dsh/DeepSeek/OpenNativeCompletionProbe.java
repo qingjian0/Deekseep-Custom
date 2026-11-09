@@ -937,7 +937,7 @@ final class OpenNativeCompletionProbe {
                                     + " sameRequestObjectAsRoot=" + sameRequestObjectAsRoot
                                     + " modifiers=" + Modifier.toString(target.getModifiers())
                                     + " thread=" + thread + " depth=" + depth + " args=" + args
-                                    + " requestShape=" + observedObjectShape(requestArg)
+                                    + " requestShape=" + observedRequestShape(requestArg)
                                     + " stack=" + observedStack());
                             if ("transport-dispatch".equals(role)) {
                                 observerLog("[OPEN_NATIVE_CALL_OBSERVER] runtime-confirmed"
@@ -1351,6 +1351,51 @@ final class OpenNativeCompletionProbe {
      * Report object structure only: declared field names and types, never field values.
      * Request payload values, credentials, cookies, and message text are never read.
      */
+    /**
+     * Request metadata needed for version-specific adapter research. It records only declared
+     * field, constructor and method signatures; it never reads field values or invokes methods.
+     */
+    private static String observedRequestShape(Object value) {
+        if (value == null) return "null";
+        Class<?> type = value.getClass();
+        StringBuilder out = new StringBuilder(observedObjectShape(value));
+        try {
+            java.lang.reflect.Constructor<?>[] constructors = type.getDeclaredConstructors();
+            out.append(" constructors=[");
+            int count = Math.min(constructors.length, 12);
+            for (int i = 0; i < count; i++) {
+                if (i > 0) out.append(',');
+                out.append(type.getName()).append(".<init>(");
+                Class<?>[] parameters = constructors[i].getParameterTypes();
+                for (int p = 0; p < parameters.length; p++) {
+                    if (p > 0) out.append(',');
+                    out.append(parameters[p].getName());
+                }
+                out.append(')');
+            }
+            if (constructors.length > count) out.append(",...+").append(constructors.length - count);
+            out.append(']');
+        } catch (LinkageError | RuntimeException metadataError) {
+            out.append(" constructors=<unavailable:")
+                    .append(metadataError.getClass().getName()).append('>');
+        }
+        try {
+            Method[] methods = type.getDeclaredMethods();
+            out.append(" methods=[");
+            int count = Math.min(methods.length, 20);
+            for (int i = 0; i < count; i++) {
+                if (i > 0) out.append(',');
+                out.append(observedMethodDescriptor(methods[i]));
+            }
+            if (methods.length > count) out.append(",...+").append(methods.length - count);
+            out.append(']');
+        } catch (LinkageError | RuntimeException metadataError) {
+            out.append(" methods=<unavailable:")
+                    .append(metadataError.getClass().getName()).append('>');
+        }
+        return out.toString();
+    }
+
     private static String observedObjectShape(Object value) {
         if (value == null) return "null";
         Class<?> type = value.getClass();
