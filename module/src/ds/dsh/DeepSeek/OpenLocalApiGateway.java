@@ -745,6 +745,9 @@ final class OpenLocalApiGateway {
                     "deepseek-reasoner".equals(model), false, maxTokens,
                     toolPlan, null, false);
             LocalApiDiagnostics.begin(requestId, "openai", stream ? "stream" : "non_stream");
+            JSONArray diagnosticMessages = body.optJSONArray("messages");
+            LocalApiDiagnostics.inputShape(requestId, prompt.length(),
+                    diagnosticMessages == null ? 1 : diagnosticMessages.length());
             LocalApiDiagnostics.stage(requestId, "http_validation", "succeeded", "",
                     "HTTP request and authentication accepted");
             LocalApiDiagnostics.stage(requestId, "parameter_validation", "succeeded", "",
@@ -924,6 +927,9 @@ final class OpenLocalApiGateway {
                 normalized.toolPlan, null, false);
         LocalApiDiagnostics.begin(requestId, "anthropic_messages",
                 normalized.stream ? "stream" : "non_stream");
+        JSONArray diagnosticMessages = body.optJSONArray("messages");
+        LocalApiDiagnostics.inputShape(requestId, normalized.prompt.length(),
+                diagnosticMessages == null ? 1 : diagnosticMessages.length());
         LocalApiDiagnostics.stage(requestId, "http_validation", "succeeded", "",
                 "HTTP request and authentication accepted");
         LocalApiDiagnostics.stage(requestId, "parameter_validation", "succeeded", "",
@@ -975,6 +981,8 @@ final class OpenLocalApiGateway {
                 || OpenAiToolBridge.resemblesCallSyntax(result.text, normalized.toolPlan))) {
             sendAnthropicError(out, 502, "api_error",
                     "The model did not return a valid tool call matching the request schema");
+            LocalApiDiagnostics.finish(requestId, "failed", "invalid_tool_response",
+                    "Native output did not match the requested tool schema");
             return;
         }
         JSONArray content = anthropicContent(result, calls);
@@ -1041,6 +1049,8 @@ final class OpenLocalApiGateway {
                                     .put("output_tokens", 0).put("dsh_usage_estimated", true))));
             sendAnthropicEvent(out, "ping", new JSONObject().put("type", "ping"));
         } catch (Exception disconnectedDuringStart) {
+            LocalApiDiagnostics.finish(requestId, "cancelled", "client_disconnected",
+                    "Client disconnected during Responses stream setup");
             return;
         }
         z2.DeltaSink sink = new z2.DeltaSink() {
@@ -1073,7 +1083,11 @@ final class OpenLocalApiGateway {
             z2.CompletionResult result = current.complete(completion, sink);
             if (result == null) throw new z2.GatewayException(502,
                     "empty_upstream_response", "Native model returned no result");
-            if (disconnected.get()) return;
+            if (disconnected.get()) {
+                LocalApiDiagnostics.finish(requestId, "cancelled", "client_disconnected",
+                        "Client disconnected while receiving Anthropic stream");
+                return;
+            }
             if (streamedText.length() == 0 && result.text.length() > 0) {
                 sink.onText(result.text);
                 if (disconnected.get()) return;
@@ -1398,6 +1412,8 @@ final class OpenLocalApiGateway {
                 toolPlan, previousId.length() == 0 ? null : previousId, true)
                 .withOutputTextFormat(format);
         LocalApiDiagnostics.begin(requestId, "openai_responses", stream ? "stream" : "non_stream");
+        LocalApiDiagnostics.inputShape(requestId, prompt.length(),
+                rawInput instanceof JSONArray ? ((JSONArray) rawInput).length() : 1);
         LocalApiDiagnostics.stage(requestId, "http_validation", "succeeded", "",
                 "HTTP request and authentication accepted");
         LocalApiDiagnostics.stage(requestId, "parameter_validation", "succeeded", "",
@@ -1445,6 +1461,8 @@ final class OpenLocalApiGateway {
                 || OpenAiToolBridge.resemblesCallSyntax(result.text, toolPlan))) {
             sendError(out, 502, "invalid_tool_response",
                     "The model did not return a valid tool call matching the request schema");
+            LocalApiDiagnostics.finish(requestId, "failed", "invalid_tool_response",
+                    "Native output did not match the requested tool schema");
             return;
         }
         JSONArray output = new JSONArray();
@@ -1608,6 +1626,8 @@ final class OpenLocalApiGateway {
                     new JSONObject().put("item_id", messageId).put("output_index", 0)
                             .put("content_index", 0).put("part", part));
         } catch (Exception disconnectedDuringStart) {
+            LocalApiDiagnostics.finish(requestId, "cancelled", "client_disconnected",
+                    "Client disconnected during Anthropic stream setup");
             return;
         }
         z2.DeltaSink sink = new z2.DeltaSink() {
@@ -1631,7 +1651,11 @@ final class OpenLocalApiGateway {
             z2.CompletionResult result = current.complete(request, sink);
             if (result == null) throw new z2.GatewayException(502,
                     "empty_upstream_response", "Native model returned no result");
-            if (disconnected.get()) return;
+            if (disconnected.get()) {
+                LocalApiDiagnostics.finish(requestId, "cancelled", "client_disconnected",
+                        "Client disconnected while receiving Responses stream");
+                return;
+            }
             String finalText = streamed.length() > 0 ? streamed.toString() : result.text;
             sendResponsesEvent(out, "response.output_text.done", ++sequence[0],
                     new JSONObject().put("item_id", messageId).put("output_index", 0)
