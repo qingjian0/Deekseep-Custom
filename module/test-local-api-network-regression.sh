@@ -394,5 +394,29 @@ if 'JSONArray rawTools = body.optJSONArray("tools")' not in source or "OpenAiToo
     raise SystemExit("Chat Completions function tools must route through the OpenAI tool bridge")
 if "Open 版 HTTP API 已启动，但此版本不包含原生执行引擎" not in main:
     raise SystemExit("Open edition must explain that HTTP availability does not imply native completion readiness")
-print("LAN lifecycle, key, URL, selectable UI, API protocol, and truthful Open capability checks passed")
+
+# Live diagnostics are bounded, authenticated and value-free. The API exposes a compact
+# recent-request index plus a per-request snapshot that clients can poll while generation runs.
+diag = (pathlib.Path(sys.argv[1]).parent / "LocalApiDiagnostics.java").read_text(encoding="utf-8")
+adapter = (pathlib.Path(sys.argv[1]).parent / "Code295NativeCompletionAdapter.java").read_text(encoding="utf-8")
+for route in ('"/v1/diagnostics/requests"', 'diagnosticsPrefix = "/v1/diagnostics/requests/"',
+              "LocalApiDiagnostics.recent(24)", "LocalApiDiagnostics.snapshot(diagnosticId)"):
+    if route not in source:
+        raise SystemExit("Missing authenticated live diagnostics route: " + route)
+for method in ("begin(", "stage(", "finish(", "snapshot(", "recent("):
+    if "static " + ("void " if method in ("begin(", "stage(", "finish(") else "") + method not in diag:
+        if method not in diag:
+            raise SystemExit("Missing diagnostics store operation: " + method)
+for stage in ('"native_runtime"', '"pow"', '"session_create"', '"request_build"',
+              '"transport"', '"flow_collect"', '"session_cleanup"'):
+    if stage not in adapter:
+        raise SystemExit("Missing native execution stage: " + stage)
+if "MAX_REQUESTS = 64" not in diag or "MAX_EVENTS_PER_REQUEST = 128" not in diag:
+    raise SystemExit("Diagnostics retention must remain bounded")
+for forbidden in ("request.prompt", "sessionId", "powValue", "authorization", "cookie"):
+    if forbidden in diag:
+        raise SystemExit("Diagnostics store must not contain sensitive request values: " + forbidden)
+if "public default void onStage(" not in api_contract:
+    raise SystemExit("DeltaSink must expose stage callbacks for live stream diagnostics")
+print("LAN lifecycle, API protocol, value-free live diagnostics, and truthful Open capability checks passed")
 PY
