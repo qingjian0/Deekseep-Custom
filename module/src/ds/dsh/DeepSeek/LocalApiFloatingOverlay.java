@@ -35,6 +35,18 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 /** Edge-sized Local API controller owned by the module foreground keeper. */
 final class LocalApiFloatingOverlay {
     private static final String PREFS = "dq0_floating_console";
@@ -42,6 +54,13 @@ final class LocalApiFloatingOverlay {
     private static final String KEY_EDGE = "edge";
     private static final String KEY_Y = "y";
     private static final Handler MAIN;
+    private static final ExecutorService DIAGNOSTICS_EXECUTOR =
+            Executors.newSingleThreadExecutor();
+    private static boolean diagnosticsPolling;
+    private static boolean diagnosticsInFlight;
+    private static final Runnable DIAGNOSTICS_POLL = new Runnable() {
+        @Override public void run() { pollDiagnostics(); }
+    };
     static { Handler h; try { h = new Handler(Looper.getMainLooper()); } catch (Throwable t) { h = null; } MAIN = h; }
     private static final int BRAND = 0xFF315BEF;
     private static final int SUCCESS = 0xFF26915A;
@@ -61,7 +80,7 @@ final class LocalApiFloatingOverlay {
     private static WindowManager.LayoutParams ballParams;
     private static View panel;
     private static WindowManager.LayoutParams panelParams;
-    private static TextView stateTitle, stateDetail, endpoint, liveData, feedback;
+    private static TextView stateTitle, stateDetail, endpoint, liveData, diagnosticSteps, feedback;
     private static TextView protocolValue;
     private static EditText keyInput, portInput;
     private static HubInsetSwitch serviceSwitch, httpsSwitch;
@@ -152,8 +171,9 @@ final class LocalApiFloatingOverlay {
                     ? info.getLongVersionCode() : info.versionCode;
             if (code == 249L && "2.3.6".equals(info.versionName)) return true;
             if (code == 257L && "2.4.1".equals(info.versionName)) return true;
-            // Mainland 2.7.2/code289 and Google Play 2.7.2/code290.
-            return (code == 289L || code == 290L) && "2.7.2".equals(info.versionName);
+            // Mainland / Google Play 2.7.2 and mainland 2.7.5.
+            return ((code == 289L || code == 290L) && "2.7.2".equals(info.versionName))
+                    || (code == 295L && "2.7.5".equals(info.versionName));
         } catch (Throwable ignored) {
             return false;
         }
@@ -320,6 +340,15 @@ final class LocalApiFloatingOverlay {
         liveData.setBackground(round(inset, line, 10, 1));
         content.addView(liveData);
 
+        content.addView(section("请求阶段诊断 · 自动刷新", muted));
+        diagnosticSteps = label("等待 API 请求…", 11, secondary, false);
+        diagnosticSteps.setTypeface(Typeface.MONOSPACE);
+        diagnosticSteps.setTextIsSelectable(true);
+        diagnosticSteps.setLineSpacing(dp(2), 1f);
+        diagnosticSteps.setPadding(dp(12), dp(11), dp(12), dp(11));
+        diagnosticSteps.setBackground(round(inset, line, 10, 1));
+        content.addView(diagnosticSteps);
+
         feedback = label("", 11, BRAND, false);
         feedback.setGravity(Gravity.CENTER);
         feedback.setMinHeight(dp(28));
@@ -365,6 +394,7 @@ final class LocalApiFloatingOverlay {
         });
 
         panel = root;
+        startDiagnosticsPolling();
         DisplayMetrics metrics = app.getResources().getDisplayMetrics();
         int width = Math.min(dp(304), metrics.widthPixels - dp(32));
         int height = Math.min(dp(528), metrics.heightPixels - dp(96));
@@ -452,6 +482,119 @@ final class LocalApiFloatingOverlay {
         } finally { updating = false; }
     }
 
+    private static void startDiagnosticsPolling() {
+        stopDiagnosticsPolling();
+        diagnosticsPolling = true;
+        MAIN.post(DIAGNOSTICS_POLL);
+    }
+
+    private static void stopDiagnosticsPolling() {
+        diagnosticsPolling = false;
+        MAIN.removeCallbacks(DIAGNOSTICS_POLL);
+        diagnosticSteps = null;
+    }
+
+    private static void pollDiagnostics() {
+        if (!diagnosticsPolling || panel == null || diagnosticsInFlight) return;
+        final TextView target = diagnosticSteps;
+        final String apiKey = z21.apiKeyValue();
+        final int port = z21.gatewayPort();
+        if (target == null) return;
+        if (apiKey == null || apiKey.length() == 0 || port <= 0) {
+            target.setText("API 未就绪：请先启用服务并配置端口和 Key");
+            MAIN.postDelayed(DIAGNOSTICS_POLL, 1500L);
+            return;
+        }
+        diagnosticsInFlight = true;
+        DIAGNOSTICS_EXECUTOR.execute(new Runnable() {
+            @Override public void run() {
+                String report;
+                try {
+                    report = fetchLatestDiagnostic(port, apiKey);
+                } catch (Throwable failure) {
+                    report = "诊断读取失败：" + failure.getClass().getSimpleName();
+                }
+                final String result = report;
+                MAIN.post(new Runnable() {
+                    @Override public void run() {
+                        diagnosticsInFlight = false;
+                        if (diagnosticsPolling && panel != null && diagnosticSteps == target) {
+                            target.setText(result);
+                            MAIN.postDelayed(DIAGNOSTICS_POLL, 1500L);
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    private static String fetchLatestDiagnostic(int port, String apiKey) throws Exception {
+        JSONObject index = diagnosticsGet("http://127.0.0.1:" + port
+                + "/v1/diagnostics/requests", apiKey);
+        JSONArray requests = index.optJSONArray("data");
+        if (requests == null || requests.length() == 0) return "暂无 API 请求记录";
+        JSONObject latest = requests.optJSONObject(0);
+        if (latest == null) return "暂无有效请求记录";
+        String requestId = latest.optString("request_id", "");
+        if (requestId.length() == 0) return "请求记录缺少 request_id";
+        String encodedId = URLEncoder.encode(requestId, "UTF-8").replace("+", "%20");
+        JSONObject snapshot = diagnosticsGet("http://127.0.0.1:" + port
+                + "/v1/diagnostics/requests/" + encodedId, apiKey);
+        JSONArray events = snapshot.optJSONArray("events");
+        StringBuilder out = new StringBuilder();
+        out.append("请求：").append(requestId).append('\n')
+                .append("状态：").append(snapshot.optString("status", "unknown"))
+                .append("  阶段数：").append(events == null ? 0 : events.length())
+                .append("  总耗时：").append(snapshot.optLong("duration_ms", 0L)).append(" ms");
+        if (events == null || events.length() == 0) return out.toString();
+        for (int i = 0; i < events.length(); i++) {
+            JSONObject event = events.optJSONObject(i);
+            if (event == null) continue;
+            out.append('\n').append(String.format(java.util.Locale.US, "%02d",
+                    event.optInt("sequence", i + 1))).append("  ")
+                    .append(event.optString("stage", "unknown"))
+                    .append("  [").append(event.optString("status", "unknown")).append("]")
+                    .append("  +").append(event.optLong("elapsedMs", 0L)).append(" ms");
+            String code = event.optString("code", "");
+            if (code.length() > 0) out.append("  code=").append(code);
+        }
+        return out.toString();
+    }
+
+    private static JSONObject diagnosticsGet(String endpoint, String apiKey) throws Exception {
+        HttpURLConnection connection = null;
+        InputStream input = null;
+        try {
+            connection = (HttpURLConnection) new URL(endpoint).openConnection();
+            connection.setRequestMethod("GET");
+            connection.setConnectTimeout(900);
+            connection.setReadTimeout(900);
+            connection.setUseCaches(false);
+            connection.setRequestProperty("Authorization", "Bearer " + apiKey);
+            connection.setRequestProperty("Accept", "application/json");
+            int status = connection.getResponseCode();
+            input = status >= 200 && status < 300
+                    ? connection.getInputStream() : connection.getErrorStream();
+            if (input == null) throw new IllegalStateException("HTTP " + status);
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            byte[] buffer = new byte[2048];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                if (bytes.size() + read > 256 * 1024) {
+                    throw new IllegalStateException("diagnostics response too large");
+                }
+                bytes.write(buffer, 0, read);
+            }
+            if (status < 200 || status >= 300) {
+                throw new IllegalStateException("HTTP " + status);
+            }
+            return new JSONObject(new String(bytes.toByteArray(), StandardCharsets.UTF_8));
+        } finally {
+            if (input != null) try { input.close(); } catch (Throwable ignored) {}
+            if (connection != null) connection.disconnect();
+        }
+    }
+
     private static void control(String operation, String value) {
         if (feedback != null) feedback.setText("正在应用…");
         z21.sendGatewayControl(app, operation, value, new z21.ControlCallback() {
@@ -493,10 +636,11 @@ final class LocalApiFloatingOverlay {
     }
 
     private static void closePanel() {
+        stopDiagnosticsPolling();
         final View old = panel;
         final boolean right = app != null && prefs(app).getBoolean(KEY_EDGE, true);
         panel = null; panelParams = null;
-        stateTitle = stateDetail = endpoint = liveData = feedback = protocolValue = null;
+        stateTitle = stateDetail = endpoint = liveData = diagnosticSteps = feedback = protocolValue = null;
         keyInput = portInput = null; serviceSwitch = httpsSwitch = null;
         if (old == null || windows == null) return;
         old.animate().cancel();
@@ -527,8 +671,9 @@ final class LocalApiFloatingOverlay {
             if (panel != null) try { windows.removeView(panel); } catch (Throwable ignored) {}
             if (ball != null) try { windows.removeView(ball); } catch (Throwable ignored) {}
         }
+        stopDiagnosticsPolling();
         panel = null; panelParams = null; ball = null; ballParams = null;
-        stateTitle = stateDetail = endpoint = liveData = feedback = protocolValue = null;
+        stateTitle = stateDetail = endpoint = liveData = diagnosticSteps = feedback = protocolValue = null;
         keyInput = portInput = null; serviceSwitch = httpsSwitch = null;
     }
 
