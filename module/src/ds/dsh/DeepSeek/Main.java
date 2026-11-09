@@ -767,7 +767,21 @@ public class Main extends MainReflectionSupport implements IXposedHookLoadPackag
     public static volatile Method cachedRunBlocking;
     public static volatile String localApiLastSessionError = "not attempted";
     public static volatile Object liveR92;
+    /** Runtime-captured 2.7.5/code295 native transport and PoW manager for the Open adapter. */
+    public static volatile Object live275Transport;
+    public static volatile Object live275PowManager;
+    /** Weak request template: the API adapter clones it and overwrites all request-scoped fields. */
+    public static volatile java.lang.ref.WeakReference<Object> live275RequestTemplate =
+            new java.lang.ref.WeakReference<Object>(null);
     public static volatile Object ACTIVE_LOCAL_API_CANCEL_JOB;
+
+    static void captureCode295NativeRuntime(Object transport, Object request) {
+        if (!isLocalApiEnabled()) return;
+        if (transport != null) live275Transport = transport;
+        if (request != null && "qy1".equals(request.getClass().getName())) {
+            live275RequestTemplate = new java.lang.ref.WeakReference<Object>(request);
+        }
+    }
 
     // ---------------------------------------------------------------------------------------
     // Aliases for sibling Hook*.java fields that stay effectively-final references (only their
