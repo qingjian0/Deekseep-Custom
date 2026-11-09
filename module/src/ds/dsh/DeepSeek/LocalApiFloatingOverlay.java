@@ -518,8 +518,8 @@ final class LocalApiFloatingOverlay {
                 MAIN.post(new Runnable() {
                     @Override public void run() {
                         diagnosticsInFlight = false;
-                        if (diagnosticsPolling && panel != null && diagnosticSteps == target) {
-                            target.setText(result);
+                        if (diagnosticsPolling && panel != null) {
+                            if (diagnosticSteps == target) target.setText(result);
                             MAIN.postDelayed(DIAGNOSTICS_POLL, 1500L);
                         }
                     }
