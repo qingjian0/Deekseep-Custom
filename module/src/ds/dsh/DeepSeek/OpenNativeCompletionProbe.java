@@ -248,7 +248,8 @@ final class OpenNativeCompletionProbe {
      */
     static void scheduleHostInspection(final ClassLoader loader) {
         if (!"Open".equals(BuildInfo.BUILD_EDITION)
-                || BuildInfo.LOCAL_API_INCLUDED || !Main.isOpenNativeCompletionProbeEnabled()
+                || BuildInfo.LOCAL_API_INCLUDED
+                || (!Main.isOpenNativeCompletionProbeEnabled() && !Main.isLocalApiEnabled())
                 || loader == null || REPORTED.get() || ATTEMPTS.get() >= MAX_ATTEMPTS
                 || !SCHEDULED.compareAndSet(false, true)) {
             return;
@@ -584,6 +585,7 @@ final class OpenNativeCompletionProbe {
                 installObservedMethod(loader, "nw3", "e", requestMarker, flowType,
                         OBSERVATION_275_NW3, "transport-dispatch");
                 installCode295DeltaDispatchObserver(loader);
+                installCode295PowManagerObserver(loader);
                 installCode295PowObserver(loader);
                 observerLog("[OPEN_NATIVE_CALL_OBSERVER] profile=2.7.5/code295"
                         + " mode=passive requestRoute=nw3.e(yu1,Long)->b70"
@@ -634,7 +636,11 @@ final class OpenNativeCompletionProbe {
             Main.MODULE.hook(target).intercept(new LegacyXposedModule.Hooker() {
                 @Override public Object intercept(LegacyXposedModule.Chain chain)
                         throws Throwable {
-                    if (!Main.isOpenNativeCompletionProbeEnabled()) return chain.proceed();
+                    if (!Main.isOpenNativeCompletionProbeEnabled()
+                            && !Main.isLocalApiEnabled()) return chain.proceed();
+                    if (Main.isLocalApiEnabled() && chain.getThisObject() != null) {
+                        Main.live275PowManager = chain.getThisObject();
+                    }
                     final long started = System.nanoTime();
                     String args = "unavailable";
                     String continuationId = "unlinked";
@@ -681,6 +687,46 @@ final class OpenNativeCompletionProbe {
      * Passive observer for the statically audited code295 PoW algorithm-selection boundary.
      * The exact method descriptor is checked at runtime; no challenge or solution values are read.
      */
+    private static void installCode295PowManagerObserver(ClassLoader loader) {
+        if (OBSERVATION_275_POW_MANAGER.get() || loader == null || Main.MODULE == null) return;
+        try {
+            Class<?> owner = Class.forName("of2", false, loader);
+            Class<?> continuationType = Class.forName("ec3", false, loader);
+            final Method target = owner.getDeclaredMethod("j", continuationType);
+            if (target.getReturnType().isPrimitive() || target.getReturnType() == Void.TYPE) {
+                observerLog("[OPEN_NATIVE_CALL_OBSERVER] code295 pow-manager signature-unavailable");
+                return;
+            }
+            if (!OBSERVATION_275_POW_MANAGER.compareAndSet(false, true)) return;
+            Main.MODULE.hook(target).intercept(new LegacyXposedModule.Hooker() {
+                @Override public Object intercept(LegacyXposedModule.Chain chain)
+                        throws Throwable {
+                    if (!Main.isOpenNativeCompletionProbeEnabled()
+                            && !Main.isLocalApiEnabled()) return chain.proceed();
+                    if (Main.isLocalApiEnabled() && chain.getThisObject() != null) {
+                        Main.live275PowManager = chain.getThisObject();
+                    }
+                    if (Main.isOpenNativeCompletionProbeEnabled()) {
+                        safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] code295 pow-manager-enter"
+                                + " method=" + observedMethodDescriptor(target));
+                    }
+                    return chain.proceed();
+                }
+            });
+            if (Main.isOpenNativeCompletionProbeEnabled()) {
+                observerLog("[OPEN_NATIVE_CALL_OBSERVER] code295 pow-manager-observer-installed"
+                        + " method=" + observedMethodDescriptor(target));
+            }
+        } catch (VirtualMachineError fatal) {
+            throw fatal;
+        } catch (ThreadDeath fatal) {
+            throw fatal;
+        } catch (Throwable error) {
+            safeObserverLog("[OPEN_NATIVE_CALL_OBSERVER] code295 pow-manager-install-failed"
+                    + " exception=" + error.getClass().getName());
+        }
+    }
+
     private static void installCode295PowObserver(ClassLoader loader) {
         if (OBSERVATION_275_POW.get() || loader == null || Main.MODULE == null) return;
         try {
@@ -894,7 +940,10 @@ final class OpenNativeCompletionProbe {
             Main.MODULE.hook(target).intercept(new LegacyXposedModule.Hooker() {
                 @Override public Object intercept(LegacyXposedModule.Chain chain)
                         throws Throwable {
-                    if (!Main.isOpenNativeCompletionProbeEnabled()) return chain.proceed();
+                    if (!Main.isOpenNativeCompletionProbeEnabled()
+                            && !(HostCompat.isV275StaticOnly() && Main.isLocalApiEnabled())) {
+                        return chain.proceed();
+                    }
                     ObservationFrame frame = null;
                     boolean root = false;
                     boolean depthIncremented = false;
@@ -940,11 +989,16 @@ final class OpenNativeCompletionProbe {
                                     + " requestShape=" + observedRequestShape(requestArg)
                                     + " stack=" + observedStack());
                             if ("transport-dispatch".equals(role)) {
-                                observerLog("[OPEN_NATIVE_CALL_OBSERVER] runtime-confirmed"
-                                        + " observationId=" + frame.id + " role=" + role
-                                        + " method=" + currentMethod + " requestType="
-                                        + (requestArg == null ? "null"
-                                                : requestArg.getClass().getName()));
+                                if (HostCompat.isV275StaticOnly()) {
+                                    Main.captureCode295NativeRuntime(chain.getThisObject(), requestArg);
+                                }
+                                if (Main.isOpenNativeCompletionProbeEnabled()) {
+                                    observerLog("[OPEN_NATIVE_CALL_OBSERVER] runtime-confirmed"
+                                            + " observationId=" + frame.id + " role=" + role
+                                            + " method=" + currentMethod + " requestType="
+                                            + (requestArg == null ? "null"
+                                                    : requestArg.getClass().getName()));
+                                }
                             }
                         } else {
                             observerLog("[OPEN_NATIVE_CALL_OBSERVER] enter id=" + frame.id
