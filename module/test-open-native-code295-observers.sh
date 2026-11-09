@@ -7,6 +7,7 @@ test -s "$SOURCE"
 python3 - "$SOURCE" <<'PY'
 from pathlib import Path
 import sys
+import re
 
 source = Path(sys.argv[1]).read_text(encoding="utf-8")
 adapter = Path("module/src/ds/dsh/DeepSeek/Code295NativeCompletionAdapter.java").read_text(encoding="utf-8")
