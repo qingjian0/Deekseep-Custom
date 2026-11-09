@@ -6,6 +6,7 @@ GATEWAY="$ROOT/module/src/ds/dsh/DeepSeek/OpenLocalApiGateway.java"
 API_CONTRACT="$ROOT/module/src/ds/dsh/DeepSeek/z2.java"
 LOCAL_API_UI="$ROOT/module/src/ds/dsh/DeepSeek/DeekseepUi.java"
 LOCAL_API_OVERLAY="$ROOT/module/src/ds/dsh/DeepSeek/LocalApiFloatingOverlay.java"
+NATIVE_PROBE="$ROOT/module/src/ds/dsh/DeepSeek/OpenNativeCompletionProbe.java"
 COMPOSE_MANIFEST="$ROOT/compose-launcher/app/src/main/AndroidManifest.xml"
 BUILD_GRADLE="$ROOT/compose-launcher/app/build.gradle.kts"
 for manifest in "$ROOT/module-universal/AndroidManifest.xml" "$ROOT/module-legacy/AndroidManifest.xml" "$COMPOSE_MANIFEST"; do
@@ -31,6 +32,7 @@ grep -Fq -- '-keep class ds.dsh.DeepSeek.** { *; }' "$ROOT/compose-launcher/app/
 grep -Fq 'android:name="ds.dsh.DeepSeek.z21"' "$COMPOSE_MANIFEST"
 grep -Fq 'android:enabled="${localApiComponentEnabled}"' "$COMPOSE_MANIFEST"
 
+grep -Fq \x27(!Main.isOpenNativeCompletionProbeEnabled() && !Main.isLocalApiEnabled())\x27 "$NATIVE_PROBE"
 python - "$GATEWAY" "$LOCAL_API_UI" "$BUILD_GRADLE" "$API_CONTRACT" "$LOCAL_API_OVERLAY" <<'PY'
 import pathlib
 import re
