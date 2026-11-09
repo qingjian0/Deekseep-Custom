@@ -855,6 +855,8 @@ final class OpenLocalApiGateway {
                         .put("completion_tokens", completionTokens)
                         .put("total_tokens", promptTokens + completionTokens)
                         .put("dsh_usage_estimated", true);
+                LocalApiDiagnostics.stage(requestId, "response_delivery", "running", "",
+                        "Writing JSON completion response");
                 sendJson(out, 200, new JSONObject().put("id", requestId)
                         .put("object", "chat.completion").put("created", System.currentTimeMillis()/1000)
                         .put("model", model).put("choices", new JSONArray().put(choice))
